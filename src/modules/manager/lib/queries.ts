@@ -336,7 +336,25 @@ export function useFacturasLista(period: Period, f: FacturaFiltros) {
         p_tipo: f.tipo ?? null, p_subtipo: f.subtipo ?? null, p_q: f.q ?? null, p_limit: 1000,
       })
       if (error) throw error
-      return (data ?? []) as FacturaListItem[]
+      const num = (v: unknown): number | null => v == null ? null : Number(v)
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        id:                 String(r.id),
+        tipo:               r.tipo as 'VENTA' | 'COMPRA',
+        subtipo:            r.subtipo == null ? null : String(r.subtipo),
+        doc_number:         r.doc_number == null ? null : String(r.doc_number),
+        contact_id:         r.contact_id == null ? null : String(r.contact_id),
+        contact_name_raw:   r.contact_name_raw == null ? null : String(r.contact_name_raw),
+        contact_name_canon: r.contact_name_canon == null ? null : String(r.contact_name_canon),
+        fecha:              r.fecha == null ? null : String(r.fecha),
+        fecha_vencimiento:  r.fecha_vencimiento == null ? null : String(r.fecha_vencimiento),
+        subtotal:           num(r.subtotal),
+        total:              num(r.total),
+        cogs:               num(r.cogs),
+        margen:             num(r.margen),
+        margen_pct:         num(r.margen_pct),
+        payments_pending:   num(r.payments_pending),
+        status:             r.status == null ? null : Number(r.status),
+      }))
     },
   })
 }
