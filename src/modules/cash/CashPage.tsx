@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { eachDayOfInterval, endOfMonth, format, startOfMonth } from 'date-fns'
+import { eachDayOfInterval, endOfMonth, format, isAfter, startOfDay, startOfMonth } from 'date-fns'
 import { Loader2 } from 'lucide-react'
-import { useAuth } from '@/shared/auth/AuthContext'
+import { useAuth } from '@/shared/auth/useAuth'
 import { MonthHeader } from './components/MonthHeader'
 import { KpiBar } from './components/KpiBar'
 import { DayCard } from './components/DayCard'
@@ -93,12 +93,14 @@ export function CashPage() {
         <div className="space-y-2">
           {days.map((d) => {
             const iso = format(d, 'yyyy-MM-dd')
+            const futuro = isAfter(startOfDay(d), startOfDay(new Date()))
             return (
               <DayCard
                 key={iso}
                 date={d}
                 cierre={byDate.get(iso)}
-                onClick={isAdminFull ? () => setEditing(iso) : undefined}
+                futuro={futuro}
+                onClick={isAdminFull && !futuro ? () => setEditing(iso) : undefined}
               />
             )
           })}

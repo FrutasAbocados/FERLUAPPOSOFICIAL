@@ -3,6 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '@/shared/auth/AuthContext'
 import { ProtectedRoute } from '@/shared/auth/ProtectedRoute'
 import { AppShell } from '@/shared/components/AppShell'
+import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
+import { Toaster } from '@/shared/components/Toaster'
 import { LoginPage } from '@/pages/LoginPage'
 import { HomePage } from '@/pages/HomePage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -24,38 +26,41 @@ const queryClient = new QueryClient({
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route element={<ProtectedRoute />}>
-              <Route element={<AppShell />}>
-                <Route index element={<HomePage />} />
-                <Route element={<ProtectedRoute module="manager" />}>
-                  <Route path="manager" element={<ManagerPage />} />
-                </Route>
-                <Route element={<ProtectedRoute module="cash" />}>
-                  <Route path="cash" element={<CashPage />} />
-                </Route>
-                <Route element={<ProtectedRoute module="tareas" />}>
-                  <Route path="tareas" element={<TareasPage />} />
-                </Route>
-                <Route element={<ProtectedRoute module="turnos" />}>
-                  <Route path="turnos" element={<TurnosPage />} />
-                </Route>
-                <Route element={<ProtectedRoute module="tesoreria" />}>
-                  <Route path="tesoreria" element={<TesoreriaPage />} />
-                </Route>
-                <Route element={<ProtectedRoute module="cobros" />}>
-                  <Route path="cobros" element={<CobrosPage />} />
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route element={<ProtectedRoute />}>
+                <Route element={<AppShell />}>
+                  <Route index element={<HomePage />} />
+                  <Route element={<ProtectedRoute module="manager" />}>
+                    <Route path="manager" element={<ManagerPage />} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="cash" />}>
+                    <Route path="cash" element={<CashPage />} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="tareas" />}>
+                    <Route path="tareas" element={<TareasPage />} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="turnos" />}>
+                    <Route path="turnos" element={<TurnosPage />} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="tesoreria" />}>
+                    <Route path="tesoreria" element={<TesoreriaPage />} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="cobros" />}>
+                    <Route path="cobros" element={<CobrosPage />} />
+                  </Route>
                 </Route>
               </Route>
-            </Route>
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </QueryClientProvider>
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </BrowserRouter>
+          <Toaster />
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }

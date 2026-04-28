@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx'
+import { isValid, parseISO } from 'date-fns'
 import { calcVencimiento, excelSerialToDate, isoDate } from './utils'
 import type { FormaPago, MetodoCobro } from './types'
 import type { ImportPayload } from './queries'
@@ -44,8 +45,21 @@ function parseDate(v: unknown): Date | null {
   if (v instanceof Date) return v
   if (typeof v === 'number' && Number.isFinite(v)) return excelSerialToDate(v)
   if (typeof v === 'string') {
-    const d = new Date(v)
-    if (!Number.isNaN(d.getTime())) return d
+    const s = v.trim()
+    if (!s) return null
+    // ISO 8601: yyyy-mm-dd, yyyy-mm-ddTHH:MM:SS…
+    const iso = parseISO(s)
+    if (isValid(iso)) return iso
+    // dd/mm/yyyy o dd-mm-yyyy o dd.mm.yyyy (formato europeo del Excel)
+    const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/)
+    if (m) {
+      const day = parseInt(m[1], 10)
+      const month = parseInt(m[2], 10) - 1
+      let year = parseInt(m[3], 10)
+      if (year < 100) year += 2000
+      const d = new Date(year, month, day)
+      if (isValid(d)) return d
+    }
   }
   return null
 }

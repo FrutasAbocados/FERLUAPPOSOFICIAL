@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
-import { useAuth } from '@/shared/auth/AuthContext'
+import { useAuth } from '@/shared/auth/useAuth'
 import { WeekHeader } from './components/WeekHeader'
 import { WeekGrid } from './components/WeekGrid'
 import { Legend } from './components/Legend'

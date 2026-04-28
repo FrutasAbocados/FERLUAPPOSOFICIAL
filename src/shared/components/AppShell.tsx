@@ -9,7 +9,7 @@ import {
   LogOut,
   Menu,
 } from 'lucide-react'
-import { useAuth } from '@/shared/auth/AuthContext'
+import { useAuth } from '@/shared/auth/useAuth'
 import { canAccess, type ModuleKey } from '@/shared/types'
 import { cn } from '@/shared/lib/utils'
 

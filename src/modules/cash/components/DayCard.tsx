@@ -8,10 +8,11 @@ import type { Cierre } from '../lib/types'
 type Props = {
   date: Date
   cierre: Cierre | undefined
+  futuro?: boolean
   onClick?: () => void
 }
 
-export function DayCard({ date, cierre, onClick }: Props) {
+export function DayCard({ date, cierre, futuro, onClick }: Props) {
   const today = isSameDay(date, new Date())
   const weekday = format(date, 'EEEE', { locale: es })
   const dayNum = format(date, 'd')
@@ -57,8 +58,8 @@ export function DayCard({ date, cierre, onClick }: Props) {
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-between text-sm text-[var(--color-ink-3)]">
-          <span>Sin cierre</span>
-          {!readOnly && (
+          <span>{futuro ? 'Día futuro' : 'Sin cierre'}</span>
+          {!readOnly && !futuro && (
             <span className="flex items-center gap-1 text-[var(--color-primary)] opacity-0 transition-opacity group-hover:opacity-100">
               <Plus className="h-4 w-4" />
               Crear

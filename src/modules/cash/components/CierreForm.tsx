@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Loader2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -13,14 +13,22 @@ type Props = {
 }
 
 export function CierreForm({ fecha, cierre, onClose }: Props) {
+  // Re-mount when the target cierre/fecha changes; evita setState-in-effect.
+  return (
+    <CierreFormContent
+      key={cierre?.id ?? fecha}
+      fecha={fecha}
+      cierre={cierre}
+      onClose={onClose}
+    />
+  )
+}
+
+function CierreFormContent({ fecha, cierre, onClose }: Props) {
   const [form, setForm] = useState<CierreInput>(() =>
     cierre ? fromCierre(cierre) : emptyInput(fecha),
   )
   const upsert = useUpsertCierre()
-
-  useEffect(() => {
-    setForm(cierre ? fromCierre(cierre) : emptyInput(fecha))
-  }, [cierre, fecha])
 
   const set = <K extends keyof CierreInput>(k: K, v: CierreInput[K]) =>
     setForm((f) => ({ ...f, [k]: v }))

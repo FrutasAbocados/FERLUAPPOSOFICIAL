@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { Loader2 } from 'lucide-react'
-import { useAuth } from '@/shared/auth/AuthContext'
+import { useAuth } from '@/shared/auth/useAuth'
 import { KpiBar } from './components/KpiBar'
 import { CuentasList } from './components/CuentasList'
 import { PagosList } from './components/PagosList'

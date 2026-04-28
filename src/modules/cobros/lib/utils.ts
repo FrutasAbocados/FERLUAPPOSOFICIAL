@@ -11,7 +11,10 @@ export function excelSerialToDate(serial: number): Date {
   // Excel cuenta el día ficticio 1900-02-29; serial 60 = 1900-02-29 inexistente.
   // Para serials >= 60, restamos 1; para los menores, usamos el offset directo.
   const utcDays = serial - 25569 - (serial >= 60 ? 1 : 0)
-  return new Date(utcDays * 86_400_000)
+  const utc = new Date(utcDays * 86_400_000)
+  // Reconstruir en zona local a las 00:00 para que format(d, 'yyyy-MM-dd') no
+  // tenga off-by-one en zonas con offset negativo respecto a UTC.
+  return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate())
 }
 
 /** Calcula la fecha de vencimiento según forma_pago, partiendo de fecha_factura. */

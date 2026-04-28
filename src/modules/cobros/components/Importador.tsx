@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Loader2, Upload, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
+import { toast } from '@/shared/lib/toast'
 import { parseExcel, type ParseResult } from '../lib/excelParser'
 import { useImportarExcel, type ImportResult } from '../lib/queries'
 
@@ -22,7 +23,11 @@ export function Importador() {
       setParsed(data)
     } catch (err) {
       console.error(err)
-      alert(`Error leyendo el Excel: ${(err as Error).message}`)
+      toast({
+        variant: 'error',
+        title: 'Error leyendo el Excel',
+        description: (err as Error).message,
+      })
     } finally {
       setBusy(false)
       e.target.value = ''
@@ -31,11 +36,25 @@ export function Importador() {
 
   const confirmar = async () => {
     if (!parsed) return
-    const r = await importar.mutateAsync({
-      clientes: parsed.clientes,
-      movimientos: parsed.movimientos,
-    })
-    setResult(r)
+    try {
+      const r = await importar.mutateAsync({
+        clientes: parsed.clientes,
+        movimientos: parsed.movimientos,
+      })
+      setResult(r)
+      toast({
+        variant: 'success',
+        title: 'Importación completada',
+        description: `${r.clientesUpserted} clientes · ${r.movimientosNuevos} nuevos · ${r.movimientosDuplicados} duplicados`,
+      })
+    } catch (err) {
+      console.error(err)
+      toast({
+        variant: 'error',
+        title: 'Error al importar',
+        description: (err as Error).message,
+      })
+    }
   }
 
   return (

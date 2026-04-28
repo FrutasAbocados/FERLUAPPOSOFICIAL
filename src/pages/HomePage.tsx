@@ -8,7 +8,7 @@ import {
   HandCoins,
   ArrowRight,
 } from 'lucide-react'
-import { useAuth } from '@/shared/auth/AuthContext'
+import { useAuth } from '@/shared/auth/useAuth'
 import { canAccess, type ModuleKey } from '@/shared/types'
 import {
   Card,
