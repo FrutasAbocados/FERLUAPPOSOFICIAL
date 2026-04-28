@@ -1,0 +1,78 @@
+-- ============================================================================
+-- Manager — fix performance manager_facturas_lista (timeout >8s en prod)
+-- ============================================================================
+-- Causa: la CTE de margen iteraba sobre la vista manager_lineas_efectivas
+-- que JOIN sobre 4 tablas. Con ~17k líneas timeoutaba en PostgREST.
+--
+-- Fix:
+--  1. Index (fecha, factura_id) en manager_lineas para acelerar la agregación.
+--  2. Reescribir la CTE para JOIN directo manager_lineas + manager_producto_coste.
+-- Tras el fix: 8s+ → ~1s con 522 docs.
+-- ============================================================================
+
+create index if not exists manager_lineas_fecha_factura_idx
+  on public.manager_lineas (fecha, factura_id);
+
+create or replace function public.manager_facturas_lista(
+  p_from    date,
+  p_to      date,
+  p_tipo    text default null,
+  p_subtipo text default null,
+  p_q       text default null,
+  p_limit   int  default 1000
+)
+returns table(
+  id                 text,
+  tipo               text,
+  subtipo            text,
+  doc_number         text,
+  contact_id         text,
+  contact_name_raw   text,
+  contact_name_canon text,
+  fecha              date,
+  fecha_vencimiento  date,
+  subtotal           numeric,
+  total              numeric,
+  cogs               numeric,
+  margen             numeric,
+  margen_pct         numeric,
+  payments_pending   numeric,
+  status             int
+) language sql security invoker stable as $$
+  with margen as (
+    select l.factura_id,
+           coalesce(sum(coalesce(l.units, 0) * coalesce(pc.coste_eur, 0)), 0) as cogs,
+           coalesce(sum(l.subtotal), 0) as ventas_lineas
+    from public.manager_lineas l
+    left join public.manager_producto_coste pc on pc.product_id = l.product_id
+    where l.fecha between p_from and p_to
+    group by l.factura_id
+  )
+  select
+    f.id, f.tipo, f.subtipo, f.doc_number,
+    f.contact_id,
+    f.contact_name as contact_name_raw,
+    coalesce(a.alias_to, f.contact_name) as contact_name_canon,
+    f.fecha, f.fecha_vencimiento,
+    f.subtotal, f.total,
+    coalesce(m.cogs, 0)                                          as cogs,
+    coalesce(m.ventas_lineas - m.cogs, 0)                        as margen,
+    case when coalesce(m.ventas_lineas, 0) > 0
+         then round(((m.ventas_lineas - m.cogs) / m.ventas_lineas) * 100, 1)
+         else null end                                           as margen_pct,
+    f.payments_pending, f.status
+  from public.manager_facturas f
+  left join public.manager_clientes_alias a on a.alias_from = f.contact_name
+  left join margen m on m.factura_id = f.id
+  where f.fecha between p_from and p_to
+    and (p_tipo    is null or f.tipo    = p_tipo)
+    and (p_subtipo is null or f.subtipo = p_subtipo)
+    and (
+      p_q is null or p_q = ''
+      or f.doc_number ilike '%' || p_q || '%'
+      or f.contact_name ilike '%' || p_q || '%'
+      or coalesce(a.alias_to, '') ilike '%' || p_q || '%'
+    )
+  order by f.fecha desc, f.doc_number desc
+  limit p_limit;
+$$;
