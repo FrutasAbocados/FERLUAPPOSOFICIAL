@@ -164,7 +164,17 @@ export function useClienteProductos(canonName: string | null, period: Period) {
         p_contact_name_canon: canonName, p_from: period.from, p_to: period.to, p_limit: 30,
       })
       if (error) throw error
-      return (data ?? []) as ClienteProducto[]
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        nombre:          String(r.nombre ?? '(sin nombre)'),
+        product_id:      r.product_id == null ? null : String(r.product_id),
+        veces:           Number(r.veces ?? 0),
+        unidades:        Number(r.unidades ?? 0),
+        ventas_subtotal: Number(r.ventas_subtotal ?? 0),
+        cogs:            Number(r.cogs ?? 0),
+        margen:          Number(r.margen ?? 0),
+        margen_pct:      r.margen_pct == null ? null : Number(r.margen_pct),
+        ultima_compra:   r.ultima_compra == null ? null : String(r.ultima_compra),
+      }))
     },
   })
 }
@@ -250,7 +260,15 @@ export function useProductoClientes(productId: string | null, period: Period) {
         p_product_id: productId, p_from: period.from, p_to: period.to, p_limit: 30,
       })
       if (error) throw error
-      return (data ?? []) as ProductoCliente[]
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        contact_name_canon: String(r.contact_name_canon ?? '(sin contacto)'),
+        veces:              Number(r.veces ?? 0),
+        unidades:           Number(r.unidades ?? 0),
+        ventas_subtotal:    Number(r.ventas_subtotal ?? 0),
+        margen:             Number(r.margen ?? 0),
+        margen_pct:         r.margen_pct == null ? null : Number(r.margen_pct),
+        ultima_compra:      r.ultima_compra == null ? null : String(r.ultima_compra),
+      }))
     },
   })
 }

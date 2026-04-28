@@ -4,7 +4,6 @@ import {
   Banknote,
   CheckSquare,
   CalendarDays,
-  Wallet,
   HandCoins,
   LogOut,
   Menu,
@@ -25,7 +24,6 @@ const MODULES: ModuleNav[] = [
   { key: 'cash', label: 'Caja', to: '/cash', icon: Banknote },
   { key: 'tareas', label: 'Tareas', to: '/tareas', icon: CheckSquare },
   { key: 'turnos', label: 'Turnos', to: '/turnos', icon: CalendarDays },
-  { key: 'tesoreria', label: 'Tesorería', to: '/tesoreria', icon: Wallet },
   { key: 'cobros', label: 'Cobros', to: '/cobros', icon: HandCoins },
 ]
 

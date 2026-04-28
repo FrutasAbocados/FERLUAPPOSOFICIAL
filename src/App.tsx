@@ -12,7 +12,6 @@ import { ManagerPage } from '@/modules/manager/ManagerPage'
 import { CashPage } from '@/modules/cash/CashPage'
 import { TareasPage } from '@/modules/tareas/TareasPage'
 import { TurnosPage } from '@/modules/turnos/TurnosPage'
-import { TesoreriaPage } from '@/modules/tesoreria/TesoreriaPage'
 import { CobrosPage } from '@/modules/cobros/CobrosPage'
 
 const queryClient = new QueryClient({
@@ -46,9 +45,6 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute module="turnos" />}>
                     <Route path="turnos" element={<TurnosPage />} />
-                  </Route>
-                  <Route element={<ProtectedRoute module="tesoreria" />}>
-                    <Route path="tesoreria" element={<TesoreriaPage />} />
                   </Route>
                   <Route element={<ProtectedRoute module="cobros" />}>
                     <Route path="cobros" element={<CobrosPage />} />

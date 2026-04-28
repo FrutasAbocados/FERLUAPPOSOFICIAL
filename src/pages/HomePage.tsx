@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import {
   AlertTriangle, BarChart3, Banknote,
-  CheckSquare, CalendarDays, HandCoins, Package, TrendingUp, UserMinus, Wallet,
+  CheckSquare, CalendarDays, HandCoins, Package, TrendingUp, UserMinus,
 } from 'lucide-react'
 import { useAuth } from '@/shared/auth/useAuth'
 import { canAccess, type ModuleKey } from '@/shared/types'
@@ -22,7 +22,6 @@ const MODULOS = [
   { key: 'cash',      title: 'Caja',                       to: '/cash',      Icon: Banknote },
   { key: 'tareas',    title: 'Tareas',                     to: '/tareas',    Icon: CheckSquare },
   { key: 'turnos',    title: 'Turnos',                     to: '/turnos',    Icon: CalendarDays },
-  { key: 'tesoreria', title: 'Tesorería',                  to: '/tesoreria', Icon: Wallet },
   { key: 'cobros',    title: 'Control Deuda Abocados',     to: '/cobros',    Icon: HandCoins },
 ] as const
 
