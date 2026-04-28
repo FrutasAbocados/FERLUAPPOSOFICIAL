@@ -13,8 +13,8 @@ export const monthRange = (anchor: Date) => ({
 const monthKey = (anchor: Date) => format(startOfMonth(anchor), 'yyyy-MM')
 
 // KPIs del mes — ventas / compras / margen / pendiente cobro.
-// Ventas desde manager_ventas_efectivas (regla auto-albarán: clientes con
-// waybill ese mes ignoran su invoice agregada). Compras desde manager_facturas.
+// Ventas desde manager_ventas_efectivas_canon (regla auto-albarán + alias).
+// Compras desde manager_compras_canon.
 export function useKpisMes(anchor: Date) {
   const { from, to } = monthRange(anchor)
   return useQuery({
@@ -22,14 +22,13 @@ export function useKpisMes(anchor: Date) {
     queryFn: async (): Promise<KpiMes> => {
       const [ventasRes, comprasRes] = await Promise.all([
         supabase
-          .from('manager_ventas_efectivas')
+          .from('manager_ventas_efectivas_canon')
           .select('subtotal,total,payments_pending')
           .gte('fecha', from)
           .lte('fecha', to),
         supabase
-          .from('manager_facturas')
+          .from('manager_compras_canon')
           .select('subtotal,total')
-          .eq('tipo', 'COMPRA')
           .gte('fecha', from)
           .lte('fecha', to),
       ])
@@ -61,24 +60,23 @@ export function useTopContactos(anchor: Date, tipo: Tipo, limit = 5) {
   return useQuery({
     queryKey: ['manager', 'top', tipo, monthKey(anchor), limit] as const,
     queryFn: async (): Promise<TopContacto[]> => {
-      // Ventas → vista efectivas (sin doble contabilidad). Compras → tabla cruda.
+      // Ventas → vista efectivas canon (alias aplicado). Compras → vista canon.
       const query = tipo === 'VENTA'
         ? supabase
-            .from('manager_ventas_efectivas')
-            .select('contact_name,subtotal')
+            .from('manager_ventas_efectivas_canon')
+            .select('contact_name_canon,subtotal')
             .gte('fecha', from)
             .lte('fecha', to)
         : supabase
-            .from('manager_facturas')
-            .select('contact_name,subtotal')
-            .eq('tipo', 'COMPRA')
+            .from('manager_compras_canon')
+            .select('contact_name_canon,subtotal')
             .gte('fecha', from)
             .lte('fecha', to)
       const { data, error } = await query
       if (error) throw error
       const map = new Map<string, TopContacto>()
       for (const r of data ?? []) {
-        const name = r.contact_name ?? '(sin contacto)'
+        const name = r.contact_name_canon ?? '(sin contacto)'
         const cur = map.get(name) ?? { contact_name: name, n: 0, subtotal: 0 }
         cur.n++
         cur.subtotal += Number(r.subtotal ?? 0)
