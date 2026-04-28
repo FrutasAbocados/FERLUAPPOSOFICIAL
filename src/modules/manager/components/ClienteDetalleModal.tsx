@@ -7,7 +7,7 @@ import { Input } from '@/shared/components/ui/input'
 import type { Period } from '../lib/period'
 import type { ClienteListItem } from '../lib/types'
 import {
-  useAddAlias, useAliases, useClienteFacturas,
+  useAddAlias, useAliases, useAliasPreview, useClienteFacturas,
   useClienteProductos, useDeleteAlias,
 } from '../lib/queries'
 
@@ -32,6 +32,7 @@ export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
   const delAlias = useDeleteAlias()
 
   const [nuevoAlias, setNuevoAlias] = useState('')
+  const preview = useAliasPreview(nuevoAlias)
 
   // ESC para cerrar
   useEffect(() => {
@@ -105,6 +106,19 @@ export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
               {addAlias.isPending ? 'Añadiendo…' : 'Añadir alias'}
             </Button>
           </div>
+          {nuevoAlias.trim().length >= 3 && (
+            <div className="mt-2 rounded-md border border-blue-200 bg-blue-50/60 px-3 py-1.5 text-xs text-blue-900">
+              {preview.isLoading && 'Buscando…'}
+              {preview.data && preview.data.docs === 0 && (
+                <span>⚠️ No hay facturas con ese nombre exacto. Verifica que coincide con Holded.</span>
+              )}
+              {preview.data && preview.data.docs > 0 && (
+                <span>
+                  ✓ Si guardas, <strong>{preview.data.docs} doc(s)</strong> ({eur(preview.data.total)}) se unificarán bajo <strong>{cliente.contact_name_canon}</strong>.
+                </span>
+              )}
+            </div>
+          )}
         </section>
 
         <div className="grid gap-4 px-5 py-4 md:grid-cols-2">

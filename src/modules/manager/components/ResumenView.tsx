@@ -1,3 +1,5 @@
+import { Printer } from 'lucide-react'
+import { Button } from '@/shared/components/ui/button'
 import type { Period } from '../lib/period'
 import { useResumenComparativo, useSerieDiaria, useTopClientesMargen, useTopProductosMargen } from '../lib/queries'
 import { ForecastCard } from './ForecastCard'
@@ -17,6 +19,17 @@ export function ResumenView({ period }: Props) {
 
   return (
     <div className="space-y-4">
+      <div className="no-print flex justify-end">
+        <Button size="sm" variant="outline" onClick={() => window.print()}>
+          <Printer className="mr-1 h-4 w-4" /> Imprimir / PDF
+        </Button>
+      </div>
+
+      <div className="print-only mb-4 border-b border-[var(--color-border)] pb-2">
+        <h1 className="font-display text-2xl font-bold">Manager — Resumen {period.label}</h1>
+        <p className="text-xs text-[var(--color-ink-3)]">{period.from} → {period.to} · Frutas Abocados</p>
+      </div>
+
       <KpiTiles k={resumen.data} loading={resumen.isLoading} />
 
       {resumen.data && resumen.data.comp_from && (

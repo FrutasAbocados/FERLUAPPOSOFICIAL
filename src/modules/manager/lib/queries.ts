@@ -247,6 +247,25 @@ export function useAliases() {
   })
 }
 
+// Preview: cuántas facturas se unificarían si añadiéramos este alias
+export function useAliasPreview(name: string) {
+  const trimmed = name.trim()
+  return useQuery({
+    queryKey: ['manager', 'aliasPreview', trimmed] as const,
+    enabled: trimmed.length >= 3,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('manager_facturas')
+        .select('id, total')
+        .eq('contact_name', trimmed)
+      if (error) throw error
+      const docs = data?.length ?? 0
+      const total = (data ?? []).reduce((s, r: { total: number | null }) => s + Number(r.total ?? 0), 0)
+      return { docs, total }
+    },
+  })
+}
+
 export function useAddAlias() {
   const qc = useQueryClient()
   return useMutation({

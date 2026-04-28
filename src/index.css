@@ -85,3 +85,14 @@ body {
 /* Hide scrollbars on horizontal scroll containers */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
+
+/* Estilos para imprimir / exportar PDF */
+@media print {
+  body { background: white !important; }
+  aside, nav, header button, .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  main { padding: 0 !important; }
+  section, .rounded-xl { break-inside: avoid; box-shadow: none !important; }
+  a[href]:after { content: ""; }
+}
+.print-only { display: none; }
