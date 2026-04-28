@@ -180,7 +180,10 @@ Deno.serve(async (req) => {
   try { body = await req.json() } catch { /* defaults */ }
 
   const today = new Date()
-  const defaultStart = new Date(today); defaultStart.setUTCDate(defaultStart.getUTCDate() - 7)
+  // Default: últimos 60 días. Ediciones a posteriori en Holded de docs con
+  // fecha varias semanas atrás son habituales (albaranes recibidos tarde, etc).
+  // El cron horario re-fetcha esa ventana — los upserts son idempotentes.
+  const defaultStart = new Date(today); defaultStart.setUTCDate(defaultStart.getUTCDate() - 60)
   // start/end en Madrid time: ampliamos ±3h sobre UTC para cubrir el offset CET/CEST
   // (los upserts son idempotentes por id, sobre-fetch no es problema).
   const start = body.start ? new Date(body.start + 'T00:00:00Z') : defaultStart
@@ -190,13 +193,15 @@ Deno.serve(async (req) => {
   const trigger = (body.trigger as 'manual'|'cron'|'backfill') || 'manual'
 
   // Probe mode: conteos por docType en el rango, sin tocar BD.
+  // Si body.contactFilter, devuelve TODOS los docs cuyo contactName contiene
+  // ese substring (case-insensitive) — útil para conciliar con Holded.
   if (body.probe) {
     const probeTypes = [
       'invoice', 'salesreceipt', 'waybill', 'creditnote',
       'purchase', 'purchaserefund',
-      'waybillreceived', 'expense', 'proform', 'estimate', 'order', 'purchaseorder',
     ]
-    const out: Record<string, { docs: number; subtotal: number; total: number; truncated: boolean; sample?: unknown }> = {}
+    const filter = (body.contactFilter as string | undefined)?.toLowerCase()
+    const out: Record<string, { docs: number; subtotal: number; total: number; truncated: boolean; matches?: unknown[] }> = {}
     for (const [a, b] of chunkRange(start, end, 30)) {
       const starttmp = Math.floor(a.getTime() / 1000)
       const endtmp = Math.floor(b.getTime() / 1000)
@@ -204,30 +209,29 @@ Deno.serve(async (req) => {
         try {
           const url = `${HOLDED_BASE}/${dt}?starttmp=${starttmp}&endtmp=${endtmp}&sort=created-desc`
           const res = await fetch(url, { headers: { key: HOLDED_KEY, accept: 'application/json' } })
-          if (!res.ok) {
-            out[dt] = out[dt] ?? { docs: 0, subtotal: 0, total: 0, truncated: false }
-            out[dt].sample = `ERR ${res.status}`
-            continue
-          }
-          const arr = await res.json() as Array<{ subtotal?: number; total?: number; date?: number; docNumber?: string; contactName?: string }>
+          if (!res.ok) continue
+          const arr = await res.json() as Array<{ id?: string; subtotal?: number; total?: number; date?: number; docNumber?: string; contactName?: string }>
           if (!Array.isArray(arr)) continue
-          out[dt] = out[dt] ?? { docs: 0, subtotal: 0, total: 0, truncated: false }
+          out[dt] = out[dt] ?? { docs: 0, subtotal: 0, total: 0, truncated: false, matches: [] }
           out[dt].docs += arr.length
           out[dt].subtotal += arr.reduce((s, d) => s + (d.subtotal ?? 0), 0)
           out[dt].total += arr.reduce((s, d) => s + (d.total ?? 0), 0)
           if (arr.length >= 500) out[dt].truncated = true
-          if (!out[dt].sample && arr[0]) {
-            out[dt].sample = { docNumber: arr[0].docNumber, contactName: arr[0].contactName, subtotal: arr[0].subtotal, total: arr[0].total }
+          if (filter) {
+            const hit = arr.filter(d => (d.contactName ?? '').toLowerCase().includes(filter))
+            out[dt].matches!.push(...hit.map(d => ({
+              id: d.id, docNumber: d.docNumber, contactName: d.contactName,
+              date: d.date, fecha_madrid: d.date ? madridDateFmt.format(new Date(d.date * 1000)) : null,
+              subtotal: d.subtotal, total: d.total,
+            })))
           }
-        } catch (e) {
-          out[dt] = out[dt] ?? { docs: 0, subtotal: 0, total: 0, truncated: false }
-          out[dt].sample = `EXC ${e instanceof Error ? e.message : String(e)}`
-        }
+        } catch { /* skip */ }
       }
     }
     return new Response(JSON.stringify({
       mode: 'probe',
       range: { start: start.toISOString().slice(0,10), end: end.toISOString().slice(0,10) },
+      contactFilter: filter ?? null,
       counts: out,
     }, null, 2), { headers: { ...cors, 'content-type': 'application/json' } })
   }
