@@ -31,6 +31,32 @@ export interface SyncLog {
   error: string | null
 }
 
+export interface ResumenComparativo {
+  ventas: number
+  ventas_ant: number
+  ventas_delta_pct: number | null
+  compras: number
+  compras_ant: number
+  compras_delta_pct: number | null
+  margen: number
+  margen_ant: number
+  margen_delta_pct: number | null
+  pendiente_cobro: number
+  docs: number
+  cogs: number
+  margen_pct: number | null
+  comp_from: string | null
+  comp_to: string | null
+}
+
+export interface Forecast {
+  forecast: number
+  base_meses: number
+  meses_usados: string
+  mes_actual_proy: number
+  pct_mes: number
+}
+
 // Devuelto por RPC manager_resumen_periodo.
 export interface ResumenPeriodo {
   ventas_n: number

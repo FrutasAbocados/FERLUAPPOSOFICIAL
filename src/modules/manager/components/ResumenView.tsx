@@ -1,5 +1,6 @@
 import type { Period } from '../lib/period'
-import { useResumen, useSerieDiaria, useTopClientesMargen, useTopProductosMargen } from '../lib/queries'
+import { useResumenComparativo, useSerieDiaria, useTopClientesMargen, useTopProductosMargen } from '../lib/queries'
+import { ForecastCard } from './ForecastCard'
 import { KpiTiles } from './KpiTiles'
 import { SerieDiariaChart } from './SerieDiariaChart'
 import { TopMargenTable } from './TopMargenTable'
@@ -9,7 +10,7 @@ interface Props {
 }
 
 export function ResumenView({ period }: Props) {
-  const resumen = useResumen(period)
+  const resumen = useResumenComparativo(period)
   const topClientes = useTopClientesMargen(period, 10)
   const topProductos = useTopProductosMargen(period, 10)
   const serie = useSerieDiaria(period)
@@ -17,6 +18,14 @@ export function ResumenView({ period }: Props) {
   return (
     <div className="space-y-4">
       <KpiTiles k={resumen.data} loading={resumen.isLoading} />
+
+      {resumen.data && resumen.data.comp_from && (
+        <p className="text-xs text-[var(--color-ink-3)]">
+          Deltas comparados con periodo anterior equivalente: {resumen.data.comp_from} → {resumen.data.comp_to}
+        </p>
+      )}
+
+      <ForecastCard />
 
       <SerieDiariaChart data={serie.data} loading={serie.isLoading} />
 

@@ -4,9 +4,9 @@ import type { Period } from './period'
 import type {
   AbueloFactura, AbueloLinea, AliasRow, CatalogoProducto,
   ClienteFactura, ClienteListItem, ClienteProducto,
-  CosteManualRow, FacturaLinea, FacturaListItem,
+  CosteManualRow, FacturaLinea, FacturaListItem, Forecast,
   ProductoCliente, ProductoCompra, ProductoListItem,
-  ResumenPeriodo, SerieDiariaPunto, SyncLog,
+  ResumenComparativo, ResumenPeriodo, SerieDiariaPunto, SyncLog,
   TopClienteMargen, TopProductoMargen,
 } from './types'
 
@@ -35,6 +35,56 @@ export function useResumen(period: Period) {
         ventas_lineas:    Number(row?.ventas_lineas ?? 0),
         margen_real:      Number(row?.margen_real ?? 0),
         margen_pct:       row?.margen_pct == null ? null : Number(row.margen_pct),
+      }
+    },
+  })
+}
+
+// ── Resumen comparativo (vs periodo anterior equivalente) ────────────────
+export function useResumenComparativo(period: Period) {
+  return useQuery({
+    queryKey: ['manager', 'resumenComp', periodKey(period)] as const,
+    queryFn: async (): Promise<ResumenComparativo> => {
+      const { data, error } = await supabase.rpc('manager_resumen_comparativo', {
+        p_from: period.from, p_to: period.to,
+      })
+      if (error) throw error
+      const r = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null
+      return {
+        ventas:             Number(r?.ventas ?? 0),
+        ventas_ant:         Number(r?.ventas_ant ?? 0),
+        ventas_delta_pct:   r?.ventas_delta_pct == null ? null : Number(r.ventas_delta_pct),
+        compras:            Number(r?.compras ?? 0),
+        compras_ant:        Number(r?.compras_ant ?? 0),
+        compras_delta_pct:  r?.compras_delta_pct == null ? null : Number(r.compras_delta_pct),
+        margen:             Number(r?.margen ?? 0),
+        margen_ant:         Number(r?.margen_ant ?? 0),
+        margen_delta_pct:   r?.margen_delta_pct == null ? null : Number(r.margen_delta_pct),
+        pendiente_cobro:    Number(r?.pendiente_cobro ?? 0),
+        docs:               Number(r?.docs ?? 0),
+        cogs:               Number(r?.cogs ?? 0),
+        margen_pct:         r?.margen_pct == null ? null : Number(r.margen_pct),
+        comp_from:          r?.comp_from == null ? null : String(r.comp_from),
+        comp_to:            r?.comp_to == null ? null : String(r.comp_to),
+      }
+    },
+  })
+}
+
+// ── Forecast próximo mes (media móvil últimos 3 meses completos) ─────────
+export function useForecast() {
+  return useQuery({
+    queryKey: ['manager', 'forecast'] as const,
+    queryFn: async (): Promise<Forecast> => {
+      const { data, error } = await supabase.rpc('manager_forecast_proximo_mes')
+      if (error) throw error
+      const r = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null
+      return {
+        forecast:        Number(r?.forecast ?? 0),
+        base_meses:      Number(r?.base_meses ?? 0),
+        meses_usados:    String(r?.meses_usados ?? ''),
+        mes_actual_proy: Number(r?.mes_actual_proy ?? 0),
+        pct_mes:         Number(r?.pct_mes ?? 0),
       }
     },
   })
