@@ -118,10 +118,10 @@ export function AbueloView({ period }: Props) {
               <Plus className="mr-1 h-3 w-3" />Añadir línea
             </Button>
           </div>
-          <ul className="space-y-2">
+          <ul className="space-y-3 md:space-y-2">
             {lineas.map((l, i) => (
-              <li key={i} className="grid grid-cols-[1fr_80px_100px_110px_auto] items-end gap-2">
-                <div>
+              <li key={i} className="rounded-lg border border-[var(--color-border)] p-2 md:border-0 md:p-0">
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_80px_100px_110px_auto] md:items-end">
                   <ProductoAutocomplete
                     value={l.nombre}
                     onChange={(v) => updateLinea(i, { nombre: v, product_id: null })}
@@ -132,25 +132,27 @@ export function AbueloView({ period }: Props) {
                     })}
                     placeholder="Producto (busca en catálogo)"
                   />
+                  <div className="grid grid-cols-[1fr_1fr_auto_auto] items-end gap-2 md:contents">
+                    <Input
+                      type="number" step="0.01" min="0" placeholder="Ud"
+                      value={l.units}
+                      onChange={(e) => updateLinea(i, { units: e.target.value })}
+                      className="h-9 tabular-nums text-right"
+                    />
+                    <Input
+                      type="number" step="0.01" min="0" placeholder="Precio"
+                      value={l.price}
+                      onChange={(e) => updateLinea(i, { price: e.target.value })}
+                      className="h-9 tabular-nums text-right"
+                    />
+                    <span className="px-2 text-right text-sm font-medium tabular-nums text-[var(--color-ink)]">
+                      {eur(lineaTotal(l))}
+                    </span>
+                    <Button size="sm" variant="ghost" onClick={() => removeLinea(i)} title="Eliminar línea">
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
                 </div>
-                <Input
-                  type="number" step="0.01" min="0" placeholder="Ud"
-                  value={l.units}
-                  onChange={(e) => updateLinea(i, { units: e.target.value })}
-                  className="h-9 tabular-nums text-right"
-                />
-                <Input
-                  type="number" step="0.01" min="0" placeholder="Precio"
-                  value={l.price}
-                  onChange={(e) => updateLinea(i, { price: e.target.value })}
-                  className="h-9 tabular-nums text-right"
-                />
-                <span className="px-2 text-right text-sm tabular-nums text-[var(--color-ink)]">
-                  {eur(lineaTotal(l))}
-                </span>
-                <Button size="sm" variant="ghost" onClick={() => removeLinea(i)} title="Eliminar línea">
-                  <Trash2 className="h-4 w-4 text-red-600" />
-                </Button>
               </li>
             ))}
           </ul>
@@ -178,19 +180,25 @@ export function AbueloView({ period }: Props) {
         <ul className="divide-y divide-[var(--color-border)]">
           {data?.map(f => (
             <li key={f.id}>
-              <div className="grid grid-cols-[100px_120px_1fr_auto_auto_auto] items-center gap-3 px-4 py-2 text-sm">
-                <span className="text-[var(--color-ink-3)]">{fmt(f.fecha)}</span>
-                <span className="text-[var(--color-ink)]">{f.numero_factura ?? '—'}</span>
-                <span className="truncate text-[var(--color-ink)]">{f.nota ?? '—'}</span>
-                <span className="text-xs text-[var(--color-ink-3)]">{f.num_lineas} líneas</span>
-                <span className="font-medium tabular-nums text-[var(--color-ink)]">{eur(Number(f.total))}</span>
-                <div className="flex gap-1">
+              <div className="grid grid-cols-[1fr_auto] items-center gap-2 px-3 py-2 text-sm md:grid-cols-[100px_120px_1fr_auto_auto_auto] md:gap-3 md:px-4">
+                <div className="min-w-0 md:contents">
+                  <div className="md:contents">
+                    <span className="text-xs text-[var(--color-ink-3)] md:text-sm">{fmt(f.fecha)}</span>
+                    <span className="text-xs text-[var(--color-ink)] md:text-sm">{f.numero_factura ? `#${f.numero_factura}` : '—'}</span>
+                    <span className="truncate text-[var(--color-ink)]">{f.nota ?? '—'}</span>
+                    <span className="hidden text-xs text-[var(--color-ink-3)] md:inline">{f.num_lineas} líneas</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 md:contents">
+                  <span className="font-medium tabular-nums text-[var(--color-ink)]">{eur(Number(f.total))}</span>
+                  <div className="flex gap-1">
                   <Button size="sm" variant="ghost" onClick={() => setExpandedId(expandedId === f.id ? null : f.id)}>
                     {expandedId === f.id ? 'Ocultar' : 'Ver'}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => del.mutate(f.id)} disabled={del.isPending}>
                     <Trash2 className="h-4 w-4 text-red-600" />
                   </Button>
+                </div>
                 </div>
               </div>
               {expandedId === f.id && <FacturaLineasInline facturaId={f.id} />}

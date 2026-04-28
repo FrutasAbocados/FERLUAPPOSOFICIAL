@@ -56,15 +56,16 @@ export function FacturasView({ period }: Props) {
           </div>
           <span className="ml-auto text-xs text-[var(--color-ink-3)] tabular-nums">{data?.length ?? 0} docs</span>
         </div>
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="text-xs text-[var(--color-ink-3)]">Subtipo:</span>
-          <Button size="sm" variant={subtipo === null ? 'primary' : 'outline'} onClick={() => setSubtipo(null)}>Todos</Button>
+        <div className="-mx-3 flex items-center gap-1 overflow-x-auto px-3 no-scrollbar">
+          <span className="shrink-0 text-xs text-[var(--color-ink-3)]">Subtipo:</span>
+          <Button size="sm" variant={subtipo === null ? 'primary' : 'outline'} onClick={() => setSubtipo(null)} className="shrink-0">Todos</Button>
           {subtipos.map(s => (
             <Button
               key={s}
               size="sm"
               variant={subtipo === s ? 'primary' : 'outline'}
               onClick={() => setSubtipo(s)}
+              className="shrink-0"
             >{s}</Button>
           ))}
         </div>

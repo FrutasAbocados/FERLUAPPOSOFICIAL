@@ -53,8 +53,8 @@ export function ProductosView({ period }: Props) {
             className="h-9 pl-8"
           />
         </div>
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-[var(--color-ink-3)]">Ordenar:</span>
+        <div className="-mx-3 flex items-center gap-1 overflow-x-auto px-3 no-scrollbar md:mx-0 md:px-0">
+          <span className="shrink-0 text-xs text-[var(--color-ink-3)]">Ordenar:</span>
           {([
             { k: 'ventas',     l: 'Ventas' },
             { k: 'margen',     l: 'Margen €' },
@@ -66,6 +66,7 @@ export function ProductosView({ period }: Props) {
               size="sm"
               variant={sortKey === o.k ? 'primary' : 'outline'}
               onClick={() => setSortKey(o.k)}
+              className="shrink-0"
             >{o.l}</Button>
           ))}
         </div>

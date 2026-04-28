@@ -27,7 +27,7 @@ export function PeriodPicker({ value, onChange }: Props) {
 
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="-mx-3 flex items-center gap-1.5 overflow-x-auto px-3 no-scrollbar">
         {PRESET_OPTIONS.map(opt => {
           const active = value.preset === opt.value
           return (
@@ -36,6 +36,7 @@ export function PeriodPicker({ value, onChange }: Props) {
               size="sm"
               variant={active ? 'primary' : 'outline'}
               onClick={() => pick(opt.value)}
+              className="shrink-0"
             >
               {opt.label}
             </Button>
@@ -45,12 +46,13 @@ export function PeriodPicker({ value, onChange }: Props) {
           size="sm"
           variant={value.preset === 'custom' ? 'primary' : 'outline'}
           onClick={() => setCustomOpen(o => !o)}
+          className="shrink-0"
         >
           Personalizado
         </Button>
-        <span className="ml-auto text-xs text-[var(--color-ink-3)] tabular-nums">
-          {value.from} → {value.to}
-        </span>
+      </div>
+      <div className="mt-1.5 text-right text-xs text-[var(--color-ink-3)] tabular-nums">
+        {value.from} → {value.to}
       </div>
 
       {customOpen && (

@@ -30,7 +30,7 @@ export function ManagerPage() {
         <SyncBar />
         <PeriodPicker value={period} onChange={setPeriod} />
 
-        <div className="flex items-center gap-1 border-b border-[var(--color-border)]">
+        <div className="-mx-4 flex items-center gap-1 overflow-x-auto border-b border-[var(--color-border)] px-4 no-scrollbar md:mx-0 md:px-0">
           {([
             { k: 'resumen',   l: 'Resumen' },
             { k: 'clientes',  l: 'Clientes' },
@@ -44,6 +44,7 @@ export function ManagerPage() {
               size="sm"
               variant={tab === t.k ? 'primary' : 'ghost'}
               onClick={() => setTab(t.k)}
+              className="shrink-0"
             >{t.l}</Button>
           ))}
         </div>

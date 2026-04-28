@@ -92,8 +92,8 @@ export function ClientesView({ period }: Props) {
             className="h-9 pl-8"
           />
         </div>
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-[var(--color-ink-3)]">Ordenar:</span>
+        <div className="-mx-3 flex items-center gap-1 overflow-x-auto px-3 no-scrollbar md:mx-0 md:px-0">
+          <span className="shrink-0 text-xs text-[var(--color-ink-3)]">Ordenar:</span>
           {([
             { k: 'ventas', l: 'Ventas' },
             { k: 'margen', l: 'Margen €' },
@@ -105,24 +105,27 @@ export function ClientesView({ period }: Props) {
               size="sm"
               variant={sortKey === o.k ? 'primary' : 'outline'}
               onClick={() => setSortKey(o.k)}
+              className="shrink-0"
             >{o.l}</Button>
           ))}
         </div>
         <span className="ml-auto text-xs text-[var(--color-ink-3)] tabular-nums">{filtered.length} clientes</span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
-        <span className="text-xs text-[var(--color-ink-3)]">Clase ABC (Pareto sobre margen):</span>
-        <Button size="sm" variant={claseFilter === 'all' ? 'primary' : 'outline'} onClick={() => setClaseFilter('all')}>Todos</Button>
-        <Button size="sm" variant={claseFilter === 'A' ? 'primary' : 'outline'} onClick={() => setClaseFilter('A')}>
-          A · top 70% margen <span className="ml-1 text-xs opacity-70">({counts.A})</span>
-        </Button>
-        <Button size="sm" variant={claseFilter === 'B' ? 'primary' : 'outline'} onClick={() => setClaseFilter('B')}>
-          B · 70-90% <span className="ml-1 text-xs opacity-70">({counts.B})</span>
-        </Button>
-        <Button size="sm" variant={claseFilter === 'C' ? 'primary' : 'outline'} onClick={() => setClaseFilter('C')}>
-          C · resto <span className="ml-1 text-xs opacity-70">({counts.C})</span>
-        </Button>
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+        <div className="mb-1 text-xs text-[var(--color-ink-3)]">Clase ABC (Pareto sobre margen)</div>
+        <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 no-scrollbar">
+          <Button size="sm" variant={claseFilter === 'all' ? 'primary' : 'outline'} onClick={() => setClaseFilter('all')} className="shrink-0">Todos</Button>
+          <Button size="sm" variant={claseFilter === 'A' ? 'primary' : 'outline'} onClick={() => setClaseFilter('A')} className="shrink-0">
+            A · top 70% <span className="ml-1 opacity-70">({counts.A})</span>
+          </Button>
+          <Button size="sm" variant={claseFilter === 'B' ? 'primary' : 'outline'} onClick={() => setClaseFilter('B')} className="shrink-0">
+            B · 70-90% <span className="ml-1 opacity-70">({counts.B})</span>
+          </Button>
+          <Button size="sm" variant={claseFilter === 'C' ? 'primary' : 'outline'} onClick={() => setClaseFilter('C')} className="shrink-0">
+            C · resto <span className="ml-1 opacity-70">({counts.C})</span>
+          </Button>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">

@@ -66,6 +66,10 @@
 
 html, body, #root {
   height: 100%;
+  /* Prevenir scroll horizontal involuntario en móvil — sólo permitimos
+     scroll-x explícito en contenedores marcados con overflow-x-auto. */
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 body {
