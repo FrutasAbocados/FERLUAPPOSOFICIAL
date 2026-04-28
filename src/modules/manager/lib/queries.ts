@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import type { Period } from './period'
 import type {
-  AbueloRow, AliasRow, ClienteFactura, ClienteListItem, ClienteProducto,
+  AbueloFactura, AbueloLinea, AliasRow, CatalogoProducto,
+  ClienteFactura, ClienteListItem, ClienteProducto,
   CosteManualRow, FacturaLinea, FacturaListItem,
   ProductoCliente, ProductoCompra, ProductoListItem,
   ResumenPeriodo, SerieDiariaPunto, SyncLog,
@@ -353,43 +354,115 @@ export function useFacturaDetalle(facturaId: string | null) {
   })
 }
 
-// ── Abuelo (frutería propia) ──────────────────────────────────────────────
-export function useAbuelo(period: Period) {
+// ── Abuelo (frutería propia) — facturas con líneas ───────────────────────
+export function useAbueloFacturas(period: Period) {
   return useQuery({
     queryKey: ['manager', 'abuelo', periodKey(period)] as const,
-    queryFn: async (): Promise<AbueloRow[]> => {
+    queryFn: async (): Promise<AbueloFactura[]> => {
       const { data, error } = await supabase
-        .from('manager_ventas_abuelo')
-        .select('id, fecha, importe, nota, created_at')
+        .from('manager_abuelo_facturas')
+        .select('id, fecha, numero_factura, nota, total, num_lineas, created_at')
         .gte('fecha', period.from).lte('fecha', period.to)
         .order('fecha', { ascending: false })
       if (error) throw error
-      return (data ?? []) as AbueloRow[]
+      return (data ?? []) as AbueloFactura[]
     },
   })
 }
 
-export function useAddAbuelo() {
+export function useAbueloLineas(facturaId: string | null) {
+  return useQuery({
+    queryKey: ['manager', 'abuelo', 'lineas', facturaId] as const,
+    enabled: !!facturaId,
+    queryFn: async (): Promise<AbueloLinea[]> => {
+      if (!facturaId) return []
+      const { data, error } = await supabase
+        .from('manager_lineas_abuelo')
+        .select('id, factura_id, product_id, nombre, units, price, subtotal')
+        .eq('factura_id', facturaId)
+        .order('created_at', { ascending: true })
+      if (error) throw error
+      return (data ?? []) as AbueloLinea[]
+    },
+  })
+}
+
+interface AbueloLineaInput {
+  product_id?: string | null
+  nombre: string
+  units: number
+  price: number
+}
+
+export function useAddAbueloFactura() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { fecha: string; importe: number; nota?: string | null }) => {
-      const { error } = await supabase
+    mutationFn: async (input: {
+      fecha: string
+      numero_factura?: string | null
+      nota?: string | null
+      lineas: AbueloLineaInput[]
+    }) => {
+      const total = input.lineas.reduce((s, l) => s + l.units * l.price, 0)
+      const subtotal = total / 1.04  // asumimos IVA 4% para guardar el desglose
+      // Cabecera
+      const { data: cab, error: errCab } = await supabase
         .from('manager_ventas_abuelo')
-        .insert({ fecha: input.fecha, importe: input.importe, nota: input.nota ?? null })
-      if (error) throw error
+        .insert({
+          fecha:          input.fecha,
+          numero_factura: input.numero_factura ?? null,
+          nota:           input.nota ?? null,
+          importe:        total,           // legacy column
+          subtotal,
+          total,
+        })
+        .select('id')
+        .single()
+      if (errCab) throw errCab
+      const facturaId = cab?.id as string
+      if (!facturaId) throw new Error('Sin id de factura')
+      // Líneas
+      if (input.lineas.length > 0) {
+        const rows = input.lineas.map(l => ({
+          factura_id: facturaId,
+          product_id: l.product_id ?? null,
+          nombre:     l.nombre,
+          units:      l.units,
+          price:      l.price,
+        }))
+        const { error: errLin } = await supabase.from('manager_lineas_abuelo').insert(rows)
+        if (errLin) {
+          // Rollback manual de la cabecera si las líneas fallan
+          await supabase.from('manager_ventas_abuelo').delete().eq('id', facturaId)
+          throw errLin
+        }
+      }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['manager'] }) },
   })
 }
 
-export function useDeleteAbuelo() {
+export function useDeleteAbueloFactura() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
+      // CASCADE en manager_lineas_abuelo borra las líneas
       const { error } = await supabase.from('manager_ventas_abuelo').delete().eq('id', id)
       if (error) throw error
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['manager'] }) },
+  })
+}
+
+// Catálogo de productos para autocomplete
+export function useCatalogoProductos(q: string) {
+  return useQuery({
+    queryKey: ['manager', 'catalogo', q] as const,
+    queryFn: async (): Promise<CatalogoProducto[]> => {
+      const { data, error } = await supabase.rpc('manager_catalogo_productos', { p_q: q || null, p_limit: 30 })
+      if (error) throw error
+      return (data ?? []) as CatalogoProducto[]
+    },
   })
 }
 

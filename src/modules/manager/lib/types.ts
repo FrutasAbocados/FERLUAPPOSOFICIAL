@@ -175,6 +175,9 @@ export interface FacturaListItem {
   fecha_vencimiento: string | null
   subtotal: number | null
   total: number | null
+  cogs: number | null
+  margen: number | null
+  margen_pct: number | null
   payments_pending: number | null
   status: number | null
 }
@@ -194,10 +197,29 @@ export interface FacturaLinea {
   margen_linea: number | null
 }
 
-export interface AbueloRow {
+export interface AbueloFactura {
   id: string
   fecha: string
-  importe: number
+  numero_factura: string | null
   nota: string | null
+  total: number
+  num_lineas: number
   created_at: string
+}
+
+export interface AbueloLinea {
+  id: string
+  factura_id: string
+  product_id: string | null
+  nombre: string
+  units: number
+  price: number
+  subtotal: number
+}
+
+export interface CatalogoProducto {
+  product_id: string
+  nombre: string
+  ultimo_precio: number | null
+  veces_vendido: number
 }

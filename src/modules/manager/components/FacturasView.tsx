@@ -74,14 +74,15 @@ export function FacturasView({ period }: Props) {
         {isLoading && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
         {!isLoading && data?.length === 0 && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Sin facturas con esos filtros</p>}
 
-        <div className="hidden md:grid md:grid-cols-[80px_120px_1fr_100px_120px_120px_120px] md:gap-2 md:border-b md:border-[var(--color-border)] md:px-4 md:py-2 md:text-xs md:font-semibold md:uppercase md:tracking-wider md:text-[var(--color-ink-3)]">
+        <div className="hidden md:grid md:grid-cols-[80px_110px_1fr_100px_110px_110px_110px_70px] md:gap-2 md:border-b md:border-[var(--color-border)] md:px-4 md:py-2 md:text-xs md:font-semibold md:uppercase md:tracking-wider md:text-[var(--color-ink-3)]">
           <div>Fecha</div>
           <div>Subtipo</div>
           <div>Cliente / Proveedor</div>
           <div>Nº doc</div>
           <div className="text-right">Subtotal</div>
           <div className="text-right">Total</div>
-          <div className="text-right">Pendiente</div>
+          <div className="text-right">Margen</div>
+          <div className="text-right">%</div>
         </div>
 
         <ul className="divide-y divide-[var(--color-border)]">
@@ -89,7 +90,7 @@ export function FacturasView({ period }: Props) {
             <li key={f.id}>
               <button
                 onClick={() => setSelected(f)}
-                className="grid w-full grid-cols-[1fr_auto] gap-2 px-4 py-2 text-left text-sm transition hover:bg-[var(--color-surface-2,#f8fafc)] md:grid-cols-[80px_120px_1fr_100px_120px_120px_120px]"
+                className="grid w-full grid-cols-[1fr_auto] gap-2 px-4 py-2 text-left text-sm transition hover:bg-[var(--color-surface-2,#f8fafc)] md:grid-cols-[80px_110px_1fr_100px_110px_110px_110px_70px]"
               >
                 {/* Mobile compact view */}
                 <div className="min-w-0 md:hidden">
@@ -98,8 +99,8 @@ export function FacturasView({ period }: Props) {
                 </div>
                 <div className="text-right tabular-nums md:hidden">
                   <div className="text-[var(--color-ink)]">{eur(f.total)}</div>
-                  {f.payments_pending && Number(f.payments_pending) > 0 && (
-                    <div className="text-xs text-amber-700">pdte {eur(f.payments_pending)}</div>
+                  {f.tipo === 'VENTA' && f.margen != null && (
+                    <div className="text-xs text-emerald-700">{eur(f.margen)} {f.margen_pct == null ? '' : `(${f.margen_pct.toFixed(0)}%)`}</div>
                   )}
                 </div>
 
@@ -110,8 +111,11 @@ export function FacturasView({ period }: Props) {
                 <div className="hidden text-[var(--color-ink-3)] md:block">{f.doc_number ?? '—'}</div>
                 <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">{eur(f.subtotal)}</div>
                 <div className="hidden text-right tabular-nums font-medium text-[var(--color-ink)] md:block">{eur(f.total)}</div>
-                <div className="hidden text-right tabular-nums text-amber-700 md:block">
-                  {f.payments_pending && Number(f.payments_pending) > 0 ? eur(f.payments_pending) : '—'}
+                <div className="hidden text-right tabular-nums text-emerald-700 md:block">
+                  {f.tipo === 'VENTA' ? eur(f.margen) : '—'}
+                </div>
+                <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">
+                  {f.tipo === 'VENTA' && f.margen_pct != null ? `${f.margen_pct.toFixed(0)}%` : '—'}
                 </div>
               </button>
             </li>
