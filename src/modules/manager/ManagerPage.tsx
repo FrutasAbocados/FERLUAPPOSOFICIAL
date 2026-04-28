@@ -5,9 +5,11 @@ import { PeriodPicker } from './components/PeriodPicker'
 import { ResumenView } from './components/ResumenView'
 import { ClientesView } from './components/ClientesView'
 import { ProductosView } from './components/ProductosView'
+import { FacturasView } from './components/FacturasView'
+import { AbueloView } from './components/AbueloView'
 import { periodFromPreset, type Period } from './lib/period'
 
-type Tab = 'resumen' | 'clientes' | 'productos'
+type Tab = 'resumen' | 'clientes' | 'productos' | 'facturas' | 'abuelo'
 
 export function ManagerPage() {
   const [period, setPeriod] = useState<Period>(() => periodFromPreset('mes'))
@@ -32,6 +34,8 @@ export function ManagerPage() {
             { k: 'resumen',   l: 'Resumen' },
             { k: 'clientes',  l: 'Clientes' },
             { k: 'productos', l: 'Productos' },
+            { k: 'facturas',  l: 'Facturas' },
+            { k: 'abuelo',    l: 'Abuelo' },
           ] as Array<{ k: Tab; l: string }>).map(t => (
             <Button
               key={t.k}
@@ -45,6 +49,8 @@ export function ManagerPage() {
         {tab === 'resumen'   && <ResumenView   period={period} />}
         {tab === 'clientes'  && <ClientesView  period={period} />}
         {tab === 'productos' && <ProductosView period={period} />}
+        {tab === 'facturas'  && <FacturasView  period={period} />}
+        {tab === 'abuelo'    && <AbueloView    period={period} />}
       </div>
     </div>
   )

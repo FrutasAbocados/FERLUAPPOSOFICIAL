@@ -2,8 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import type { Period } from './period'
 import type {
-  AliasRow, ClienteFactura, ClienteListItem, ClienteProducto,
-  CosteManualRow, ProductoCliente, ProductoCompra, ProductoListItem,
+  AbueloRow, AliasRow, ClienteFactura, ClienteListItem, ClienteProducto,
+  CosteManualRow, FacturaLinea, FacturaListItem,
+  ProductoCliente, ProductoCompra, ProductoListItem,
   ResumenPeriodo, SerieDiariaPunto, SyncLog,
   TopClienteMargen, TopProductoMargen,
 } from './types'
@@ -312,6 +313,80 @@ export function useDeleteCosteManual() {
         .from('manager_costes_manuales')
         .delete()
         .eq('product_id', productId)
+      if (error) throw error
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manager'] }) },
+  })
+}
+
+// ── Facturas / Albaranes ──────────────────────────────────────────────────
+export interface FacturaFiltros {
+  tipo?: 'VENTA' | 'COMPRA' | null
+  subtipo?: string | null
+  q?: string | null
+}
+
+export function useFacturasLista(period: Period, f: FacturaFiltros) {
+  return useQuery({
+    queryKey: ['manager', 'facturas', periodKey(period), f.tipo ?? '', f.subtipo ?? '', f.q ?? ''] as const,
+    queryFn: async (): Promise<FacturaListItem[]> => {
+      const { data, error } = await supabase.rpc('manager_facturas_lista', {
+        p_from: period.from, p_to: period.to,
+        p_tipo: f.tipo ?? null, p_subtipo: f.subtipo ?? null, p_q: f.q ?? null, p_limit: 1000,
+      })
+      if (error) throw error
+      return (data ?? []) as FacturaListItem[]
+    },
+  })
+}
+
+export function useFacturaDetalle(facturaId: string | null) {
+  return useQuery({
+    queryKey: ['manager', 'factura', facturaId, 'detalle'] as const,
+    enabled: !!facturaId,
+    queryFn: async (): Promise<FacturaLinea[]> => {
+      if (!facturaId) return []
+      const { data, error } = await supabase.rpc('manager_factura_detalle', { p_factura_id: facturaId })
+      if (error) throw error
+      return (data ?? []) as FacturaLinea[]
+    },
+  })
+}
+
+// ── Abuelo (frutería propia) ──────────────────────────────────────────────
+export function useAbuelo(period: Period) {
+  return useQuery({
+    queryKey: ['manager', 'abuelo', periodKey(period)] as const,
+    queryFn: async (): Promise<AbueloRow[]> => {
+      const { data, error } = await supabase
+        .from('manager_ventas_abuelo')
+        .select('id, fecha, importe, nota, created_at')
+        .gte('fecha', period.from).lte('fecha', period.to)
+        .order('fecha', { ascending: false })
+      if (error) throw error
+      return (data ?? []) as AbueloRow[]
+    },
+  })
+}
+
+export function useAddAbuelo() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { fecha: string; importe: number; nota?: string | null }) => {
+      const { error } = await supabase
+        .from('manager_ventas_abuelo')
+        .insert({ fecha: input.fecha, importe: input.importe, nota: input.nota ?? null })
+      if (error) throw error
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manager'] }) },
+  })
+}
+
+export function useDeleteAbuelo() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('manager_ventas_abuelo').delete().eq('id', id)
       if (error) throw error
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['manager'] }) },

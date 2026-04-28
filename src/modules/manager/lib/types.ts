@@ -162,3 +162,42 @@ export interface CosteManualRow {
   nota: string | null
   updated_at: string
 }
+
+export interface FacturaListItem {
+  id: string
+  tipo: 'VENTA' | 'COMPRA'
+  subtipo: string | null
+  doc_number: string | null
+  contact_id: string | null
+  contact_name_raw: string | null
+  contact_name_canon: string | null
+  fecha: string | null
+  fecha_vencimiento: string | null
+  subtotal: number | null
+  total: number | null
+  payments_pending: number | null
+  status: number | null
+}
+
+export interface FacturaLinea {
+  id: string
+  nombre: string
+  product_id: string | null
+  sku: string | null
+  units: number | null
+  price: number | null
+  discount: number | null
+  tax_rate: number | null
+  subtotal: number | null
+  coste_unidad: number | null
+  cogs_linea: number | null
+  margen_linea: number | null
+}
+
+export interface AbueloRow {
+  id: string
+  fecha: string
+  importe: number
+  nota: string | null
+  created_at: string
+}
