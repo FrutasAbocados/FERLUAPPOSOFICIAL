@@ -10,6 +10,18 @@ import { useClientesLista } from '../lib/queries'
 import { ClienteDetalleModal } from './ClienteDetalleModal'
 
 type SortKey = 'ventas' | 'margen' | 'docs' | 'pendiente'
+type Clase = 'A' | 'B' | 'C'
+type ClaseFilter = Clase | 'all'
+
+interface ClienteConClase extends ClienteListItem {
+  clase: Clase
+}
+
+const CLASE_BADGE: Record<Clase, string> = {
+  A: 'bg-emerald-100 text-emerald-800',
+  B: 'bg-blue-100 text-blue-800',
+  C: 'bg-slate-100 text-slate-700',
+}
 
 const eur0 = (n: number) =>
   new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
@@ -24,12 +36,33 @@ export function ClientesView({ period }: Props) {
   const { data, isLoading } = useClientesLista(period)
   const [q, setQ] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('ventas')
+  const [claseFilter, setClaseFilter] = useState<ClaseFilter>('all')
   const [selected, setSelected] = useState<ClienteListItem | null>(null)
 
+  // Asignación A/B/C por aporte acumulado al margen total (Pareto):
+  // A = aportan hasta el 70% del margen total
+  // B = del 70% al 90%
+  // C = resto
+  const conClase = useMemo<ClienteConClase[]>(() => {
+    const rows = (data ?? []).filter(r => r.margen > 0)
+    const totalMargen = rows.reduce((s, r) => s + r.margen, 0)
+    const sorted = [...rows].sort((a, b) => b.margen - a.margen)
+    let acum = 0
+    const map = new Map<string, Clase>()
+    for (const r of sorted) {
+      acum += r.margen
+      const pct = totalMargen > 0 ? (acum / totalMargen) * 100 : 100
+      const clase: Clase = pct <= 70 ? 'A' : pct <= 90 ? 'B' : 'C'
+      map.set(r.contact_name_canon, clase)
+    }
+    return (data ?? []).map(r => ({ ...r, clase: map.get(r.contact_name_canon) ?? 'C' }))
+  }, [data])
+
   const filtered = useMemo(() => {
-    let rows = data ?? []
+    let rows = conClase
     const qq = q.trim().toLowerCase()
     if (qq) rows = rows.filter(r => r.contact_name_canon.toLowerCase().includes(qq))
+    if (claseFilter !== 'all') rows = rows.filter(r => r.clase === claseFilter)
     rows = [...rows].sort((a, b) => {
       switch (sortKey) {
         case 'ventas': return b.ventas - a.ventas
@@ -39,7 +72,13 @@ export function ClientesView({ period }: Props) {
       }
     })
     return rows
-  }, [data, q, sortKey])
+  }, [conClase, q, sortKey, claseFilter])
+
+  const counts = useMemo(() => {
+    const c = { A: 0, B: 0, C: 0 }
+    for (const r of conClase) c[r.clase]++
+    return c
+  }, [conClase])
 
   return (
     <div className="space-y-3">
@@ -72,11 +111,26 @@ export function ClientesView({ period }: Props) {
         <span className="ml-auto text-xs text-[var(--color-ink-3)] tabular-nums">{filtered.length} clientes</span>
       </div>
 
+      <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+        <span className="text-xs text-[var(--color-ink-3)]">Clase ABC (Pareto sobre margen):</span>
+        <Button size="sm" variant={claseFilter === 'all' ? 'primary' : 'outline'} onClick={() => setClaseFilter('all')}>Todos</Button>
+        <Button size="sm" variant={claseFilter === 'A' ? 'primary' : 'outline'} onClick={() => setClaseFilter('A')}>
+          A · top 70% margen <span className="ml-1 text-xs opacity-70">({counts.A})</span>
+        </Button>
+        <Button size="sm" variant={claseFilter === 'B' ? 'primary' : 'outline'} onClick={() => setClaseFilter('B')}>
+          B · 70-90% <span className="ml-1 text-xs opacity-70">({counts.B})</span>
+        </Button>
+        <Button size="sm" variant={claseFilter === 'C' ? 'primary' : 'outline'} onClick={() => setClaseFilter('C')}>
+          C · resto <span className="ml-1 text-xs opacity-70">({counts.C})</span>
+        </Button>
+      </div>
+
       <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
         {isLoading && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
         {!isLoading && filtered.length === 0 && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Sin clientes en este periodo</p>}
 
-        <div className="hidden md:grid md:grid-cols-[1fr_repeat(5,_120px)_80px] md:gap-2 md:border-b md:border-[var(--color-border)] md:px-4 md:py-2 md:text-xs md:font-semibold md:uppercase md:tracking-wider md:text-[var(--color-ink-3)]">
+        <div className="hidden md:grid md:grid-cols-[40px_1fr_repeat(5,_120px)_80px] md:gap-2 md:border-b md:border-[var(--color-border)] md:px-4 md:py-2 md:text-xs md:font-semibold md:uppercase md:tracking-wider md:text-[var(--color-ink-3)]">
+          <div>ABC</div>
           <div>Cliente</div>
           <div className="text-right">Docs</div>
           <div className="text-right">Ventas</div>
@@ -91,10 +145,18 @@ export function ClientesView({ period }: Props) {
             <li key={c.contact_name_canon}>
               <button
                 onClick={() => setSelected(c)}
-                className="grid w-full grid-cols-[1fr_auto] gap-2 px-4 py-2 text-left text-sm transition hover:bg-[var(--color-surface-2,#f8fafc)] md:grid-cols-[1fr_repeat(5,_120px)_80px]"
+                className="grid w-full grid-cols-[1fr_auto] gap-2 px-4 py-2 text-left text-sm transition hover:bg-[var(--color-surface-2,#f8fafc)] md:grid-cols-[40px_1fr_repeat(5,_120px)_80px]"
               >
+                <div className="hidden md:flex md:items-center">
+                  <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${CLASE_BADGE[c.clase]}`}>
+                    {c.clase}
+                  </span>
+                </div>
                 <div className="min-w-0">
-                  <div className="truncate text-[var(--color-ink)]">{c.contact_name_canon}</div>
+                  <div className="flex items-center gap-2">
+                    <span className={`md:hidden inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${CLASE_BADGE[c.clase]}`}>{c.clase}</span>
+                    <span className="truncate text-[var(--color-ink)]">{c.contact_name_canon}</span>
+                  </div>
                   {c.num_aliases > 1 && (
                     <div className="text-xs text-[var(--color-ink-3)]">{c.num_aliases} nombres unificados</div>
                   )}
