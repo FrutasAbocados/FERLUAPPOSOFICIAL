@@ -14,7 +14,13 @@
 
 const HOLDED_BASE = 'https://api.holded.com/api/invoicing/v1/documents'
 
-type DocType = 'invoice' | 'purchase'
+type DocType = 'invoice' | 'salesreceipt' | 'waybill' | 'creditnote' | 'purchase' | 'purchaserefund'
+
+const DOC_TYPES: DocType[] = ['invoice', 'salesreceipt', 'waybill', 'creditnote', 'purchase', 'purchaserefund']
+
+function tipoFromDocType(d: DocType): 'VENTA' | 'COMPRA' {
+  return (d === 'purchase' || d === 'purchaserefund') ? 'COMPRA' : 'VENTA'
+}
 
 interface HoldedLine {
   line_id: string
@@ -187,8 +193,8 @@ Deno.serve(async (req) => {
       const starttmp = Math.floor(a.getTime() / 1000)
       const endtmp = Math.floor(b.getTime() / 1000)
 
-      for (const docType of ['invoice', 'purchase'] as DocType[]) {
-        const tipo = docType === 'invoice' ? 'VENTA' : 'COMPRA'
+      for (const docType of DOC_TYPES) {
+        const tipo = tipoFromDocType(docType)
         let docs: HoldedDoc[]
         try { docs = await fetchHolded(docType, starttmp, endtmp) }
         catch (e) { errors.push(e instanceof Error ? e.message : String(e)); continue }
@@ -209,6 +215,7 @@ Deno.serve(async (req) => {
         const facturaRows = docs.map(d => ({
           id: d.id,
           tipo,
+          subtipo: docType,
           doc_number: d.docNumber ?? null,
           contact_id: d.contact ?? null,
           contact_name: d.contactName ?? null,
@@ -255,6 +262,7 @@ Deno.serve(async (req) => {
               id: p.line_id,
               factura_id: d.id,
               tipo,
+              subtipo: docType,
               fecha,
               contact_id: d.contact ?? null,
               nombre: cleanName(p.name),
