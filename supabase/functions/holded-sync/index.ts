@@ -23,7 +23,7 @@ function tipoFromDocType(d: DocType): 'VENTA' | 'COMPRA' {
 }
 
 interface HoldedLine {
-  line_id: string
+  line_id?: string
   name?: string
   desc?: string
   price?: number
@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
     })
   }
 
-  let body: { start?: string; end?: string; trigger?: string } = {}
+  let body: { start?: string; end?: string; trigger?: string; probe?: boolean } = {}
   try { body = await req.json() } catch { /* defaults */ }
 
   const today = new Date()
@@ -176,6 +176,49 @@ Deno.serve(async (req) => {
   const start = body.start ? new Date(body.start + 'T00:00:00Z') : defaultStart
   const end = body.end ? new Date(body.end + 'T23:59:59Z') : today
   const trigger = (body.trigger as 'manual'|'cron'|'backfill') || 'manual'
+
+  // Probe mode: conteos por docType en el rango, sin tocar BD.
+  if (body.probe) {
+    const probeTypes = [
+      'invoice', 'salesreceipt', 'waybill', 'creditnote',
+      'purchase', 'purchaserefund',
+      'waybillreceived', 'expense', 'proform', 'estimate', 'order', 'purchaseorder',
+    ]
+    const out: Record<string, { docs: number; subtotal: number; total: number; truncated: boolean; sample?: unknown }> = {}
+    for (const [a, b] of chunkRange(start, end, 30)) {
+      const starttmp = Math.floor(a.getTime() / 1000)
+      const endtmp = Math.floor(b.getTime() / 1000)
+      for (const dt of probeTypes) {
+        try {
+          const url = `${HOLDED_BASE}/${dt}?starttmp=${starttmp}&endtmp=${endtmp}&sort=created-desc`
+          const res = await fetch(url, { headers: { key: HOLDED_KEY, accept: 'application/json' } })
+          if (!res.ok) {
+            out[dt] = out[dt] ?? { docs: 0, subtotal: 0, total: 0, truncated: false }
+            out[dt].sample = `ERR ${res.status}`
+            continue
+          }
+          const arr = await res.json() as Array<{ subtotal?: number; total?: number; date?: number; docNumber?: string; contactName?: string }>
+          if (!Array.isArray(arr)) continue
+          out[dt] = out[dt] ?? { docs: 0, subtotal: 0, total: 0, truncated: false }
+          out[dt].docs += arr.length
+          out[dt].subtotal += arr.reduce((s, d) => s + (d.subtotal ?? 0), 0)
+          out[dt].total += arr.reduce((s, d) => s + (d.total ?? 0), 0)
+          if (arr.length >= 500) out[dt].truncated = true
+          if (!out[dt].sample && arr[0]) {
+            out[dt].sample = { docNumber: arr[0].docNumber, contactName: arr[0].contactName, subtotal: arr[0].subtotal, total: arr[0].total }
+          }
+        } catch (e) {
+          out[dt] = out[dt] ?? { docs: 0, subtotal: 0, total: 0, truncated: false }
+          out[dt].sample = `EXC ${e instanceof Error ? e.message : String(e)}`
+        }
+      }
+    }
+    return new Response(JSON.stringify({
+      mode: 'probe',
+      range: { start: start.toISOString().slice(0,10), end: end.toISOString().slice(0,10) },
+      counts: out,
+    }, null, 2), { headers: { ...cors, 'content-type': 'application/json' } })
+  }
 
   const log = await pgInsertReturning('manager_holded_sync', {
     trigger,
@@ -255,11 +298,16 @@ Deno.serve(async (req) => {
         const lineaRows: Record<string, unknown>[] = []
         for (const d of docs) {
           const fecha = unixToDate(d.date)
-          for (const p of (d.products ?? [])) {
-            if (!p.line_id) continue
+          const products = d.products ?? []
+          for (let idx = 0; idx < products.length; idx++) {
+            const p = products[idx]
+            // Holded LIST no devuelve line_id estable. La PK es (factura_id, id)
+            // y borramos+reinsertamos por factura_id, así que basta con que id
+            // sea único dentro de la factura: usamos el índice del array.
+            const lineId = p.line_id ?? `L${idx}`
             const subtotalLinea = (p.price ?? 0) * (p.units ?? 0) * (1 - (p.discount ?? 0) / 100)
             lineaRows.push({
-              id: p.line_id,
+              id: lineId,
               factura_id: d.id,
               tipo,
               subtipo: docType,
