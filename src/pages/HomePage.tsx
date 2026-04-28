@@ -5,6 +5,7 @@ import {
   CheckSquare,
   CalendarDays,
   Wallet,
+  Database,
   ArrowRight,
 } from 'lucide-react'
 import { useAuth } from '@/shared/auth/AuthContext'
@@ -60,6 +61,13 @@ const ENTRIES: ModuleEntry[] = [
     desc: 'Pagos y cuentas bancarias',
     to: '/tesoreria',
     Icon: Wallet,
+  },
+  {
+    key: 'datos',
+    title: 'Datos',
+    desc: 'Subida de Excels y fuente de Manager',
+    to: '/datos',
+    Icon: Database,
   },
 ]
 
