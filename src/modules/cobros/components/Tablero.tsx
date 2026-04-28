@@ -103,9 +103,15 @@ export function Tablero({ onCobrar, onVerCliente }: Props) {
                         <span className="font-display text-base font-bold text-[var(--color-ink)]">
                           {eur(importePendiente(m))}
                         </span>
-                        <Button size="sm" onClick={() => onCobrar(m.id)}>
-                          Cobrar
-                        </Button>
+                        {Number(m.importe) >= 0 ? (
+                          <Button size="sm" onClick={() => onCobrar(m.id)}>
+                            Cobrar
+                          </Button>
+                        ) : (
+                          <span className="rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+                            Abono
+                          </span>
+                        )}
                       </div>
                     </Card>
                   )
