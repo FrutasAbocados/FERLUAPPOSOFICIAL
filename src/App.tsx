@@ -14,6 +14,7 @@ import { TareasPage } from '@/modules/tareas/TareasPage'
 import { TurnosPage } from '@/modules/turnos/TurnosPage'
 import { CobrosPage } from '@/modules/cobros/CobrosPage'
 import { AgentePage } from '@/modules/agente/AgentePage'
+import { TrabajadoresPage } from '@/modules/trabajadores/TrabajadoresPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,6 +53,9 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute module="agente" />}>
                     <Route path="agente" element={<AgentePage />} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="bbdd_trabajadores" />}>
+                    <Route path="bbdd-trabajadores" element={<TrabajadoresPage />} />
                   </Route>
                 </Route>
               </Route>

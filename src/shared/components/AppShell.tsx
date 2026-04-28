@@ -9,6 +9,7 @@ import {
   Home,
   LogOut,
   Menu,
+  Users,
 } from 'lucide-react'
 import { useAuth } from '@/shared/auth/useAuth'
 import { canAccess, type ModuleKey } from '@/shared/types'
@@ -28,6 +29,7 @@ const MODULES: ModuleNav[] = [
   { key: 'tareas', label: 'Tareas', to: '/tareas', icon: CheckSquare },
   { key: 'turnos', label: 'Turnos', to: '/turnos', icon: CalendarDays },
   { key: 'cobros', label: 'Cobros', to: '/cobros', icon: HandCoins },
+  { key: 'bbdd_trabajadores', label: 'BBDD Trabajadores', to: '/bbdd-trabajadores', icon: Users },
 ]
 
 export function AppShell() {

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import {
   AlertTriangle, BarChart3, Banknote, Bot, CalendarClock,
-  CheckSquare, CalendarDays, HandCoins, Package, TrendingUp, UserMinus,
+  CheckSquare, CalendarDays, HandCoins, Package, TrendingUp, UserMinus, Users,
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -27,6 +27,7 @@ const MODULOS = [
   { key: 'tareas',    title: 'Tareas',                     to: '/tareas',    Icon: CheckSquare },
   { key: 'turnos',    title: 'Turnos',                     to: '/turnos',    Icon: CalendarDays },
   { key: 'cobros',    title: 'Control Deuda Abocados',     to: '/cobros',    Icon: HandCoins },
+  { key: 'bbdd_trabajadores', title: 'BBDD Trabajadores',  to: '/bbdd-trabajadores', Icon: Users },
 ] as const
 
 export function HomePage() {
