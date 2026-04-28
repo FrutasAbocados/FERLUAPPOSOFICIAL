@@ -141,7 +141,7 @@ export function parseExcel(buffer: ArrayBuffer): ParseResult {
         return
       }
       const importe = parseNum(row['Importe'])
-      if (importe == null || importe < 0) {
+      if (importe == null) {
         errores.push({
           hoja: sheetName,
           fila: idx + 2,
@@ -149,6 +149,7 @@ export function parseExcel(buffer: ArrayBuffer): ParseResult {
         })
         return
       }
+      // Importe negativo = abono / nota de crédito (válido)
 
       const fechaCobro = parseDate(row['Fecha Cobro'])
       const importeCobrado = parseNum(row['Importe Cobrado'])
