@@ -50,17 +50,19 @@ export interface TopClienteMargen {
   contact_name_canon: string
   docs: number
   unidades: number
-  ventas: number
+  ventas: number             // total con IVA (cuadra con Holded)
+  ventas_subtotal: number    // sin IVA
   cogs: number
-  margen: number
-  margen_pct: number | null
+  margen: number             // ventas_subtotal - cogs
+  margen_pct: number | null  // sobre ventas_subtotal
 }
 
 export interface TopProductoMargen {
   nombre: string
   product_id: string | null
   unidades: number
-  ventas: number
+  ventas: number             // total con IVA
+  ventas_subtotal: number    // sin IVA
   cogs: number
   margen: number
   margen_pct: number | null

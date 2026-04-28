@@ -52,6 +52,7 @@ export function useTopClientesMargen(period: Period, limit = 10) {
         docs:               Number(r.docs ?? 0),
         unidades:           Number(r.unidades ?? 0),
         ventas:             Number(r.ventas ?? 0),
+        ventas_subtotal:    Number(r.ventas_subtotal ?? 0),
         cogs:               Number(r.cogs ?? 0),
         margen:             Number(r.margen ?? 0),
         margen_pct:         r.margen_pct == null ? null : Number(r.margen_pct),
@@ -72,13 +73,14 @@ export function useTopProductosMargen(period: Period, limit = 10) {
       })
       if (error) throw error
       return (data ?? []).map((r: Record<string, unknown>) => ({
-        nombre:     String(r.nombre ?? '(sin nombre)'),
-        product_id: r.product_id == null ? null : String(r.product_id),
-        unidades:   Number(r.unidades ?? 0),
-        ventas:     Number(r.ventas ?? 0),
-        cogs:       Number(r.cogs ?? 0),
-        margen:     Number(r.margen ?? 0),
-        margen_pct: r.margen_pct == null ? null : Number(r.margen_pct),
+        nombre:           String(r.nombre ?? '(sin nombre)'),
+        product_id:       r.product_id == null ? null : String(r.product_id),
+        unidades:         Number(r.unidades ?? 0),
+        ventas:           Number(r.ventas ?? 0),
+        ventas_subtotal:  Number(r.ventas_subtotal ?? 0),
+        cogs:             Number(r.cogs ?? 0),
+        margen:           Number(r.margen ?? 0),
+        margen_pct:       r.margen_pct == null ? null : Number(r.margen_pct),
       }))
     },
   })

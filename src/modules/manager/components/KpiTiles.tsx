@@ -21,12 +21,12 @@ interface Tile {
 
 export function KpiTiles({ k, loading }: Props) {
   const tiles: Tile[] = [
-    { label: 'Ventas',          value: k ? eur(k.ventas_subtotal) : '—', sub: k ? `${k.ventas_n} docs`         : '', tone: 'positive' },
-    { label: 'Compras',         value: k ? eur(k.compras_subtotal) : '—', sub: k ? `${k.compras_n} facturas`   : '', tone: 'neutral' },
-    { label: 'COGS',            value: k ? eur(k.cogs) : '—',             sub: 'coste mercancía vendida',           tone: 'neutral' },
-    { label: 'Margen real',     value: k ? eur(k.margen_real) : '—',      sub: 'ventas − COGS',                     tone: k && k.margen_real >= 0 ? 'positive' : 'negative' },
-    { label: 'Margen %',        value: k ? pct(k.margen_pct) : '—',       sub: '',                                  tone: k && (k.margen_pct ?? 0) >= 20 ? 'positive' : 'warning' },
-    { label: 'Pendiente cobro', value: k ? eur(k.pendiente_cobro) : '—',  sub: '',                                  tone: 'warning' },
+    { label: 'Ventas',          value: k ? eur(k.ventas_total) : '—',    sub: k ? `${k.ventas_n} docs · IVA inc.` : '', tone: 'positive' },
+    { label: 'Compras',         value: k ? eur(k.compras_total) : '—',   sub: k ? `${k.compras_n} fact. · IVA inc.` : '', tone: 'neutral' },
+    { label: 'COGS',            value: k ? eur(k.cogs) : '—',            sub: 'coste mercancía (sin IVA)',           tone: 'neutral' },
+    { label: 'Margen real',     value: k ? eur(k.margen_real) : '—',     sub: 'ventas − COGS (sin IVA)',             tone: k && k.margen_real >= 0 ? 'positive' : 'negative' },
+    { label: 'Margen %',        value: k ? pct(k.margen_pct) : '—',      sub: 'sobre subtotal',                      tone: k && (k.margen_pct ?? 0) >= 20 ? 'positive' : 'warning' },
+    { label: 'Pendiente cobro', value: k ? eur(k.pendiente_cobro) : '—', sub: '',                                    tone: 'warning' },
   ]
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
