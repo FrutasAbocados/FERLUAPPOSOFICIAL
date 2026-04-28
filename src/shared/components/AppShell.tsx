@@ -5,6 +5,7 @@ import {
   CheckSquare,
   CalendarDays,
   Wallet,
+  HandCoins,
   LogOut,
   Menu,
 } from 'lucide-react'
@@ -25,6 +26,7 @@ const MODULES: ModuleNav[] = [
   { key: 'tareas', label: 'Tareas', to: '/tareas', icon: CheckSquare },
   { key: 'turnos', label: 'Turnos', to: '/turnos', icon: CalendarDays },
   { key: 'tesoreria', label: 'Tesorería', to: '/tesoreria', icon: Wallet },
+  { key: 'cobros', label: 'Cobros', to: '/cobros', icon: HandCoins },
 ]
 
 export function AppShell() {

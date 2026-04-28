@@ -5,6 +5,7 @@ import {
   CheckSquare,
   CalendarDays,
   Wallet,
+  HandCoins,
   ArrowRight,
 } from 'lucide-react'
 import { useAuth } from '@/shared/auth/AuthContext'
@@ -60,6 +61,13 @@ const ENTRIES: ModuleEntry[] = [
     desc: 'Pagos y cuentas bancarias',
     to: '/tesoreria',
     Icon: Wallet,
+  },
+  {
+    key: 'cobros',
+    title: 'Control Deuda Abocados',
+    desc: 'Cobros, vencimientos y pizarra unificados',
+    to: '/cobros',
+    Icon: HandCoins,
   },
 ]
 
