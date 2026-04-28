@@ -8,7 +8,7 @@ export type Profile = {
   created_at: string
 }
 
-export type ModuleKey = 'manager' | 'cash' | 'tareas' | 'turnos' | 'cobros'
+export type ModuleKey = 'manager' | 'cash' | 'tareas' | 'turnos' | 'cobros' | 'agente'
 
 export const MODULE_ACCESS: Record<ModuleKey, Role[]> = {
   manager: ['admin_full'],
@@ -16,6 +16,7 @@ export const MODULE_ACCESS: Record<ModuleKey, Role[]> = {
   tareas: ['admin_full', 'admin_op'],
   turnos: ['admin_full', 'admin_op', 'empleado'],
   cobros: ['admin_full', 'admin_op'],
+  agente: ['admin_full'],
 }
 
 export const canAccess = (mod: ModuleKey, role: Role): boolean =>

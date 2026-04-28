@@ -13,6 +13,7 @@ import { CashPage } from '@/modules/cash/CashPage'
 import { TareasPage } from '@/modules/tareas/TareasPage'
 import { TurnosPage } from '@/modules/turnos/TurnosPage'
 import { CobrosPage } from '@/modules/cobros/CobrosPage'
+import { AgentePage } from '@/modules/agente/AgentePage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +49,9 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute module="cobros" />}>
                     <Route path="cobros" element={<CobrosPage />} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="agente" />}>
+                    <Route path="agente" element={<AgentePage />} />
                   </Route>
                 </Route>
               </Route>

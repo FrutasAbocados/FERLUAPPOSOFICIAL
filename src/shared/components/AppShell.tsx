@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   BarChart3,
   Banknote,
+  Bot,
   CheckSquare,
   CalendarDays,
   HandCoins,
@@ -22,6 +23,7 @@ type ModuleNav = {
 
 const MODULES: ModuleNav[] = [
   { key: 'manager', label: 'Manager', to: '/manager', icon: BarChart3 },
+  { key: 'agente',  label: 'Agente IA', to: '/agente', icon: Bot },
   { key: 'cash', label: 'Caja', to: '/cash', icon: Banknote },
   { key: 'tareas', label: 'Tareas', to: '/tareas', icon: CheckSquare },
   { key: 'turnos', label: 'Turnos', to: '/turnos', icon: CalendarDays },

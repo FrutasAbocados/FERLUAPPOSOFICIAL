@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import {
-  AlertTriangle, BarChart3, Banknote, CalendarClock,
+  AlertTriangle, BarChart3, Banknote, Bot, CalendarClock,
   CheckSquare, CalendarDays, HandCoins, Package, TrendingUp, UserMinus,
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
@@ -22,6 +22,7 @@ const fmt = (d: string | null) =>
 
 const MODULOS = [
   { key: 'manager',   title: 'Manager',                    to: '/manager',   Icon: BarChart3 },
+  { key: 'agente',    title: 'Agente IA',                  to: '/agente',    Icon: Bot },
   { key: 'cash',      title: 'Caja',                       to: '/cash',      Icon: Banknote },
   { key: 'tareas',    title: 'Tareas',                     to: '/tareas',    Icon: CheckSquare },
   { key: 'turnos',    title: 'Turnos',                     to: '/turnos',    Icon: CalendarDays },
