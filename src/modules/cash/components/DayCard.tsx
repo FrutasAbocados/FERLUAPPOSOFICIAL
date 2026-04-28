@@ -8,20 +8,24 @@ import type { Cierre } from '../lib/types'
 type Props = {
   date: Date
   cierre: Cierre | undefined
-  onClick: () => void
+  onClick?: () => void
 }
 
 export function DayCard({ date, cierre, onClick }: Props) {
   const today = isSameDay(date, new Date())
   const weekday = format(date, 'EEEE', { locale: es })
   const dayNum = format(date, 'd')
+  const readOnly = !onClick
 
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={readOnly}
       className={cn(
-        'group flex w-full items-center gap-3 rounded-[var(--radius-md)] border bg-[var(--color-surface)] p-3 text-left transition-all hover:border-[var(--color-primary)] hover:shadow-sm',
+        'group flex w-full items-center gap-3 rounded-[var(--radius-md)] border bg-[var(--color-surface)] p-3 text-left transition-all',
+        !readOnly && 'hover:border-[var(--color-primary)] hover:shadow-sm',
+        readOnly && 'cursor-default',
         today
           ? 'border-[var(--color-primary)] ring-1 ring-[var(--color-primary)]'
           : 'border-[var(--color-border)]',
@@ -54,10 +58,12 @@ export function DayCard({ date, cierre, onClick }: Props) {
       ) : (
         <div className="flex flex-1 items-center justify-between text-sm text-[var(--color-ink-3)]">
           <span>Sin cierre</span>
-          <span className="flex items-center gap-1 text-[var(--color-primary)] opacity-0 transition-opacity group-hover:opacity-100">
-            <Plus className="h-4 w-4" />
-            Crear
-          </span>
+          {!readOnly && (
+            <span className="flex items-center gap-1 text-[var(--color-primary)] opacity-0 transition-opacity group-hover:opacity-100">
+              <Plus className="h-4 w-4" />
+              Crear
+            </span>
+          )}
         </div>
       )}
     </button>

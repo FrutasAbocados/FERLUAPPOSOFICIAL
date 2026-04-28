@@ -13,6 +13,10 @@ import type {
   PagoInput,
 } from './types'
 
+type CuentaConSaldoRow = Omit<CuentaConSaldo, 'saldo_actual'> & {
+  saldo_actual: number | string
+}
+
 const isoDate = (d: Date) => format(d, 'yyyy-MM-dd')
 
 const KEYS = {
@@ -26,35 +30,21 @@ const KEYS = {
   gastosFijos: ['tesoreria', 'gastos-fijos'] as const,
 }
 
-// ---- Cuentas con saldo computado ----
+// ---- Cuentas con saldo computado en SQL (vista tesoreria_cuentas_con_saldo) ----
 export function useCuentas() {
   return useQuery({
     queryKey: KEYS.cuentas,
     queryFn: async (): Promise<CuentaConSaldo[]> => {
-      const [cuentasRes, movRes] = await Promise.all([
-        supabase
-          .from('tesoreria_cuentas')
-          .select('*')
-          .order('orden', { ascending: true })
-          .order('nombre', { ascending: true }),
-        supabase.from('tesoreria_movimientos').select('cuenta_id, importe'),
-      ])
-      if (cuentasRes.error) throw cuentasRes.error
-      if (movRes.error) throw movRes.error
-
-      const sumByCuenta = new Map<string, number>()
-      for (const m of movRes.data ?? []) {
-        sumByCuenta.set(
-          m.cuenta_id,
-          (sumByCuenta.get(m.cuenta_id) ?? 0) + Number(m.importe),
-        )
-      }
-      return (cuentasRes.data ?? []).map((c) => ({
-        ...(c as Cuenta),
-        saldo_actual:
-          Number((c as Cuenta).saldo_inicial) +
-          (sumByCuenta.get((c as Cuenta).id) ?? 0),
-      }))
+      const { data, error } = await supabase
+        .from('tesoreria_cuentas_con_saldo')
+        .select('*')
+        .order('orden', { ascending: true })
+        .order('nombre', { ascending: true })
+      if (error) throw error
+      return (data ?? []).map((c) => ({
+        ...(c as CuentaConSaldoRow),
+        saldo_actual: Number((c as CuentaConSaldoRow).saldo_actual),
+      })) as CuentaConSaldo[]
     },
   })
 }

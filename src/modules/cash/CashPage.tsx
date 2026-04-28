@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { eachDayOfInterval, endOfMonth, format, startOfMonth } from 'date-fns'
 import { Loader2 } from 'lucide-react'
+import { useAuth } from '@/shared/auth/AuthContext'
 import { MonthHeader } from './components/MonthHeader'
 import { KpiBar } from './components/KpiBar'
 import { DayCard } from './components/DayCard'
@@ -13,6 +14,8 @@ import {
 import type { Cierre } from './lib/types'
 
 export function CashPage() {
+  const { profile } = useAuth()
+  const isAdminFull = profile?.role === 'admin_full'
   const [anchor, setAnchor] = useState<Date>(() => startOfMonth(new Date()))
   const [editing, setEditing] = useState<string | null>(null)
 
@@ -52,7 +55,10 @@ export function CashPage() {
             Caja
           </h1>
           <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
-            Cierre diario completo: cobros, gastos, deuda, operativa.
+            Cierre diario completo: cobros, gastos, deuda, operativa.{' '}
+            {!isAdminFull && (
+              <span className="text-[var(--color-ink-3)]">(Solo lectura)</span>
+            )}
           </p>
         </div>
         <MonthHeader
@@ -92,14 +98,14 @@ export function CashPage() {
                 key={iso}
                 date={d}
                 cierre={byDate.get(iso)}
-                onClick={() => setEditing(iso)}
+                onClick={isAdminFull ? () => setEditing(iso) : undefined}
               />
             )
           })}
         </div>
       )}
 
-      {editing && (
+      {isAdminFull && editing && (
         <CierreForm
           fecha={editing}
           cierre={editingCierre ?? null}

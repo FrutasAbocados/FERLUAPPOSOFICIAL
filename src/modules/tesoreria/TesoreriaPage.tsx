@@ -125,11 +125,11 @@ export function TesoreriaPage() {
         </div>
       )}
 
-      {showCuenta && <CuentaForm onClose={() => setShowCuenta(false)} />}
-      {showPago && (
+      {isAdminFull && showCuenta && <CuentaForm onClose={() => setShowCuenta(false)} />}
+      {isAdminFull && showPago && (
         <PagoForm cuentas={cuentas.data ?? []} onClose={() => setShowPago(false)} />
       )}
-      {movCuentaId && (
+      {isAdminFull && movCuentaId && (
         <MovimientoForm
           cuentas={cuentas.data ?? []}
           defaultCuentaId={movCuentaId}
