@@ -11,7 +11,7 @@ export function SyncBar() {
 
   async function onSync() {
     try {
-      const r = await sync.mutateAsync()
+      const r = await sync.mutateAsync(undefined)
       toast({
         variant: r.ok ? 'success' : 'error',
         title: r.ok ? 'Sync completado' : 'Sync con errores',

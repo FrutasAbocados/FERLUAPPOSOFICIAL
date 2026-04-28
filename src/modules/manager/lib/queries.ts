@@ -90,7 +90,7 @@ export function useUltimoSync() {
 export function useSyncManual() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (range?: { start?: string; end?: string }) => {
+    mutationFn: async (range: { start?: string; end?: string } | undefined) => {
       const { data, error } = await supabase.functions.invoke('holded-sync', {
         body: { ...range, trigger: 'manual' },
       })
