@@ -346,7 +346,7 @@ export function useImportarExcel() {
         const { data, error } = await supabase
           .from('cobros_movimientos')
           .upsert(batch, {
-            onConflict: 'cliente_id,numero_factura',
+            onConflict: 'cliente_id,numero_factura,fecha_factura',
             ignoreDuplicates: true,
           })
           .select('id')

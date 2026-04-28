@@ -130,7 +130,16 @@ export function parseExcel(buffer: ArrayBuffer): ParseResult {
       const nombre = typeof clienteName === 'string' ? clienteName.trim() : ''
       if (!nombre) return
 
-      const numFactura = (row['Nº Factura'] ?? null) as string | null
+      // Nº Factura puede venir como número (ej. 261288) o string. Normalizamos.
+      const rawNum = row['Nº Factura']
+      const numFactura: string | null =
+        rawNum == null
+          ? null
+          : typeof rawNum === 'number'
+            ? String(rawNum)
+            : typeof rawNum === 'string'
+              ? rawNum.trim() || null
+              : null
       const fechaFactura = parseDate(row['Fecha Factura'])
       if (!fechaFactura) {
         errores.push({
@@ -175,7 +184,7 @@ export function parseExcel(buffer: ArrayBuffer): ParseResult {
         _cliente_nombre: nombre,
         cliente_id: '', // se resuelve en el upsert
         tipo: 'Factura',
-        numero_factura: typeof numFactura === 'string' ? numFactura.trim() : null,
+        numero_factura: numFactura,
         fecha_factura: isoDate(fechaFactura),
         importe,
         pagado,
