@@ -3,6 +3,7 @@ import { supabase } from '@/shared/lib/supabase'
 import type { Period } from './period'
 import type {
   AliasRow, ClienteFactura, ClienteListItem, ClienteProducto,
+  CosteManualRow, ProductoCliente, ProductoCompra, ProductoListItem,
   ResumenPeriodo, SerieDiariaPunto, SyncLog,
   TopClienteMargen, TopProductoMargen,
 } from './types'
@@ -107,7 +108,7 @@ export function useSerieDiaria(period: Period) {
   })
 }
 
-// ── Lista de clientes ─────────────────────────────────────────────────────
+// ── Lista de clientes (agrupados por nombre canónico) ────────────────────
 export function useClientesLista(period: Period) {
   return useQuery({
     queryKey: ['manager', 'clientes', periodKey(period)] as const,
@@ -118,8 +119,8 @@ export function useClientesLista(period: Period) {
       })
       if (error) throw error
       return (data ?? []).map((r: Record<string, unknown>) => ({
-        contact_id:         r.contact_id == null ? null : String(r.contact_id),
         contact_name_canon: String(r.contact_name_canon ?? '(sin contacto)'),
+        contact_ids:        Array.isArray(r.contact_ids) ? r.contact_ids as string[] : null,
         docs:               Number(r.docs ?? 0),
         ventas:             Number(r.ventas ?? 0),
         ventas_subtotal:    Number(r.ventas_subtotal ?? 0),
@@ -134,15 +135,15 @@ export function useClientesLista(period: Period) {
   })
 }
 
-// ── Facturas de un cliente ────────────────────────────────────────────────
-export function useClienteFacturas(contactId: string | null, period: Period) {
+// ── Facturas / albaranes de un cliente (por nombre canónico) ─────────────
+export function useClienteFacturas(canonName: string | null, period: Period) {
   return useQuery({
-    queryKey: ['manager', 'cliente', contactId, 'facturas', periodKey(period)] as const,
-    enabled: !!contactId,
+    queryKey: ['manager', 'cliente', canonName, 'facturas', periodKey(period)] as const,
+    enabled: !!canonName,
     queryFn: async (): Promise<ClienteFactura[]> => {
-      if (!contactId) return []
+      if (!canonName) return []
       const { data, error } = await supabase.rpc('manager_cliente_facturas', {
-        p_contact_id: contactId, p_from: period.from, p_to: period.to,
+        p_contact_name_canon: canonName, p_from: period.from, p_to: period.to,
       })
       if (error) throw error
       return (data ?? []) as ClienteFactura[]
@@ -150,15 +151,15 @@ export function useClienteFacturas(contactId: string | null, period: Period) {
   })
 }
 
-// ── Productos favoritos de un cliente ─────────────────────────────────────
-export function useClienteProductos(contactId: string | null, period: Period) {
+// ── Productos favoritos de un cliente (por nombre canónico) ──────────────
+export function useClienteProductos(canonName: string | null, period: Period) {
   return useQuery({
-    queryKey: ['manager', 'cliente', contactId, 'productos', periodKey(period)] as const,
-    enabled: !!contactId,
+    queryKey: ['manager', 'cliente', canonName, 'productos', periodKey(period)] as const,
+    enabled: !!canonName,
     queryFn: async (): Promise<ClienteProducto[]> => {
-      if (!contactId) return []
+      if (!canonName) return []
       const { data, error } = await supabase.rpc('manager_cliente_productos', {
-        p_contact_id: contactId, p_from: period.from, p_to: period.to, p_limit: 30,
+        p_contact_name_canon: canonName, p_from: period.from, p_to: period.to, p_limit: 30,
       })
       if (error) throw error
       return (data ?? []) as ClienteProducto[]
@@ -206,6 +207,114 @@ export function useDeleteAlias() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager'] })
     },
+  })
+}
+
+// ── Lista productos ───────────────────────────────────────────────────────
+export function useProductosLista(period: Period) {
+  return useQuery({
+    queryKey: ['manager', 'productos', periodKey(period)] as const,
+    queryFn: async (): Promise<ProductoListItem[]> => {
+      const { data, error } = await supabase.rpc('manager_productos_lista', {
+        p_from: period.from, p_to: period.to,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        product_id:      r.product_id == null ? null : String(r.product_id),
+        nombre:          String(r.nombre ?? '(sin nombre)'),
+        veces:           Number(r.veces ?? 0),
+        unidades:        Number(r.unidades ?? 0),
+        ventas:          Number(r.ventas ?? 0),
+        ventas_subtotal: Number(r.ventas_subtotal ?? 0),
+        cogs:            Number(r.cogs ?? 0),
+        margen:          Number(r.margen ?? 0),
+        margen_pct:      r.margen_pct == null ? null : Number(r.margen_pct),
+        coste_unidad:    r.coste_unidad == null ? null : Number(r.coste_unidad),
+        es_coste_manual: Boolean(r.es_coste_manual ?? false),
+        ultima_compra:   r.ultima_compra == null ? null : String(r.ultima_compra),
+        ultima_venta:    r.ultima_venta == null ? null : String(r.ultima_venta),
+      }))
+    },
+  })
+}
+
+export function useProductoClientes(productId: string | null, period: Period) {
+  return useQuery({
+    queryKey: ['manager', 'producto', productId, 'clientes', periodKey(period)] as const,
+    enabled: !!productId,
+    queryFn: async (): Promise<ProductoCliente[]> => {
+      if (!productId) return []
+      const { data, error } = await supabase.rpc('manager_producto_clientes', {
+        p_product_id: productId, p_from: period.from, p_to: period.to, p_limit: 30,
+      })
+      if (error) throw error
+      return (data ?? []) as ProductoCliente[]
+    },
+  })
+}
+
+export function useProductoCompras(productId: string | null) {
+  return useQuery({
+    queryKey: ['manager', 'producto', productId, 'compras'] as const,
+    enabled: !!productId,
+    queryFn: async (): Promise<ProductoCompra[]> => {
+      if (!productId) return []
+      const { data, error } = await supabase.rpc('manager_producto_compras', {
+        p_product_id: productId, p_limit: 60,
+      })
+      if (error) throw error
+      return (data ?? []) as ProductoCompra[]
+    },
+  })
+}
+
+// ── Costes manuales (override) ────────────────────────────────────────────
+export function useCosteManual(productId: string | null) {
+  return useQuery({
+    queryKey: ['manager', 'producto', productId, 'costeManual'] as const,
+    enabled: !!productId,
+    queryFn: async (): Promise<CosteManualRow | null> => {
+      if (!productId) return null
+      const { data, error } = await supabase
+        .from('manager_costes_manuales')
+        .select('product_id, coste_eur, nota, updated_at')
+        .eq('product_id', productId)
+        .maybeSingle()
+      if (error) throw error
+      return (data ?? null) as CosteManualRow | null
+    },
+  })
+}
+
+export function useSetCosteManual() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { product_id: string; coste_eur: number; nota?: string | null }) => {
+      const { error } = await supabase
+        .from('manager_costes_manuales')
+        .upsert({
+          product_id: input.product_id,
+          coste_eur:  input.coste_eur,
+          nota:       input.nota ?? null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'product_id' })
+      if (error) throw error
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manager'] }) },
+  })
+}
+
+export function useDeleteCosteManual() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (productId: string) => {
+      const { error } = await supabase
+        .from('manager_costes_manuales')
+        .delete()
+        .eq('product_id', productId)
+      if (error) throw error
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manager'] }) },
   })
 }
 

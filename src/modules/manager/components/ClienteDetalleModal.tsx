@@ -25,8 +25,8 @@ interface Props {
 }
 
 export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
-  const facturas = useClienteFacturas(cliente.contact_id, period)
-  const productos = useClienteProductos(cliente.contact_id, period)
+  const facturas = useClienteFacturas(cliente.contact_name_canon, period)
+  const productos = useClienteProductos(cliente.contact_name_canon, period)
   const aliases = useAliases()
   const addAlias = useAddAlias()
   const delAlias = useDeleteAlias()

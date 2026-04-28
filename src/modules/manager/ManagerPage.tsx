@@ -4,9 +4,10 @@ import { SyncBar } from './components/SyncBar'
 import { PeriodPicker } from './components/PeriodPicker'
 import { ResumenView } from './components/ResumenView'
 import { ClientesView } from './components/ClientesView'
+import { ProductosView } from './components/ProductosView'
 import { periodFromPreset, type Period } from './lib/period'
 
-type Tab = 'resumen' | 'clientes'
+type Tab = 'resumen' | 'clientes' | 'productos'
 
 export function ManagerPage() {
   const [period, setPeriod] = useState<Period>(() => periodFromPreset('mes'))
@@ -28,8 +29,9 @@ export function ManagerPage() {
 
         <div className="flex items-center gap-1 border-b border-[var(--color-border)]">
           {([
-            { k: 'resumen', l: 'Resumen' },
-            { k: 'clientes', l: 'Clientes' },
+            { k: 'resumen',   l: 'Resumen' },
+            { k: 'clientes',  l: 'Clientes' },
+            { k: 'productos', l: 'Productos' },
           ] as Array<{ k: Tab; l: string }>).map(t => (
             <Button
               key={t.k}
@@ -40,8 +42,9 @@ export function ManagerPage() {
           ))}
         </div>
 
-        {tab === 'resumen' && <ResumenView period={period} />}
-        {tab === 'clientes' && <ClientesView period={period} />}
+        {tab === 'resumen'   && <ResumenView   period={period} />}
+        {tab === 'clientes'  && <ClientesView  period={period} />}
+        {tab === 'productos' && <ProductosView period={period} />}
       </div>
     </div>
   )

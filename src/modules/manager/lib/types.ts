@@ -76,8 +76,8 @@ export interface SerieDiariaPunto {
 }
 
 export interface ClienteListItem {
-  contact_id: string | null
   contact_name_canon: string
+  contact_ids: string[] | null   // todos los IDs Holded unificados bajo este nombre
   docs: number
   ventas: number
   ventas_subtotal: number
@@ -93,6 +93,7 @@ export interface ClienteFactura {
   id: string
   doc_number: string | null
   subtipo: string | null
+  contact_name: string | null
   fecha: string | null
   fecha_vencimiento: string | null
   subtotal: number | null
@@ -118,4 +119,46 @@ export interface AliasRow {
   alias_from: string
   alias_to: string
   created_at: string
+}
+
+export interface ProductoListItem {
+  product_id: string | null
+  nombre: string
+  veces: number
+  unidades: number
+  ventas: number
+  ventas_subtotal: number
+  cogs: number
+  margen: number
+  margen_pct: number | null
+  coste_unidad: number | null
+  es_coste_manual: boolean
+  ultima_compra: string | null
+  ultima_venta: string | null
+}
+
+export interface ProductoCliente {
+  contact_name_canon: string
+  veces: number
+  unidades: number
+  ventas_subtotal: number
+  margen: number
+  margen_pct: number | null
+  ultima_compra: string | null
+}
+
+export interface ProductoCompra {
+  fecha: string | null
+  contact_id: string | null
+  contact_name: string
+  units: number | null
+  subtotal: number | null
+  precio_unit: number | null
+}
+
+export interface CosteManualRow {
+  product_id: string
+  coste_eur: number
+  nota: string | null
+  updated_at: string
 }

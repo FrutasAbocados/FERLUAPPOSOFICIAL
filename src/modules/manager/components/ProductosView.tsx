@@ -2,14 +2,14 @@ import { useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Search } from 'lucide-react'
-import { Input } from '@/shared/components/ui/input'
 import { Button } from '@/shared/components/ui/button'
+import { Input } from '@/shared/components/ui/input'
 import type { Period } from '../lib/period'
-import type { ClienteListItem } from '../lib/types'
-import { useClientesLista } from '../lib/queries'
-import { ClienteDetalleModal } from './ClienteDetalleModal'
+import type { ProductoListItem } from '../lib/types'
+import { useProductosLista } from '../lib/queries'
+import { ProductoDetalleModal } from './ProductoDetalleModal'
 
-type SortKey = 'ventas' | 'margen' | 'docs' | 'pendiente'
+type SortKey = 'ventas' | 'margen' | 'unidades' | 'margen_pct'
 
 const eur0 = (n: number) =>
   new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
@@ -20,22 +20,22 @@ interface Props {
   period: Period
 }
 
-export function ClientesView({ period }: Props) {
-  const { data, isLoading } = useClientesLista(period)
+export function ProductosView({ period }: Props) {
+  const { data, isLoading } = useProductosLista(period)
   const [q, setQ] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('ventas')
-  const [selected, setSelected] = useState<ClienteListItem | null>(null)
+  const [selected, setSelected] = useState<ProductoListItem | null>(null)
 
   const filtered = useMemo(() => {
     let rows = data ?? []
     const qq = q.trim().toLowerCase()
-    if (qq) rows = rows.filter(r => r.contact_name_canon.toLowerCase().includes(qq))
+    if (qq) rows = rows.filter(r => r.nombre.toLowerCase().includes(qq))
     rows = [...rows].sort((a, b) => {
       switch (sortKey) {
-        case 'ventas': return b.ventas - a.ventas
-        case 'margen': return b.margen - a.margen
-        case 'docs': return b.docs - a.docs
-        case 'pendiente': return b.pendiente_cobro - a.pendiente_cobro
+        case 'ventas':     return b.ventas - a.ventas
+        case 'margen':     return b.margen - a.margen
+        case 'unidades':   return b.unidades - a.unidades
+        case 'margen_pct': return (b.margen_pct ?? -1) - (a.margen_pct ?? -1)
       }
     })
     return rows
@@ -47,7 +47,7 @@ export function ClientesView({ period }: Props) {
         <div className="relative flex-1 min-w-[240px]">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-ink-3)]" />
           <Input
-            placeholder="Buscar cliente…"
+            placeholder="Buscar producto…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="h-9 pl-8"
@@ -56,10 +56,10 @@ export function ClientesView({ period }: Props) {
         <div className="flex items-center gap-1">
           <span className="text-xs text-[var(--color-ink-3)]">Ordenar:</span>
           {([
-            { k: 'ventas', l: 'Ventas' },
-            { k: 'margen', l: 'Margen €' },
-            { k: 'docs', l: 'Docs' },
-            { k: 'pendiente', l: 'Pendiente' },
+            { k: 'ventas',     l: 'Ventas' },
+            { k: 'margen',     l: 'Margen €' },
+            { k: 'unidades',   l: 'Unidades' },
+            { k: 'margen_pct', l: '% margen' },
           ] as Array<{ k: SortKey; l: string }>).map(o => (
             <Button
               key={o.k}
@@ -69,47 +69,47 @@ export function ClientesView({ period }: Props) {
             >{o.l}</Button>
           ))}
         </div>
-        <span className="ml-auto text-xs text-[var(--color-ink-3)] tabular-nums">{filtered.length} clientes</span>
+        <span className="ml-auto text-xs text-[var(--color-ink-3)] tabular-nums">{filtered.length} productos</span>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
         {isLoading && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
-        {!isLoading && filtered.length === 0 && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Sin clientes en este periodo</p>}
+        {!isLoading && filtered.length === 0 && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Sin productos en este periodo</p>}
 
         <div className="hidden md:grid md:grid-cols-[1fr_repeat(5,_120px)_80px] md:gap-2 md:border-b md:border-[var(--color-border)] md:px-4 md:py-2 md:text-xs md:font-semibold md:uppercase md:tracking-wider md:text-[var(--color-ink-3)]">
-          <div>Cliente</div>
-          <div className="text-right">Docs</div>
+          <div>Producto</div>
+          <div className="text-right">Unidades</div>
           <div className="text-right">Ventas</div>
           <div className="text-right">Margen €</div>
           <div className="text-right">% margen</div>
-          <div className="text-right">Pendiente</div>
+          <div className="text-right">Coste/ud</div>
           <div className="text-right">Última</div>
         </div>
 
         <ul className="divide-y divide-[var(--color-border)]">
-          {filtered.map(c => (
-            <li key={c.contact_name_canon}>
+          {filtered.map(p => (
+            <li key={p.product_id ?? p.nombre}>
               <button
-                onClick={() => setSelected(c)}
+                onClick={() => setSelected(p)}
                 className="grid w-full grid-cols-[1fr_auto] gap-2 px-4 py-2 text-left text-sm transition hover:bg-[var(--color-surface-2,#f8fafc)] md:grid-cols-[1fr_repeat(5,_120px)_80px]"
               >
                 <div className="min-w-0">
-                  <div className="truncate text-[var(--color-ink)]">{c.contact_name_canon}</div>
-                  {c.num_aliases > 1 && (
-                    <div className="text-xs text-[var(--color-ink-3)]">{c.num_aliases} nombres unificados</div>
+                  <div className="truncate text-[var(--color-ink)]">{p.nombre}</div>
+                  {p.es_coste_manual && (
+                    <div className="text-xs text-amber-700">coste manual</div>
                   )}
                 </div>
-                <div className="text-right text-xs text-[var(--color-ink-3)] md:text-sm md:text-[var(--color-ink)] md:tabular-nums">{c.docs}</div>
-                <div className="hidden text-right tabular-nums text-[var(--color-ink)] md:block">{eur0(c.ventas)}</div>
-                <div className="hidden text-right tabular-nums text-emerald-700 md:block">{eur0(c.margen)}</div>
-                <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">{c.margen_pct == null ? '—' : `${c.margen_pct.toFixed(0)}%`}</div>
-                <div className="hidden text-right tabular-nums text-amber-700 md:block">{c.pendiente_cobro > 0 ? eur0(c.pendiente_cobro) : '—'}</div>
-                <div className="hidden text-right text-xs text-[var(--color-ink-3)] md:block">{fmt(c.ultima_compra)}</div>
+                <div className="hidden text-right tabular-nums text-[var(--color-ink)] md:block">{p.unidades.toFixed(0)}</div>
+                <div className="hidden text-right tabular-nums text-[var(--color-ink)] md:block">{eur0(p.ventas)}</div>
+                <div className="hidden text-right tabular-nums text-emerald-700 md:block">{eur0(p.margen)}</div>
+                <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">{p.margen_pct == null ? '—' : `${p.margen_pct.toFixed(0)}%`}</div>
+                <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">{p.coste_unidad == null ? '—' : `${p.coste_unidad.toFixed(2)}€`}</div>
+                <div className="hidden text-right text-xs text-[var(--color-ink-3)] md:block">{fmt(p.ultima_venta)}</div>
 
-                {/* Mobile compact view */}
+                {/* Mobile compact */}
                 <div className="text-right tabular-nums md:hidden">
-                  <div className="text-[var(--color-ink)]">{eur0(c.ventas)}</div>
-                  <div className="text-xs text-emerald-700">{eur0(c.margen)} {c.margen_pct == null ? '' : `(${c.margen_pct.toFixed(0)}%)`}</div>
+                  <div className="text-[var(--color-ink)]">{eur0(p.ventas)}</div>
+                  <div className="text-xs text-emerald-700">{eur0(p.margen)} {p.margen_pct == null ? '' : `(${p.margen_pct.toFixed(0)}%)`}</div>
                 </div>
               </button>
             </li>
@@ -117,8 +117,8 @@ export function ClientesView({ period }: Props) {
         </ul>
       </div>
 
-      {selected && (
-        <ClienteDetalleModal cliente={selected} period={period} onClose={() => setSelected(null)} />
+      {selected && selected.product_id && (
+        <ProductoDetalleModal producto={selected} period={period} onClose={() => setSelected(null)} />
       )}
     </div>
   )
