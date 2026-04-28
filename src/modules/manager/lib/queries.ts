@@ -13,32 +13,42 @@ export const monthRange = (anchor: Date) => ({
 const monthKey = (anchor: Date) => format(startOfMonth(anchor), 'yyyy-MM')
 
 // KPIs del mes — ventas / compras / margen / pendiente cobro.
+// Ventas desde manager_ventas_efectivas (regla auto-albarán: clientes con
+// waybill ese mes ignoran su invoice agregada). Compras desde manager_facturas.
 export function useKpisMes(anchor: Date) {
   const { from, to } = monthRange(anchor)
   return useQuery({
     queryKey: ['manager', 'kpis', monthKey(anchor)] as const,
     queryFn: async (): Promise<KpiMes> => {
-      const { data, error } = await supabase
-        .from('manager_facturas')
-        .select('tipo,subtotal,total,payments_pending')
-        .gte('fecha', from)
-        .lte('fecha', to)
-      if (error) throw error
+      const [ventasRes, comprasRes] = await Promise.all([
+        supabase
+          .from('manager_ventas_efectivas')
+          .select('subtotal,total,payments_pending')
+          .gte('fecha', from)
+          .lte('fecha', to),
+        supabase
+          .from('manager_facturas')
+          .select('subtotal,total')
+          .eq('tipo', 'COMPRA')
+          .gte('fecha', from)
+          .lte('fecha', to),
+      ])
+      if (ventasRes.error) throw ventasRes.error
+      if (comprasRes.error) throw comprasRes.error
       const k: KpiMes = {
         ventas_n: 0, ventas_subtotal: 0, ventas_total: 0, ventas_pendiente: 0,
         compras_n: 0, compras_subtotal: 0, compras_total: 0, margen: 0,
       }
-      for (const r of data ?? []) {
-        if (r.tipo === 'VENTA') {
-          k.ventas_n++
-          k.ventas_subtotal += Number(r.subtotal ?? 0)
-          k.ventas_total += Number(r.total ?? 0)
-          k.ventas_pendiente += Number(r.payments_pending ?? 0)
-        } else {
-          k.compras_n++
-          k.compras_subtotal += Number(r.subtotal ?? 0)
-          k.compras_total += Number(r.total ?? 0)
-        }
+      for (const r of ventasRes.data ?? []) {
+        k.ventas_n++
+        k.ventas_subtotal += Number(r.subtotal ?? 0)
+        k.ventas_total += Number(r.total ?? 0)
+        k.ventas_pendiente += Number(r.payments_pending ?? 0)
+      }
+      for (const r of comprasRes.data ?? []) {
+        k.compras_n++
+        k.compras_subtotal += Number(r.subtotal ?? 0)
+        k.compras_total += Number(r.total ?? 0)
       }
       k.margen = k.ventas_subtotal - k.compras_subtotal
       return k
@@ -51,12 +61,20 @@ export function useTopContactos(anchor: Date, tipo: Tipo, limit = 5) {
   return useQuery({
     queryKey: ['manager', 'top', tipo, monthKey(anchor), limit] as const,
     queryFn: async (): Promise<TopContacto[]> => {
-      const { data, error } = await supabase
-        .from('manager_facturas')
-        .select('contact_name,subtotal')
-        .eq('tipo', tipo)
-        .gte('fecha', from)
-        .lte('fecha', to)
+      // Ventas → vista efectivas (sin doble contabilidad). Compras → tabla cruda.
+      const query = tipo === 'VENTA'
+        ? supabase
+            .from('manager_ventas_efectivas')
+            .select('contact_name,subtotal')
+            .gte('fecha', from)
+            .lte('fecha', to)
+        : supabase
+            .from('manager_facturas')
+            .select('contact_name,subtotal')
+            .eq('tipo', 'COMPRA')
+            .gte('fecha', from)
+            .lte('fecha', to)
+      const { data, error } = await query
       if (error) throw error
       const map = new Map<string, TopContacto>()
       for (const r of data ?? []) {
