@@ -31,19 +31,44 @@ export interface SyncLog {
   error: string | null
 }
 
-export interface KpiMes {
+// Devuelto por RPC manager_resumen_periodo.
+export interface ResumenPeriodo {
   ventas_n: number
   ventas_subtotal: number
   ventas_total: number
-  ventas_pendiente: number
+  pendiente_cobro: number
   compras_n: number
   compras_subtotal: number
   compras_total: number
-  margen: number
+  cogs: number
+  ventas_lineas: number
+  margen_real: number
+  margen_pct: number | null
 }
 
-export interface TopContacto {
-  contact_name: string
-  n: number
-  subtotal: number
+export interface TopClienteMargen {
+  contact_name_canon: string
+  docs: number
+  unidades: number
+  ventas: number
+  cogs: number
+  margen: number
+  margen_pct: number | null
+}
+
+export interface TopProductoMargen {
+  nombre: string
+  product_id: string | null
+  unidades: number
+  ventas: number
+  cogs: number
+  margen: number
+  margen_pct: number | null
+}
+
+export interface SerieDiariaPunto {
+  fecha: string  // YYYY-MM-DD
+  ventas: number
+  compras: number
+  margen: number
 }

@@ -1,92 +1,110 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { endOfMonth, format, startOfMonth } from 'date-fns'
 import { supabase } from '@/shared/lib/supabase'
-import type { KpiMes, SyncLog, Tipo, TopContacto } from './types'
+import type { Period } from './period'
+import type {
+  ResumenPeriodo, SerieDiariaPunto, SyncLog,
+  TopClienteMargen, TopProductoMargen,
+} from './types'
 
-const isoDate = (d: Date) => format(d, 'yyyy-MM-dd')
+const periodKey = (p: Period) => `${p.from}_${p.to}`
 
-export const monthRange = (anchor: Date) => ({
-  from: isoDate(startOfMonth(anchor)),
-  to: isoDate(endOfMonth(anchor)),
-})
-
-const monthKey = (anchor: Date) => format(startOfMonth(anchor), 'yyyy-MM')
-
-// KPIs del mes — ventas / compras / margen / pendiente cobro.
-// Ventas desde manager_ventas_efectivas_canon (regla auto-albarán + alias).
-// Compras desde manager_compras_canon.
-export function useKpisMes(anchor: Date) {
-  const { from, to } = monthRange(anchor)
+// ── KPIs agregados del periodo ────────────────────────────────────────────
+export function useResumen(period: Period) {
   return useQuery({
-    queryKey: ['manager', 'kpis', monthKey(anchor)] as const,
-    queryFn: async (): Promise<KpiMes> => {
-      const [ventasRes, comprasRes] = await Promise.all([
-        supabase
-          .from('manager_ventas_efectivas_canon')
-          .select('subtotal,total,payments_pending')
-          .gte('fecha', from)
-          .lte('fecha', to),
-        supabase
-          .from('manager_compras_canon')
-          .select('subtotal,total')
-          .gte('fecha', from)
-          .lte('fecha', to),
-      ])
-      if (ventasRes.error) throw ventasRes.error
-      if (comprasRes.error) throw comprasRes.error
-      const k: KpiMes = {
-        ventas_n: 0, ventas_subtotal: 0, ventas_total: 0, ventas_pendiente: 0,
-        compras_n: 0, compras_subtotal: 0, compras_total: 0, margen: 0,
-      }
-      for (const r of ventasRes.data ?? []) {
-        k.ventas_n++
-        k.ventas_subtotal += Number(r.subtotal ?? 0)
-        k.ventas_total += Number(r.total ?? 0)
-        k.ventas_pendiente += Number(r.payments_pending ?? 0)
-      }
-      for (const r of comprasRes.data ?? []) {
-        k.compras_n++
-        k.compras_subtotal += Number(r.subtotal ?? 0)
-        k.compras_total += Number(r.total ?? 0)
-      }
-      k.margen = k.ventas_subtotal - k.compras_subtotal
-      return k
-    },
-  })
-}
-
-export function useTopContactos(anchor: Date, tipo: Tipo, limit = 5) {
-  const { from, to } = monthRange(anchor)
-  return useQuery({
-    queryKey: ['manager', 'top', tipo, monthKey(anchor), limit] as const,
-    queryFn: async (): Promise<TopContacto[]> => {
-      // Ventas → vista efectivas canon (alias aplicado). Compras → vista canon.
-      const query = tipo === 'VENTA'
-        ? supabase
-            .from('manager_ventas_efectivas_canon')
-            .select('contact_name_canon,subtotal')
-            .gte('fecha', from)
-            .lte('fecha', to)
-        : supabase
-            .from('manager_compras_canon')
-            .select('contact_name_canon,subtotal')
-            .gte('fecha', from)
-            .lte('fecha', to)
-      const { data, error } = await query
+    queryKey: ['manager', 'resumen', periodKey(period)] as const,
+    queryFn: async (): Promise<ResumenPeriodo> => {
+      const { data, error } = await supabase.rpc('manager_resumen_periodo', {
+        p_from: period.from,
+        p_to: period.to,
+      })
       if (error) throw error
-      const map = new Map<string, TopContacto>()
-      for (const r of data ?? []) {
-        const name = r.contact_name_canon ?? '(sin contacto)'
-        const cur = map.get(name) ?? { contact_name: name, n: 0, subtotal: 0 }
-        cur.n++
-        cur.subtotal += Number(r.subtotal ?? 0)
-        map.set(name, cur)
+      const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null
+      return {
+        ventas_n:         Number(row?.ventas_n ?? 0),
+        ventas_subtotal:  Number(row?.ventas_subtotal ?? 0),
+        ventas_total:     Number(row?.ventas_total ?? 0),
+        pendiente_cobro:  Number(row?.pendiente_cobro ?? 0),
+        compras_n:        Number(row?.compras_n ?? 0),
+        compras_subtotal: Number(row?.compras_subtotal ?? 0),
+        compras_total:    Number(row?.compras_total ?? 0),
+        cogs:             Number(row?.cogs ?? 0),
+        ventas_lineas:    Number(row?.ventas_lineas ?? 0),
+        margen_real:      Number(row?.margen_real ?? 0),
+        margen_pct:       row?.margen_pct == null ? null : Number(row.margen_pct),
       }
-      return Array.from(map.values()).sort((a, b) => b.subtotal - a.subtotal).slice(0, limit)
     },
   })
 }
 
+// ── Top clientes por margen € ─────────────────────────────────────────────
+export function useTopClientesMargen(period: Period, limit = 10) {
+  return useQuery({
+    queryKey: ['manager', 'topClientes', periodKey(period), limit] as const,
+    queryFn: async (): Promise<TopClienteMargen[]> => {
+      const { data, error } = await supabase.rpc('manager_top_clientes_margen', {
+        p_from: period.from,
+        p_to: period.to,
+        p_limit: limit,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        contact_name_canon: String(r.contact_name_canon ?? '(sin contacto)'),
+        docs:               Number(r.docs ?? 0),
+        unidades:           Number(r.unidades ?? 0),
+        ventas:             Number(r.ventas ?? 0),
+        cogs:               Number(r.cogs ?? 0),
+        margen:             Number(r.margen ?? 0),
+        margen_pct:         r.margen_pct == null ? null : Number(r.margen_pct),
+      }))
+    },
+  })
+}
+
+// ── Top productos por margen € ────────────────────────────────────────────
+export function useTopProductosMargen(period: Period, limit = 10) {
+  return useQuery({
+    queryKey: ['manager', 'topProductos', periodKey(period), limit] as const,
+    queryFn: async (): Promise<TopProductoMargen[]> => {
+      const { data, error } = await supabase.rpc('manager_top_productos_margen', {
+        p_from: period.from,
+        p_to: period.to,
+        p_limit: limit,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        nombre:     String(r.nombre ?? '(sin nombre)'),
+        product_id: r.product_id == null ? null : String(r.product_id),
+        unidades:   Number(r.unidades ?? 0),
+        ventas:     Number(r.ventas ?? 0),
+        cogs:       Number(r.cogs ?? 0),
+        margen:     Number(r.margen ?? 0),
+        margen_pct: r.margen_pct == null ? null : Number(r.margen_pct),
+      }))
+    },
+  })
+}
+
+// ── Serie diaria ventas / compras / margen ────────────────────────────────
+export function useSerieDiaria(period: Period) {
+  return useQuery({
+    queryKey: ['manager', 'serieDiaria', periodKey(period)] as const,
+    queryFn: async (): Promise<SerieDiariaPunto[]> => {
+      const { data, error } = await supabase.rpc('manager_serie_diaria', {
+        p_from: period.from,
+        p_to: period.to,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        fecha:   String(r.fecha),
+        ventas:  Number(r.ventas ?? 0),
+        compras: Number(r.compras ?? 0),
+        margen:  Number(r.margen ?? 0),
+      }))
+    },
+  })
+}
+
+// ── Último sync ───────────────────────────────────────────────────────────
 export function useUltimoSync() {
   return useQuery({
     queryKey: ['manager', 'sync', 'last'] as const,
@@ -103,6 +121,7 @@ export function useUltimoSync() {
   })
 }
 
+// ── Sync manual ────────────────────────────────────────────────────────────
 export function useSyncManual() {
   const qc = useQueryClient()
   return useMutation({
