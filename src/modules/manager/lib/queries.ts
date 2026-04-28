@@ -5,7 +5,7 @@ import type {
   AbueloFactura, AbueloLinea, AliasRow, CatalogoProducto,
   ClienteFactura, ClienteListItem, ClienteProducto,
   CosteManualRow, FacturaLinea, FacturaListItem, Forecast,
-  ProductoCliente, ProductoCompra, ProductoListItem,
+  ProductoCliente, ProductoCompra, ProductoHistoricoMes, ProductoListItem,
   ResumenComparativo, ResumenPeriodo, SerieDiariaPunto, SyncLog,
   TopClienteMargen, TopProductoMargen,
 } from './types'
@@ -321,6 +321,29 @@ export function useProductoClientes(productId: string | null, period: Period) {
         margen:             Number(r.margen ?? 0),
         margen_pct:         r.margen_pct == null ? null : Number(r.margen_pct),
         ultima_compra:      r.ultima_compra == null ? null : String(r.ultima_compra),
+      }))
+    },
+  })
+}
+
+export function useProductoHistorico(productId: string | null, meses = 12) {
+  return useQuery({
+    queryKey: ['manager', 'producto', productId, 'historico', meses] as const,
+    enabled: !!productId,
+    queryFn: async (): Promise<ProductoHistoricoMes[]> => {
+      if (!productId) return []
+      const { data, error } = await supabase.rpc('manager_producto_historico', {
+        p_product_id: productId, p_meses: meses,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        mes:                  String(r.mes ?? ''),
+        unidades_vendidas:    Number(r.unidades_vendidas ?? 0),
+        ventas:               Number(r.ventas ?? 0),
+        precio_venta_medio:   r.precio_venta_medio == null ? null : Number(r.precio_venta_medio),
+        unidades_compradas:   Number(r.unidades_compradas ?? 0),
+        compras:              Number(r.compras ?? 0),
+        precio_compra_medio:  r.precio_compra_medio == null ? null : Number(r.precio_compra_medio),
       }))
     },
   })

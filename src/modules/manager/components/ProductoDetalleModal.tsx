@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { X } from 'lucide-react'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { TrendingDown, X } from 'lucide-react'
+import { Bar, CartesianGrid, ComposedChart, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import type { Period } from '../lib/period'
 import type { ProductoListItem } from '../lib/types'
 import {
   useCosteManual, useDeleteCosteManual,
-  useProductoClientes, useProductoCompras, useSetCosteManual,
+  useProductoClientes, useProductoCompras, useProductoHistorico, useSetCosteManual,
 } from '../lib/queries'
 
 const eur = (n: number | null | undefined) =>
@@ -28,6 +28,7 @@ interface Props {
 export function ProductoDetalleModal({ producto, period, onClose }: Props) {
   const clientes = useProductoClientes(producto.product_id, period)
   const compras = useProductoCompras(producto.product_id)
+  const historico = useProductoHistorico(producto.product_id, 12)
   const costeManual = useCosteManual(producto.product_id)
   const setCoste = useSetCosteManual()
   const delCoste = useDeleteCosteManual()
@@ -68,6 +69,26 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
     .filter(c => c.fecha && c.precio_unit != null)
     .map(c => ({ fecha: c.fecha!, precio: Number(c.precio_unit) }))
     .reverse()
+
+  // Análisis estacionalidad / oportunidad de compra
+  const analisis = useMemo(() => {
+    const meses = (historico.data ?? []).filter(m => m.precio_compra_medio != null && m.precio_compra_medio! > 0)
+    if (meses.length < 2) return null
+    const precios = meses.map(m => m.precio_compra_medio!)
+    const mediaHist = precios.reduce((s, p) => s + p, 0) / precios.length
+    const ultimoMes = meses[meses.length - 1]
+    const ultimoPrecio = ultimoMes.precio_compra_medio!
+    const desviacionPct = ((ultimoPrecio - mediaHist) / mediaHist) * 100
+    // Mes pico ventas
+    const mesPico = (historico.data ?? []).reduce((max, m) => m.unidades_vendidas > max.unidades_vendidas ? m : max, (historico.data ?? [])[0])
+    return {
+      mediaHist,
+      ultimoPrecio,
+      desviacionPct,
+      mesPico: mesPico?.mes ?? null,
+      esOportunidadCompra: desviacionPct < -10,
+    }
+  }, [historico.data])
 
   return (
     <div
@@ -132,6 +153,68 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
             )}
           </div>
         </section>
+
+        {/* Histórico mensual + estacionalidad */}
+        {historico.data && historico.data.length > 0 && (
+          <section className="border-b border-[var(--color-border)] px-5 py-4">
+            <div className="mb-2 flex items-baseline justify-between">
+              <h3 className="text-sm font-semibold text-[var(--color-ink)]">Histórico mensual (12 meses)</h3>
+              {analisis?.esOportunidadCompra && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                  <TrendingDown className="h-3 w-3" />
+                  Oportunidad de compra: precio {Math.abs(analisis.desviacionPct).toFixed(0)}% bajo media
+                </span>
+              )}
+            </div>
+            <div className="h-56 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={historico.data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <XAxis
+                    dataKey="mes"
+                    tickFormatter={(d) => format(parseISO(d), 'LLL', { locale: es })}
+                    fontSize={11} stroke="var(--color-ink-3)"
+                  />
+                  <YAxis yAxisId="ud" fontSize={10} stroke="var(--color-ink-3)" width={45} tickFormatter={(n) => `${(n/1).toFixed(0)}`} />
+                  <YAxis yAxisId="precio" orientation="right" fontSize={10} stroke="var(--color-ink-3)" width={45} tickFormatter={(n) => `${Number(n).toFixed(2)}€`} />
+                  <Tooltip
+                    formatter={(v, name) => {
+                      if (name === 'Precio compra' || name === 'Precio venta') return `${Number(v).toFixed(3)}€/ud`
+                      return `${Number(v).toFixed(0)} ud`
+                    }}
+                    labelFormatter={(d) => typeof d === 'string' ? format(parseISO(d), "LLLL yyyy", { locale: es }) : String(d)}
+                    contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12 }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar yAxisId="ud" dataKey="unidades_vendidas" name="Vendidas (ud)" fill="#10b981" radius={[3, 3, 0, 0]} />
+                  <Bar yAxisId="ud" dataKey="unidades_compradas" name="Compradas (ud)" fill="#94a3b8" radius={[3, 3, 0, 0]} />
+                  <Line yAxisId="precio" dataKey="precio_compra_medio" name="Precio compra" type="monotone" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="precio" dataKey="precio_venta_medio"  name="Precio venta"  type="monotone" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            {analisis && (
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs md:grid-cols-3">
+                <div>
+                  <div className="text-[var(--color-ink-3)]">Coste medio histórico</div>
+                  <div className="font-medium tabular-nums">{eur(analisis.mediaHist)}</div>
+                </div>
+                <div>
+                  <div className="text-[var(--color-ink-3)]">Coste último mes</div>
+                  <div className={`font-medium tabular-nums ${analisis.desviacionPct >= 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                    {eur(analisis.ultimoPrecio)} ({analisis.desviacionPct >= 0 ? '+' : ''}{analisis.desviacionPct.toFixed(0)}%)
+                  </div>
+                </div>
+                {analisis.mesPico && (
+                  <div>
+                    <div className="text-[var(--color-ink-3)]">Mes con más venta</div>
+                    <div className="font-medium">{format(parseISO(analisis.mesPico), 'LLLL', { locale: es })}</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        )}
 
         <div className="grid gap-4 px-5 py-4 md:grid-cols-2">
           {/* Top clientes que lo compran */}

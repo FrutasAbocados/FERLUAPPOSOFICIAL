@@ -190,6 +190,16 @@ export interface ProductoCompra {
   precio_unit: number | null
 }
 
+export interface ProductoHistoricoMes {
+  mes: string
+  unidades_vendidas: number
+  ventas: number
+  precio_venta_medio: number | null
+  unidades_compradas: number
+  compras: number
+  precio_compra_medio: number | null
+}
+
 export interface CosteManualRow {
   product_id: string
   coste_eur: number
