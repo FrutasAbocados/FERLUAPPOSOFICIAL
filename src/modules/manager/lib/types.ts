@@ -74,3 +74,48 @@ export interface SerieDiariaPunto {
   compras: number
   margen: number
 }
+
+export interface ClienteListItem {
+  contact_id: string | null
+  contact_name_canon: string
+  docs: number
+  ventas: number
+  ventas_subtotal: number
+  cogs: number
+  margen: number
+  margen_pct: number | null
+  pendiente_cobro: number
+  ultima_compra: string | null
+  num_aliases: number
+}
+
+export interface ClienteFactura {
+  id: string
+  doc_number: string | null
+  subtipo: string | null
+  fecha: string | null
+  fecha_vencimiento: string | null
+  subtotal: number | null
+  total: number | null
+  payments_pending: number | null
+  status: number | null
+}
+
+export interface ClienteProducto {
+  nombre: string
+  product_id: string | null
+  veces: number
+  unidades: number
+  ventas_subtotal: number
+  cogs: number
+  margen: number
+  margen_pct: number | null
+  ultima_compra: string | null
+}
+
+export interface AliasRow {
+  id: string
+  alias_from: string
+  alias_to: string
+  created_at: string
+}

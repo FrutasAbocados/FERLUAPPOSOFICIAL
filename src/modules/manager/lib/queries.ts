@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import type { Period } from './period'
 import type {
+  AliasRow, ClienteFactura, ClienteListItem, ClienteProducto,
   ResumenPeriodo, SerieDiariaPunto, SyncLog,
   TopClienteMargen, TopProductoMargen,
 } from './types'
@@ -102,6 +103,108 @@ export function useSerieDiaria(period: Period) {
         compras: Number(r.compras ?? 0),
         margen:  Number(r.margen ?? 0),
       }))
+    },
+  })
+}
+
+// ── Lista de clientes ─────────────────────────────────────────────────────
+export function useClientesLista(period: Period) {
+  return useQuery({
+    queryKey: ['manager', 'clientes', periodKey(period)] as const,
+    queryFn: async (): Promise<ClienteListItem[]> => {
+      const { data, error } = await supabase.rpc('manager_clientes_lista', {
+        p_from: period.from,
+        p_to: period.to,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        contact_id:         r.contact_id == null ? null : String(r.contact_id),
+        contact_name_canon: String(r.contact_name_canon ?? '(sin contacto)'),
+        docs:               Number(r.docs ?? 0),
+        ventas:             Number(r.ventas ?? 0),
+        ventas_subtotal:    Number(r.ventas_subtotal ?? 0),
+        cogs:               Number(r.cogs ?? 0),
+        margen:             Number(r.margen ?? 0),
+        margen_pct:         r.margen_pct == null ? null : Number(r.margen_pct),
+        pendiente_cobro:    Number(r.pendiente_cobro ?? 0),
+        ultima_compra:      r.ultima_compra == null ? null : String(r.ultima_compra),
+        num_aliases:        Number(r.num_aliases ?? 1),
+      }))
+    },
+  })
+}
+
+// ── Facturas de un cliente ────────────────────────────────────────────────
+export function useClienteFacturas(contactId: string | null, period: Period) {
+  return useQuery({
+    queryKey: ['manager', 'cliente', contactId, 'facturas', periodKey(period)] as const,
+    enabled: !!contactId,
+    queryFn: async (): Promise<ClienteFactura[]> => {
+      if (!contactId) return []
+      const { data, error } = await supabase.rpc('manager_cliente_facturas', {
+        p_contact_id: contactId, p_from: period.from, p_to: period.to,
+      })
+      if (error) throw error
+      return (data ?? []) as ClienteFactura[]
+    },
+  })
+}
+
+// ── Productos favoritos de un cliente ─────────────────────────────────────
+export function useClienteProductos(contactId: string | null, period: Period) {
+  return useQuery({
+    queryKey: ['manager', 'cliente', contactId, 'productos', periodKey(period)] as const,
+    enabled: !!contactId,
+    queryFn: async (): Promise<ClienteProducto[]> => {
+      if (!contactId) return []
+      const { data, error } = await supabase.rpc('manager_cliente_productos', {
+        p_contact_id: contactId, p_from: period.from, p_to: period.to, p_limit: 30,
+      })
+      if (error) throw error
+      return (data ?? []) as ClienteProducto[]
+    },
+  })
+}
+
+// ── Aliases de clientes (CRUD) ────────────────────────────────────────────
+export function useAliases() {
+  return useQuery({
+    queryKey: ['manager', 'aliases'] as const,
+    queryFn: async (): Promise<AliasRow[]> => {
+      const { data, error } = await supabase
+        .from('manager_clientes_alias')
+        .select('id, alias_from, alias_to, created_at')
+        .order('alias_to', { ascending: true })
+      if (error) throw error
+      return (data ?? []) as AliasRow[]
+    },
+  })
+}
+
+export function useAddAlias() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { alias_from: string; alias_to: string }) => {
+      const { error } = await supabase
+        .from('manager_clientes_alias')
+        .insert({ alias_from: input.alias_from.trim(), alias_to: input.alias_to.trim() })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['manager'] })
+    },
+  })
+}
+
+export function useDeleteAlias() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('manager_clientes_alias').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['manager'] })
     },
   })
 }

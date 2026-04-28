@@ -1,11 +1,16 @@
 import { useState } from 'react'
+import { Button } from '@/shared/components/ui/button'
 import { SyncBar } from './components/SyncBar'
 import { PeriodPicker } from './components/PeriodPicker'
 import { ResumenView } from './components/ResumenView'
+import { ClientesView } from './components/ClientesView'
 import { periodFromPreset, type Period } from './lib/period'
+
+type Tab = 'resumen' | 'clientes'
 
 export function ManagerPage() {
   const [period, setPeriod] = useState<Period>(() => periodFromPreset('mes'))
+  const [tab, setTab] = useState<Tab>('resumen')
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8">
@@ -20,7 +25,23 @@ export function ManagerPage() {
       <div className="space-y-4">
         <SyncBar />
         <PeriodPicker value={period} onChange={setPeriod} />
-        <ResumenView period={period} />
+
+        <div className="flex items-center gap-1 border-b border-[var(--color-border)]">
+          {([
+            { k: 'resumen', l: 'Resumen' },
+            { k: 'clientes', l: 'Clientes' },
+          ] as Array<{ k: Tab; l: string }>).map(t => (
+            <Button
+              key={t.k}
+              size="sm"
+              variant={tab === t.k ? 'primary' : 'ghost'}
+              onClick={() => setTab(t.k)}
+            >{t.l}</Button>
+          ))}
+        </div>
+
+        {tab === 'resumen' && <ResumenView period={period} />}
+        {tab === 'clientes' && <ClientesView period={period} />}
       </div>
     </div>
   )
