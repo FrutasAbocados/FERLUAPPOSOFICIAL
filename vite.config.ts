@@ -11,6 +11,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      workbox: {
+        clientsClaim: true,
+        skipWaiting: true,
+        cleanupOutdatedCaches: true,
+      },
       manifest: {
         name: 'Abocados OS',
         short_name: 'Abocados',

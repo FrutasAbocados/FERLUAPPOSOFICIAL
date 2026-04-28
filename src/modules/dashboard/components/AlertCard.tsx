@@ -16,37 +16,17 @@ interface Props {
   children?: React.ReactNode
 }
 
-const TONOS: Record<Severidad, { wrap: string; iconBg: string; iconText: string; badge: string }> = {
-  critica: {
-    wrap:     'border-red-300 bg-red-50/60',
-    iconBg:   'bg-red-100',
-    iconText: 'text-red-700',
-    badge:    'bg-red-100 text-red-800',
-  },
-  aviso: {
-    wrap:     'border-amber-300 bg-amber-50/60',
-    iconBg:   'bg-amber-100',
-    iconText: 'text-amber-700',
-    badge:    'bg-amber-100 text-amber-800',
-  },
-  info: {
-    wrap:     'border-[var(--color-border)] bg-[var(--color-surface)]',
-    iconBg:   'bg-blue-100',
-    iconText: 'text-blue-700',
-    badge:    'bg-blue-100 text-blue-800',
-  },
-  ok: {
-    wrap:     'border-emerald-300 bg-emerald-50/60',
-    iconBg:   'bg-emerald-100',
-    iconText: 'text-emerald-700',
-    badge:    'bg-emerald-100 text-emerald-800',
-  },
+const TONOS: Record<Severidad, { iconBg: string; iconText: string; badge: string; accent: string }> = {
+  critica: { iconBg: 'bg-red-100',     iconText: 'text-red-700',     badge: 'bg-red-100 text-red-800',         accent: 'border-l-red-500' },
+  aviso:   { iconBg: 'bg-amber-100',   iconText: 'text-amber-700',   badge: 'bg-amber-100 text-amber-800',     accent: 'border-l-amber-500' },
+  info:    { iconBg: 'bg-blue-100',    iconText: 'text-blue-700',    badge: 'bg-blue-100 text-blue-800',       accent: 'border-l-blue-500' },
+  ok:      { iconBg: 'bg-emerald-100', iconText: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-800', accent: 'border-l-emerald-500' },
 }
 
 export function AlertCard({ titulo, subtitulo, Icon, severidad, count, total, to, loading, empty, children }: Props) {
   const t = TONOS[severidad]
   return (
-    <section className={`flex flex-col rounded-xl border ${t.wrap}`}>
+    <section className={`flex flex-col rounded-xl border border-[var(--color-border)] border-l-4 ${t.accent} bg-[var(--color-surface)]`}>
       <header className="flex items-start gap-3 px-4 py-3">
         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${t.iconBg}`}>
           <Icon className={`h-5 w-5 ${t.iconText}`} />
@@ -68,7 +48,7 @@ export function AlertCard({ titulo, subtitulo, Icon, severidad, count, total, to
         {!loading && (count ?? 0) > 0 && children}
       </div>
       {to && (
-        <Link to={to} className="flex items-center justify-end gap-1 border-t border-[var(--color-border)]/50 px-4 py-2 text-xs font-medium text-[var(--color-ink-2)] hover:text-[var(--color-primary)]">
+        <Link to={to} className="flex items-center justify-end gap-1 border-t border-[var(--color-border)]/60 px-4 py-2 text-xs font-medium text-[var(--color-ink-2)] hover:text-[var(--color-primary)]">
           Abrir <ArrowRight className="h-3 w-3" />
         </Link>
       )}

@@ -95,12 +95,12 @@ function useRecomendaciones() {
   })
 }
 
-const RECO_META: Record<RecoTipo, { titulo: string; Icon: typeof Lightbulb; color: string; ring: string }> = {
-  vendiendo_bajo_coste:   { titulo: 'Vendiendo bajo coste',   Icon: AlertTriangle, color: 'text-red-700',     ring: 'ring-red-200 bg-red-50/60' },
-  cliente_caida_pedido:   { titulo: 'Cliente baja pedido',    Icon: ArrowDown,     color: 'text-amber-700',   ring: 'ring-amber-200 bg-amber-50/60' },
-  cliente_subida_pedido:  { titulo: 'Cliente sube pedido',    Icon: ArrowUp,       color: 'text-emerald-700', ring: 'ring-emerald-200 bg-emerald-50/60' },
-  cliente_dejo_producto:  { titulo: 'Cliente dejó producto',  Icon: EyeOff,        color: 'text-amber-700',   ring: 'ring-amber-200 bg-amber-50/60' },
-  producto_se_apaga:      { titulo: 'Producto en caída',      Icon: Moon,          color: 'text-blue-700',    ring: 'ring-blue-200 bg-blue-50/60' },
+const RECO_META: Record<RecoTipo, { titulo: string; Icon: typeof Lightbulb; color: string; accent: string }> = {
+  vendiendo_bajo_coste:   { titulo: 'Vendiendo bajo coste',   Icon: AlertTriangle, color: 'text-red-700',     accent: 'border-l-red-500' },
+  cliente_caida_pedido:   { titulo: 'Cliente baja pedido',    Icon: ArrowDown,     color: 'text-amber-700',   accent: 'border-l-amber-500' },
+  cliente_subida_pedido:  { titulo: 'Cliente sube pedido',    Icon: ArrowUp,       color: 'text-emerald-700', accent: 'border-l-emerald-500' },
+  cliente_dejo_producto:  { titulo: 'Cliente dejó producto',  Icon: EyeOff,        color: 'text-amber-700',   accent: 'border-l-amber-500' },
+  producto_se_apaga:      { titulo: 'Producto en caída',      Icon: Moon,          color: 'text-blue-700',    accent: 'border-l-blue-500' },
 }
 
 interface Props {
@@ -121,76 +121,78 @@ export function PatronesView({ period }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Patrones día semana */}
-      <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-        <div className="mb-3 flex items-baseline gap-2">
-          <CalendarClock className="h-4 w-4 text-[var(--color-ink-3)]" />
-          <h2 className="font-display text-base font-bold text-[var(--color-ink)]">Patrón por día de la semana</h2>
+      {/* Patrón día semana — heatmap horizontal */}
+      <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+        <header className="mb-4 flex items-baseline gap-2">
+          <CalendarClock className="h-5 w-5 text-[var(--color-ink-3)]" />
+          <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">Patrón por día de la semana</h2>
           <span className="ml-auto text-xs text-[var(--color-ink-3)]">{period.from} → {period.to}</span>
-        </div>
+        </header>
+
         {dow.isLoading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
+
         {dow.data && (
-          <ul className="space-y-2">
-            {dow.data.map(d => (
-              <li key={d.dow} className="grid grid-cols-[80px_1fr_auto] items-center gap-3">
-                <span className="text-sm text-[var(--color-ink)]">{d.dia}</span>
-                <div className="relative h-6 overflow-hidden rounded-md bg-[var(--color-surface-2,#f1f5f9)]">
+          <div className="grid grid-cols-7 gap-2">
+            {dow.data.map(d => {
+              const intensidad = d.ventas / maxVentas
+              const promedioDia = d.ndias > 0 ? d.ventas / d.ndias : 0
+              return (
+                <div key={d.dow} className="flex flex-col items-stretch overflow-hidden rounded-lg border border-[var(--color-border)]">
                   <div
-                    className="absolute inset-y-0 left-0 rounded-md bg-emerald-500/70"
-                    style={{ width: `${(d.ventas / maxVentas) * 100}%` }}
-                  />
-                  <span className="relative z-10 flex h-full items-center px-2 text-xs font-medium text-[var(--color-ink)]">
-                    {eur(d.ventas)} · {d.docs} docs
-                  </span>
+                    className="px-2 py-3 text-center"
+                    style={{
+                      backgroundColor: `rgba(16, 185, 129, ${0.10 + intensidad * 0.65})`,
+                    }}
+                  >
+                    <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink)]">{d.dia.slice(0, 3)}</div>
+                    <div className="mt-1 font-display text-lg font-bold text-emerald-900 tabular-nums">{eur(d.ventas)}</div>
+                  </div>
+                  <div className="border-t border-[var(--color-border)] px-2 py-1.5 text-center text-[10px] tabular-nums text-[var(--color-ink-3)]">
+                    {d.docs} docs · ~{eur(promedioDia)}/día
+                  </div>
                 </div>
-                <span className="text-xs text-[var(--color-ink-3)] tabular-nums">
-                  ~{d.ndias > 0 ? eur(d.ventas / d.ndias) : '—'}/día
-                </span>
-              </li>
-            ))}
-          </ul>
+              )
+            })}
+          </div>
         )}
       </section>
 
-      {/* Esperados próximos 7d */}
-      <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-        <div className="mb-3 flex items-baseline gap-2">
-          <Clock className="h-4 w-4 text-[var(--color-ink-3)]" />
-          <h2 className="font-display text-base font-bold text-[var(--color-ink)]">Esperados próximos 7 días</h2>
-          <span className="ml-auto text-xs text-[var(--color-ink-3)]">{(proximos.data?.length ?? 0)} clientes</span>
-        </div>
+      {/* Esperados próximos 7d — 3 grupos en grid */}
+      <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+        <header className="mb-4 flex items-baseline gap-2">
+          <Clock className="h-5 w-5 text-[var(--color-ink-3)]" />
+          <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">Esperados próximos 7 días</h2>
+          <span className="ml-auto text-xs text-[var(--color-ink-3)]">{(proximos.data?.length ?? 0)} clientes con cadencia regular</span>
+        </header>
+
         {proximos.isLoading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
         {proximos.data?.length === 0 && <p className="text-sm text-[var(--color-ink-3)]">Nadie tiene patrón regular detectado</p>}
 
-        {grupos.urgente.length > 0 && (
-          <Grupo titulo="Urgente — pasada fecha esperada" tono="critica" rows={grupos.urgente} />
-        )}
-        {grupos.pronto.length > 0 && (
-          <Grupo titulo="Pronto (próximos 3 días)" tono="aviso" rows={grupos.pronto} />
-        )}
-        {grupos.esta_semana.length > 0 && (
-          <Grupo titulo="Esta semana" tono="info" rows={grupos.esta_semana} />
-        )}
+        <div className="grid gap-3 md:grid-cols-3">
+          <Columna titulo="Urgente" subtitulo="pasada fecha" tono="critica" rows={grupos.urgente} />
+          <Columna titulo="Pronto"  subtitulo="próximos 3 días" tono="aviso" rows={grupos.pronto} />
+          <Columna titulo="Esta semana" subtitulo="próximos 7 días" tono="info" rows={grupos.esta_semana} />
+        </div>
       </section>
 
-      {/* Recomendaciones / insights */}
-      <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-        <div className="mb-3 flex items-baseline gap-2">
-          <Lightbulb className="h-4 w-4 text-[var(--color-ink-3)]" />
-          <h2 className="font-display text-base font-bold text-[var(--color-ink)]">Recomendaciones</h2>
+      {/* Recomendaciones */}
+      <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+        <header className="mb-4 flex items-baseline gap-2">
+          <Lightbulb className="h-5 w-5 text-[var(--color-ink-3)]" />
+          <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">Recomendaciones</h2>
           <span className="ml-auto text-xs text-[var(--color-ink-3)]">{recos.data?.length ?? 0} insights</span>
-        </div>
+        </header>
+
         {recos.isLoading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
         {recos.data?.length === 0 && <p className="text-sm text-[var(--color-ink-3)]">Nada relevante por ahora — todo dentro de patrón.</p>}
-        <ul className="space-y-2">
+
+        <ul className="grid gap-2 md:grid-cols-2">
           {recos.data?.map((r, i) => {
             const meta = RECO_META[r.tipo]
             const Icon = meta.Icon
             return (
-              <li key={i} className={`flex items-start gap-3 rounded-lg p-2 ring-1 ${meta.ring}`}>
-                <div className="mt-0.5">
-                  <Icon className={`h-4 w-4 ${meta.color}`} />
-                </div>
+              <li key={i} className={`flex items-start gap-3 rounded-lg border border-[var(--color-border)] border-l-4 ${meta.accent} bg-[var(--color-surface)] p-3`}>
+                <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${meta.color}`} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
                     <span className={`text-xs font-semibold uppercase tracking-wider ${meta.color}`}>{meta.titulo}</span>
@@ -198,8 +200,8 @@ export function PatronesView({ period }: Props) {
                       {r.valor_eur > 0 ? '+' : ''}{eur(r.valor_eur)}
                     </span>
                   </div>
-                  <div className="text-sm text-[var(--color-ink)]">
-                    {r.cliente && <span className="font-medium">{r.cliente}</span>}
+                  <div className="mt-0.5 truncate text-sm font-medium text-[var(--color-ink)]">
+                    {r.cliente && <span>{r.cliente}</span>}
                     {r.cliente && r.producto && <span className="text-[var(--color-ink-3)]"> · </span>}
                     {r.producto && <span>{r.producto}</span>}
                   </div>
@@ -214,23 +216,45 @@ export function PatronesView({ period }: Props) {
   )
 }
 
-function Grupo({ titulo, tono, rows }: { titulo: string; tono: 'critica' | 'aviso' | 'info'; rows: PedidoProximo[] }) {
-  const color = tono === 'critica' ? 'text-red-700' : tono === 'aviso' ? 'text-amber-700' : 'text-blue-700'
+function Columna({ titulo, subtitulo, tono, rows }: { titulo: string; subtitulo: string; tono: 'critica' | 'aviso' | 'info'; rows: PedidoProximo[] }) {
+  const accent = tono === 'critica' ? 'border-l-red-500'
+                : tono === 'aviso'   ? 'border-l-amber-500'
+                : 'border-l-blue-500'
+  const color = tono === 'critica' ? 'text-red-700'
+              : tono === 'aviso'   ? 'text-amber-700'
+              : 'text-blue-700'
+  const badge = tono === 'critica' ? 'bg-red-100 text-red-800'
+              : tono === 'aviso'   ? 'bg-amber-100 text-amber-800'
+              : 'bg-blue-100 text-blue-800'
   return (
-    <div className="mt-3 first:mt-0">
-      <h3 className={`mb-1.5 text-xs font-semibold uppercase tracking-wider ${color}`}>{titulo}</h3>
-      <ul className="space-y-1">
-        {rows.map(p => (
-          <li key={p.contact_name_canon} className="grid grid-cols-[1fr_auto_auto_auto] items-baseline gap-3 text-sm">
-            <span className="truncate text-[var(--color-ink)]">{p.contact_name_canon}</span>
-            <span className="text-xs text-[var(--color-ink-3)]">cad. {p.cadencia_dias.toFixed(0)}d</span>
-            <span className="text-xs text-[var(--color-ink-3)]">{fmt(p.ultima_compra)} → {fmt(p.proxima_esperada)}</span>
-            <span className={`text-xs font-medium tabular-nums ${color}`}>
-              {p.dias_para === 0 ? 'hoy' : p.dias_para < 0 ? `${Math.abs(p.dias_para)}d tarde` : `en ${p.dias_para}d`} · ~{eur(p.ventas_medias)}
-            </span>
-          </li>
-        ))}
-      </ul>
+    <div className={`rounded-lg border border-[var(--color-border)] border-l-4 ${accent} p-3`}>
+      <div className="mb-2 flex items-baseline justify-between">
+        <div>
+          <div className={`text-sm font-bold ${color}`}>{titulo}</div>
+          <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">{subtitulo}</div>
+        </div>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${badge}`}>{rows.length}</span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-xs text-[var(--color-ink-3)]">—</p>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map(p => (
+            <li key={p.contact_name_canon} className="border-t border-[var(--color-border)]/60 pt-1.5 first:border-t-0 first:pt-0">
+              <div className="truncate text-sm font-medium text-[var(--color-ink)]">{p.contact_name_canon}</div>
+              <div className="flex items-baseline justify-between text-[11px] text-[var(--color-ink-3)] tabular-nums">
+                <span>cad. {p.cadencia_dias.toFixed(0)}d · ~{eur(p.ventas_medias)}</span>
+                <span className={color + ' font-medium'}>
+                  {p.dias_para === 0 ? 'hoy' : p.dias_para < 0 ? `${Math.abs(p.dias_para)}d tarde` : `en ${p.dias_para}d`}
+                </span>
+              </div>
+              <div className="text-[10px] text-[var(--color-ink-3)]">
+                {fmt(p.ultima_compra)} → {fmt(p.proxima_esperada)}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
