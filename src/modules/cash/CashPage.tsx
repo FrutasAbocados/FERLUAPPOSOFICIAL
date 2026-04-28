@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
-import { eachDayOfInterval, endOfMonth, format, isAfter, startOfDay, startOfMonth } from 'date-fns'
+import { eachDayOfInterval, endOfMonth, format, getDay, isAfter, isSameDay, startOfDay, startOfMonth } from 'date-fns'
+import { es } from 'date-fns/locale'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/shared/auth/useAuth'
 import { MonthHeader } from './components/MonthHeader'
 import { KpiBar } from './components/KpiBar'
-import { DayCard } from './components/DayCard'
 import { CierreForm } from './components/CierreForm'
 import {
   shiftMonth,
@@ -12,6 +12,11 @@ import {
   useDeudaAcumHasta,
 } from './lib/queries'
 import type { Cierre } from './lib/types'
+
+const eur = (n: number) =>
+  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+
+const DOW_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
 export function CashPage() {
   const { profile } = useAuth()
@@ -90,20 +95,82 @@ export function CashPage() {
           Cargando cierres del mes…
         </div>
       ) : (
-        <div className="space-y-2">
-          {days.map((d) => {
-            const iso = format(d, 'yyyy-MM-dd')
-            const futuro = isAfter(startOfDay(d), startOfDay(new Date()))
-            return (
-              <DayCard
-                key={iso}
-                date={d}
-                cierre={byDate.get(iso)}
-                futuro={futuro}
-                onClick={isAdminFull && !futuro ? () => setEditing(iso) : undefined}
-              />
-            )
-          })}
+        <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+          {/* Cabecera días semana */}
+          <div className="grid grid-cols-7 border-b border-[var(--color-border)] bg-[var(--color-surface-2,#f3f4ee)]">
+            {DOW_LABELS.map(d => (
+              <div key={d} className="px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+                {d}
+              </div>
+            ))}
+          </div>
+
+          {/* Grilla calendario */}
+          <div className="grid grid-cols-7">
+            {(() => {
+              // Padding al inicio (lun=0, dom=6)
+              const firstDay = days[0]
+              const dow = (getDay(firstDay) + 6) % 7  // 0=lun
+              const padStart = Array.from({ length: dow }, (_, i) => <div key={`pad-${i}`} className="border-b border-r border-[var(--color-border)]/40 bg-[var(--color-surface-2,#f8fafc)]" />)
+              return padStart
+            })()}
+            {days.map((d) => {
+              const iso = format(d, 'yyyy-MM-dd')
+              const futuro = isAfter(startOfDay(d), startOfDay(new Date()))
+              const cierre = byDate.get(iso)
+              const isHoy = isSameDay(d, new Date())
+              const tieneCierre = !!cierre
+              const isDom = getDay(d) === 0
+              return (
+                <button
+                  key={iso}
+                  disabled={!isAdminFull || futuro}
+                  onClick={() => setEditing(iso)}
+                  className={`relative flex min-h-[84px] flex-col gap-1 border-b border-r border-[var(--color-border)]/40 p-2 text-left transition ${
+                    futuro
+                      ? 'cursor-not-allowed bg-[var(--color-surface-2,#f8fafc)] opacity-60'
+                      : isAdminFull
+                        ? 'hover:bg-[var(--color-surface-2,#f8fafc)]'
+                        : 'cursor-default'
+                  } ${isHoy ? 'ring-2 ring-inset ring-[var(--color-primary)]' : ''}`}
+                >
+                  <div className="flex items-baseline justify-between">
+                    <span className={`text-sm font-semibold ${isHoy ? 'text-[var(--color-primary)]' : isDom ? 'text-[var(--color-ink-3)]' : 'text-[var(--color-ink)]'}`}>
+                      {format(d, 'd')}
+                    </span>
+                    {tieneCierre && (
+                      <span className={`h-1.5 w-1.5 rounded-full ${Number(cierre.resultado) >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                    )}
+                  </div>
+                  {tieneCierre && (
+                    <div className="space-y-0.5 text-[10px] leading-tight">
+                      <div className="font-medium tabular-nums text-[var(--color-ink)]">{eur(Number(cierre.total_cobrado))}</div>
+                      {Number(cierre.total_gastos) > 0 && (
+                        <div className="tabular-nums text-red-600">-{eur(Number(cierre.total_gastos))}</div>
+                      )}
+                      <div className={`tabular-nums font-medium ${Number(cierre.resultado) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                        {eur(Number(cierre.resultado))}
+                      </div>
+                    </div>
+                  )}
+                  {!tieneCierre && !futuro && (
+                    <div className="text-[10px] text-[var(--color-ink-3)]">{isAdminFull ? 'sin cierre' : '—'}</div>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Leyenda */}
+          <div className="flex items-center gap-4 border-t border-[var(--color-border)] px-3 py-2 text-[10px] text-[var(--color-ink-3)]">
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> resultado positivo
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" /> resultado negativo
+            </span>
+            <span className="ml-auto">{format(anchor, "LLLL yyyy", { locale: es })}</span>
+          </div>
         </div>
       )}
 
