@@ -5,6 +5,7 @@ import {
   CheckSquare,
   CalendarDays,
   HandCoins,
+  Home,
   LogOut,
   Menu,
 } from 'lucide-react'
@@ -37,7 +38,7 @@ export function AppShell() {
     <div className="flex h-full">
       {/* Sidebar desktop */}
       <aside className="hidden w-60 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] md:flex">
-        <div className="flex h-16 items-center gap-2 border-b border-[var(--color-border)] px-5">
+        <Link to="/" className="flex h-16 items-center gap-2 border-b border-[var(--color-border)] px-5 transition hover:bg-[var(--color-surface-2,#f8fafc)]">
           <div className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary)] text-white">
             <Menu className="h-5 w-5" />
           </div>
@@ -46,12 +47,27 @@ export function AppShell() {
               Abocados OS
             </div>
             <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">
-              Frutas Abocados
+              Centro de control
             </div>
           </div>
-        </div>
+        </Link>
 
         <nav className="flex-1 space-y-1 p-3">
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm transition-colors',
+                isActive
+                  ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-2)] font-semibold'
+                  : 'text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]',
+              )
+            }
+          >
+            <Home className="h-4 w-4" />
+            Dashboard
+          </NavLink>
           {visible.map((m) => (
             <NavLink
               key={m.key}
