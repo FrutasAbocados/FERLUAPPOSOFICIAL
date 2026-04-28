@@ -69,9 +69,17 @@ const dbHeaders = {
   'content-type': 'application/json',
 }
 
+// Holded almacena fechas como Unix timestamp = 00:00 hora Madrid. Si convertimos
+// con toISOString (UTC), las facturas creadas en Madrid 00:00–02:00 caen un día
+// antes. Usamos Intl con timezone Madrid para sacar el calendar date correcto.
+const madridDateFmt = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Madrid',
+  year: 'numeric', month: '2-digit', day: '2-digit',
+})
+
 function unixToDate(s?: number): string | null {
   if (!s) return null
-  return new Date(s * 1000).toISOString().slice(0, 10)
+  return madridDateFmt.format(new Date(s * 1000))  // YYYY-MM-DD en zona Madrid
 }
 
 function cleanName(raw?: string): string {
@@ -173,8 +181,12 @@ Deno.serve(async (req) => {
 
   const today = new Date()
   const defaultStart = new Date(today); defaultStart.setUTCDate(defaultStart.getUTCDate() - 7)
+  // start/end en Madrid time: ampliamos ±3h sobre UTC para cubrir el offset CET/CEST
+  // (los upserts son idempotentes por id, sobre-fetch no es problema).
   const start = body.start ? new Date(body.start + 'T00:00:00Z') : defaultStart
   const end = body.end ? new Date(body.end + 'T23:59:59Z') : today
+  start.setUTCHours(start.getUTCHours() - 3)
+  end.setUTCHours(end.getUTCHours() + 3)
   const trigger = (body.trigger as 'manual'|'cron'|'backfill') || 'manual'
 
   // Probe mode: conteos por docType en el rango, sin tocar BD.
