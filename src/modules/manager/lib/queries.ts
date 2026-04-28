@@ -71,7 +71,7 @@ export function useResumenComparativo(period: Period) {
   })
 }
 
-// ── Forecast próximo mes (media móvil últimos 3 meses completos) ─────────
+// ── Forecast próximo mes (con tendencia y proyección 3m) ─────────────────
 export function useForecast() {
   return useQuery({
     queryKey: ['manager', 'forecast'] as const,
@@ -79,12 +79,15 @@ export function useForecast() {
       const { data, error } = await supabase.rpc('manager_forecast_proximo_mes')
       if (error) throw error
       const r = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null
+      const serie = (r?.meses_serie ?? []) as Array<{ mes: string; ventas: number; es_proy: boolean }>
       return {
-        forecast:        Number(r?.forecast ?? 0),
-        base_meses:      Number(r?.base_meses ?? 0),
-        meses_usados:    String(r?.meses_usados ?? ''),
+        mes_proximo:     String(r?.mes_proximo ?? ''),
+        forecast_next:   Number(r?.forecast_next ?? 0),
         mes_actual_proy: Number(r?.mes_actual_proy ?? 0),
         pct_mes:         Number(r?.pct_mes ?? 0),
+        tendencia_pct:   Number(r?.tendencia_pct ?? 0),
+        base_meses:      Number(r?.base_meses ?? 0),
+        meses_serie:     serie.map(s => ({ mes: String(s.mes), ventas: Number(s.ventas), es_proy: Boolean(s.es_proy) })),
       }
     },
   })

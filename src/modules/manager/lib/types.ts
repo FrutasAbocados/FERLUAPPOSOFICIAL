@@ -49,12 +49,20 @@ export interface ResumenComparativo {
   comp_to: string | null
 }
 
+export interface ForecastSeriePunto {
+  mes: string         // YYYY-MM-DD (primer día del mes)
+  ventas: number
+  es_proy: boolean
+}
+
 export interface Forecast {
-  forecast: number
-  base_meses: number
-  meses_usados: string
+  mes_proximo: string         // YYYY-MM-DD
+  forecast_next: number
   mes_actual_proy: number
   pct_mes: number
+  tendencia_pct: number
+  base_meses: number
+  meses_serie: ForecastSeriePunto[]
 }
 
 // Devuelto por RPC manager_resumen_periodo.

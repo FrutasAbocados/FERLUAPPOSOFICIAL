@@ -47,6 +47,24 @@ export interface CosteSubiendo {
   ultima_compra: string
 }
 
+export interface DeudorCobros {
+  cliente_id: string
+  nombre: string
+  pendiente: number
+  movimientos: number
+  vencido: number       // importe ya vencido
+}
+
+export interface PedidoEsperado {
+  contact_name_canon: string
+  ultima_compra: string
+  cadencia_dias: number
+  proxima_esperada: string
+  dias_para: number
+  ventas_medias: number
+  prioridad: 'urgente' | 'pronto' | 'esta_semana'
+}
+
 const num = (v: unknown): number => v == null ? 0 : Number(v)
 const numN = (v: unknown): number | null => v == null ? null : Number(v)
 
@@ -120,6 +138,58 @@ export function useClientesInactivos() {
         cadencia_dias:      num(r.cadencia_dias),
         pedidos_90d:        num(r.pedidos_90d),
         ventas_90d:         num(r.ventas_90d),
+      }))
+    },
+  })
+}
+
+export function useTopDeudoresCobros() {
+  return useQuery({
+    queryKey: ['dashboard', 'topDeudores'] as const,
+    queryFn: async (): Promise<DeudorCobros[]> => {
+      const today = new Date().toISOString().slice(0, 10)
+      const { data, error } = await supabase
+        .from('cobros_movimientos')
+        .select('cliente_id, importe, importe_cobrado, fecha_vencimiento, cobros_clientes!inner(nombre, activo)')
+        .eq('pagado', false)
+        .eq('cobros_clientes.activo', true)
+      if (error) throw error
+      // Agregar por cliente
+      const map = new Map<string, DeudorCobros>()
+      for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+        const cliente_id = String(row.cliente_id ?? '')
+        const nombre = (row.cobros_clientes as { nombre?: string })?.nombre ?? '(sin nombre)'
+        const importe = Number(row.importe ?? 0)
+        const cobrado = Number(row.importe_cobrado ?? 0)
+        const pend = importe - cobrado
+        const vencido = (row.fecha_vencimiento && String(row.fecha_vencimiento) < today) ? pend : 0
+        const cur = map.get(cliente_id) ?? { cliente_id, nombre, pendiente: 0, movimientos: 0, vencido: 0 }
+        cur.pendiente += pend
+        cur.movimientos += 1
+        cur.vencido += vencido
+        map.set(cliente_id, cur)
+      }
+      return Array.from(map.values())
+        .filter(d => d.pendiente > 0)
+        .sort((a, b) => b.pendiente - a.pendiente)
+    },
+  })
+}
+
+export function usePedidosEsperados() {
+  return useQuery({
+    queryKey: ['dashboard', 'pedidosEsperados'] as const,
+    queryFn: async (): Promise<PedidoEsperado[]> => {
+      const { data, error } = await supabase.rpc('manager_pedidos_proximos')
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        contact_name_canon: String(r.contact_name_canon ?? ''),
+        ultima_compra:      String(r.ultima_compra ?? ''),
+        cadencia_dias:      Number(r.cadencia_dias ?? 0),
+        proxima_esperada:   String(r.proxima_esperada ?? ''),
+        dias_para:          Number(r.dias_para ?? 0),
+        ventas_medias:      Number(r.ventas_medias ?? 0),
+        prioridad:          (r.prioridad as PedidoEsperado['prioridad']) ?? 'esta_semana',
       }))
     },
   })

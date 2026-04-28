@@ -1,21 +1,24 @@
 import { Link } from 'react-router-dom'
 import {
-  AlertTriangle, BarChart3, Banknote,
+  AlertTriangle, BarChart3, Banknote, CalendarClock,
   CheckSquare, CalendarDays, HandCoins, Package, TrendingUp, UserMinus,
 } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { es } from 'date-fns/locale'
 import { useAuth } from '@/shared/auth/useAuth'
 import { canAccess, type ModuleKey } from '@/shared/types'
 import { AlertCard } from '@/modules/dashboard/components/AlertCard'
 import { EstadoDelDia } from '@/modules/dashboard/components/EstadoDelDia'
 import {
   useClientesInactivos, useCostesSubiendo,
-  usePendienteMismatch, useProductosAnomalos,
+  usePedidosEsperados, useProductosAnomalos, useTopDeudoresCobros,
+  type DeudorCobros, type PedidoEsperado, type ClienteInactivo, type CosteSubiendo, type ProductoAnomalo,
 } from '@/modules/dashboard/lib/queries'
 
 const eur = (n: number) =>
   new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
-const eur2 = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
+const fmt = (d: string | null) =>
+  d == null ? '—' : format(parseISO(d), 'd LLL', { locale: es })
 
 const MODULOS = [
   { key: 'manager',   title: 'Manager',                    to: '/manager',   Icon: BarChart3 },
@@ -30,14 +33,15 @@ export function HomePage() {
   const role = profile?.role
   const moduleEntries = MODULOS.filter(m => role && canAccess(m.key as ModuleKey, role))
 
-  const mismatch  = usePendienteMismatch()
+  const deudores  = useTopDeudoresCobros()
+  const esperados = usePedidosEsperados()
   const anomalos  = useProductosAnomalos(30)
   const inactivos = useClientesInactivos()
   const costes    = useCostesSubiendo(14, 15)
 
-  // Sólo discrepancias con cobros pendiente real (Manager dice 0 ó valor distinto)
-  const mismatchVisible = (mismatch.data ?? []).filter(r => r.match_status !== 'match')
-  const totalMismatchEur = mismatchVisible.reduce((s, r) => s + Math.abs(r.diferencia), 0)
+  const totalDeuda = (deudores.data ?? []).reduce((s, d) => s + d.pendiente, 0)
+  const totalVencido = (deudores.data ?? []).reduce((s, d) => s + d.vencido, 0)
+  const esperadosUrgentes = (esperados.data ?? []).filter(p => p.prioridad === 'urgente' || p.prioridad === 'pronto')
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
@@ -54,34 +58,34 @@ export function HomePage() {
         <EstadoDelDia />
 
         <div className="grid gap-3 md:grid-cols-2">
-          {/* Discrepancias Cobros vs Manager */}
+          {/* Top deudores Cobros */}
           <AlertCard
-            titulo="Discrepancias Cobros vs Manager"
-            subtitulo="deuda Cobros vs albaranes mes en curso"
-            Icon={AlertTriangle}
-            severidad={mismatchVisible.length > 0 ? 'critica' : 'ok'}
-            count={mismatchVisible.length}
-            total={totalMismatchEur > 0 ? eur(totalMismatchEur) : undefined}
-            loading={mismatch.isLoading}
-            empty="Cobros y Manager cuadran"
-          >
-            <ul className="space-y-1.5">
-              {mismatchVisible.slice(0, 6).map(r => (
-                <li key={r.cliente_nombre} className="grid grid-cols-[1fr_auto_auto] gap-2 text-sm">
-                  <span className="truncate text-[var(--color-ink)]">{r.cliente_nombre}</span>
-                  <span className="text-xs tabular-nums text-[var(--color-ink-3)]">
-                    Cob {eur(r.pendiente_cobros)} · Mgr {eur(r.pendiente_manager_mes)}
-                  </span>
-                  <span className={`text-xs tabular-nums font-medium ${r.diferencia >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                    {r.diferencia >= 0 ? '+' : ''}{eur(r.diferencia)}
-                  </span>
-                </li>
-              ))}
-              {mismatchVisible.length > 6 && (
-                <li className="pt-1 text-xs text-[var(--color-ink-3)]">y {mismatchVisible.length - 6} más…</li>
-              )}
-            </ul>
-          </AlertCard>
+            titulo="Deuda pendiente Cobros"
+            subtitulo={totalVencido > 0 ? `${eur(totalVencido)} vencido` : 'al día con vencimientos'}
+            Icon={HandCoins}
+            severidad={totalVencido > 0 ? 'critica' : (totalDeuda > 0 ? 'aviso' : 'ok')}
+            count={deudores.data?.length ?? 0}
+            total={totalDeuda > 0 ? eur(totalDeuda) : undefined}
+            loading={deudores.isLoading}
+            to="/cobros"
+            empty="Sin deuda pendiente"
+            preview={<DeudoresList rows={deudores.data?.slice(0, 6)} />}
+            full={<DeudoresList rows={deudores.data ?? []} />}
+          />
+
+          {/* Pedidos esperados hoy/inminentes */}
+          <AlertCard
+            titulo="Pedidos esperados hoy / vencidos"
+            subtitulo="basado en cadencia regular del cliente"
+            Icon={CalendarClock}
+            severidad={esperadosUrgentes.length > 0 ? 'aviso' : 'ok'}
+            count={esperadosUrgentes.length}
+            loading={esperados.isLoading}
+            to="/manager"
+            empty="Nadie por encima del patrón hoy"
+            preview={<EsperadosList rows={esperadosUrgentes.slice(0, 6)} />}
+            full={<EsperadosList rows={esperados.data ?? []} mostrarTodos />}
+          />
 
           {/* Productos anómalos */}
           <AlertCard
@@ -93,24 +97,9 @@ export function HomePage() {
             loading={anomalos.isLoading}
             to="/manager"
             empty="Todos los productos con margen razonable"
-          >
-            <ul className="space-y-1.5">
-              {anomalos.data?.slice(0, 6).map(p => (
-                <li key={p.product_id ?? p.nombre} className="grid grid-cols-[1fr_auto_auto] gap-2 text-sm">
-                  <span className="truncate text-[var(--color-ink)]">{p.nombre}</span>
-                  <span className="text-xs uppercase tracking-wider text-amber-700">
-                    {p.motivo === 'sin_coste' ? 'sin coste' : p.motivo === 'margen_bajo' ? 'margen bajo' : 'margen alto'}
-                  </span>
-                  <span className="text-xs tabular-nums text-[var(--color-ink-3)]">
-                    {p.margen_pct == null ? '—' : `${p.margen_pct.toFixed(0)}%`} · {eur(p.ventas)}
-                  </span>
-                </li>
-              ))}
-              {(anomalos.data?.length ?? 0) > 6 && (
-                <li className="pt-1 text-xs text-[var(--color-ink-3)]">y {(anomalos.data?.length ?? 0) - 6} más…</li>
-              )}
-            </ul>
-          </AlertCard>
+            preview={<ProductosList rows={anomalos.data?.slice(0, 6)} />}
+            full={<ProductosList rows={anomalos.data ?? []} />}
+          />
 
           {/* Clientes inactivos */}
           <AlertCard
@@ -122,21 +111,9 @@ export function HomePage() {
             loading={inactivos.isLoading}
             to="/manager"
             empty="Todos los clientes activos según su patrón"
-          >
-            <ul className="space-y-1.5">
-              {inactivos.data?.slice(0, 6).map(c => (
-                <li key={c.contact_name_canon} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
-                  <span className="truncate text-[var(--color-ink)]">{c.contact_name_canon}</span>
-                  <span className="text-xs tabular-nums text-amber-700">
-                    {c.dias_sin_pedir}d (cad. {c.cadencia_dias.toFixed(0)}d)
-                  </span>
-                </li>
-              ))}
-              {(inactivos.data?.length ?? 0) > 6 && (
-                <li className="pt-1 text-xs text-[var(--color-ink-3)]">y {(inactivos.data?.length ?? 0) - 6} más…</li>
-              )}
-            </ul>
-          </AlertCard>
+            preview={<InactivosList rows={inactivos.data?.slice(0, 6)} />}
+            full={<InactivosList rows={inactivos.data ?? []} />}
+          />
 
           {/* Costes subiendo */}
           <AlertCard
@@ -148,27 +125,26 @@ export function HomePage() {
             loading={costes.isLoading}
             to="/manager"
             empty="Sin subidas relevantes"
-          >
-            <ul className="space-y-1.5">
-              {costes.data?.slice(0, 6).map(p => (
-                <li key={p.product_id} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
-                  <span className="truncate text-[var(--color-ink)]">{p.nombre}</span>
-                  <span className="text-xs tabular-nums text-amber-700">
-                    +{p.variacion_pct.toFixed(0)}% · {eur2(p.coste_anterior)} → {eur2(p.coste_actual)}
-                  </span>
-                </li>
-              ))}
-              {(costes.data?.length ?? 0) > 6 && (
-                <li className="pt-1 text-xs text-[var(--color-ink-3)]">y {(costes.data?.length ?? 0) - 6} más…</li>
-              )}
-            </ul>
-          </AlertCard>
+            preview={<CostesList rows={costes.data?.slice(0, 6)} />}
+            full={<CostesList rows={costes.data ?? []} />}
+          />
+
+          {/* Otra placeholder para llenar grid */}
+          <AlertCard
+            titulo="Atención general"
+            subtitulo="actualizaciones del sistema"
+            Icon={AlertTriangle}
+            severidad="ok"
+            count={0}
+            loading={false}
+            empty="Sin avisos del sistema"
+          />
         </div>
 
-        {/* Atajos de módulos */}
+        {/* Atajos */}
         <section>
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Módulos</h2>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             {moduleEntries.map(({ key, title, to, Icon }) => (
               <Link
                 key={key}
@@ -185,5 +161,94 @@ export function HomePage() {
         </section>
       </div>
     </div>
+  )
+}
+
+function DeudoresList({ rows }: { rows?: DeudorCobros[] }) {
+  return (
+    <ul className="space-y-1.5">
+      {rows?.map(d => (
+        <li key={d.cliente_id} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
+          <div className="min-w-0">
+            <div className="truncate text-[var(--color-ink)]">{d.nombre}</div>
+            <div className="text-xs text-[var(--color-ink-3)]">{d.movimientos} mov · {d.vencido > 0 ? `${eur(d.vencido)} vencido` : 'al día'}</div>
+          </div>
+          <span className={`text-sm font-medium tabular-nums ${d.vencido > 0 ? 'text-red-700' : 'text-amber-700'}`}>{eur(d.pendiente)}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function EsperadosList({ rows, mostrarTodos }: { rows?: PedidoEsperado[]; mostrarTodos?: boolean }) {
+  const colorPrioridad = (p: PedidoEsperado['prioridad']) =>
+    p === 'urgente' ? 'text-red-700' : p === 'pronto' ? 'text-amber-700' : 'text-blue-700'
+  return (
+    <ul className="space-y-1.5">
+      {rows?.map(p => (
+        <li key={p.contact_name_canon} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
+          <div className="min-w-0">
+            <div className="truncate text-[var(--color-ink)]">{p.contact_name_canon}</div>
+            <div className="text-xs text-[var(--color-ink-3)]">cad. {p.cadencia_dias.toFixed(0)}d · ~{eur(p.ventas_medias)}</div>
+          </div>
+          <span className={`text-xs font-medium tabular-nums ${colorPrioridad(p.prioridad)}`}>
+            {p.dias_para === 0 ? 'hoy' : p.dias_para < 0 ? `${Math.abs(p.dias_para)}d tarde` : `en ${p.dias_para}d`}
+            {mostrarTodos && <span className="ml-1 text-[10px] uppercase">{p.prioridad}</span>}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function ProductosList({ rows }: { rows?: ProductoAnomalo[] }) {
+  return (
+    <ul className="space-y-1.5">
+      {rows?.map(p => (
+        <li key={(p.product_id ?? p.nombre)} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
+          <div className="min-w-0">
+            <div className="truncate text-[var(--color-ink)]">{p.nombre}</div>
+            <div className="text-xs text-amber-700">
+              {p.motivo === 'sin_coste' ? 'sin coste registrado' : p.motivo === 'margen_bajo' ? 'margen bajo' : 'margen excesivo'}
+            </div>
+          </div>
+          <span className="text-xs tabular-nums text-[var(--color-ink-3)]">
+            {p.margen_pct == null ? '—' : `${p.margen_pct.toFixed(0)}%`} · {eur(p.ventas)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function InactivosList({ rows }: { rows?: ClienteInactivo[] }) {
+  return (
+    <ul className="space-y-1.5">
+      {rows?.map(c => (
+        <li key={c.contact_name_canon} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
+          <div className="min-w-0">
+            <div className="truncate text-[var(--color-ink)]">{c.contact_name_canon}</div>
+            <div className="text-xs text-[var(--color-ink-3)]">cad. {c.cadencia_dias.toFixed(0)}d · {fmt(c.ultima_compra)}</div>
+          </div>
+          <span className="text-xs tabular-nums text-amber-700">{c.dias_sin_pedir}d sin pedir</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function CostesList({ rows }: { rows?: CosteSubiendo[] }) {
+  return (
+    <ul className="space-y-1.5">
+      {rows?.map(p => (
+        <li key={p.product_id} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
+          <div className="min-w-0">
+            <div className="truncate text-[var(--color-ink)]">{p.nombre}</div>
+            <div className="text-xs text-[var(--color-ink-3)]">{p.coste_anterior.toFixed(2)}€ → {p.coste_actual.toFixed(2)}€</div>
+          </div>
+          <span className="text-xs font-medium tabular-nums text-amber-700">+{p.variacion_pct.toFixed(0)}%</span>
+        </li>
+      ))}
+    </ul>
   )
 }
