@@ -1,14 +1,19 @@
 import { useState } from 'react'
-import { Award, BookCheck, CalendarOff, Construction, ShoppingBasket } from 'lucide-react'
+import { Award, BookCheck, CalendarDays, CalendarOff, Construction, ShoppingBasket } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { TareasPage } from '@/modules/tareas/TareasPage'
+import { CreditoView } from './components/CreditoView'
+import { VacacionesView } from './components/VacacionesView'
+import { SabadosView } from './components/SabadosView'
+import { PuntosView } from './components/PuntosView'
 
-type Tab = 'tareas' | 'puntos' | 'vacaciones' | 'credito' | 'productividad'
+type Tab = 'tareas' | 'puntos' | 'vacaciones' | 'sabados' | 'credito' | 'productividad'
 
 const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'tareas',        l: 'Tareas',          Icon: BookCheck },
   { k: 'puntos',        l: 'Puntos',          Icon: Award },
   { k: 'vacaciones',    l: 'Vacaciones',      Icon: CalendarOff },
+  { k: 'sabados',       l: 'Sábados',         Icon: CalendarDays },
   { k: 'credito',       l: 'Crédito frutas',  Icon: ShoppingBasket },
   { k: 'productividad', l: 'Plus productividad', Icon: Construction },
 ]
@@ -36,9 +41,10 @@ export function TrabajadoresOpPage() {
       </div>
 
       {tab === 'tareas' && <TareasPage />}
-      {tab === 'puntos' && <Placeholder titulo="Puntos" descripcion="Sistema de puntos / incentivos por trabajador. Por implementar." />}
-      {tab === 'vacaciones' && <Placeholder titulo="Vacaciones" descripcion="Registro y conteo de días de vacaciones por trabajador. Por implementar." />}
-      {tab === 'credito' && <Placeholder titulo="Crédito de frutas y verduras" descripcion="Registro de productos que los trabajadores se llevan a casa fiados. Por implementar." />}
+      {tab === 'puntos' && <PuntosView />}
+      {tab === 'vacaciones' && <VacacionesView />}
+      {tab === 'sabados' && <SabadosView />}
+      {tab === 'credito' && <CreditoView />}
       {tab === 'productividad' && <Placeholder titulo="Plus productividad" descripcion="Cálculo de plus por productividad según métricas." comingSoon />}
     </div>
   )

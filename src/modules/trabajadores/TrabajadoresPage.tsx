@@ -18,6 +18,9 @@ interface Trabajador {
   plus_otros_concepto: string | null
   notas: string | null
   activo: boolean
+  pack: 1 | 2
+  limite_credito_mensual: number | null
+  tarifa_sabado: number | null
 }
 
 const eur = (n: number | null | undefined) =>
@@ -29,7 +32,7 @@ function useTrabajadores() {
     queryFn: async (): Promise<Trabajador[]> => {
       const { data, error } = await supabase
         .from('empleados')
-        .select('id, nombre, user_id, puesto, fecha_alta, sueldo_base, plus_transporte, plus_responsabilidad, plus_otros, plus_otros_concepto, notas, activo')
+        .select('id, nombre, user_id, puesto, fecha_alta, sueldo_base, plus_transporte, plus_responsabilidad, plus_otros, plus_otros_concepto, notas, activo, pack, limite_credito_mensual, tarifa_sabado')
         .order('nombre')
       if (error) throw error
       return (data ?? []) as Trabajador[]
@@ -54,6 +57,9 @@ function useGuardarTrabajador() {
           plus_otros_concepto: t.plus_otros_concepto,
           notas: t.notas,
           activo: t.activo,
+          pack: t.pack,
+          limite_credito_mensual: t.limite_credito_mensual,
+          tarifa_sabado: t.tarifa_sabado,
         })
         .eq('id', t.id)
       if (error) throw error
@@ -62,11 +68,14 @@ function useGuardarTrabajador() {
   })
 }
 
-const totalMensual = (t: Trabajador) =>
-  Number(t.sueldo_base ?? 0) +
-  Number(t.plus_transporte ?? 0) +
-  Number(t.plus_responsabilidad ?? 0) +
-  Number(t.plus_otros ?? 0)
+const totalMensual = (t: Trabajador) => {
+  const base = Number(t.sueldo_base ?? 0)
+  if (t.pack === 2) return base
+  return base +
+    Number(t.plus_transporte ?? 0) +
+    Number(t.plus_responsabilidad ?? 0) +
+    Number(t.plus_otros ?? 0)
+}
 
 export function TrabajadoresPage() {
   const { data, isLoading } = useTrabajadores()
@@ -107,6 +116,9 @@ export function TrabajadoresPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-[var(--color-ink)]">{t.nombre}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${t.pack === 1 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                      Pack {t.pack}
+                    </span>
                     {!t.activo && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wider text-slate-600">baja</span>}
                   </div>
                   <div className="text-xs text-[var(--color-ink-3)]">{t.puesto ?? 'sin puesto'} {t.fecha_alta ? `· desde ${t.fecha_alta}` : ''}</div>
@@ -187,6 +199,66 @@ function EditorTrabajador({ trabajador, onClose }: { trabajador: Trabajador; onC
                 {t.activo ? 'Activo' : 'Baja'}
               </label>
             </Field>
+          </div>
+
+          <div className="rounded-lg border border-[var(--color-border)] p-3">
+            <h3 className="mb-2 text-sm font-semibold text-[var(--color-ink)]">Pack contractual</h3>
+            <div className="grid gap-2 md:grid-cols-2">
+              <label className={`flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm ${t.pack === 1 ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]' : 'border-[var(--color-border)]'}`}>
+                <input
+                  type="radio"
+                  name="pack"
+                  checked={t.pack === 1}
+                  onChange={() => set('pack', 1)}
+                  className="mt-0.5"
+                />
+                <div>
+                  <div className="font-semibold">Pack 1</div>
+                  <div className="text-xs text-[var(--color-ink-3)]">60d vacaciones · pluses · crédito frutas · productividad · 5% nuevos</div>
+                </div>
+              </label>
+              <label className={`flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm ${t.pack === 2 ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]' : 'border-[var(--color-border)]'}`}>
+                <input
+                  type="radio"
+                  name="pack"
+                  checked={t.pack === 2}
+                  onChange={() => set('pack', 2)}
+                  className="mt-0.5"
+                />
+                <div>
+                  <div className="font-semibold">Pack 2</div>
+                  <div className="text-xs text-[var(--color-ink-3)]">48d vacaciones · sueldo neto · 70€/sábado · 5% nuevos · sin pluses</div>
+                </div>
+              </label>
+            </div>
+            {t.pack === 1 && (
+              <div className="mt-3">
+                <Field label="Crédito frutas mensual (€)">
+                  <Input
+                    type="number"
+                    step="1"
+                    value={t.limite_credito_mensual ?? ''}
+                    onChange={(e) => setNum('limite_credito_mensual', e.target.value)}
+                    className="h-9 tabular-nums text-right"
+                    placeholder="100"
+                  />
+                </Field>
+              </div>
+            )}
+            {t.pack === 2 && (
+              <div className="mt-3">
+                <Field label="Tarifa por sábado trabajado (€)">
+                  <Input
+                    type="number"
+                    step="1"
+                    value={t.tarifa_sabado ?? ''}
+                    onChange={(e) => setNum('tarifa_sabado', e.target.value)}
+                    className="h-9 tabular-nums text-right"
+                    placeholder="70"
+                  />
+                </Field>
+              </div>
+            )}
           </div>
 
           <div className="rounded-lg border border-[var(--color-border)] p-3">
