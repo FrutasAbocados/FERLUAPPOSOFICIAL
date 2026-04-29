@@ -1,0 +1,13 @@
+{
+  "name": "Abocados OS",
+  "short_name": "Abocados",
+  "description": "Centro de control Frutas Abocados",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f8f4",
+  "theme_color": "#3b6944",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
