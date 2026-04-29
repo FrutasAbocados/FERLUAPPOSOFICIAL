@@ -18,7 +18,7 @@ interface Trabajador {
   plus_otros_concepto: string | null
   notas: string | null
   activo: boolean
-  pack: 1 | 2
+  pack: 1 | 2 | 3
   limite_credito_mensual: number | null
   tarifa_sabado: number | null
 }
@@ -70,7 +70,8 @@ function useGuardarTrabajador() {
 
 const totalMensual = (t: Trabajador) => {
   const base = Number(t.sueldo_base ?? 0)
-  if (t.pack === 2) return base
+  // pack 2 (sueldo neto sin pluses) y pack 3 (prácticas, sueldo fijo)
+  if (t.pack === 2 || t.pack === 3) return base
   return base +
     Number(t.plus_transporte ?? 0) +
     Number(t.plus_responsabilidad ?? 0) +
@@ -116,8 +117,12 @@ export function TrabajadoresPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-[var(--color-ink)]">{t.nombre}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${t.pack === 1 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                      Pack {t.pack}
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                      t.pack === 1 ? 'bg-emerald-100 text-emerald-800' :
+                      t.pack === 2 ? 'bg-amber-100 text-amber-800' :
+                      'bg-violet-100 text-violet-800'
+                    }`}>
+                      {t.pack === 3 ? 'Prácticas' : `Pack ${t.pack}`}
                     </span>
                     {!t.activo && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wider text-slate-600">baja</span>}
                   </div>
@@ -203,35 +208,30 @@ function EditorTrabajador({ trabajador, onClose }: { trabajador: Trabajador; onC
 
           <div className="rounded-lg border border-[var(--color-border)] p-3">
             <h3 className="mb-2 text-sm font-semibold text-[var(--color-ink)]">Pack contractual</h3>
-            <div className="grid gap-2 md:grid-cols-2">
+            <div className="grid gap-2 md:grid-cols-3">
               <label className={`flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm ${t.pack === 1 ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]' : 'border-[var(--color-border)]'}`}>
-                <input
-                  type="radio"
-                  name="pack"
-                  checked={t.pack === 1}
-                  onChange={() => set('pack', 1)}
-                  className="mt-0.5"
-                />
+                <input type="radio" name="pack" checked={t.pack === 1} onChange={() => set('pack', 1)} className="mt-0.5" />
                 <div>
                   <div className="font-semibold">Pack 1</div>
-                  <div className="text-xs text-[var(--color-ink-3)]">60d vacaciones · pluses · crédito frutas · productividad · 5% nuevos</div>
+                  <div className="text-xs text-[var(--color-ink-3)]">60d vac · desayuno · objetivos · productividad · crédito · 5% nuevos</div>
                 </div>
               </label>
               <label className={`flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm ${t.pack === 2 ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]' : 'border-[var(--color-border)]'}`}>
-                <input
-                  type="radio"
-                  name="pack"
-                  checked={t.pack === 2}
-                  onChange={() => set('pack', 2)}
-                  className="mt-0.5"
-                />
+                <input type="radio" name="pack" checked={t.pack === 2} onChange={() => set('pack', 2)} className="mt-0.5" />
                 <div>
                   <div className="font-semibold">Pack 2</div>
-                  <div className="text-xs text-[var(--color-ink-3)]">48d vacaciones · sueldo neto · 70€/sábado · 5% nuevos · sin pluses</div>
+                  <div className="text-xs text-[var(--color-ink-3)]">48d vac · sueldo neto · 70€/sábado · 5% nuevos · sin pluses</div>
+                </div>
+              </label>
+              <label className={`flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm ${t.pack === 3 ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]' : 'border-[var(--color-border)]'}`}>
+                <input type="radio" name="pack" checked={t.pack === 3} onChange={() => set('pack', 3)} className="mt-0.5" />
+                <div>
+                  <div className="font-semibold">Pack 3</div>
+                  <div className="text-xs text-[var(--color-ink-3)]">Prácticas 4h · sueldo fijo · crédito frutas · sin más</div>
                 </div>
               </label>
             </div>
-            {t.pack === 1 && (
+            {(t.pack === 1 || t.pack === 3) && (
               <div className="mt-3">
                 <Field label="Crédito frutas mensual (€)">
                   <Input
@@ -262,26 +262,33 @@ function EditorTrabajador({ trabajador, onClose }: { trabajador: Trabajador; onC
           </div>
 
           <div className="rounded-lg border border-[var(--color-border)] p-3">
-            <h3 className="mb-2 text-sm font-semibold text-[var(--color-ink)]">Condiciones económicas (mensuales €)</h3>
+            <h3 className="mb-2 text-sm font-semibold text-[var(--color-ink)]">
+              {t.pack === 3 ? 'Condiciones económicas (sueldo fijo €/mes)' : 'Condiciones económicas (mensuales €)'}
+            </h3>
             <div className="grid gap-3 md:grid-cols-2">
-              <Field label="Sueldo base">
+              <Field label={t.pack === 2 ? 'Sueldo neto' : 'Sueldo base'}>
                 <Input type="number" step="0.01" value={t.sueldo_base ?? ''} onChange={(e) => setNum('sueldo_base', e.target.value)} className="h-9 tabular-nums text-right" />
               </Field>
-              <Field label="Plus transporte">
-                <Input type="number" step="0.01" value={t.plus_transporte ?? ''} onChange={(e) => setNum('plus_transporte', e.target.value)} className="h-9 tabular-nums text-right" />
-              </Field>
-              <Field label="Plus responsabilidad">
-                <Input type="number" step="0.01" value={t.plus_responsabilidad ?? ''} onChange={(e) => setNum('plus_responsabilidad', e.target.value)} className="h-9 tabular-nums text-right" />
-              </Field>
-              <Field label="Plus otros">
-                <Input type="number" step="0.01" value={t.plus_otros ?? ''} onChange={(e) => setNum('plus_otros', e.target.value)} className="h-9 tabular-nums text-right" />
-              </Field>
-              <Field label="Concepto otros (opcional)" full>
-                <Input value={t.plus_otros_concepto ?? ''} onChange={(e) => set('plus_otros_concepto', e.target.value || null)} className="h-9" placeholder="ej. nocturnidad" />
-              </Field>
+              {t.pack === 1 && (
+                <>
+                  <Field label="Plus desayuno">
+                    <Input type="number" step="0.01" value={t.plus_transporte ?? ''} onChange={(e) => setNum('plus_transporte', e.target.value)} className="h-9 tabular-nums text-right" />
+                  </Field>
+                  <Field label="Plus objetivos">
+                    <Input type="number" step="0.01" value={t.plus_responsabilidad ?? ''} onChange={(e) => setNum('plus_responsabilidad', e.target.value)} className="h-9 tabular-nums text-right" />
+                  </Field>
+                  <Field label="Plus productividad">
+                    <Input type="number" step="0.01" value={t.plus_otros ?? ''} onChange={(e) => setNum('plus_otros', e.target.value)} className="h-9 tabular-nums text-right" />
+                  </Field>
+                </>
+              )}
             </div>
             <div className="mt-3 flex items-center justify-between border-t border-[var(--color-border)] pt-3">
-              <span className="text-sm text-[var(--color-ink-3)]">Total mensual</span>
+              <span className="text-sm text-[var(--color-ink-3)]">
+                {t.pack === 2 ? 'Sueldo neto + sábados se calculan en pestaña Sábados'
+                  : t.pack === 3 ? 'Sueldo fijo + crédito frutas'
+                  : 'Total mensual base + pluses'}
+              </span>
               <span className="font-display text-xl font-bold tabular-nums text-emerald-700">{eur(totalMensual(t))}</span>
             </div>
           </div>

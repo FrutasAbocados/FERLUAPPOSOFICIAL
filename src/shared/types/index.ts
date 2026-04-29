@@ -1,4 +1,4 @@
-export type Role = 'admin_full' | 'admin_op' | 'empleado'
+export type Role = 'admin_full' | 'admin_op' | 'responsable' | 'empleado'
 
 export type Profile = {
   id: string
@@ -11,14 +11,14 @@ export type Profile = {
 export type ModuleKey = 'manager' | 'cash' | 'trabajadores' | 'turnos' | 'cobros' | 'agente' | 'bbdd_trabajadores' | 'sueldos'
 
 export const MODULE_ACCESS: Record<ModuleKey, Role[]> = {
-  manager: ['admin_full'],
-  cash: ['admin_full', 'admin_op'],
-  trabajadores: ['admin_full', 'admin_op', 'empleado'],
-  turnos: ['admin_full', 'admin_op', 'empleado'],
-  cobros: ['admin_full', 'admin_op'],
-  agente: ['admin_full'],
-  bbdd_trabajadores: ['admin_full', 'admin_op'],
-  sueldos: ['admin_full', 'admin_op'],
+  manager:           ['admin_full', 'responsable'],
+  cash:              ['admin_full', 'admin_op'],
+  trabajadores:      ['admin_full', 'admin_op', 'responsable', 'empleado'],
+  turnos:            ['admin_full', 'admin_op', 'responsable', 'empleado'],
+  cobros:            ['admin_full', 'admin_op', 'responsable'],
+  agente:            ['admin_full', 'responsable'],
+  bbdd_trabajadores: ['admin_full', 'admin_op', 'responsable'],
+  sueldos:           ['admin_full', 'admin_op'],
 }
 
 export const canAccess = (mod: ModuleKey, role: Role): boolean =>
