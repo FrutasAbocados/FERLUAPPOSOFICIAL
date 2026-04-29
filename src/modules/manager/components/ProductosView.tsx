@@ -111,6 +111,7 @@ export function ProductosView({ period }: Props) {
                 <div className="text-right tabular-nums md:hidden">
                   <div className="text-[var(--color-ink)]">{eur0(p.ventas)}</div>
                   <div className="text-xs text-emerald-700">{eur0(p.margen)} {p.margen_pct == null ? '' : `(${p.margen_pct.toFixed(0)}%)`}</div>
+                  <div className="text-[10px] text-[var(--color-ink-3)]">{p.unidades.toFixed(0)} ud</div>
                 </div>
               </button>
             </li>

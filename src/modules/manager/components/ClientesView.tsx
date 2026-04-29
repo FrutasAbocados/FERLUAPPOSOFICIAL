@@ -164,7 +164,7 @@ export function ClientesView({ period }: Props) {
                     <div className="text-xs text-[var(--color-ink-3)]">{c.num_aliases} nombres unificados</div>
                   )}
                 </div>
-                <div className="text-right text-xs text-[var(--color-ink-3)] md:text-sm md:text-[var(--color-ink)] md:tabular-nums">{c.docs}</div>
+                <div className="hidden text-right text-sm tabular-nums text-[var(--color-ink)] md:block">{c.docs}</div>
                 <div className="hidden text-right tabular-nums text-[var(--color-ink)] md:block">{eur0(c.ventas)}</div>
                 <div className="hidden text-right tabular-nums text-emerald-700 md:block">{eur0(c.margen)}</div>
                 <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">{c.margen_pct == null ? '—' : `${c.margen_pct.toFixed(0)}%`}</div>
@@ -175,6 +175,7 @@ export function ClientesView({ period }: Props) {
                 <div className="text-right tabular-nums md:hidden">
                   <div className="text-[var(--color-ink)]">{eur0(c.ventas)}</div>
                   <div className="text-xs text-emerald-700">{eur0(c.margen)} {c.margen_pct == null ? '' : `(${c.margen_pct.toFixed(0)}%)`}</div>
+                  <div className="text-[10px] text-[var(--color-ink-3)]">{c.docs} docs · {fmt(c.ultima_compra)}</div>
                 </div>
               </button>
             </li>
