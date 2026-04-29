@@ -35,6 +35,15 @@ const MODULOS = [
 export function HomePage() {
   const { profile } = useAuth()
   const role = profile?.role
+
+  if (role === 'empleado') return <HomeEmpleado />
+
+  return <HomeAdmin />
+}
+
+function HomeAdmin() {
+  const { profile } = useAuth()
+  const role = profile?.role
   const moduleEntries = MODULOS.filter(m => role && canAccess(m.key as ModuleKey, role))
 
   const deudores  = useTopDeudoresCobros()
@@ -150,6 +159,47 @@ export function HomePage() {
         <section>
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Módulos</h2>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            {moduleEntries.map(({ key, title, to, Icon }) => (
+              <Link
+                key={key}
+                to={to}
+                className="group flex flex-col items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-4 transition hover:border-[var(--color-primary)] hover:shadow-sm"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <span className="text-sm font-medium text-[var(--color-ink)]">{title}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  )
+}
+
+function HomeEmpleado() {
+  const { profile } = useAuth()
+  const role = profile?.role
+  const moduleEntries = MODULOS.filter(m => role && canAccess(m.key as ModuleKey, role))
+
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8">
+      <header className="mb-6">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+          Hola, {profile?.display_name ?? '—'}
+        </p>
+        <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">
+          Tu panel
+        </h1>
+      </header>
+
+      <div className="space-y-4">
+        <NotificacionesPanel />
+
+        <section>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Tus módulos</h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {moduleEntries.map(({ key, title, to, Icon }) => (
               <Link
                 key={key}

@@ -216,18 +216,23 @@ declare
   v_titulo text;
   v_cuerpo text;
 begin
-  v_titulo := '⭐ ' || new.total || ' puntos hoy';
-  v_cuerpo := 'Puntualidad ' || new.puntualidad ||
-              ' · Reparto ' || new.reparto ||
-              ' · Responsabilidad ' || new.responsabilidad ||
-              coalesce(' · ' || nullif(new.nota, ''), '');
-
-  -- borra notif previa del mismo día/empleado para no spammear
+  -- limpia notif previa del día por si se baja a 0 desde un valor positivo
   delete from public.notificaciones
    where audience = 'empleado'
      and empleado_id = new.empleado_id
      and tipo = 'puntos_dia'
      and (payload->>'fecha')::date = new.fecha;
+
+  -- si el día queda a 0 puntos, no spamear con "0 puntos hoy"
+  if new.total = 0 then
+    return new;
+  end if;
+
+  v_titulo := '⭐ ' || new.total || ' puntos hoy';
+  v_cuerpo := 'Puntualidad ' || new.puntualidad ||
+              ' · Reparto ' || new.reparto ||
+              ' · Responsabilidad ' || new.responsabilidad ||
+              coalesce(' · ' || nullif(new.nota, ''), '');
 
   perform public.notif_emit(
     'empleado', new.empleado_id, 'puntos_dia',
@@ -252,6 +257,16 @@ declare v_emp text;
 begin
   if new.estado <> 'hecha'::public.tarea_estado then return new; end if;
   if tg_op = 'UPDATE' and old.estado = 'hecha'::public.tarea_estado then return new; end if;
+
+  -- si quien la marca es admin/responsable, no notificar (evita self-spam):
+  -- los admins ya saben lo que han marcado. Solo notif si la cierra un empleado.
+  if exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid()
+      and p.role in ('admin_full', 'admin_op', 'responsable')
+  ) then
+    return new;
+  end if;
 
   if new.asignado_a is not null then
     select nombre into v_emp from public.empleados where id = new.asignado_a;
