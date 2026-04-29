@@ -196,14 +196,15 @@ export function AppShell() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto pb-16 md:pb-0">
+        <div className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
           <Outlet key={location.pathname} />
         </div>
 
         {/* Bottom nav móvil — solo MODULES principales (Equipo va en header) */}
         {visible.length > 0 && (
-          <nav className="fixed bottom-0 left-0 right-0 z-30 grid border-t border-[var(--color-border)] bg-[var(--color-surface)] md:hidden"
-               style={{ gridTemplateColumns: `repeat(${visible.length + 1}, 1fr)` }}>
+          <nav
+            className="fixed bottom-0 left-0 right-0 z-30 grid border-t border-[var(--color-border)] bg-[var(--color-surface)] pb-[env(safe-area-inset-bottom)] md:hidden"
+            style={{ gridTemplateColumns: `repeat(${visible.length + 1}, 1fr)` }}>
             <NavLink
               to="/"
               end

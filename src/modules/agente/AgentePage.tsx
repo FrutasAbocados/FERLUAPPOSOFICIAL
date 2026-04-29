@@ -45,7 +45,7 @@ export function AgentePage() {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-3.5rem)] max-w-4xl flex-col px-4 py-4 md:h-screen md:px-6 md:py-6">
+    <div className="mx-auto flex h-[calc(100dvh-3.5rem-4rem-env(safe-area-inset-bottom))] max-w-4xl flex-col px-4 py-4 md:h-[calc(100dvh-3rem)] md:px-6 md:py-6">
       <header className="mb-4 border-b border-[var(--color-border)] pb-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Módulo</p>
         <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">Agente IA</h1>

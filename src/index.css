@@ -65,7 +65,10 @@
 }
 
 html, body, #root {
+  /* dvh respeta el viewport dinámico de móvil (URL bar que aparece/desaparece).
+     Fallback a 100% para navegadores antiguos. */
   height: 100%;
+  height: 100dvh;
   /* Prevenir scroll horizontal involuntario en móvil — sólo permitimos
      scroll-x explícito en contenedores marcados con overflow-x-auto. */
   overflow-x: hidden;
