@@ -125,15 +125,22 @@ export function GenerarDeudaModal({ facturas, onClose, onSuccess }: Props) {
         for (const r of (data ?? []) as { id: string; nombre: string }[]) idsCreados.set(r.nombre, r.id)
       }
       // 2. Insertar movimientos
+      const lastDayOfMonth = (iso: string) => {
+        const d = parseISO(iso)
+        const last = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+        return format(last, 'yyyy-MM-dd')
+      }
       const movs = aProcesar.map(m => {
         const factura = facturas.find(f => f.id === m.facturaId)!
         const clienteId = m.cliente_id ?? idsCreados.get(m.nombreNuevo)
         if (!clienteId) throw new Error(`Sin cliente para ${factura.doc_number}`)
+        if (!factura.fecha) throw new Error(`Sin fecha para ${factura.doc_number}`)
         return {
           cliente_id: clienteId,
           tipo: 'Factura' as const,
           numero_factura: factura.doc_number,
           fecha_factura: factura.fecha,
+          fecha_vencimiento: lastDayOfMonth(factura.fecha),
           importe: factura.total,
           pagado: false,
           concepto: `Importado desde Manager · ${factura.subtipo ?? ''}`,
