@@ -6,6 +6,7 @@ import { useAuth } from '@/shared/auth/useAuth'
 import { MonthHeader } from './components/MonthHeader'
 import { KpiBar } from './components/KpiBar'
 import { CierreForm } from './components/CierreForm'
+import { CierreDiaPage } from './components/CierreDiaPage'
 import {
   shiftMonth,
   useCierresMes,
@@ -18,9 +19,73 @@ const eur = (n: number) =>
 
 const DOW_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
+type View = 'calendario' | 'cierre-dia'
+
 export function CashPage() {
   const { profile } = useAuth()
   const isAdminFull = profile?.role === 'admin_full'
+  const isAdminOp = profile?.role === 'admin_op'
+  const puedeCierreDia = isAdminFull || isAdminOp
+  const [view, setView] = useState<View>('calendario')
+
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
+      <header className="mb-5 border-b border-[var(--color-border)] pb-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+          Módulo
+        </p>
+        <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">
+          Caja
+        </h1>
+        <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
+          Cierre diario completo y cierre por repartidor.{' '}
+          {!isAdminFull && view === 'calendario' && (
+            <span className="text-[var(--color-ink-3)]">(Solo lectura)</span>
+          )}
+        </p>
+      </header>
+
+      <div className="mb-5 flex gap-1 border-b border-[var(--color-border)]">
+        <TabButton active={view === 'calendario'} onClick={() => setView('calendario')}>
+          Calendario
+        </TabButton>
+        {puedeCierreDia && (
+          <TabButton active={view === 'cierre-dia'} onClick={() => setView('cierre-dia')}>
+            Cierre día
+          </TabButton>
+        )}
+      </div>
+
+      {view === 'calendario' && <CalendarioView isAdminFull={isAdminFull} />}
+      {view === 'cierre-dia' && puedeCierreDia && <CierreDiaPage />}
+    </div>
+  )
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`relative -mb-px px-4 py-2 text-sm font-medium transition ${
+        active
+          ? 'border-b-2 border-[var(--color-primary)] text-[var(--color-ink)]'
+          : 'text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function CalendarioView({ isAdminFull }: { isAdminFull: boolean }) {
   const [anchor, setAnchor] = useState<Date>(() => startOfMonth(new Date()))
   const [editing, setEditing] = useState<string | null>(null)
 
@@ -50,29 +115,15 @@ export function CashPage() {
   const editingCierre = editing ? byDate.get(editing) ?? null : null
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-[var(--color-border)] pb-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
-            Módulo
-          </p>
-          <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">
-            Caja
-          </h1>
-          <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
-            Cierre diario completo: cobros, gastos, deuda, operativa.{' '}
-            {!isAdminFull && (
-              <span className="text-[var(--color-ink-3)]">(Solo lectura)</span>
-            )}
-          </p>
-        </div>
+    <>
+      <div className="mb-4 flex justify-end">
         <MonthHeader
           anchor={anchor}
           onPrev={() => setAnchor((a) => shiftMonth(a, -1))}
           onNext={() => setAnchor((a) => shiftMonth(a, 1))}
           onToday={() => setAnchor(startOfMonth(new Date()))}
         />
-      </header>
+      </div>
 
       <div className="mb-5">
         <KpiBar
@@ -181,6 +232,6 @@ export function CashPage() {
           onClose={() => setEditing(null)}
         />
       )}
-    </div>
+    </>
   )
 }
