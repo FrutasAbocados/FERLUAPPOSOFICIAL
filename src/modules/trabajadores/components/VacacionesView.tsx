@@ -6,6 +6,7 @@ import { CalendarOff, Check, Clock, Plus, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
+import { CalendarioVacaciones } from './CalendarioVacaciones'
 
 type Estado = 'pendiente' | 'aprobado' | 'disfrutado'
 
@@ -291,6 +292,19 @@ function DetalleVacaciones({ empleado, anio, onClose }: { empleado: Resumen; ani
                 {add.isPending ? 'Guardando…' : 'Crear (pendiente)'}
               </Button>
             </div>
+          </section>
+
+          {/* Calendario anual */}
+          <section>
+            <h3 className="mb-2 text-sm font-semibold text-[var(--color-ink)]">Calendario {anio}</h3>
+            <CalendarioVacaciones
+              anio={anio}
+              periodos={(periodos ?? []).map(p => ({
+                fecha_inicio: p.fecha_inicio,
+                fecha_fin: p.fecha_fin,
+                estado: p.estado,
+              }))}
+            />
           </section>
 
           {/* Lista periodos */}

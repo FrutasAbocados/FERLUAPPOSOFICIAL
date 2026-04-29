@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import { Award, BookCheck, CalendarDays, CalendarOff, Construction, ShoppingBasket } from 'lucide-react'
+import { Award, BarChart3, BookCheck, CalendarDays, CalendarOff, Construction, ShoppingBasket } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { TareasPage } from '@/modules/tareas/TareasPage'
 import { CreditoView } from './components/CreditoView'
 import { VacacionesView } from './components/VacacionesView'
 import { SabadosView } from './components/SabadosView'
 import { PuntosView } from './components/PuntosView'
+import { DashboardView } from './components/DashboardView'
 
-type Tab = 'tareas' | 'puntos' | 'vacaciones' | 'sabados' | 'credito' | 'productividad'
+type Tab = 'dashboard' | 'tareas' | 'puntos' | 'vacaciones' | 'sabados' | 'credito' | 'productividad'
 
 const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
+  { k: 'dashboard',     l: 'Dashboard',       Icon: BarChart3 },
   { k: 'tareas',        l: 'Tareas',          Icon: BookCheck },
   { k: 'puntos',        l: 'Puntos',          Icon: Award },
   { k: 'vacaciones',    l: 'Vacaciones',      Icon: CalendarOff },
@@ -19,7 +21,7 @@ const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
 ]
 
 export function TrabajadoresOpPage() {
-  const [tab, setTab] = useState<Tab>('tareas')
+  const [tab, setTab] = useState<Tab>('dashboard')
 
   return (
     <div>
@@ -40,6 +42,7 @@ export function TrabajadoresOpPage() {
         </div>
       </div>
 
+      {tab === 'dashboard' && <DashboardView />}
       {tab === 'tareas' && <TareasPage />}
       {tab === 'puntos' && <PuntosView />}
       {tab === 'vacaciones' && <VacacionesView />}
