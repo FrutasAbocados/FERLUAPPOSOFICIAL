@@ -23,8 +23,10 @@ export function CobrarModal({ movimientoId, onClose }: Props) {
     return <Modal open={false} onClose={onClose} title="" children={null} />
   }
 
+  const pend = importePendiente(m)
+  const esAbono = pend < 0
   return (
-    <Modal open={true} onClose={onClose} title="Marcar cobrado">
+    <Modal open={true} onClose={onClose} title={esAbono ? 'Saldar abono' : 'Marcar cobrado'}>
       <CobrarForm key={m.id} movimiento={m} onClose={onClose} />
     </Modal>
   )
@@ -38,6 +40,7 @@ type FormProps = {
 function CobrarForm({ movimiento: m, onClose }: FormProps) {
   const cobrar = useCobrar()
   const pend = importePendiente(m)
+  const esAbono = pend < 0
 
   const [fecha, setFecha] = useState(isoDate(new Date()))
   const [importe, setImporte] = useState(pend.toFixed(2))
@@ -49,13 +52,28 @@ function CobrarForm({ movimiento: m, onClose }: FormProps) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     const imp = parseFloat(importe.replace(',', '.'))
-    if (!Number.isFinite(imp) || imp <= 0) {
-      setError('El importe debe ser mayor que 0.')
+    if (!Number.isFinite(imp) || imp === 0) {
+      setError('El importe no puede ser 0.')
       return
     }
-    if (imp - pend > 0.005) {
-      setError(`No puedes cobrar más de lo pendiente (${eur(pend)}).`)
-      return
+    if (esAbono) {
+      if (imp >= 0) {
+        setError('Para un abono el importe debe ser negativo.')
+        return
+      }
+      if (imp < pend - 0.005) {
+        setError(`No puedes saldar más de lo pendiente (${eur(pend)}).`)
+        return
+      }
+    } else {
+      if (imp < 0) {
+        setError('El importe debe ser mayor que 0.')
+        return
+      }
+      if (imp - pend > 0.005) {
+        setError(`No puedes cobrar más de lo pendiente (${eur(pend)}).`)
+        return
+      }
     }
     setError(null)
     await cobrar.mutateAsync({
@@ -73,13 +91,14 @@ function CobrarForm({ movimiento: m, onClose }: FormProps) {
       <div className="rounded-[var(--radius-md)] bg-[var(--color-surface-2)] p-3 text-sm">
         <div className="text-xs text-[var(--color-ink-3)]">
           {m.numero_factura ?? (m.tipo === 'Pizarra' ? 'Deuda de pizarra' : 'Sin nº')}
+          {esAbono && <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">ABONO</span>}
         </div>
-        <div className="font-display text-lg font-bold">{eur(pend)}</div>
+        <div className={`font-display text-lg font-bold ${esAbono ? 'text-amber-700' : ''}`}>{eur(pend)}</div>
         <div className="text-[11px] text-[var(--color-ink-3)]">pendiente de {eur(Number(m.importe))}</div>
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="fecha">Fecha de cobro</Label>
+        <Label htmlFor="fecha">{esAbono ? 'Fecha de saldo' : 'Fecha de cobro'}</Label>
         <Input
           id="fecha"
           type="date"
@@ -89,7 +108,7 @@ function CobrarForm({ movimiento: m, onClose }: FormProps) {
         />
       </div>
       <div className="space-y-1">
-        <Label htmlFor="imp">Importe cobrado (€)</Label>
+        <Label htmlFor="imp">{esAbono ? 'Importe abonado (€)' : 'Importe cobrado (€)'}</Label>
         <Input
           id="imp"
           inputMode="decimal"
@@ -98,7 +117,9 @@ function CobrarForm({ movimiento: m, onClose }: FormProps) {
           required
         />
         <p className="text-[11px] text-[var(--color-ink-3)]">
-          Si es menor que el pendiente queda como cobro parcial.
+          {esAbono
+            ? 'Importe negativo. Si es mayor (menos negativo) que el pendiente, queda saldo parcial.'
+            : 'Si es menor que el pendiente queda como cobro parcial.'}
         </p>
       </div>
       <div className="space-y-1">
@@ -125,7 +146,7 @@ function CobrarForm({ movimiento: m, onClose }: FormProps) {
         </Button>
         <Button type="submit" disabled={cobrar.isPending}>
           {cobrar.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Confirmar cobro
+          {esAbono ? 'Confirmar saldo abono' : 'Confirmar cobro'}
         </Button>
       </div>
     </form>

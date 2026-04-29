@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { LayoutGrid, Columns3, Upload, BarChart3, Plus } from 'lucide-react'
+import { LayoutGrid, ListChecks, Upload, BarChart3, Plus } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/components/ui/button'
 import { Dashboard } from './components/Dashboard'
 import { ClientesView } from './components/ClientesView'
-import { Tablero } from './components/Tablero'
+import { ListadoFacturas } from './components/ListadoFacturas'
 import { Importador } from './components/Importador'
 import { ExportPanel } from './components/ExportPanel'
 import { CobrarModal } from './components/CobrarModal'
@@ -12,12 +12,12 @@ import { NuevoMovimientoModal } from './components/NuevoMovimientoModal'
 import { ClienteDetalleModal } from './components/ClienteDetalleModal'
 import type { TipoMovimiento } from './lib/types'
 
-type Tab = 'dashboard' | 'clientes' | 'tablero' | 'importar'
+type Tab = 'dashboard' | 'clientes' | 'facturas' | 'importar'
 
 const TABS: { key: Tab; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { key: 'dashboard', label: 'Dashboard', Icon: BarChart3 },
   { key: 'clientes', label: 'Clientes', Icon: LayoutGrid },
-  { key: 'tablero', label: 'Tablero', Icon: Columns3 },
+  { key: 'facturas', label: 'Facturas', Icon: ListChecks },
   { key: 'importar', label: 'Datos', Icon: Upload },
 ]
 
@@ -82,8 +82,8 @@ export function CobrosPage() {
           onNuevaPizarra={(id) => abrirNuevo('Pizarra', id)}
         />
       )}
-      {tab === 'tablero' && (
-        <Tablero onCobrar={setCobrarId} onVerCliente={setDetalleCliente} />
+      {tab === 'facturas' && (
+        <ListadoFacturas onCobrar={setCobrarId} onVerCliente={setDetalleCliente} />
       )}
       {tab === 'importar' && (
         <div className="space-y-4">
