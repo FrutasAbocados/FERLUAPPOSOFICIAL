@@ -16,7 +16,7 @@ export const MODULE_ACCESS: Record<ModuleKey, Role[]> = {
   trabajadores:      ['admin_full', 'admin_op', 'responsable', 'empleado'],
   turnos:            ['admin_full', 'admin_op', 'responsable', 'empleado'],
   cobros:            ['admin_full', 'admin_op', 'responsable'],
-  agente:            ['admin_full', 'responsable'],
+  agente:            ['admin_full', 'admin_op', 'responsable'],
   bbdd_trabajadores: ['admin_full', 'admin_op', 'responsable'],
   sueldos:           ['admin_full', 'admin_op'],
 }
