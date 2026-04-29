@@ -11,10 +11,12 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ManagerPage } from '@/modules/manager/ManagerPage'
 import { CashPage } from '@/modules/cash/CashPage'
 import { TareasPage } from '@/modules/tareas/TareasPage'
+import { TrabajadoresOpPage } from '@/modules/trabajadores/TrabajadoresOpPage'
 import { TurnosPage } from '@/modules/turnos/TurnosPage'
 import { CobrosPage } from '@/modules/cobros/CobrosPage'
 import { AgentePage } from '@/modules/agente/AgentePage'
 import { TrabajadoresPage } from '@/modules/trabajadores/TrabajadoresPage'
+import { SueldosPage } from '@/modules/sueldos/SueldosPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,7 +44,8 @@ export default function App() {
                   <Route element={<ProtectedRoute module="cash" />}>
                     <Route path="cash" element={<CashPage />} />
                   </Route>
-                  <Route element={<ProtectedRoute module="tareas" />}>
+                  <Route element={<ProtectedRoute module="trabajadores" />}>
+                    <Route path="trabajadores" element={<TrabajadoresOpPage />} />
                     <Route path="tareas" element={<TareasPage />} />
                   </Route>
                   <Route element={<ProtectedRoute module="turnos" />}>
@@ -56,6 +59,9 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute module="bbdd_trabajadores" />}>
                     <Route path="bbdd-trabajadores" element={<TrabajadoresPage />} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="sueldos" />}>
+                    <Route path="sueldos" element={<SueldosPage />} />
                   </Route>
                 </Route>
               </Route>

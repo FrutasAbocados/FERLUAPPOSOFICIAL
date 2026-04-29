@@ -10,6 +10,7 @@ import {
   LogOut,
   Menu,
   Users,
+  Wallet,
 } from 'lucide-react'
 import { useAuth } from '@/shared/auth/useAuth'
 import { canAccess, type ModuleKey } from '@/shared/types'
@@ -26,9 +27,10 @@ const MODULES: ModuleNav[] = [
   { key: 'manager', label: 'Manager', to: '/manager', icon: BarChart3 },
   { key: 'agente',  label: 'Agente IA', to: '/agente', icon: Bot },
   { key: 'cash', label: 'Caja', to: '/cash', icon: Banknote },
-  { key: 'tareas', label: 'Tareas', to: '/tareas', icon: CheckSquare },
+  { key: 'trabajadores', label: 'Trabajadores', to: '/trabajadores', icon: CheckSquare },
   { key: 'turnos', label: 'Turnos', to: '/turnos', icon: CalendarDays },
   { key: 'cobros', label: 'Cobros', to: '/cobros', icon: HandCoins },
+  { key: 'sueldos', label: 'Sueldos socios', to: '/sueldos', icon: Wallet },
   { key: 'bbdd_trabajadores', label: 'BBDD Trabajadores', to: '/bbdd-trabajadores', icon: Users },
 ]
 

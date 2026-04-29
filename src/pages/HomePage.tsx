@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import {
   AlertTriangle, BarChart3, Banknote, Bot, CalendarClock,
-  CheckSquare, CalendarDays, HandCoins, Package, TrendingUp, UserMinus, Users,
+  CheckSquare, CalendarDays, HandCoins, Package, TrendingUp, UserMinus, Users, Wallet,
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -24,9 +24,10 @@ const MODULOS = [
   { key: 'manager',   title: 'Manager',                    to: '/manager',   Icon: BarChart3 },
   { key: 'agente',    title: 'Agente IA',                  to: '/agente',    Icon: Bot },
   { key: 'cash',      title: 'Caja',                       to: '/cash',      Icon: Banknote },
-  { key: 'tareas',    title: 'Tareas',                     to: '/tareas',    Icon: CheckSquare },
+  { key: 'trabajadores', title: 'Trabajadores',            to: '/trabajadores', Icon: CheckSquare },
   { key: 'turnos',    title: 'Turnos',                     to: '/turnos',    Icon: CalendarDays },
   { key: 'cobros',    title: 'Control Deuda Abocados',     to: '/cobros',    Icon: HandCoins },
+  { key: 'sueldos',   title: 'Sueldos socios',             to: '/sueldos',   Icon: Wallet },
   { key: 'bbdd_trabajadores', title: 'BBDD Trabajadores',  to: '/bbdd-trabajadores', Icon: Users },
 ] as const
 
