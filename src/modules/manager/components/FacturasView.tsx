@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import type { Period } from '../lib/period'
 import type { FacturaListItem } from '../lib/types'
 import { useFacturasLista, type FacturaFiltros } from '../lib/queries'
 import { FacturaDetalleModal } from './FacturaDetalleModal'
+
+const PAGE_SIZE = 100
 
 const eur = (n: number | null | undefined) =>
   n == null ? '—' : new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
@@ -25,12 +27,18 @@ export function FacturasView({ period }: Props) {
   const [tipo, setTipo] = useState<'VENTA' | 'COMPRA' | null>('VENTA')
   const [subtipo, setSubtipo] = useState<string | null>(null)
   const [q, setQ] = useState('')
+  const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<FacturaListItem | null>(null)
 
-  const filtros: FacturaFiltros = { tipo, subtipo, q: q.trim() || null }
+  // Reset página al cambiar filtros o periodo
+  useEffect(() => { setPage(1) }, [tipo, subtipo, q, period.from, period.to])
+
+  const filtros: FacturaFiltros = { tipo, subtipo, q: q.trim() || null, page, pageSize: PAGE_SIZE }
   const { data, isLoading } = useFacturasLista(period, filtros)
 
   const subtipos = tipo === 'COMPRA' ? SUBTIPOS_COMPRA : SUBTIPOS_VENTA
+  const totalCount = data?.[0]?.total_count ?? 0
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
   const cambiaTipo = (t: 'VENTA' | 'COMPRA') => {
     setTipo(t); setSubtipo(null)
@@ -54,7 +62,9 @@ export function FacturasView({ period }: Props) {
               className="h-9 pl-8"
             />
           </div>
-          <span className="ml-auto text-xs text-[var(--color-ink-3)] tabular-nums">{data?.length ?? 0} docs</span>
+          <span className="ml-auto text-xs text-[var(--color-ink-3)] tabular-nums">
+            {totalCount > 0 ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, totalCount)} de ${totalCount}` : '0 docs'}
+          </span>
         </div>
         <div className="-mx-3 flex items-center gap-1 overflow-x-auto px-3 no-scrollbar">
           <span className="shrink-0 text-xs text-[var(--color-ink-3)]">Subtipo:</span>
@@ -123,6 +133,21 @@ export function FacturasView({ period }: Props) {
           ))}
         </ul>
       </div>
+
+      {/* Paginación */}
+      {totalCount > PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+          <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+            <ChevronLeft className="mr-1 h-4 w-4" /> Anterior
+          </Button>
+          <span className="text-xs tabular-nums text-[var(--color-ink-3)]">
+            Página {page} de {totalPages}
+          </span>
+          <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+            Siguiente <ChevronRight className="ml-1 h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {selected && (
         <FacturaDetalleModal factura={selected} onClose={() => setSelected(null)} />

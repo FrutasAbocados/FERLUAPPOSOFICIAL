@@ -224,6 +224,7 @@ export interface FacturaListItem {
   margen_pct: number | null
   payments_pending: number | null
   status: number | null
+  total_count: number
 }
 
 export interface FacturaLinea {

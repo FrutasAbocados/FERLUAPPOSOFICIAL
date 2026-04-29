@@ -438,15 +438,20 @@ export interface FacturaFiltros {
   tipo?: 'VENTA' | 'COMPRA' | null
   subtipo?: string | null
   q?: string | null
+  page?: number   // 1-based
+  pageSize?: number
 }
 
 export function useFacturasLista(period: Period, f: FacturaFiltros) {
+  const page = f.page ?? 1
+  const pageSize = f.pageSize ?? 100
   return useQuery({
-    queryKey: ['manager', 'facturas', periodKey(period), f.tipo ?? '', f.subtipo ?? '', f.q ?? ''] as const,
+    queryKey: ['manager', 'facturas', periodKey(period), f.tipo ?? '', f.subtipo ?? '', f.q ?? '', page, pageSize] as const,
     queryFn: async (): Promise<FacturaListItem[]> => {
       const { data, error } = await supabase.rpc('manager_facturas_lista', {
         p_from: period.from, p_to: period.to,
-        p_tipo: f.tipo ?? null, p_subtipo: f.subtipo ?? null, p_q: f.q ?? null, p_limit: 1000,
+        p_tipo: f.tipo ?? null, p_subtipo: f.subtipo ?? null, p_q: f.q ?? null,
+        p_limit: pageSize, p_offset: (page - 1) * pageSize,
       })
       if (error) throw error
       const num = (v: unknown): number | null => v == null ? null : Number(v)
@@ -467,6 +472,7 @@ export function useFacturasLista(period: Period, f: FacturaFiltros) {
         margen_pct:         num(r.margen_pct),
         payments_pending:   num(r.payments_pending),
         status:             r.status == null ? null : Number(r.status),
+        total_count:        Number(r.total_count ?? 0),
       }))
     },
   })
