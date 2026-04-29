@@ -9,6 +9,7 @@ import { useAuth } from '@/shared/auth/useAuth'
 import { canAccess, type ModuleKey } from '@/shared/types'
 import { AlertCard } from '@/modules/dashboard/components/AlertCard'
 import { EstadoDelDia } from '@/modules/dashboard/components/EstadoDelDia'
+import { NotificacionesPanel } from '@/modules/dashboard/components/NotificacionesPanel'
 import {
   useClientesInactivos, useCostesSubiendo,
   usePedidosEsperados, useProductosAnomalos, useTopDeudoresCobros,
@@ -58,6 +59,7 @@ export function HomePage() {
       </header>
 
       <div className="space-y-4">
+        <NotificacionesPanel />
         <EstadoDelDia />
 
         <div className="grid gap-3 md:grid-cols-2">
