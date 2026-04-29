@@ -8,9 +8,10 @@ import { ProductosView } from './components/ProductosView'
 import { FacturasView } from './components/FacturasView'
 import { AbueloView } from './components/AbueloView'
 import { PatronesView } from './components/PatronesView'
+import { CalendarioClientesView } from './components/CalendarioClientesView'
 import { periodFromPreset, type Period } from './lib/period'
 
-type Tab = 'resumen' | 'clientes' | 'productos' | 'facturas' | 'patrones' | 'abuelo'
+type Tab = 'resumen' | 'clientes' | 'productos' | 'facturas' | 'calendario' | 'patrones' | 'abuelo'
 
 export function ManagerPage() {
   const [period, setPeriod] = useState<Period>(() => periodFromPreset('mes'))
@@ -32,12 +33,13 @@ export function ManagerPage() {
 
         <div className="-mx-4 flex items-center gap-1 overflow-x-auto border-b border-[var(--color-border)] px-4 no-scrollbar md:mx-0 md:px-0">
           {([
-            { k: 'resumen',   l: 'Resumen' },
-            { k: 'clientes',  l: 'Clientes' },
-            { k: 'productos', l: 'Productos' },
-            { k: 'facturas',  l: 'Facturas' },
-            { k: 'patrones',  l: 'Patrones' },
-            { k: 'abuelo',    l: 'Abuelo' },
+            { k: 'resumen',    l: 'Resumen' },
+            { k: 'clientes',   l: 'Clientes' },
+            { k: 'productos',  l: 'Productos' },
+            { k: 'facturas',   l: 'Facturas' },
+            { k: 'calendario', l: 'Calendario' },
+            { k: 'patrones',   l: 'Patrones' },
+            { k: 'abuelo',     l: 'Abuelo' },
           ] as Array<{ k: Tab; l: string }>).map(t => (
             <Button
               key={t.k}
@@ -49,12 +51,13 @@ export function ManagerPage() {
           ))}
         </div>
 
-        {tab === 'resumen'   && <ResumenView   period={period} />}
-        {tab === 'clientes'  && <ClientesView  period={period} />}
-        {tab === 'productos' && <ProductosView period={period} />}
-        {tab === 'facturas'  && <FacturasView  period={period} />}
-        {tab === 'patrones'  && <PatronesView  period={period} />}
-        {tab === 'abuelo'    && <AbueloView    period={period} />}
+        {tab === 'resumen'    && <ResumenView   period={period} />}
+        {tab === 'clientes'   && <ClientesView  period={period} />}
+        {tab === 'productos'  && <ProductosView period={period} />}
+        {tab === 'facturas'   && <FacturasView  period={period} />}
+        {tab === 'calendario' && <CalendarioClientesView period={period} />}
+        {tab === 'patrones'   && <PatronesView  period={period} />}
+        {tab === 'abuelo'     && <AbueloView    period={period} />}
       </div>
     </div>
   )
