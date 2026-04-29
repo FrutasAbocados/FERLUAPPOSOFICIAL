@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Search } from 'lucide-react'
+import { Search, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
-import { useClientes, useMovimientos } from '../lib/queries'
+import { useClientes, useMovimientos, useDeleteMovimiento } from '../lib/queries'
 import { eur, estadoMovimiento, importePendiente } from '../lib/utils'
 import type { Estado, Movimiento } from '../lib/types'
 
@@ -32,6 +32,16 @@ const TONO_ESTADO: Record<Estado | 'Pizarra', string> = {
 export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
   const movs = useMovimientos()
   const clientes = useClientes()
+  const del = useDeleteMovimiento()
+
+  const eliminar = (m: Movimiento, nombreCliente: string) => {
+    const tipo = m.tipo === 'Pizarra' ? 'pizarra' : 'factura'
+    const ref = m.numero_factura ? ` Nº ${m.numero_factura}` : ''
+    if (!confirm(`¿Eliminar esta ${tipo}${ref} de ${nombreCliente}? No se puede deshacer.`)) return
+    del.mutate(m.id, {
+      onError: (e) => alert(`Error: ${e instanceof Error ? e.message : 'No se pudo eliminar'}`),
+    })
+  }
 
   const [q, setQ] = useState('')
   const [fEstado, setFEstado] = useState<FiltroEstado>('todos')
@@ -212,11 +222,23 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${TONO_ESTADO[est]}`}>{est}</span>
                   </td>
                   <td className="px-3 py-2 text-right">
-                    {!m.pagado && pend !== 0 && (
-                      <Button size="sm" variant="outline" onClick={() => onCobrar(m.id)}>
-                        {pend < 0 ? 'Saldar abono' : 'Cobrar'}
+                    <div className="inline-flex items-center justify-end gap-1">
+                      {!m.pagado && pend !== 0 && (
+                        <Button size="sm" variant="outline" onClick={() => onCobrar(m.id)}>
+                          {pend < 0 ? 'Saldar abono' : 'Cobrar'}
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => eliminar(m, nombrePorId.get(m.cliente_id) ?? '—')}
+                        disabled={del.isPending}
+                        title="Eliminar"
+                        className="text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
-                    )}
+                    </div>
                   </td>
                 </tr>
               )

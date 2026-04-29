@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO, startOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Award, X } from 'lucide-react'
+import { Award, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
@@ -130,6 +130,25 @@ function useUpsertPunto() {
   })
 }
 
+function useDeletePunto() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { empleado_id: string; fecha: string }) => {
+      const { error } = await supabase
+        .from('trabajadores_puntos_dias')
+        .delete()
+        .eq('empleado_id', input.empleado_id)
+        .eq('fecha', input.fecha)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['puntos-dia'] })
+      qc.invalidateQueries({ queryKey: ['puntos-resumen'] })
+      qc.invalidateQueries({ queryKey: ['puntos-detalle'] })
+    },
+  })
+}
+
 export function PuntosView() {
   const [modo, setModo] = useState<'dia' | 'mes'>('dia')
 
@@ -158,6 +177,7 @@ function ModoDia() {
   const [fecha, setFecha] = useState(format(new Date(), 'yyyy-MM-dd'))
   const { data, isLoading } = usePuntosDia(fecha)
   const upsert = useUpsertPunto()
+  const del = useDeletePunto()
 
   const cambiar = (fila: FilaDia, campo: 'puntualidad' | 'reparto' | 'responsabilidad', valor: number) => {
     upsert.mutate({
@@ -167,6 +187,13 @@ function ModoDia() {
       reparto: campo === 'reparto' ? valor : fila.reparto,
       responsabilidad: campo === 'responsabilidad' ? valor : fila.responsabilidad,
       nota: fila.nota,
+    })
+  }
+
+  const eliminar = (fila: FilaDia) => {
+    if (!confirm(`¿Borrar los ${fila.total} puntos de ${fila.nombre} del día ${format(parseISO(fecha), "d MMM yyyy", { locale: es })}?`)) return
+    del.mutate({ empleado_id: fila.empleado_id, fecha }, {
+      onError: (e) => alert(`Error: ${e instanceof Error ? e.message : 'No se pudo borrar'}`),
     })
   }
 
@@ -205,9 +232,23 @@ function ModoDia() {
               <CategoriaSelector label="Responsabilidad" value={f.responsabilidad} onChange={(v) => cambiar(f, 'responsabilidad', v)} />
               <div className="flex items-center justify-end gap-2 md:flex-col md:items-end md:gap-0">
                 <span className="text-xs text-[var(--color-ink-3)]">Total</span>
-                <span className={`font-display text-lg font-bold tabular-nums ${f.total >= 5 ? 'text-emerald-700' : f.total >= 3 ? 'text-[var(--color-ink)]' : 'text-amber-700'}`}>
-                  {f.total}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className={`font-display text-lg font-bold tabular-nums ${f.total >= 5 ? 'text-emerald-700' : f.total >= 3 ? 'text-[var(--color-ink)]' : 'text-amber-700'}`}>
+                    {f.total}
+                  </span>
+                  {f.total > 0 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => eliminar(f)}
+                      disabled={del.isPending}
+                      title="Borrar puntos del día"
+                      className="ml-1 h-7 w-7 p-0 text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </li>

@@ -145,6 +145,19 @@ export function useUpsertCliente() {
   })
 }
 
+export function useDeleteCliente() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('cobros_clientes').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cobros'] })
+    },
+  })
+}
+
 type CreateMovimientoInput = {
   cliente_id: string
   forma_pago_cliente: FormaPago

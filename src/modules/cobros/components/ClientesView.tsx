@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
+import { Search, Trash2 } from 'lucide-react'
 import { Card } from '@/shared/components/ui/card'
 import { Input } from '@/shared/components/ui/input'
 import { Button } from '@/shared/components/ui/button'
-import { useClientesResumen } from '../lib/queries'
+import { useClientesResumen, useDeleteCliente } from '../lib/queries'
 import { eur } from '../lib/utils'
 import { FORMA_PAGO_LABEL } from '../lib/types'
 import type { ClienteResumen, Estado, FormaPago } from '../lib/types'
@@ -106,6 +106,18 @@ function ClienteCard({
   onPizarra: () => void
   onFactura: () => void
 }) {
+  const del = useDeleteCliente()
+
+  const eliminar = () => {
+    const aviso = cliente.total_pendiente !== 0
+      ? `Este cliente tiene ${eur(cliente.total_pendiente)} pendientes.\n\n¿Eliminar el cliente y TODAS sus facturas/pizarras? Esta acción no se puede deshacer.`
+      : `¿Eliminar el cliente "${cliente.nombre}" y TODAS sus facturas/pizarras? Esta acción no se puede deshacer.`
+    if (!confirm(aviso)) return
+    del.mutate(cliente.id, {
+      onError: (e) => alert(`Error: ${e instanceof Error ? e.message : 'No se pudo eliminar'}`),
+    })
+  }
+
   const estadoTone = {
     Vencido: 'bg-red-100 text-red-700 ring-red-200',
     Próximo: 'bg-amber-100 text-amber-700 ring-amber-200',
@@ -161,6 +173,16 @@ function ClienteCard({
         </Button>
         <Button size="sm" variant="outline" onClick={onFactura} className="flex-1">
           + Factura
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={eliminar}
+          disabled={del.isPending}
+          title="Eliminar cliente"
+          className="text-red-600 hover:bg-red-50"
+        >
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
     </Card>
