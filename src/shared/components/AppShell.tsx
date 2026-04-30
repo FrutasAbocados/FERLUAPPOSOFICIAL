@@ -29,17 +29,17 @@ type ModuleNav = {
 
 const MODULES: ModuleNav[] = [
   { key: 'manager', label: 'Manager', to: '/manager', icon: BarChart3 },
-  { key: 'agente',  label: 'Agente IA', to: '/agente', icon: Bot },
+  { key: 'agente',  label: 'Agente', to: '/agente', icon: Bot },
   { key: 'cash', label: 'Caja', to: '/cash', icon: Banknote },
   { key: 'cobros', label: 'Cobros', to: '/cobros', icon: HandCoins },
-  { key: 'sueldos', label: 'Sueldos socios', to: '/sueldos', icon: Wallet },
+  { key: 'sueldos', label: 'Sueldos', to: '/sueldos', icon: Wallet },
 ]
 
 // Sub-grupo "Equipo" — agrupa los 3 módulos relacionados con personal
 const EQUIPO: ModuleNav[] = [
   { key: 'trabajadores', label: 'Trabajadores', to: '/trabajadores', icon: CheckSquare },
   { key: 'turnos', label: 'Turnos', to: '/turnos', icon: CalendarDays },
-  { key: 'bbdd_trabajadores', label: 'BBDD Trabajadores', to: '/bbdd-trabajadores', icon: Users },
+  { key: 'bbdd_trabajadores', label: 'BBDD trabajadores', to: '/bbdd-trabajadores', icon: Users },
 ]
 
 export function AppShell() {
@@ -196,7 +196,7 @@ export function AppShell() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
           <Outlet key={location.pathname} />
         </div>
 
@@ -210,15 +210,15 @@ export function AppShell() {
               end
               className={({ isActive }) =>
                 cn(
-                  'flex flex-col items-center justify-center gap-1 py-2 text-[10px] uppercase tracking-wider transition-colors',
+                  'flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] uppercase tracking-wider transition-colors',
                   isActive
                     ? 'text-[var(--color-primary)] font-bold'
                     : 'text-[var(--color-ink-3)]',
                 )
               }
             >
-              <Home className="h-5 w-5" />
-              Inicio
+              <Home className="h-5 w-5 shrink-0" />
+              <span className="w-full truncate text-center">Inicio</span>
             </NavLink>
             {visible.map((m) => (
               <NavLink
@@ -226,15 +226,15 @@ export function AppShell() {
                 to={m.to}
                 className={({ isActive }) =>
                   cn(
-                    'flex flex-col items-center justify-center gap-1 py-2 text-[10px] uppercase tracking-wider transition-colors',
+                    'flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] uppercase tracking-wider transition-colors',
                     isActive
                       ? 'text-[var(--color-primary)] font-bold'
                       : 'text-[var(--color-ink-3)]',
                   )
                 }
               >
-                <m.icon className="h-5 w-5" />
-                {m.label}
+                <m.icon className="h-5 w-5 shrink-0" />
+                <span className="w-full truncate text-center">{m.label}</span>
               </NavLink>
             ))}
           </nav>

@@ -1,8 +1,10 @@
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { AlertTriangle, ArrowDown, ArrowUp, CalendarClock, Clock, EyeOff, Lightbulb, Moon } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUp, CalendarClock, Clock, EyeOff, Lightbulb, Moon, Search } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
+import { Input } from '@/shared/components/ui/input'
 import type { Period } from '../lib/period'
 
 interface DiaSemana {
@@ -103,6 +105,35 @@ const RECO_META: Record<RecoTipo, { titulo: string; Icon: typeof Lightbulb; colo
   producto_se_apaga:      { titulo: 'Producto en caída',      Icon: Moon,          color: 'text-blue-700',    accent: 'border-l-blue-500' },
 }
 
+interface HeatmapRow {
+  contact_name_canon: string
+  ventas_total: number
+  dow: number          // 1=lun .. 7=dom
+  dia: string
+  pedidos: number
+  ventas: number
+}
+
+function useHeatmapClienteDia(period: Period, top = 30) {
+  return useQuery({
+    queryKey: ['manager', 'heatmap-cliente-dia', period.from, period.to, top] as const,
+    queryFn: async (): Promise<HeatmapRow[]> => {
+      const { data, error } = await supabase.rpc('manager_heatmap_cliente_dia', {
+        p_from: period.from, p_to: period.to, p_top: top,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        contact_name_canon: String(r.contact_name_canon ?? ''),
+        ventas_total:       Number(r.ventas_total ?? 0),
+        dow:                Number(r.dow),
+        dia:                String(r.dia ?? ''),
+        pedidos:            Number(r.pedidos ?? 0),
+        ventas:             Number(r.ventas ?? 0),
+      }))
+    },
+  })
+}
+
 interface Props {
   period: Period
 }
@@ -111,6 +142,7 @@ export function PatronesView({ period }: Props) {
   const dow = usePatronesDow(period)
   const proximos = usePedidosProximos()
   const recos = useRecomendaciones()
+  const heatmap = useHeatmapClienteDia(period)
 
   const maxVentas = Math.max(1, ...(dow.data ?? []).map(d => d.ventas))
 
@@ -156,6 +188,13 @@ export function PatronesView({ period }: Props) {
           </div>
         )}
       </section>
+
+      {/* Heatmap cliente × día */}
+      <HeatmapClienteDia
+        rows={heatmap.data ?? []}
+        loading={heatmap.isLoading}
+        period={period}
+      />
 
       {/* Esperados próximos 7d — 3 grupos en grid */}
       <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
@@ -256,5 +295,151 @@ function Columna({ titulo, subtitulo, tono, rows }: { titulo: string; subtitulo:
         </ul>
       )}
     </div>
+  )
+}
+
+// ── Heatmap cliente × día semana ─────────────────────────────────────────
+const DOW_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+
+function HeatmapClienteDia({
+  rows,
+  loading,
+  period,
+}: {
+  rows: HeatmapRow[]
+  loading: boolean
+  period: Period
+}) {
+  const [q, setQ] = useState('')
+
+  // Agrupar por cliente preservando orden de ventas_total desc.
+  const porCliente = useMemo(() => {
+    const map = new Map<string, { total: number; dias: Map<number, { ventas: number; pedidos: number }> }>()
+    for (const r of rows) {
+      let entry = map.get(r.contact_name_canon)
+      if (!entry) {
+        entry = { total: r.ventas_total, dias: new Map() }
+        map.set(r.contact_name_canon, entry)
+      }
+      entry.dias.set(r.dow, { ventas: r.ventas, pedidos: r.pedidos })
+    }
+    const list = Array.from(map.entries()).map(([nombre, e]) => ({
+      nombre,
+      total: e.total,
+      dias: e.dias,
+    }))
+    list.sort((a, b) => b.total - a.total)
+    return list
+  }, [rows])
+
+  const filtrados = useMemo(() => {
+    const needle = q.trim().toLowerCase()
+    if (!needle) return porCliente
+    return porCliente.filter((c) => c.nombre.toLowerCase().includes(needle))
+  }, [porCliente, q])
+
+  return (
+    <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 md:p-5">
+      <header className="mb-3 flex flex-wrap items-baseline gap-2">
+        <CalendarClock className="h-5 w-5 text-[var(--color-ink-3)]" />
+        <h2 className="font-display text-base font-bold text-[var(--color-ink)] md:text-lg">
+          Mapa calor cliente × día
+        </h2>
+        <span className="ml-auto text-[10px] text-[var(--color-ink-3)] md:text-xs">
+          top 30 · {period.from} → {period.to}
+        </span>
+      </header>
+
+      <div className="relative mb-3">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-ink-3)]" />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Filtrar cliente…"
+          className="pl-8"
+        />
+      </div>
+
+      {loading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
+
+      {!loading && filtrados.length === 0 && (
+        <p className="text-sm text-[var(--color-ink-3)]">
+          {porCliente.length === 0 ? 'Sin datos en este periodo.' : 'Ningún cliente coincide con el filtro.'}
+        </p>
+      )}
+
+      {!loading && filtrados.length > 0 && (
+        <div className="overflow-x-auto">
+          {/* Cabecera días */}
+          <div className="grid min-w-[420px] grid-cols-[minmax(110px,1fr)_repeat(7,minmax(0,1fr))] gap-1 pb-1">
+            <span />
+            {DOW_LABELS.map((d) => (
+              <span
+                key={d}
+                className="text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]"
+              >
+                {d}
+              </span>
+            ))}
+          </div>
+          {/* Filas */}
+          <div className="space-y-1">
+            {filtrados.map((c) => {
+              const maxFila = Math.max(
+                1,
+                ...Array.from(c.dias.values()).map((d) => d.ventas),
+              )
+              return (
+                <div
+                  key={c.nombre}
+                  className="grid min-w-[420px] grid-cols-[minmax(110px,1fr)_repeat(7,minmax(0,1fr))] items-stretch gap-1"
+                >
+                  <span
+                    className="truncate self-center pr-1 text-[11px] font-medium text-[var(--color-ink)] md:text-xs"
+                    title={c.nombre}
+                  >
+                    {c.nombre}
+                  </span>
+                  {[1, 2, 3, 4, 5, 6, 7].map((dow) => {
+                    const cell = c.dias.get(dow)
+                    const ventas = cell?.ventas ?? 0
+                    const pedidos = cell?.pedidos ?? 0
+                    const intensidad = ventas / maxFila
+                    return (
+                      <div
+                        key={dow}
+                        className="flex h-10 flex-col items-center justify-center overflow-hidden rounded border border-[var(--color-border)]/60 px-0.5 text-[10px] tabular-nums leading-tight md:h-12"
+                        style={{
+                          backgroundColor:
+                            ventas > 0
+                              ? `rgba(16, 185, 129, ${0.10 + intensidad * 0.65})`
+                              : 'transparent',
+                        }}
+                        title={
+                          ventas > 0
+                            ? `${pedidos} pedido${pedidos === 1 ? '' : 's'} · ${eur(ventas)}`
+                            : 'sin pedidos'
+                        }
+                      >
+                        {ventas > 0 ? (
+                          <>
+                            <span className="font-semibold text-emerald-900">
+                              {ventas >= 1000 ? `${(ventas / 1000).toFixed(1)}k` : Math.round(ventas)}
+                            </span>
+                            <span className="text-[9px] text-emerald-800/80">{pedidos}p</span>
+                          </>
+                        ) : (
+                          <span className="text-[var(--color-ink-3)]">—</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </section>
   )
 }

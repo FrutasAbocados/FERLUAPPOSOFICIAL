@@ -22,14 +22,14 @@ const fmt = (d: string | null) =>
   d == null ? '—' : format(parseISO(d), 'd LLL', { locale: es })
 
 const MODULOS = [
-  { key: 'manager',   title: 'Manager',                    to: '/manager',   Icon: BarChart3 },
-  { key: 'agente',    title: 'Agente IA',                  to: '/agente',    Icon: Bot },
-  { key: 'cash',      title: 'Caja',                       to: '/cash',      Icon: Banknote },
-  { key: 'trabajadores', title: 'Trabajadores',            to: '/trabajadores', Icon: CheckSquare },
-  { key: 'turnos',    title: 'Turnos',                     to: '/turnos',    Icon: CalendarDays },
-  { key: 'cobros',    title: 'Control Deuda Abocados',     to: '/cobros',    Icon: HandCoins },
-  { key: 'sueldos',   title: 'Sueldos socios',             to: '/sueldos',   Icon: Wallet },
-  { key: 'bbdd_trabajadores', title: 'BBDD Trabajadores',  to: '/bbdd-trabajadores', Icon: Users },
+  { key: 'manager',   title: 'Manager',         to: '/manager',           Icon: BarChart3 },
+  { key: 'agente',    title: 'Agente IA',       to: '/agente',            Icon: Bot },
+  { key: 'cash',      title: 'Caja',            to: '/cash',              Icon: Banknote },
+  { key: 'trabajadores', title: 'Trabajadores', to: '/trabajadores',      Icon: CheckSquare },
+  { key: 'turnos',    title: 'Turnos',          to: '/turnos',            Icon: CalendarDays },
+  { key: 'cobros',    title: 'Cobros',          to: '/cobros',            Icon: HandCoins },
+  { key: 'sueldos',   title: 'Sueldos',         to: '/sueldos',           Icon: Wallet },
+  { key: 'bbdd_trabajadores', title: 'BBDD',    to: '/bbdd-trabajadores', Icon: Users },
 ] as const
 
 export function HomePage() {
@@ -172,7 +172,7 @@ function HomeAdmin() {
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]">
                   <Icon className="h-5 w-5" />
                 </div>
-                <span className="text-sm font-medium text-[var(--color-ink)]">{title}</span>
+                <span className="truncate text-sm font-medium text-[var(--color-ink)]">{title}</span>
               </Link>
             ))}
           </div>
