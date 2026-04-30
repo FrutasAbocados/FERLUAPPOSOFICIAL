@@ -98,9 +98,11 @@ export const REPARTIDOR_LABEL: Record<Repartidor, string> = {
   ALEX:   'Alex',
 }
 
+// Borde lateral grueso saturado + fondo medio: legible sobre fondo blanco
+// general y deja que el texto siga sobre superficie clara.
 export const REPARTIDOR_COLOR: Record<Repartidor, string> = {
-  TORRES: 'bg-blue-50 border-blue-200',
-  GERMAN: 'bg-emerald-50 border-emerald-200',
-  RAUL:   'bg-orange-50 border-orange-200',
-  ALEX:   'bg-violet-50 border-violet-200',
+  TORRES: 'bg-blue-100 border-l-4 border-l-blue-500 border-y border-r border-blue-200',
+  GERMAN: 'bg-emerald-100 border-l-4 border-l-emerald-500 border-y border-r border-emerald-200',
+  RAUL:   'bg-orange-100 border-l-4 border-l-orange-500 border-y border-r border-orange-200',
+  ALEX:   'bg-violet-100 border-l-4 border-l-violet-500 border-y border-r border-violet-200',
 }

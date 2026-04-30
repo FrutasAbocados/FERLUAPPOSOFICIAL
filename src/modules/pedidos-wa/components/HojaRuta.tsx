@@ -18,10 +18,10 @@ import { usePedidosDelDia } from '../lib/queries'
 const REPARTIDOR_ORDER: Repartidor[] = ['TORRES', 'GERMAN', 'RAUL', 'ALEX']
 
 const REPARTIDOR_HEADER: Record<Repartidor, string> = {
-  TORRES: 'border-blue-300 bg-blue-100 text-blue-900',
-  GERMAN: 'border-emerald-300 bg-emerald-100 text-emerald-900',
-  RAUL:   'border-orange-300 bg-orange-100 text-orange-900',
-  ALEX:   'border-violet-300 bg-violet-100 text-violet-900',
+  TORRES: 'border-blue-400 bg-blue-200 text-blue-900',
+  GERMAN: 'border-emerald-400 bg-emerald-200 text-emerald-900',
+  RAUL:   'border-orange-400 bg-orange-200 text-orange-900',
+  ALEX:   'border-violet-400 bg-violet-200 text-violet-900',
 }
 
 export function HojaRuta() {

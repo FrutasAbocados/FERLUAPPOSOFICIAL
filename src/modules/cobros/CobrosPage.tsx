@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { LayoutGrid, ListChecks, Upload, BarChart3, Plus } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { AlertTriangle, BarChart3, Clock, LayoutGrid, ListChecks, Plus, Upload, Wallet } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/components/ui/button'
 import { Dashboard } from './components/Dashboard'
@@ -10,7 +10,12 @@ import { ExportPanel } from './components/ExportPanel'
 import { CobrarModal } from './components/CobrarModal'
 import { NuevoMovimientoModal } from './components/NuevoMovimientoModal'
 import { ClienteDetalleModal } from './components/ClienteDetalleModal'
+import { useMovimientos } from './lib/queries'
+import { estadoMovimiento, importePendiente } from './lib/utils'
 import type { TipoMovimiento } from './lib/types'
+
+const eur = (n: number) =>
+  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 
 type Tab = 'dashboard' | 'clientes' | 'facturas' | 'importar'
 
@@ -30,6 +35,20 @@ export function CobrosPage() {
     tipo: TipoMovimiento
     clienteId: string | null
   }>({ open: false, tipo: 'Factura', clienteId: null })
+
+  const movs = useMovimientos()
+  const kpi = useMemo(() => {
+    if (!movs.data) return null
+    const pend = movs.data.filter((m) => !m.pagado)
+    const total = pend.reduce((s, m) => s + importePendiente(m), 0)
+    const vencido = pend
+      .filter((m) => estadoMovimiento(m) === 'Vencido')
+      .reduce((s, m) => s + importePendiente(m), 0)
+    const proximo = pend
+      .filter((m) => estadoMovimiento(m) === 'Próximo')
+      .reduce((s, m) => s + importePendiente(m), 0)
+    return { total, vencido, proximo, n: pend.length }
+  }, [movs.data])
 
   const abrirNuevo = (tipo: TipoMovimiento, clienteId: string | null = null) =>
     setNuevo({ open: true, tipo, clienteId })
@@ -54,6 +73,39 @@ export function CobrosPage() {
           </Button>
         </div>
       </header>
+
+      {kpi && (
+        <div className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-4">
+          <KpiTile
+            Icon={Wallet}
+            label="Deuda pendiente HOY"
+            value={eur(kpi.total)}
+            sub={`${kpi.n} ${kpi.n === 1 ? 'movimiento' : 'movimientos'}`}
+            tone="primary"
+          />
+          <KpiTile
+            Icon={AlertTriangle}
+            label="Vencido"
+            value={eur(kpi.vencido)}
+            sub={kpi.total > 0 ? `${Math.round((kpi.vencido / kpi.total) * 100)}% del total` : '—'}
+            tone="danger"
+          />
+          <KpiTile
+            Icon={Clock}
+            label="Próximo a vencer"
+            value={eur(kpi.proximo)}
+            sub="≤ 7 días"
+            tone="warning"
+          />
+          <KpiTile
+            Icon={Wallet}
+            label="Resto"
+            value={eur(Math.max(0, kpi.total - kpi.vencido - kpi.proximo))}
+            sub="al corriente"
+            tone="muted"
+          />
+        </div>
+      )}
 
       <nav className="mb-5 flex gap-1 overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
         {TABS.map(({ key, label, Icon }) => (
@@ -107,6 +159,41 @@ export function CobrosPage() {
           setCobrarId(id)
         }}
       />
+    </div>
+  )
+}
+
+type Tone = 'primary' | 'danger' | 'warning' | 'muted'
+
+const TONE_STYLE: Record<Tone, { card: string; icon: string; value: string }> = {
+  primary: { card: 'border-[var(--color-primary)]/30 bg-[var(--color-primary-soft)]', icon: 'text-[var(--color-primary-2)]', value: 'text-[var(--color-primary-2)]' },
+  danger:  { card: 'border-red-200 bg-red-50',                                          icon: 'text-red-600',                value: 'text-red-700' },
+  warning: { card: 'border-amber-200 bg-amber-50',                                      icon: 'text-amber-600',              value: 'text-amber-700' },
+  muted:   { card: 'border-[var(--color-border)] bg-[var(--color-surface)]',            icon: 'text-[var(--color-ink-3)]',   value: 'text-[var(--color-ink)]' },
+}
+
+function KpiTile({
+  Icon, label, value, sub, tone,
+}: {
+  Icon: React.ComponentType<{ className?: string }>
+  label: string
+  value: string
+  sub: string
+  tone: Tone
+}) {
+  const s = TONE_STYLE[tone]
+  return (
+    <div className={cn('rounded-[var(--radius-md)] border p-3', s.card)}>
+      <div className="flex items-center gap-2">
+        <Icon className={cn('h-4 w-4 shrink-0', s.icon)} />
+        <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+          {label}
+        </span>
+      </div>
+      <div className={cn('mt-1 font-display text-xl font-bold tabular-nums md:text-2xl', s.value)}>
+        {value}
+      </div>
+      <div className="text-[11px] text-[var(--color-ink-3)]">{sub}</div>
     </div>
   )
 }
