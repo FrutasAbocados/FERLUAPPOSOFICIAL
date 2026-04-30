@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Check, Search, Truck } from 'lucide-react'
+import { Check, Plus, Search, Truck } from 'lucide-react'
+import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { cn } from '@/shared/lib/utils'
 import { useClientesPedidosWa } from '../lib/queries'
 import { REPARTIDOR_LABEL, type ClientePedido } from '../lib/types'
+import { ClienteModal } from './ClienteModal'
 
 type Props = {
   value: ClientePedido | null
@@ -13,6 +15,7 @@ type Props = {
 export function SelectorCliente({ value, onChange }: Props) {
   const { data: clientes, isLoading } = useClientesPedidosWa()
   const [q, setQ] = useState('')
+  const [modalOpen, setModalOpen] = useState(false)
 
   const filtrados = useMemo(() => {
     if (!clientes) return []
@@ -27,14 +30,24 @@ export function SelectorCliente({ value, onChange }: Props) {
 
   return (
     <div className="space-y-2">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-ink-3)]" />
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar cliente…"
-          className="pl-8"
-        />
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-ink-3)]" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar cliente…"
+            className="pl-8"
+          />
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="md"
+          onClick={() => setModalOpen(true)}
+        >
+          <Plus className="h-4 w-4" /> Nuevo
+        </Button>
       </div>
 
       <div className="max-h-64 overflow-y-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -42,7 +55,16 @@ export function SelectorCliente({ value, onChange }: Props) {
           <div className="p-3 text-center text-xs text-[var(--color-ink-3)]">Cargando clientes…</div>
         )}
         {!isLoading && filtrados.length === 0 && (
-          <div className="p-3 text-center text-xs text-[var(--color-ink-3)]">Sin resultados</div>
+          <div className="p-3 text-center text-xs text-[var(--color-ink-3)]">
+            Sin resultados.{' '}
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              className="font-medium text-[var(--color-primary-2)] underline-offset-2 hover:underline"
+            >
+              ¿Crear nuevo?
+            </button>
+          </div>
         )}
         {filtrados.map((c) => {
           const selected = value?.id === c.id
@@ -74,6 +96,14 @@ export function SelectorCliente({ value, onChange }: Props) {
           )
         })}
       </div>
+
+      {modalOpen && (
+        <ClienteModal
+          cliente={null}
+          onClose={() => setModalOpen(false)}
+          onSaved={(c) => onChange(c)}
+        />
+      )}
     </div>
   )
 }

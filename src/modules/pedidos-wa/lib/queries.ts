@@ -5,10 +5,14 @@ import type {
   EstadoPedido,
   LineaParseada,
   Pedido,
+  Repartidor,
+  Salida,
+  TipoFactura,
 } from './types'
 
 const KEYS = {
   clientes:        ['pedidos_wa', 'clientes'] as const,
+  clientesAll:     ['pedidos_wa', 'clientes', 'all'] as const,
   pedidosDelDia:   (fecha: string) => ['pedidos_wa', 'pedidos', fecha] as const,
   pedido:          (id: string) => ['pedidos_wa', 'pedido', id] as const,
 }
@@ -25,6 +29,109 @@ export function useClientesPedidosWa() {
         .order('horario',    { ascending: true })
       if (error) throw error
       return (data ?? []) as ClientePedido[]
+    },
+  })
+}
+
+export function useTodosLosClientesPedidos() {
+  return useQuery({
+    queryKey: KEYS.clientesAll,
+    queryFn: async (): Promise<ClientePedido[]> => {
+      const { data, error } = await supabase
+        .from('pedidos_wa_clientes')
+        .select('*')
+        .order('activo', { ascending: false })
+        .order('repartidor', { ascending: true })
+        .order('horario',    { ascending: true })
+      if (error) throw error
+      return (data ?? []) as ClientePedido[]
+    },
+  })
+}
+
+export type ClienteInput = {
+  nombre: string
+  repartidor: Repartidor
+  horario: string | null
+  tipo_factura: TipoFactura
+  salida: Salida
+  subseccion_default: string | null
+  notas: string | null
+  holded_contact_id: string | null
+  activo: boolean
+}
+
+function normalizar(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/\p{Mn}/gu, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+export function useCrearClientePedido() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: ClienteInput): Promise<ClientePedido> => {
+      const row = {
+        ...input,
+        nombre: input.nombre.trim(),
+        nombre_normalizado: normalizar(input.nombre),
+      }
+      const { data, error } = await supabase
+        .from('pedidos_wa_clientes')
+        .insert(row)
+        .select('*')
+        .single()
+      if (error || !data) throw error ?? new Error('No se pudo crear cliente')
+      return data as ClientePedido
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.clientes })
+      qc.invalidateQueries({ queryKey: KEYS.clientesAll })
+    },
+  })
+}
+
+export function useActualizarClientePedido() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { id: string; patch: Partial<ClienteInput> }): Promise<ClientePedido> => {
+      const patch = { ...input.patch } as Record<string, unknown>
+      if (typeof input.patch.nombre === 'string') {
+        patch.nombre = input.patch.nombre.trim()
+        patch.nombre_normalizado = normalizar(input.patch.nombre)
+      }
+      const { data, error } = await supabase
+        .from('pedidos_wa_clientes')
+        .update(patch)
+        .eq('id', input.id)
+        .select('*')
+        .single()
+      if (error || !data) throw error ?? new Error('No se pudo actualizar cliente')
+      return data as ClientePedido
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.clientes })
+      qc.invalidateQueries({ queryKey: KEYS.clientesAll })
+    },
+  })
+}
+
+export function useToggleActivoCliente() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { id: string; activo: boolean }) => {
+      const { error } = await supabase
+        .from('pedidos_wa_clientes')
+        .update({ activo: input.activo })
+        .eq('id', input.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.clientes })
+      qc.invalidateQueries({ queryKey: KEYS.clientesAll })
     },
   })
 }
