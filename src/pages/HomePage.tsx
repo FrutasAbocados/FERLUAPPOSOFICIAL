@@ -11,9 +11,9 @@ import { AlertCard } from '@/modules/dashboard/components/AlertCard'
 import { EstadoDelDia } from '@/modules/dashboard/components/EstadoDelDia'
 import { NotificacionesPanel } from '@/modules/dashboard/components/NotificacionesPanel'
 import {
-  useClientesInactivos, useCostesSubiendo,
+  useClientesRiesgoFuga, useCostesSubiendo,
   usePedidosEsperados, useProductosAnomalos, useTopDeudoresCobros,
-  type DeudorCobros, type PedidoEsperado, type ClienteInactivo, type CosteSubiendo, type ProductoAnomalo,
+  type DeudorCobros, type PedidoEsperado, type ClienteRiesgoFuga, type CosteSubiendo, type ProductoAnomalo,
 } from '@/modules/dashboard/lib/queries'
 
 const eur = (n: number) =>
@@ -49,7 +49,7 @@ function HomeAdmin() {
   const deudores  = useTopDeudoresCobros()
   const esperados = usePedidosEsperados()
   const anomalos  = useProductosAnomalos(30)
-  const inactivos = useClientesInactivos()
+  const riesgoFuga = useClientesRiesgoFuga()
   const costes    = useCostesSubiendo(14, 15)
 
   const totalDeuda = (deudores.data ?? []).reduce((s, d) => s + d.pendiente, 0)
@@ -115,18 +115,22 @@ function HomeAdmin() {
             full={<ProductosList rows={anomalos.data ?? []} />}
           />
 
-          {/* Clientes inactivos */}
+          {/* Riesgo de fuga (inactivo / ralentiza / ticket cae) */}
           <AlertCard
-            titulo="Clientes que han parado de pedir"
-            subtitulo="cadencia rota vs últimos 90d"
+            titulo="Riesgo de fuga"
+            subtitulo="parados, ralentizan o ticket cae"
             Icon={UserMinus}
-            severidad={(inactivos.data?.length ?? 0) > 0 ? 'aviso' : 'ok'}
-            count={inactivos.data?.length ?? 0}
-            loading={inactivos.isLoading}
+            severidad={
+              (riesgoFuga.data ?? []).some(c => c.severidad === 'critica')
+                ? 'critica'
+                : (riesgoFuga.data?.length ?? 0) > 0 ? 'aviso' : 'ok'
+            }
+            count={riesgoFuga.data?.length ?? 0}
+            loading={riesgoFuga.isLoading}
             to="/manager"
-            empty="Todos los clientes activos según su patrón"
-            preview={<InactivosList rows={inactivos.data?.slice(0, 6)} />}
-            full={<InactivosList rows={inactivos.data ?? []} />}
+            empty="Sin clientes en riesgo"
+            preview={<RiesgoFugaList rows={riesgoFuga.data?.slice(0, 6)} />}
+            full={<RiesgoFugaList rows={riesgoFuga.data ?? []} />}
           />
 
           {/* Costes subiendo */}
@@ -276,18 +280,55 @@ function ProductosList({ rows }: { rows?: ProductoAnomalo[] }) {
   )
 }
 
-function InactivosList({ rows }: { rows?: ClienteInactivo[] }) {
+const MOTIVO_LABEL: Record<'inactivo' | 'ralentiza' | 'ticket_cae', string> = {
+  inactivo:   'parado',
+  ralentiza:  'ralentiza',
+  ticket_cae: 'ticket cae',
+}
+
+function MotivoChip({ motivo }: { motivo: 'inactivo' | 'ralentiza' | 'ticket_cae' }) {
+  const cls =
+    motivo === 'inactivo'
+      ? 'bg-red-100 text-red-700'
+      : 'bg-amber-100 text-amber-800'
+  return (
+    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${cls}`}>
+      {MOTIVO_LABEL[motivo]}
+    </span>
+  )
+}
+
+function RiesgoFugaList({ rows }: { rows?: ClienteRiesgoFuga[] }) {
   return (
     <ul className="space-y-1.5">
-      {rows?.map(c => (
-        <li key={c.contact_name_canon} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
-          <div className="min-w-0">
-            <div className="truncate text-[var(--color-ink)]">{c.contact_name_canon}</div>
-            <div className="text-xs text-[var(--color-ink-3)]">cad. {c.cadencia_dias.toFixed(0)}d · {fmt(c.ultima_compra)}</div>
-          </div>
-          <span className="text-xs tabular-nums text-amber-700">{c.dias_sin_pedir}d sin pedir</span>
-        </li>
-      ))}
+      {rows?.map(c => {
+        const dropPct =
+          c.ticket_medio_30d != null && c.ticket_medio_30_90 && c.ticket_medio_30_90 > 0
+            ? Math.round((1 - c.ticket_medio_30d / c.ticket_medio_30_90) * 100)
+            : null
+        const showTicket = c.motivos.includes('ticket_cae') && dropPct != null
+        return (
+          <li key={c.contact_name_canon} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-[var(--color-ink)]">
+                <span className="truncate">{c.contact_name_canon}</span>
+                <span className="flex shrink-0 gap-1">
+                  {c.motivos.map(m => <MotivoChip key={m} motivo={m} />)}
+                </span>
+              </div>
+              <div className="text-xs text-[var(--color-ink-3)]">
+                cad. {c.cadencia_dias.toFixed(0)}d · {fmt(c.ultima_compra)}
+                {showTicket ? ` · ticket ${c.ticket_medio_30_90?.toFixed(0)}€→${c.ticket_medio_30d?.toFixed(0)}€` : ''}
+              </div>
+            </div>
+            <span className={`text-xs tabular-nums ${c.severidad === 'critica' ? 'text-red-700' : 'text-amber-700'}`}>
+              {c.motivos.includes('inactivo') || c.motivos.includes('ralentiza')
+                ? `${c.dias_sin_pedir}d sin pedir`
+                : showTicket ? `-${dropPct}%` : ''}
+            </span>
+          </li>
+        )
+      })}
     </ul>
   )
 }

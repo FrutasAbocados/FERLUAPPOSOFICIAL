@@ -38,6 +38,22 @@ export interface ClienteInactivo {
   ventas_90d: number
 }
 
+export type RiesgoFugaMotivo = 'inactivo' | 'ralentiza' | 'ticket_cae'
+
+export interface ClienteRiesgoFuga {
+  contact_name_canon: string
+  motivos: RiesgoFugaMotivo[]
+  severidad: 'critica' | 'aviso'
+  ultima_compra: string
+  dias_sin_pedir: number
+  cadencia_dias: number
+  pedidos_90d: number
+  ventas_90d: number
+  ticket_medio_30d: number | null
+  ticket_medio_30_90: number | null
+  valor_perdido_estimado: number
+}
+
 export interface CosteSubiendo {
   product_id: string
   nombre: string
@@ -120,6 +136,29 @@ export function useProductosAnomalos(dias = 30) {
         margen:     num(r.margen),
         margen_pct: numN(r.margen_pct),
         motivo:     (r.motivo as ProductoAnomalo['motivo']),
+      }))
+    },
+  })
+}
+
+export function useClientesRiesgoFuga() {
+  return useQuery({
+    queryKey: ['dashboard', 'clientesRiesgoFuga'] as const,
+    queryFn: async (): Promise<ClienteRiesgoFuga[]> => {
+      const { data, error } = await supabase.rpc('dashboard_clientes_riesgo_fuga')
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        contact_name_canon:     String(r.contact_name_canon ?? ''),
+        motivos:                Array.isArray(r.motivos) ? (r.motivos as RiesgoFugaMotivo[]) : [],
+        severidad:              (r.severidad as ClienteRiesgoFuga['severidad']) ?? 'aviso',
+        ultima_compra:          String(r.ultima_compra ?? ''),
+        dias_sin_pedir:         num(r.dias_sin_pedir),
+        cadencia_dias:          num(r.cadencia_dias),
+        pedidos_90d:            num(r.pedidos_90d),
+        ventas_90d:             num(r.ventas_90d),
+        ticket_medio_30d:       numN(r.ticket_medio_30d),
+        ticket_medio_30_90:     numN(r.ticket_medio_30_90),
+        valor_perdido_estimado: num(r.valor_perdido_estimado),
       }))
     },
   })
