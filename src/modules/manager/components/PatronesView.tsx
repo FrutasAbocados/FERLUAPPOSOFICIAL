@@ -23,6 +23,9 @@ interface PedidoProximo {
   dias_para: number
   ventas_medias: number
   prioridad: 'urgente' | 'pronto' | 'esta_semana'
+  confianza: 'alta' | 'media' | 'baja'
+  ticket_medio: number
+  pedidos_90d: number
 }
 
 type RecoTipo = 'vendiendo_bajo_coste' | 'cliente_caida_pedido' | 'cliente_subida_pedido' | 'cliente_dejo_producto' | 'producto_se_apaga'
@@ -73,6 +76,9 @@ function usePedidosProximos() {
         dias_para:          Number(r.dias_para ?? 0),
         ventas_medias:      Number(r.ventas_medias ?? 0),
         prioridad:          (r.prioridad as PedidoProximo['prioridad']) ?? 'esta_semana',
+        confianza:          (r.confianza as PedidoProximo['confianza']) ?? 'media',
+        ticket_medio:       Number(r.ticket_medio ?? 0),
+        pedidos_90d:        Number(r.pedidos_90d ?? 0),
       }))
     },
   })
@@ -278,20 +284,32 @@ function Columna({ titulo, subtitulo, tono, rows }: { titulo: string; subtitulo:
         <p className="text-xs text-[var(--color-ink-3)]">—</p>
       ) : (
         <ul className="space-y-2">
-          {rows.map(p => (
-            <li key={p.contact_name_canon} className="border-t border-[var(--color-border)]/60 pt-1.5 first:border-t-0 first:pt-0">
-              <div className="truncate text-sm font-medium text-[var(--color-ink)]">{p.contact_name_canon}</div>
-              <div className="flex items-baseline justify-between text-[11px] text-[var(--color-ink-3)] tabular-nums">
-                <span>cad. {p.cadencia_dias.toFixed(0)}d · ~{eur(p.ventas_medias)}</span>
-                <span className={color + ' font-medium'}>
-                  {p.dias_para === 0 ? 'hoy' : p.dias_para < 0 ? `${Math.abs(p.dias_para)}d tarde` : `en ${p.dias_para}d`}
-                </span>
-              </div>
-              <div className="text-[10px] text-[var(--color-ink-3)]">
-                {fmt(p.ultima_compra)} → {fmt(p.proxima_esperada)}
-              </div>
-            </li>
-          ))}
+          {rows.map(p => {
+            const confBadge = p.confianza === 'alta'
+              ? 'bg-emerald-100 text-emerald-700'
+              : p.confianza === 'media'
+                ? 'bg-zinc-100 text-zinc-600'
+                : 'bg-amber-100 text-amber-700'
+            return (
+              <li key={p.contact_name_canon} className="border-t border-[var(--color-border)]/60 pt-1.5 first:border-t-0 first:pt-0">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-ink)]">{p.contact_name_canon}</span>
+                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${confBadge}`}>
+                    {p.confianza}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between text-[11px] text-[var(--color-ink-3)] tabular-nums">
+                  <span>cad. {p.cadencia_dias.toFixed(0)}d · {eur(p.ticket_medio)} · {p.pedidos_90d} ped/90d</span>
+                  <span className={color + ' font-medium'}>
+                    {p.dias_para === 0 ? 'hoy' : p.dias_para < 0 ? `${Math.abs(p.dias_para)}d tarde` : `en ${p.dias_para}d`}
+                  </span>
+                </div>
+                <div className="text-[10px] text-[var(--color-ink-3)]">
+                  {fmt(p.ultima_compra)} → {fmt(p.proxima_esperada)}
+                </div>
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>
