@@ -17,6 +17,7 @@ import { CobrosPage } from '@/modules/cobros/CobrosPage'
 import { AgentePage } from '@/modules/agente/AgentePage'
 import { TrabajadoresPage } from '@/modules/trabajadores/TrabajadoresPage'
 import { SueldosPage } from '@/modules/sueldos/SueldosPage'
+import { PedidosWaPage } from '@/modules/pedidos-wa/PedidosWaPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,6 +63,9 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute module="sueldos" />}>
                     <Route path="sueldos" element={<SueldosPage />} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="pedidos_wa" />}>
+                    <Route path="pedidos-wa" element={<PedidosWaPage />} />
                   </Route>
                 </Route>
               </Route>

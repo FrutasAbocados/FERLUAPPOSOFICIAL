@@ -11,6 +11,7 @@ import {
   Home,
   LogOut,
   Menu,
+  MessageSquare,
   Users,
   UsersRound,
   Wallet,
@@ -30,6 +31,7 @@ type ModuleNav = {
 const MODULES: ModuleNav[] = [
   { key: 'manager', label: 'Manager', to: '/manager', icon: BarChart3 },
   { key: 'agente',  label: 'Agente', to: '/agente', icon: Bot },
+  { key: 'pedidos_wa', label: 'Pedidos', to: '/pedidos-wa', icon: MessageSquare },
   { key: 'cash', label: 'Caja', to: '/cash', icon: Banknote },
   { key: 'cobros', label: 'Cobros', to: '/cobros', icon: HandCoins },
   { key: 'sueldos', label: 'Sueldos', to: '/sueldos', icon: Wallet },
@@ -196,7 +198,7 @@ export function AppShell() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+        <div className="w-full max-w-full flex-1 overflow-y-auto overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
           <Outlet key={location.pathname} />
         </div>
 
