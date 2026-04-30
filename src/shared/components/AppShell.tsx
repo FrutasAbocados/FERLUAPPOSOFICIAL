@@ -63,7 +63,7 @@ export function AppShell() {
   const isEquipoActive = equipo.some(m => location.pathname.startsWith(m.to))
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full overflow-x-hidden">
       {/* Sidebar desktop */}
       <aside className="hidden w-60 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] md:flex">
         <Link to="/" className="flex h-16 items-center gap-2 border-b border-[var(--color-border)] px-5 transition hover:bg-[var(--color-surface-2,#f8fafc)]">
@@ -162,7 +162,7 @@ export function AppShell() {
       </aside>
 
       {/* Main area */}
-      <main className="flex flex-1 flex-col">
+      <main className="flex min-w-0 flex-1 flex-col">
         {/* Header móvil */}
         <header className="flex h-14 items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 md:hidden">
           <Link to="/" className="font-display text-base font-bold text-[var(--color-ink)]">
