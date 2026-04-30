@@ -17,11 +17,14 @@ import { usePedidosDelDia } from '../lib/queries'
 
 const REPARTIDOR_ORDER: Repartidor[] = ['TORRES', 'GERMAN', 'RAUL', 'ALEX']
 
+// Header del bloque: texto coloreado saturado + borde inferior grueso, fondo
+// se hereda de la card (neutro). En dark mode las versiones -300 son las que
+// mejor leen sobre fondo oscuro.
 const REPARTIDOR_HEADER: Record<Repartidor, string> = {
-  TORRES: 'border-blue-400 bg-blue-200 text-blue-900',
-  GERMAN: 'border-emerald-400 bg-emerald-200 text-emerald-900',
-  RAUL:   'border-orange-400 bg-orange-200 text-orange-900',
-  ALEX:   'border-violet-400 bg-violet-200 text-violet-900',
+  TORRES: 'border-b-2 border-blue-500    text-blue-700    dark:text-blue-300',
+  GERMAN: 'border-b-2 border-emerald-500 text-emerald-700 dark:text-emerald-300',
+  RAUL:   'border-b-2 border-orange-500  text-orange-700  dark:text-orange-300',
+  ALEX:   'border-b-2 border-violet-500  text-violet-700  dark:text-violet-300',
 }
 
 export function HojaRuta() {
@@ -153,10 +156,10 @@ function BloqueRepartidor({
         </span>
       </header>
 
-      <ul className="divide-y divide-[var(--color-border)]/40 bg-white/60">
+      <ul className="divide-y divide-[var(--color-border)]/40">
         {filas.map((f, i) =>
           f.kind === 'separator' ? (
-            <li key={`sep-${i}`} className="bg-zinc-100 px-4 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+            <li key={`sep-${i}`} className="bg-[var(--color-surface-2)] px-4 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-3)]">
               ── {f.label} ──
             </li>
           ) : (

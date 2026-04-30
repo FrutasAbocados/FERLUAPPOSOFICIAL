@@ -10,9 +10,10 @@ type Props = {
   fecha: string
   cierre: Cierre | null
   onClose: () => void
+  readOnly?: boolean
 }
 
-export function CierreForm({ fecha, cierre, onClose }: Props) {
+export function CierreForm({ fecha, cierre, onClose, readOnly }: Props) {
   // Re-mount when the target cierre/fecha changes; evita setState-in-effect.
   return (
     <CierreFormContent
@@ -20,11 +21,12 @@ export function CierreForm({ fecha, cierre, onClose }: Props) {
       fecha={fecha}
       cierre={cierre}
       onClose={onClose}
+      readOnly={readOnly}
     />
   )
 }
 
-function CierreFormContent({ fecha, cierre, onClose }: Props) {
+function CierreFormContent({ fecha, cierre, onClose, readOnly }: Props) {
   const [form, setForm] = useState<CierreInput>(() =>
     cierre ? fromCierre(cierre) : emptyInput(fecha),
   )
@@ -138,12 +140,14 @@ function CierreFormContent({ fecha, cierre, onClose }: Props) {
             )}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClose}>
-                Cancelar
+                {readOnly ? 'Cerrar' : 'Cancelar'}
               </Button>
-              <Button type="submit" disabled={upsert.isPending}>
-                {upsert.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                Guardar cierre
-              </Button>
+              {!readOnly && (
+                <Button type="submit" disabled={upsert.isPending}>
+                  {upsert.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Guardar cierre
+                </Button>
+              )}
             </div>
           </footer>
         </form>

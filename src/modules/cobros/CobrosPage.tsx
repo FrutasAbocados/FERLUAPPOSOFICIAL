@@ -39,6 +39,7 @@ export function CobrosPage() {
   const movs = useMovimientos()
   const kpi = useMemo(() => {
     if (!movs.data) return null
+    const today = new Date().toISOString().slice(0, 10)
     const pend = movs.data.filter((m) => !m.pagado)
     const total = pend.reduce((s, m) => s + importePendiente(m), 0)
     const vencido = pend
@@ -47,7 +48,10 @@ export function CobrosPage() {
     const proximo = pend
       .filter((m) => estadoMovimiento(m) === 'Próximo')
       .reduce((s, m) => s + importePendiente(m), 0)
-    return { total, vencido, proximo, n: pend.length }
+    // "Generada hoy": deuda nueva entrada con fecha_factura = today
+    const generadaHoyArr = pend.filter((m) => m.fecha_factura === today)
+    const generadaHoy = generadaHoyArr.reduce((s, m) => s + importePendiente(m), 0)
+    return { total, vencido, proximo, generadaHoy, generadaHoyN: generadaHoyArr.length, n: pend.length }
   }, [movs.data])
 
   const abrirNuevo = (tipo: TipoMovimiento, clienteId: string | null = null) =>
@@ -78,10 +82,17 @@ export function CobrosPage() {
         <div className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-4">
           <KpiTile
             Icon={Wallet}
-            label="Deuda pendiente HOY"
+            label="Deuda pendiente"
             value={eur(kpi.total)}
             sub={`${kpi.n} ${kpi.n === 1 ? 'movimiento' : 'movimientos'}`}
             tone="primary"
+          />
+          <KpiTile
+            Icon={Plus}
+            label="Generada HOY"
+            value={eur(kpi.generadaHoy)}
+            sub={`${kpi.generadaHoyN} ${kpi.generadaHoyN === 1 ? 'nuevo' : 'nuevos'}`}
+            tone="info"
           />
           <KpiTile
             Icon={AlertTriangle}
@@ -96,13 +107,6 @@ export function CobrosPage() {
             value={eur(kpi.proximo)}
             sub="≤ 7 días"
             tone="warning"
-          />
-          <KpiTile
-            Icon={Wallet}
-            label="Resto"
-            value={eur(Math.max(0, kpi.total - kpi.vencido - kpi.proximo))}
-            sub="al corriente"
-            tone="muted"
           />
         </div>
       )}
@@ -163,13 +167,14 @@ export function CobrosPage() {
   )
 }
 
-type Tone = 'primary' | 'danger' | 'warning' | 'muted'
+type Tone = 'primary' | 'danger' | 'warning' | 'info' | 'muted'
 
 const TONE_STYLE: Record<Tone, { card: string; icon: string; value: string }> = {
-  primary: { card: 'border-[var(--color-primary)]/30 bg-[var(--color-primary-soft)]', icon: 'text-[var(--color-primary-2)]', value: 'text-[var(--color-primary-2)]' },
-  danger:  { card: 'border-red-200 bg-red-50',                                          icon: 'text-red-600',                value: 'text-red-700' },
-  warning: { card: 'border-amber-200 bg-amber-50',                                      icon: 'text-amber-600',              value: 'text-amber-700' },
-  muted:   { card: 'border-[var(--color-border)] bg-[var(--color-surface)]',            icon: 'text-[var(--color-ink-3)]',   value: 'text-[var(--color-ink)]' },
+  primary: { card: 'border-l-4 border-l-[var(--color-primary)] border-y border-r border-[var(--color-border)] bg-[var(--color-surface)]', icon: 'text-[var(--color-primary-2)]', value: 'text-[var(--color-primary-2)]' },
+  danger:  { card: 'border-l-4 border-l-red-500 border-y border-r border-[var(--color-border)] bg-[var(--color-surface)]',                icon: 'text-red-600 dark:text-red-400',     value: 'text-red-700 dark:text-red-300' },
+  warning: { card: 'border-l-4 border-l-amber-500 border-y border-r border-[var(--color-border)] bg-[var(--color-surface)]',              icon: 'text-amber-600 dark:text-amber-400', value: 'text-amber-700 dark:text-amber-300' },
+  info:    { card: 'border-l-4 border-l-sky-500 border-y border-r border-[var(--color-border)] bg-[var(--color-surface)]',                icon: 'text-sky-600 dark:text-sky-400',     value: 'text-sky-700 dark:text-sky-300' },
+  muted:   { card: 'border border-[var(--color-border)] bg-[var(--color-surface)]',                                                       icon: 'text-[var(--color-ink-3)]',          value: 'text-[var(--color-ink)]' },
 }
 
 function KpiTile({

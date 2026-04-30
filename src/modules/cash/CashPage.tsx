@@ -175,14 +175,12 @@ function CalendarioView({ isAdminFull }: { isAdminFull: boolean }) {
               return (
                 <button
                   key={iso}
-                  disabled={!isAdminFull || futuro}
+                  disabled={futuro}
                   onClick={() => setEditing(iso)}
                   className={`relative flex min-h-[84px] flex-col gap-1 border-b border-r border-[var(--color-border)]/40 p-2 text-left transition ${
                     futuro
                       ? 'cursor-not-allowed bg-[var(--color-surface-2,#f8fafc)] opacity-60'
-                      : isAdminFull
-                        ? 'hover:bg-[var(--color-surface-2,#f8fafc)]'
-                        : 'cursor-default'
+                      : 'hover:bg-[var(--color-surface-2,#f8fafc)]'
                   } ${isHoy ? 'ring-2 ring-inset ring-[var(--color-primary)]' : ''}`}
                 >
                   <div className="flex items-baseline justify-between">
@@ -225,11 +223,12 @@ function CalendarioView({ isAdminFull }: { isAdminFull: boolean }) {
         </div>
       )}
 
-      {isAdminFull && editing && (
+      {editing && (
         <CierreForm
           fecha={editing}
           cierre={editingCierre ?? null}
           onClose={() => setEditing(null)}
+          readOnly={!isAdminFull}
         />
       )}
     </>
