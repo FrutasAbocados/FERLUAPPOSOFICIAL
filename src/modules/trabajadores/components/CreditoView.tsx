@@ -159,30 +159,19 @@ function useAddFactura() {
       nota: string | null
       lineas: Array<{ product_id: string | null; nombre: string; units: number; price: number }>
     }) => {
-      const { data: u } = await supabase.auth.getUser()
-      const { data: cab, error: e1 } = await supabase
-        .from('trabajadores_credito_facturas')
-        .insert({
-          empleado_id: input.empleado_id,
-          fecha: input.fecha,
-          nota: input.nota,
-          creado_por: u.user?.id ?? null,
-        })
-        .select('id')
-        .single()
-      if (e1) throw e1
-      if (!cab) throw new Error('Sin cabecera')
-      const { error: e2 } = await supabase
-        .from('trabajadores_credito_lineas')
-        .insert(input.lineas.map(l => ({
-          factura_id: cab.id,
-          product_id: l.product_id,
-          nombre: l.nombre,
-          units: l.units,
-          price: l.price,
-        })))
-      if (e2) throw e2
-      return cab.id
+      const { data, error } = await supabase.rpc('trabajadores_credito_factura_create', {
+        p_empleado_id: input.empleado_id,
+        p_fecha:       input.fecha,
+        p_nota:        input.nota ?? '',
+        p_lineas:      input.lineas.map(l => ({
+          product_id: l.product_id ?? '',
+          nombre:     l.nombre,
+          units:      l.units,
+          price:      l.price,
+        })),
+      })
+      if (error) throw error
+      return data as string
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['credito-estado-actual'] })

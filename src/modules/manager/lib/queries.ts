@@ -540,40 +540,19 @@ export function useAddAbueloFactura() {
       nota?: string | null
       lineas: AbueloLineaInput[]
     }) => {
-      const total = input.lineas.reduce((s, l) => s + l.units * l.price, 0)
-      const subtotal = total / 1.04  // asumimos IVA 4% para guardar el desglose
-      // Cabecera
-      const { data: cab, error: errCab } = await supabase
-        .from('manager_ventas_abuelo')
-        .insert({
-          fecha:          input.fecha,
-          numero_factura: input.numero_factura ?? null,
-          nota:           input.nota ?? null,
-          importe:        total,           // legacy column
-          subtotal,
-          total,
-        })
-        .select('id')
-        .single()
-      if (errCab) throw errCab
-      const facturaId = cab?.id as string
-      if (!facturaId) throw new Error('Sin id de factura')
-      // Líneas
-      if (input.lineas.length > 0) {
-        const rows = input.lineas.map(l => ({
-          factura_id: facturaId,
-          product_id: l.product_id ?? null,
+      const { data, error } = await supabase.rpc('manager_abuelo_factura_create', {
+        p_fecha:          input.fecha,
+        p_numero_factura: input.numero_factura ?? '',
+        p_nota:           input.nota ?? '',
+        p_lineas:         input.lineas.map(l => ({
+          product_id: l.product_id ?? '',
           nombre:     l.nombre,
           units:      l.units,
           price:      l.price,
-        }))
-        const { error: errLin } = await supabase.from('manager_lineas_abuelo').insert(rows)
-        if (errLin) {
-          // Rollback manual de la cabecera si las líneas fallan
-          await supabase.from('manager_ventas_abuelo').delete().eq('id', facturaId)
-          throw errLin
-        }
-      }
+        })),
+      })
+      if (error) throw error
+      return data as string
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['manager'] }) },
   })
