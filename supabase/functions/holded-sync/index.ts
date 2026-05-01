@@ -163,6 +163,45 @@ async function pgUpdate(table: string, id: number | string, patch: Record<string
   if (!res.ok) throw new Error(`update ${table} ${res.status}: ${(await res.text()).slice(0, 400)}`)
 }
 
+// Lanzar holded-sync sólo desde cron (service_role) o admins (admin_full|admin_op).
+// La verificación de firma del JWT la hace el runtime de Supabase (verify_jwt=true);
+// aquí sólo decodificamos los claims para enrutar por rol.
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  const part = token.split('.')[1]
+  if (!part) throw new Error('jwt sin payload')
+  const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+  const pad = (4 - b64.length % 4) % 4
+  return JSON.parse(atob(b64 + '='.repeat(pad)))
+}
+
+type AuthOk = { kind: 'service_role' } | { kind: 'admin'; user_id: string; role: string }
+
+async function checkAuth(req: Request): Promise<AuthOk | { kind: 'deny'; status: number; msg: string }> {
+  const header = req.headers.get('Authorization') ?? ''
+  const token = header.replace(/^Bearer\s+/i, '').trim()
+  if (!token) return { kind: 'deny', status: 401, msg: 'falta Authorization' }
+
+  let payload: Record<string, unknown>
+  try { payload = decodeJwtPayload(token) }
+  catch { return { kind: 'deny', status: 401, msg: 'jwt inválido' } }
+
+  const role = String(payload.role ?? '')
+  if (role === 'service_role') return { kind: 'service_role' }
+  if (role !== 'authenticated') return { kind: 'deny', status: 403, msg: `rol JWT no permitido: ${role || '—'}` }
+
+  const sub = String(payload.sub ?? '')
+  if (!sub) return { kind: 'deny', status: 403, msg: 'jwt sin sub' }
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${sub}&select=role`, { headers: dbHeaders })
+  if (!res.ok) return { kind: 'deny', status: 500, msg: `profiles ${res.status}` }
+  const rows = await res.json() as Array<{ role?: string }>
+  const userRole = rows[0]?.role ?? ''
+  if (userRole !== 'admin_full' && userRole !== 'admin_op') {
+    return { kind: 'deny', status: 403, msg: 'sólo admin_full o admin_op pueden lanzar holded-sync' }
+  }
+  return { kind: 'admin', user_id: sub, role: userRole }
+}
+
 Deno.serve(async (req) => {
   const cors = {
     'Access-Control-Allow-Origin': '*',
@@ -170,6 +209,14 @@ Deno.serve(async (req) => {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   }
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
+
+  const auth = await checkAuth(req)
+  if (auth.kind === 'deny') {
+    return new Response(JSON.stringify({ error: auth.msg }), {
+      status: auth.status, headers: { ...cors, 'content-type': 'application/json' },
+    })
+  }
+
   if (!HOLDED_KEY) {
     return new Response(JSON.stringify({ error: 'HOLDED_API_KEY no configurada' }), {
       status: 500, headers: { ...cors, 'content-type': 'application/json' },
