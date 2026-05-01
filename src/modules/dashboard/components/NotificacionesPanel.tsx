@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Bell, BellOff, Calendar, CheckCircle2, MessageSquare, Smartphone, Star, ThumbsUp, X, XCircle } from 'lucide-react'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { useNotificaciones, useMarcarLeida, useMarcarTodasLeidas, type Notificacion, type NotificacionTipo } from '../lib/notificaciones'
+import { useNotificaciones, useDescartarNotif, useDescartarTodas, type Notificacion, type NotificacionTipo } from '../lib/notificaciones'
 import { activarPush, desactivarPush, estadoPush, registrarSW, type PushEstado } from '@/shared/lib/push'
 
 const ICONOS: Record<string, { Icon: typeof Bell; color: string; bg: string }> = {
@@ -22,8 +22,8 @@ function iconoPara(tipo: NotificacionTipo) {
 
 export function NotificacionesPanel() {
   const { data, isLoading } = useNotificaciones()
-  const marcarLeida = useMarcarLeida()
-  const marcarTodas = useMarcarTodasLeidas()
+  const descartar = useDescartarNotif()
+  const descartarTodas = useDescartarTodas()
 
   if (isLoading) return null
   // Si no hay notifs PERO el push no está activo, mostramos solo CTA pequeño
@@ -46,24 +46,24 @@ export function NotificacionesPanel() {
           </div>
           <div>
             <h2 className="text-sm font-semibold text-[var(--color-ink)]">Notificaciones</h2>
-            <p className="text-xs text-[var(--color-ink-3)]">{data.length} sin leer</p>
+            <p className="text-xs text-[var(--color-ink-3)]">{data.length} pendiente{data.length === 1 ? '' : 's'}</p>
           </div>
         </div>
         {data.length > 1 && (
           <button
             type="button"
-            onClick={() => marcarTodas.mutate(data.map(n => n.id))}
-            disabled={marcarTodas.isPending}
+            onClick={() => descartarTodas.mutate(data.map(n => n.id))}
+            disabled={descartarTodas.isPending}
             className="text-xs font-medium text-[var(--color-primary-2)] hover:underline disabled:opacity-50"
           >
-            Marcar todas
+            Descartar todas
           </button>
         )}
       </header>
 
       <ul className="space-y-1.5">
         {data.map(n => (
-          <NotifItem key={n.id} n={n} onClose={() => marcarLeida.mutate(n.id)} />
+          <NotifItem key={n.id} n={n} onClose={() => descartar.mutate(n.id)} />
         ))}
       </ul>
 

@@ -447,6 +447,7 @@ export function useFacturasLista(period: Period, f: FacturaFiltros) {
   const pageSize = f.pageSize ?? 100
   return useQuery({
     queryKey: ['manager', 'facturas', periodKey(period), f.tipo ?? '', f.subtipo ?? '', f.q ?? '', page, pageSize] as const,
+    placeholderData: (prev) => prev,  // mantiene la página anterior visible mientras carga la nueva
     queryFn: async (): Promise<FacturaListItem[]> => {
       const { data, error } = await supabase.rpc('manager_facturas_lista', {
         p_from: period.from, p_to: period.to,

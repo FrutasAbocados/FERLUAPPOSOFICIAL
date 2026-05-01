@@ -36,7 +36,9 @@ export function useNotificaciones() {
   })
 }
 
-export function useMarcarLeida() {
+// Descartar = DELETE de la fila. No es "marcar leída" — pierde trazabilidad.
+// Si en el futuro hace falta historial, mover a soft delete con `descartada_at`.
+export function useDescartarNotif() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
@@ -47,7 +49,7 @@ export function useMarcarLeida() {
   })
 }
 
-export function useMarcarTodasLeidas() {
+export function useDescartarTodas() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (ids: string[]) => {

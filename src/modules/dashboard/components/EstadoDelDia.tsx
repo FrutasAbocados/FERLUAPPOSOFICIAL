@@ -19,9 +19,15 @@ export function EstadoDelDia() {
         </div>
         {data && (
           <div className="flex items-center gap-1 text-xs">
-            <span className={`inline-block h-2 w-2 rounded-full ${data.minutos_desde_sync != null && data.minutos_desde_sync < 70 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            <span className={`inline-block h-2 w-2 rounded-full ${
+              data.ultimo_sync_ok && data.minutos_desde_sync != null && data.minutos_desde_sync < 70
+                ? 'bg-emerald-500'
+                : 'bg-amber-500'
+            }`} />
             <span className="text-[var(--color-ink-3)]">
-              {data.ultimo_sync_at ? `sync hace ${data.minutos_desde_sync}m` : 'sin sync'}
+              {data.ultimo_sync_at
+                ? (data.ultimo_sync_ok ? `sync hace ${data.minutos_desde_sync}m` : `último sync falló (${data.minutos_desde_sync}m)`)
+                : 'sin sync'}
             </span>
           </div>
         )}
