@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Award, BarChart3, BookCheck, CalendarDays, CalendarOff, Construction, ShoppingBasket } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
+import { useAuth } from '@/shared/auth/useAuth'
 import { TareasPage } from '@/modules/tareas/TareasPage'
 import { CreditoView } from './components/CreditoView'
 import { VacacionesView } from './components/VacacionesView'
@@ -20,7 +21,15 @@ const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'productividad', l: 'Plus productividad', Icon: Construction },
 ]
 
+const TABS_EMPLEADO: Tab[] = ['dashboard', 'tareas', 'puntos', 'vacaciones', 'sabados']
+
 export function TrabajadoresOpPage() {
+  const { profile } = useAuth()
+  const role = profile?.role
+  const tabsVisibles = useMemo(
+    () => role === 'empleado' ? TABS.filter(t => TABS_EMPLEADO.includes(t.k)) : TABS,
+    [role],
+  )
   const [tab, setTab] = useState<Tab>('dashboard')
 
   return (
@@ -28,7 +37,7 @@ export function TrabajadoresOpPage() {
       {/* Tabs */}
       <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 md:px-6">
         <div className="-mx-4 flex items-center gap-1 overflow-x-auto px-4 no-scrollbar md:mx-0 md:px-0">
-          {TABS.map(t => (
+          {tabsVisibles.map(t => (
             <Button
               key={t.k}
               size="sm"
