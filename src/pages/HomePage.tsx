@@ -46,11 +46,15 @@ function HomeAdmin() {
   const role = profile?.role
   const moduleEntries = MODULOS.filter(m => role && canAccess(m.key as ModuleKey, role))
 
-  const deudores  = useTopDeudoresCobros()
-  const esperados = usePedidosEsperados()
-  const anomalos  = useProductosAnomalos(30)
-  const riesgoFuga = useClientesRiesgoFuga()
-  const costes    = useCostesSubiendo(14, 15)
+  // Las alertas (Cobros / Pedidos / Anómalos / Fuga / Costes) son cuadro de mando
+  // ejecutivo: sólo admin_full y admin_op las consumen. responsable cae aquí pero
+  // no debe disparar esas RPCs (algunas pueden no estar concedidas a su rol).
+  const isAdmin = role === 'admin_full' || role === 'admin_op'
+  const deudores  = useTopDeudoresCobros({ enabled: isAdmin })
+  const esperados = usePedidosEsperados({ enabled: isAdmin })
+  const anomalos  = useProductosAnomalos(30, { enabled: isAdmin })
+  const riesgoFuga = useClientesRiesgoFuga({ enabled: isAdmin })
+  const costes    = useCostesSubiendo(14, 15, { enabled: isAdmin })
 
   const totalDeuda = (deudores.data ?? []).reduce((s, d) => s + d.pendiente, 0)
   const totalVencido = (deudores.data ?? []).reduce((s, d) => s + d.vencido, 0)
@@ -71,6 +75,7 @@ function HomeAdmin() {
         <NotificacionesPanel />
         <EstadoDelDia />
 
+        {isAdmin && (
         <div className="grid gap-3 md:grid-cols-2">
           {/* Top deudores Cobros */}
           <AlertCard
@@ -158,6 +163,7 @@ function HomeAdmin() {
             empty="Sin avisos del sistema"
           />
         </div>
+        )}
 
         {/* Atajos */}
         <section>

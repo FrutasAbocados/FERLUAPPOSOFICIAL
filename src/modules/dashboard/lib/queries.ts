@@ -122,9 +122,10 @@ export function usePendienteMismatch() {
   })
 }
 
-export function useProductosAnomalos(dias = 30) {
+export function useProductosAnomalos(dias = 30, opts: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['dashboard', 'productosAnomalos', dias] as const,
+    enabled: opts.enabled ?? true,
     queryFn: async (): Promise<ProductoAnomalo[]> => {
       const { data, error } = await supabase.rpc('dashboard_productos_anomalos', { p_dias: dias })
       if (error) throw error
@@ -141,9 +142,10 @@ export function useProductosAnomalos(dias = 30) {
   })
 }
 
-export function useClientesRiesgoFuga() {
+export function useClientesRiesgoFuga(opts: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['dashboard', 'clientesRiesgoFuga'] as const,
+    enabled: opts.enabled ?? true,
     queryFn: async (): Promise<ClienteRiesgoFuga[]> => {
       const { data, error } = await supabase.rpc('dashboard_clientes_riesgo_fuga')
       if (error) throw error
@@ -182,9 +184,10 @@ export function useClientesInactivos() {
   })
 }
 
-export function useTopDeudoresCobros() {
+export function useTopDeudoresCobros(opts: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['dashboard', 'topDeudores'] as const,
+    enabled: opts.enabled ?? true,
     queryFn: async (): Promise<DeudorCobros[]> => {
       const today = new Date().toISOString().slice(0, 10)
       const { data, error } = await supabase
@@ -215,9 +218,10 @@ export function useTopDeudoresCobros() {
   })
 }
 
-export function usePedidosEsperados() {
+export function usePedidosEsperados(opts: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['dashboard', 'pedidosEsperados'] as const,
+    enabled: opts.enabled ?? true,
     queryFn: async (): Promise<PedidoEsperado[]> => {
       const { data, error } = await supabase.rpc('manager_pedidos_proximos')
       if (error) throw error
@@ -234,9 +238,10 @@ export function usePedidosEsperados() {
   })
 }
 
-export function useCostesSubiendo(dias = 14, pctMin = 15) {
+export function useCostesSubiendo(dias = 14, pctMin = 15, opts: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['dashboard', 'costesSubiendo', dias, pctMin] as const,
+    enabled: opts.enabled ?? true,
     queryFn: async (): Promise<CosteSubiendo[]> => {
       const { data, error } = await supabase.rpc('dashboard_costes_subiendo', { p_dias: dias, p_pct_min: pctMin })
       if (error) throw error
