@@ -379,3 +379,153 @@ export function useImportarExcel() {
     },
   })
 }
+
+// ─── Restaurar backup JSON (idempotente por id) ──────────────────
+// El JSON exportado por exportJSON contiene los uuids originales. Aquí
+// preservamos esos ids al insertar para que re-importar el mismo backup
+// no duplique movimientos: pre-fetch de los ids existentes + filtro.
+// Los clientes se siguen upserteando por nombre (los ids del backup pueden
+// no coincidir con la BBDD destino si fue creada en otro entorno).
+export interface BackupCliente {
+  id: string
+  nombre: string
+  forma_pago: FormaPago
+  metodo_cobro_preferido: MetodoCobro | null
+  notas: string | null
+  activo: boolean
+}
+export interface BackupMovimiento {
+  id: string
+  cliente_id: string
+  tipo: TipoMovimiento
+  numero_factura: string | null
+  fecha_factura: string
+  importe: number
+  pagado: boolean
+  fecha_cobro: string | null
+  importe_cobrado: number | null
+  metodo_cobro: MetodoCobro | null
+  fecha_vencimiento: string
+  concepto: string | null
+}
+export interface RestoreResult {
+  clientesUpserted: number
+  movimientosNuevos: number
+  movimientosDuplicados: number
+  movimientosHuerfanos: number  // backup hace referencia a un cliente que no existe ni en backup ni en BBDD
+  errores: string[]
+}
+
+export function useRestaurarBackup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      clientes: BackupCliente[]
+      movimientos: BackupMovimiento[]
+    }): Promise<RestoreResult> => {
+      const errores: string[] = []
+      let clientesUpserted = 0
+      let movimientosHuerfanos = 0
+
+      // 1) Upsert clientes por nombre (preserva los ya existentes en destino).
+      if (input.clientes.length > 0) {
+        const { data, error } = await supabase
+          .from('cobros_clientes')
+          .upsert(
+            input.clientes.map((c) => ({
+              nombre: c.nombre.trim(),
+              forma_pago: c.forma_pago,
+              metodo_cobro_preferido: c.metodo_cobro_preferido,
+              notas: c.notas,
+              activo: c.activo,
+            })),
+            { onConflict: 'nombre' },
+          )
+          .select('id')
+        if (error) errores.push(`Clientes: ${error.message}`)
+        else clientesUpserted = data?.length ?? 0
+      }
+
+      // 2) Mapas: backup_cliente_id → nombre y nombre → live_cliente_id.
+      const backupIdToName = new Map<string, string>()
+      for (const c of input.clientes) backupIdToName.set(c.id, c.nombre.trim())
+
+      const { data: liveClientes, error: cErr } = await supabase
+        .from('cobros_clientes')
+        .select('id, nombre')
+      if (cErr) {
+        errores.push(`Releer clientes: ${cErr.message}`)
+        return { clientesUpserted, movimientosNuevos: 0, movimientosDuplicados: 0, movimientosHuerfanos: 0, errores }
+      }
+      const nameToLiveId = new Map<string, string>()
+      for (const c of liveClientes ?? []) nameToLiveId.set((c as Cliente).nombre, (c as Cliente).id)
+
+      // 3) Pre-check de ids ya existentes (idempotencia estricta).
+      const backupIds = input.movimientos.map((m) => m.id).filter(Boolean)
+      const existing = new Set<string>()
+      const CHUNK = 500
+      for (let i = 0; i < backupIds.length; i += CHUNK) {
+        const slice = backupIds.slice(i, i + CHUNK)
+        const { data, error } = await supabase
+          .from('cobros_movimientos')
+          .select('id')
+          .in('id', slice)
+        if (error) {
+          errores.push(`Lookup ids: ${error.message}`)
+          continue
+        }
+        for (const row of data ?? []) existing.add((row as { id: string }).id)
+      }
+
+      // 4) Construir filas a insertar (con id explícito), saltando duplicados.
+      const toInsert: Record<string, unknown>[] = []
+      let duplicados = 0
+      for (const m of input.movimientos) {
+        if (existing.has(m.id)) { duplicados++; continue }
+        const liveClienteId = nameToLiveId.get(backupIdToName.get(m.cliente_id) ?? '') ?? null
+        if (!liveClienteId) {
+          movimientosHuerfanos++
+          errores.push(`Movimiento ${m.id} apunta a cliente desconocido`)
+          continue
+        }
+        toInsert.push({
+          id: m.id,                        // preservar uuid original — clave de idempotencia
+          cliente_id: liveClienteId,
+          tipo: m.tipo,
+          numero_factura: m.numero_factura,
+          fecha_factura: m.fecha_factura,
+          importe: m.importe,
+          pagado: m.pagado,
+          fecha_cobro: m.fecha_cobro,
+          importe_cobrado: m.importe_cobrado,
+          metodo_cobro: m.metodo_cobro,
+          fecha_vencimiento: m.fecha_vencimiento,
+          concepto: m.concepto,
+        })
+      }
+
+      // 5) Insert por lotes (sin upsert: ya filtramos duplicados arriba).
+      let movimientosNuevos = 0
+      for (let i = 0; i < toInsert.length; i += CHUNK) {
+        const batch = toInsert.slice(i, i + CHUNK)
+        const { data, error } = await supabase
+          .from('cobros_movimientos')
+          .insert(batch)
+          .select('id')
+        if (error) { errores.push(`Lote ${i}: ${error.message}`); continue }
+        movimientosNuevos += data?.length ?? 0
+      }
+
+      return {
+        clientesUpserted,
+        movimientosNuevos,
+        movimientosDuplicados: duplicados,
+        movimientosHuerfanos,
+        errores,
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cobros'] })
+    },
+  })
+}

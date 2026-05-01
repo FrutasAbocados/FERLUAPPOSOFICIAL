@@ -3,14 +3,16 @@ import * as XLSX from 'xlsx'
 import { Download, FileJson, Loader2, Upload } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
-import { useClientes, useImportarExcel, useMovimientos } from '../lib/queries'
+import { toast } from '@/shared/lib/toast'
+import { useClientes, useMovimientos, useRestaurarBackup } from '../lib/queries'
+import type { BackupCliente, BackupMovimiento } from '../lib/queries'
 import { FORMA_PAGO_LABEL } from '../lib/types'
 import { importePendiente } from '../lib/utils'
 
 export function ExportPanel() {
   const clientes = useClientes()
   const movs = useMovimientos()
-  const importar = useImportarExcel()
+  const restaurar = useRestaurarBackup()
   const [restoring, setRestoring] = useState(false)
 
   const exportXLSX = () => {
@@ -108,7 +110,7 @@ export function ExportPanel() {
     if (!file) return
     if (
       !confirm(
-        'Restaurar desde JSON añadirá todos los registros del archivo. Los duplicados se ignoran. ¿Continuar?',
+        'Restaurar desde JSON añadirá los registros nuevos del archivo. Los movimientos ya presentes (mismo id) se ignoran. ¿Continuar?',
       )
     ) {
       e.target.value = ''
@@ -118,55 +120,28 @@ export function ExportPanel() {
     try {
       const text = await file.text()
       const data = JSON.parse(text) as {
-        clientes: Array<{ nombre: string; forma_pago: string; metodo_cobro_preferido: string | null; notas: string | null; activo: boolean }>
-        movimientos: Array<{
-          cliente_id: string
-          tipo: string
-          numero_factura: string | null
-          fecha_factura: string
-          importe: number
-          pagado: boolean
-          fecha_cobro: string | null
-          importe_cobrado: number | null
-          metodo_cobro: string | null
-          fecha_vencimiento: string
-          concepto: string | null
-        }>
+        clientes: BackupCliente[]
+        movimientos: BackupMovimiento[]
       }
-      // Mapeamos cliente_id -> nombre desde el snapshot para el importador
-      // (que resuelve por nombre).
-      const idToName = new Map<string, string>()
-      for (const c of data.clientes) {
-        idToName.set((c as unknown as { id: string }).id, c.nombre)
-      }
-      await importar.mutateAsync({
-        clientes: data.clientes.map((c) => ({
-          nombre: c.nombre,
-          forma_pago: c.forma_pago as never,
-          metodo_cobro_preferido: c.metodo_cobro_preferido as never,
-          notas: c.notas,
-          activo: c.activo,
-        })),
-        movimientos: data.movimientos.map((m) => ({
-          _cliente_nombre: idToName.get(m.cliente_id) ?? '',
-          cliente_id: '',
-          tipo: m.tipo as never,
-          forma_pago_cliente: 'Contado',
-          numero_factura: m.numero_factura,
-          fecha_factura: m.fecha_factura,
-          importe: m.importe,
-          pagado: m.pagado,
-          fecha_cobro: m.fecha_cobro,
-          importe_cobrado: m.importe_cobrado,
-          metodo_cobro: m.metodo_cobro as never,
-          fecha_vencimiento: m.fecha_vencimiento,
-          concepto: m.concepto,
-        })),
+      const r = await restaurar.mutateAsync(data)
+      const desc = [
+        `${r.clientesUpserted} clientes`,
+        `${r.movimientosNuevos} movimientos nuevos`,
+        `${r.movimientosDuplicados} ya existían`,
+        r.movimientosHuerfanos > 0 ? `${r.movimientosHuerfanos} huérfanos` : null,
+      ].filter(Boolean).join(' · ')
+      toast({
+        title: r.errores.length === 0 ? 'Restauración completada' : 'Restaurado con avisos',
+        description: desc,
+        variant: r.errores.length === 0 ? 'success' : 'error',
       })
-      alert('Restauración completada')
     } catch (err) {
       console.error(err)
-      alert(`Error restaurando: ${(err as Error).message}`)
+      toast({
+        title: 'Error restaurando',
+        description: (err as Error).message,
+        variant: 'error',
+      })
     } finally {
       setRestoring(false)
       e.target.value = ''
@@ -212,8 +187,8 @@ export function ExportPanel() {
           </label>
         </div>
         <p className="text-[11px] text-[var(--color-ink-3)]">
-          La restauración usa <code>upsert</code> con clave <em>(cliente, nº factura)</em>: los
-          registros existentes no se duplican.
+          La restauración preserva el <code>id</code> de cada movimiento: re-importar el mismo
+          backup no duplica nada (los ids ya presentes se ignoran).
         </p>
       </CardContent>
     </Card>
