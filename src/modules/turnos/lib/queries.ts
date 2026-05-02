@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
+import { toast } from '@/shared/lib/toast'
 import type { Empleado, ShiftType, Turno } from './types'
 import { isoDate, weekDays } from './week'
 
@@ -73,6 +74,9 @@ export function useSetTurno() {
     },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: turnosKey(vars.weekAnchor) })
+    },
+    onError: (e) => {
+      toast({ title: 'No se pudo guardar el turno', description: e instanceof Error ? e.message : '', variant: 'error' })
     },
   })
 }

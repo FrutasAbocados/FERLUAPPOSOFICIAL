@@ -189,31 +189,15 @@ export function useTopDeudoresCobros(opts: { enabled?: boolean } = {}) {
     queryKey: ['dashboard', 'topDeudores'] as const,
     enabled: opts.enabled ?? true,
     queryFn: async (): Promise<DeudorCobros[]> => {
-      const today = new Date().toISOString().slice(0, 10)
-      const { data, error } = await supabase
-        .from('cobros_movimientos')
-        .select('cliente_id, importe, importe_cobrado, fecha_vencimiento, cobros_clientes!inner(nombre, activo)')
-        .eq('pagado', false)
-        .eq('cobros_clientes.activo', true)
+      const { data, error } = await supabase.rpc('dashboard_top_deudores')
       if (error) throw error
-      // Agregar por cliente
-      const map = new Map<string, DeudorCobros>()
-      for (const row of (data ?? []) as Array<Record<string, unknown>>) {
-        const cliente_id = String(row.cliente_id ?? '')
-        const nombre = (row.cobros_clientes as { nombre?: string })?.nombre ?? '(sin nombre)'
-        const importe = Number(row.importe ?? 0)
-        const cobrado = Number(row.importe_cobrado ?? 0)
-        const pend = importe - cobrado
-        const vencido = (row.fecha_vencimiento && String(row.fecha_vencimiento) < today) ? pend : 0
-        const cur = map.get(cliente_id) ?? { cliente_id, nombre, pendiente: 0, movimientos: 0, vencido: 0 }
-        cur.pendiente += pend
-        cur.movimientos += 1
-        cur.vencido += vencido
-        map.set(cliente_id, cur)
-      }
-      return Array.from(map.values())
-        .filter(d => d.pendiente > 0)
-        .sort((a, b) => b.pendiente - a.pendiente)
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        cliente_id:  String(r.cliente_id ?? ''),
+        nombre:      String(r.nombre ?? '(sin nombre)'),
+        pendiente:   num(r.pendiente),
+        movimientos: num(r.movimientos),
+        vencido:     num(r.vencido),
+      }))
     },
   })
 }
