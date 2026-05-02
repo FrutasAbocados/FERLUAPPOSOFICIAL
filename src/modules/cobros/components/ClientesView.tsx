@@ -3,6 +3,8 @@ import { Search, Trash2 } from 'lucide-react'
 import { Card } from '@/shared/components/ui/card'
 import { Input } from '@/shared/components/ui/input'
 import { Button } from '@/shared/components/ui/button'
+import { toast } from '@/shared/lib/toast'
+import { confirm } from '@/shared/lib/confirm'
 import { useClientesResumen, useDeleteCliente } from '../lib/queries'
 import { eur } from '../lib/utils'
 import { FORMA_PAGO_LABEL } from '../lib/types'
@@ -108,13 +110,19 @@ function ClienteCard({
 }) {
   const del = useDeleteCliente()
 
-  const eliminar = () => {
-    const aviso = cliente.total_pendiente !== 0
-      ? `Este cliente tiene ${eur(cliente.total_pendiente)} pendientes.\n\n¿Eliminar el cliente y TODAS sus facturas/pizarras? Esta acción no se puede deshacer.`
-      : `¿Eliminar el cliente "${cliente.nombre}" y TODAS sus facturas/pizarras? Esta acción no se puede deshacer.`
-    if (!confirm(aviso)) return
+  const eliminar = async () => {
+    const desc = cliente.total_pendiente !== 0
+      ? `Tiene ${eur(cliente.total_pendiente)} pendientes. Se borran TODAS sus facturas y pizarras. No se puede deshacer.`
+      : 'Se borran TODAS sus facturas y pizarras. No se puede deshacer.'
+    const ok = await confirm({
+      title: `¿Eliminar el cliente "${cliente.nombre}"?`,
+      description: desc,
+      confirmLabel: 'Eliminar',
+      variant: 'danger',
+    })
+    if (!ok) return
     del.mutate(cliente.id, {
-      onError: (e) => alert(`Error: ${e instanceof Error ? e.message : 'No se pudo eliminar'}`),
+      onError: (e) => toast({ title: 'No se pudo eliminar', description: e instanceof Error ? e.message : '', variant: 'error' }),
     })
   }
 

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { toast } from '@/shared/lib/toast'
+import { confirm } from '@/shared/lib/confirm'
 import { cn } from '@/shared/lib/utils'
 import {
   REPARTIDOR_COLOR,
@@ -131,8 +132,14 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
     )
   }
 
-  const onEliminar = () => {
-    if (!confirm(`Eliminar el pedido de ${cliente?.nombre ?? 'cliente'}?`)) return
+  const onEliminar = async () => {
+    const ok = await confirm({
+      title: `¿Eliminar el pedido de ${cliente?.nombre ?? 'cliente'}?`,
+      description: 'No se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      variant: 'danger',
+    })
+    if (!ok) return
     eliminar.mutate(
       { id: pedido.id, fecha },
       {

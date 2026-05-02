@@ -5,6 +5,7 @@ import { TrendingDown, X } from 'lucide-react'
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
+import { toast } from '@/shared/lib/toast'
 import type { Period } from '../lib/period'
 import type { ProductoListItem } from '../lib/types'
 import {
@@ -57,12 +58,12 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
     if (!producto.product_id || !Number.isFinite(v) || v < 0) return
     try {
       await setCoste.mutateAsync({ product_id: producto.product_id, coste_eur: v, nota: nota.trim() || null })
-    } catch (e) { alert(`Error: ${e instanceof Error ? e.message : 'No se pudo guardar'}`) }
+    } catch (e) { toast({ title: 'No se pudo guardar', description: e instanceof Error ? e.message : '', variant: 'error' }) }
   }
   const quitarCoste = async () => {
     if (!producto.product_id) return
     try { await delCoste.mutateAsync(producto.product_id) }
-    catch (e) { alert(`Error: ${e instanceof Error ? e.message : 'No se pudo quitar'}`) }
+    catch (e) { toast({ title: 'No se pudo quitar', description: e instanceof Error ? e.message : '', variant: 'error' }) }
   }
 
   const chartData = (compras.data ?? [])

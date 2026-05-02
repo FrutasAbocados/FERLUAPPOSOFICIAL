@@ -6,6 +6,7 @@ import { Plus, Trash2, Wallet } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
+import { toast } from '@/shared/lib/toast'
 
 type Socio = 'Luis' | 'Álvaro'
 const SOCIOS: Socio[] = ['Luis', 'Álvaro']
@@ -90,7 +91,7 @@ export function SueldosPage() {
       await add.mutateAsync({ socio, fecha, importe: v, concepto: concepto.trim() || null })
       setImporte(''); setConcepto('')
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : ''}`)
+      toast({ title: 'No se pudo guardar', description: e instanceof Error ? e.message : '', variant: 'error' })
     }
   }
 

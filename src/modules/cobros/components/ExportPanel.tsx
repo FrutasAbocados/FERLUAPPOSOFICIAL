@@ -4,6 +4,7 @@ import { Download, FileJson, Loader2, Upload } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import { toast } from '@/shared/lib/toast'
+import { confirm } from '@/shared/lib/confirm'
 import { useClientes, useMovimientos, useRestaurarBackup } from '../lib/queries'
 import type { BackupCliente, BackupMovimiento } from '../lib/queries'
 import { FORMA_PAGO_LABEL } from '../lib/types'
@@ -108,11 +109,12 @@ export function ExportPanel() {
   const restoreJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (
-      !confirm(
-        'Restaurar desde JSON añadirá los registros nuevos del archivo. Los movimientos ya presentes (mismo id) se ignoran. ¿Continuar?',
-      )
-    ) {
+    const ok = await confirm({
+      title: '¿Restaurar desde JSON?',
+      description: 'Añade los registros nuevos del archivo. Los movimientos ya presentes (mismo id) se ignoran.',
+      confirmLabel: 'Restaurar',
+    })
+    if (!ok) {
       e.target.value = ''
       return
     }

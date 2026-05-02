@@ -4,6 +4,7 @@ import { Save, UserCog, Users, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
+import { toast } from '@/shared/lib/toast'
 
 interface Trabajador {
   id: string
@@ -164,7 +165,7 @@ function EditorTrabajador({ trabajador, onClose }: { trabajador: Trabajador; onC
       await guardar.mutateAsync(t)
       onClose()
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : 'No se pudo guardar'}`)
+      toast({ title: 'No se pudo guardar', description: e instanceof Error ? e.message : '', variant: 'error' })
     }
   }
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, Search, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
+import { confirm } from '@/shared/lib/confirm'
 import { euros, fmtDate } from '../lib/format'
 import {
   useActualizarJornada,
@@ -168,7 +169,13 @@ function JornadaForm({
 
   const onBorrar = async () => {
     if (!jornada) return
-    if (!confirm('¿Eliminar la jornada del repartidor?')) return
+    const ok = await confirm({
+      title: '¿Eliminar la jornada del repartidor?',
+      description: 'Se borrarán todas las líneas asociadas. No se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      variant: 'danger',
+    })
+    if (!ok) return
     await borrar.mutateAsync(jornada.id)
     onClose()
   }

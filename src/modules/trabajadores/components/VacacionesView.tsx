@@ -6,6 +6,8 @@ import { CalendarOff, Check, Clock, Plus, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
+import { toast } from '@/shared/lib/toast'
+import { confirm } from '@/shared/lib/confirm'
 import { CalendarioVacaciones } from './CalendarioVacaciones'
 
 type Estado = 'pendiente' | 'aprobado' | 'disfrutado'
@@ -230,7 +232,7 @@ function DetalleVacaciones({ empleado, anio, onClose }: { empleado: Resumen; ani
 
   const guardar = async () => {
     if (!inicio || !fin || diasNuevo <= 0) {
-      alert('Selecciona un rango de fechas válido')
+      toast({ title: 'Selecciona un rango de fechas válido', variant: 'error' })
       return
     }
     try {
@@ -242,7 +244,7 @@ function DetalleVacaciones({ empleado, anio, onClose }: { empleado: Resumen; ani
       })
       setNota('')
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : 'No se pudo guardar'}`)
+      toast({ title: 'No se pudo guardar', description: e instanceof Error ? e.message : '', variant: 'error' })
     }
   }
 
@@ -321,11 +323,12 @@ function DetalleVacaciones({ empleado, anio, onClose }: { empleado: Resumen; ani
                   periodo={p}
                   onEstado={(estado) => upd.mutate({ id: p.id, estado })}
                   onDelete={async () => {
-                    if (!confirm('¿Borrar este periodo?')) return
+                    const ok = await confirm({ title: '¿Borrar este periodo?', confirmLabel: 'Borrar', variant: 'danger' })
+                    if (!ok) return
                     try {
                       await del.mutateAsync(p.id)
                     } catch (e) {
-                      alert(`Error: ${e instanceof Error ? e.message : ''}`)
+                      toast({ title: 'No se pudo borrar', description: e instanceof Error ? e.message : '', variant: 'error' })
                     }
                   }}
                 />

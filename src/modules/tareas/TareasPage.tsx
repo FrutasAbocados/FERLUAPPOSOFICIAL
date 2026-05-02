@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Plus, Loader2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
+import { confirm } from '@/shared/lib/confirm'
 import { TareaForm } from './components/TareaForm'
 import { TareasList } from './components/TareasList'
 import type { Empleado } from '@/modules/turnos/lib/types'
@@ -78,8 +79,9 @@ export function TareasPage() {
     update.mutate({ id: t.id, patch: { estado } })
   }
 
-  const onDelete = (t: Tarea) => {
-    if (!confirm(`¿Borrar "${t.titulo}"?`)) return
+  const onDelete = async (t: Tarea) => {
+    const ok = await confirm({ title: `¿Borrar "${t.titulo}"?`, confirmLabel: 'Borrar', variant: 'danger' })
+    if (!ok) return
     del.mutate(t.id)
   }
 

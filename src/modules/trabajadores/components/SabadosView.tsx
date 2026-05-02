@@ -5,6 +5,7 @@ import { es } from 'date-fns/locale'
 import { CalendarDays, Download, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { supabase } from '@/shared/lib/supabase'
+import { toast } from '@/shared/lib/toast'
 
 interface Resumen {
   empleado_id: string
@@ -117,9 +118,12 @@ export function SabadosView() {
   const importarHandler = async () => {
     try {
       const n = await importar.mutateAsync(mesISO)
-      alert(n > 0 ? `Importados ${n} sábado(s) desde Turnos.` : 'No había sábados nuevos para importar.')
+      toast({
+        title: n > 0 ? `Importados ${n} sábado(s) desde Turnos` : 'Sin sábados nuevos para importar',
+        variant: n > 0 ? 'success' : 'default',
+      })
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : ''}`)
+      toast({ title: 'No se pudo importar', description: e instanceof Error ? e.message : '', variant: 'error' })
     }
   }
 

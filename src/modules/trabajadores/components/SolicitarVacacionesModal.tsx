@@ -6,6 +6,8 @@ import { CalendarOff, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
+import { toast } from '@/shared/lib/toast'
+import { confirm } from '@/shared/lib/confirm'
 
 interface Props {
   empleadoId: string
@@ -103,13 +105,13 @@ export function SolicitarVacacionesModal({ empleadoId, empleadoNombre, diasAnual
 
   const guardar = async () => {
     if (dias <= 0) {
-      alert('Selecciona un rango de fechas válido.')
+      toast({ title: 'Selecciona un rango de fechas válido', variant: 'error' })
       return
     }
     try {
       await solicitar.mutateAsync()
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : 'No se pudo crear la solicitud'}`)
+      toast({ title: 'No se pudo crear la solicitud', description: e instanceof Error ? e.message : '', variant: 'error' })
     }
   }
 
@@ -195,8 +197,10 @@ export function SolicitarVacacionesModal({ empleadoId, empleadoNombre, diasAnual
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${TONO[p.estado]}`}>{p.estado}</span>
                   {p.estado === 'pendiente' && (
                     <Button size="sm" variant="ghost" onClick={async () => {
-                      if (!confirm('¿Anular esta solicitud?')) return
-                      try { await borrar.mutateAsync(p.id) } catch (e) { alert(`Error: ${e instanceof Error ? e.message : ''}`) }
+                      const ok = await confirm({ title: '¿Anular esta solicitud?', confirmLabel: 'Anular', variant: 'danger' })
+                      if (!ok) return
+                      try { await borrar.mutateAsync(p.id) }
+                      catch (e) { toast({ title: 'No se pudo anular', description: e instanceof Error ? e.message : '', variant: 'error' }) }
                     }} title="Anular">
                       <Trash2 className="h-3.5 w-3.5 text-red-600" />
                     </Button>

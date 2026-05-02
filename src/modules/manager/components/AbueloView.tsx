@@ -4,6 +4,8 @@ import { es } from 'date-fns/locale'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
+import { toast } from '@/shared/lib/toast'
+import { confirm } from '@/shared/lib/confirm'
 import type { Period } from '../lib/period'
 import {
   useAbueloFacturas, useAbueloLineas,
@@ -65,7 +67,7 @@ export function AbueloView({ period }: Props) {
       }))
       .filter(l => l.nombre && Number.isFinite(l.units) && l.units > 0 && Number.isFinite(l.price) && l.price >= 0)
     if (!fecha || lineasValidas.length === 0) {
-      alert('Añade fecha y al menos una línea válida (producto, ud, precio)')
+      toast({ title: 'Añade fecha y al menos una línea válida (producto, ud, precio)', variant: 'error' })
       return
     }
     try {
@@ -75,9 +77,22 @@ export function AbueloView({ period }: Props) {
       })
       // Reset
       setFecha(today); setNumero(''); setNota(''); setLineas([nuevaLinea()])
+      toast({ title: 'Factura guardada', variant: 'success' })
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : 'No se pudo guardar'}`)
+      toast({ title: 'No se pudo guardar', description: e instanceof Error ? e.message : '', variant: 'error' })
     }
+  }
+
+  const onBorrar = async (id: string) => {
+    const ok = await confirm({
+      title: '¿Borrar esta factura del Abuelo?',
+      description: 'Se eliminan también sus líneas. No se puede deshacer.',
+      confirmLabel: 'Borrar',
+      variant: 'danger',
+    })
+    if (!ok) return
+    try { await del.mutateAsync(id) }
+    catch (e) { toast({ title: 'No se pudo borrar', description: e instanceof Error ? e.message : '', variant: 'error' }) }
   }
 
   return (
@@ -195,7 +210,7 @@ export function AbueloView({ period }: Props) {
                   <Button size="sm" variant="ghost" onClick={() => setExpandedId(expandedId === f.id ? null : f.id)}>
                     {expandedId === f.id ? 'Ocultar' : 'Ver'}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => del.mutate(f.id)} disabled={del.isPending}>
+                  <Button size="sm" variant="ghost" onClick={() => onBorrar(f.id)} disabled={del.isPending}>
                     <Trash2 className="h-4 w-4 text-red-600" />
                   </Button>
                 </div>

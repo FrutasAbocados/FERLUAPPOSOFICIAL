@@ -6,6 +6,8 @@ import { Award, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
+import { toast } from '@/shared/lib/toast'
+import { confirm } from '@/shared/lib/confirm'
 
 interface FilaDia {
   empleado_id: string
@@ -190,10 +192,16 @@ function ModoDia() {
     })
   }
 
-  const eliminar = (fila: FilaDia) => {
-    if (!confirm(`¿Borrar los ${fila.total} puntos de ${fila.nombre} del día ${format(parseISO(fecha), "d MMM yyyy", { locale: es })}?`)) return
+  const eliminar = async (fila: FilaDia) => {
+    const ok = await confirm({
+      title: `¿Borrar los ${fila.total} puntos?`,
+      description: `${fila.nombre} · ${format(parseISO(fecha), "d MMM yyyy", { locale: es })}`,
+      confirmLabel: 'Borrar',
+      variant: 'danger',
+    })
+    if (!ok) return
     del.mutate({ empleado_id: fila.empleado_id, fecha }, {
-      onError: (e) => alert(`Error: ${e instanceof Error ? e.message : 'No se pudo borrar'}`),
+      onError: (e) => toast({ title: 'No se pudo borrar', description: e instanceof Error ? e.message : '', variant: 'error' }),
     })
   }
 

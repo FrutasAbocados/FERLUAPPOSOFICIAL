@@ -4,6 +4,7 @@ import { es } from 'date-fns/locale'
 import { X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
+import { toast } from '@/shared/lib/toast'
 import type { Period } from '../lib/period'
 import type { ClienteListItem } from '../lib/types'
 import {
@@ -50,7 +51,7 @@ export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
       await addAlias.mutateAsync({ alias_from: from, alias_to: cliente.contact_name_canon })
       setNuevoAlias('')
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : 'No se pudo guardar'}`)
+      toast({ title: 'No se pudo guardar', description: e instanceof Error ? e.message : '', variant: 'error' })
     }
   }
 

@@ -4,6 +4,8 @@ import { es } from 'date-fns/locale'
 import { Search, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
+import { toast } from '@/shared/lib/toast'
+import { confirm } from '@/shared/lib/confirm'
 import { useClientes, useMovimientos, useDeleteMovimiento } from '../lib/queries'
 import { eur, estadoMovimiento, importePendiente } from '../lib/utils'
 import type { Estado, Movimiento } from '../lib/types'
@@ -34,12 +36,18 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
   const clientes = useClientes()
   const del = useDeleteMovimiento()
 
-  const eliminar = (m: Movimiento, nombreCliente: string) => {
+  const eliminar = async (m: Movimiento, nombreCliente: string) => {
     const tipo = m.tipo === 'Pizarra' ? 'pizarra' : 'factura'
     const ref = m.numero_factura ? ` Nº ${m.numero_factura}` : ''
-    if (!confirm(`¿Eliminar esta ${tipo}${ref} de ${nombreCliente}? No se puede deshacer.`)) return
+    const ok = await confirm({
+      title: `¿Eliminar ${tipo}${ref}?`,
+      description: `Cliente: ${nombreCliente}. No se puede deshacer.`,
+      confirmLabel: 'Eliminar',
+      variant: 'danger',
+    })
+    if (!ok) return
     del.mutate(m.id, {
-      onError: (e) => alert(`Error: ${e instanceof Error ? e.message : 'No se pudo eliminar'}`),
+      onError: (e) => toast({ title: 'No se pudo eliminar', description: e instanceof Error ? e.message : '', variant: 'error' }),
     })
   }
 

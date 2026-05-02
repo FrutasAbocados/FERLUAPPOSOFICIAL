@@ -6,6 +6,8 @@ import { ChevronDown, ChevronRight, Plus, ShoppingBasket, Trash2, X } from 'luci
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
+import { toast } from '@/shared/lib/toast'
+import { confirm } from '@/shared/lib/confirm'
 import { ProductoAutocomplete } from '@/modules/manager/components/ProductoAutocomplete'
 
 const eur = (n: number | null | undefined) =>
@@ -290,7 +292,7 @@ function DetalleEmpleado({ empleado, onClose }: { empleado: EstadoActual; onClos
       }))
       .filter(l => l.nombre && Number.isFinite(l.units) && l.units > 0 && Number.isFinite(l.price) && l.price >= 0)
     if (!fecha || lineasValidas.length === 0) {
-      alert('Añade fecha y al menos una línea válida')
+      toast({ title: 'Añade fecha y al menos una línea válida', variant: 'error' })
       return
     }
     try {
@@ -303,17 +305,24 @@ function DetalleEmpleado({ empleado, onClose }: { empleado: EstadoActual; onClos
       setFecha(today)
       setNota('')
       setLineas([nuevaLinea()])
+      toast({ title: 'Factura interna guardada', variant: 'success' })
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : 'No se pudo guardar'}`)
+      toast({ title: 'No se pudo guardar', description: e instanceof Error ? e.message : '', variant: 'error' })
     }
   }
 
   const eliminar = async (id: string) => {
-    if (!confirm('¿Borrar esta factura interna?')) return
+    const ok = await confirm({
+      title: '¿Borrar esta factura interna?',
+      description: 'Se eliminan también sus líneas. No se puede deshacer.',
+      confirmLabel: 'Borrar',
+      variant: 'danger',
+    })
+    if (!ok) return
     try {
       await del.mutateAsync(id)
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : 'No se pudo borrar'}`)
+      toast({ title: 'No se pudo borrar', description: e instanceof Error ? e.message : '', variant: 'error' })
     }
   }
 

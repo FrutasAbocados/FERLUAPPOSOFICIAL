@@ -5,6 +5,7 @@ import { ProtectedRoute } from '@/shared/auth/ProtectedRoute'
 import { AppShell } from '@/shared/components/AppShell'
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
 import { Toaster } from '@/shared/components/Toaster'
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { LoginPage } from '@/pages/LoginPage'
 import { HomePage } from '@/pages/HomePage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -73,6 +74,7 @@ export default function App() {
             </Routes>
           </BrowserRouter>
           <Toaster />
+          <ConfirmDialog />
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

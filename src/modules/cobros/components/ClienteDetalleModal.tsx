@@ -4,6 +4,7 @@ import { Loader2, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
+import { confirm } from '@/shared/lib/confirm'
 import { Modal } from './Modal'
 import {
   useClientes,
@@ -233,10 +234,13 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
                       )}
                       {m.tipo === 'Pizarra' && !m.pagado && (
                         <button
-                          onClick={() => {
-                            if (confirm('¿Borrar esta deuda de pizarra?')) {
-                              void del.mutateAsync(m.id)
-                            }
+                          onClick={async () => {
+                            const ok = await confirm({
+                              title: '¿Borrar esta deuda de pizarra?',
+                              confirmLabel: 'Borrar',
+                              variant: 'danger',
+                            })
+                            if (ok) await del.mutateAsync(m.id)
                           }}
                           className="ml-2 text-[var(--color-ink-3)] hover:text-red-600"
                           aria-label="Borrar"
