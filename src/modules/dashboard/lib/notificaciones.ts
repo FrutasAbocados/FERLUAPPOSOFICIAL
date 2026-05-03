@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 
@@ -24,16 +25,32 @@ export interface Notificacion {
 }
 
 export function useNotificaciones() {
-  return useQuery({
+  const qc = useQueryClient()
+  const query = useQuery({
     queryKey: ['notificaciones'],
     queryFn: async (): Promise<Notificacion[]> => {
       const { data, error } = await supabase.rpc('notificaciones_listar')
       if (error) throw error
       return (data ?? []) as Notificacion[]
     },
-    refetchInterval: 30_000,
-    staleTime: 10_000,
+    staleTime: 60_000,
   })
+
+  // Realtime: reemplaza el polling 30s. RLS sigue aplicando sobre el canal —
+  // cada cliente sólo recibe eventos de filas que puede SELECT.
+  useEffect(() => {
+    const channel = supabase
+      .channel('notificaciones-rt')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notificaciones' },
+        () => { qc.invalidateQueries({ queryKey: ['notificaciones'] }) },
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [qc])
+
+  return query
 }
 
 // Descartar = DELETE de la fila. No es "marcar leída" — pierde trazabilidad.
