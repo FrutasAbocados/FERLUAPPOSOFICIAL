@@ -499,7 +499,7 @@ export function useAbueloFacturas(period: Period) {
     queryFn: async (): Promise<AbueloFactura[]> => {
       const { data, error } = await supabase
         .from('manager_abuelo_facturas')
-        .select('id, fecha, numero_factura, nota, total, num_lineas, created_at')
+        .select('id, fecha, numero_factura, nota, subtotal, total, num_lineas, created_at')
         .gte('fecha', period.from).lte('fecha', period.to)
         .order('fecha', { ascending: false })
       if (error) throw error
@@ -516,7 +516,7 @@ export function useAbueloLineas(facturaId: string | null) {
       if (!facturaId) return []
       const { data, error } = await supabase
         .from('manager_lineas_abuelo')
-        .select('id, factura_id, product_id, nombre, units, price, subtotal')
+        .select('id, factura_id, product_id, nombre, units, price, tax_rate, subtotal')
         .eq('factura_id', facturaId)
         .order('created_at', { ascending: true })
       if (error) throw error
@@ -529,7 +529,8 @@ interface AbueloLineaInput {
   product_id?: string | null
   nombre: string
   units: number
-  price: number
+  price: number   // SIN IVA
+  tax_rate: number  // 4 / 10 / 21
 }
 
 export function useAddAbueloFactura() {
@@ -550,6 +551,7 @@ export function useAddAbueloFactura() {
           nombre:     l.nombre,
           units:      l.units,
           price:      l.price,
+          tax_rate:   l.tax_rate,
         })),
       })
       if (error) throw error

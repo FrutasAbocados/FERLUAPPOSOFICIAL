@@ -247,10 +247,13 @@ export interface AbueloFactura {
   fecha: string
   numero_factura: string | null
   nota: string | null
-  total: number
+  subtotal: number  // sin IVA
+  total: number     // con IVA (subtotal + suma(IVA por línea))
   num_lineas: number
   created_at: string
 }
+
+export type IvaRate = 4 | 10 | 21
 
 export interface AbueloLinea {
   id: string
@@ -258,8 +261,9 @@ export interface AbueloLinea {
   product_id: string | null
   nombre: string
   units: number
-  price: number
-  subtotal: number
+  price: number     // SIN IVA
+  tax_rate: number  // 4 / 10 / 21
+  subtotal: number  // units * price (sin IVA)
 }
 
 export interface CatalogoProducto {
@@ -267,4 +271,5 @@ export interface CatalogoProducto {
   nombre: string
   ultimo_precio: number | null
   veces_vendido: number
+  tax_rate_ultimo: number | null  // último IVA visto en manager_lineas para el producto
 }
