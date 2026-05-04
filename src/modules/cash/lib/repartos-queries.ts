@@ -174,6 +174,49 @@ export function useBorrarJornada() {
   })
 }
 
+// ── Estadísticas Caja (RPC cash_stats_semanas) ──────────────────────────
+export type StatsSemana = {
+  semana_inicio: string  // 'YYYY-MM-DD' (lunes ISO)
+  empleado_id: string
+  empleado_nombre: string
+  horas: number
+  total: number
+  efectivo: number
+  tarjeta: number
+  jornadas: number
+}
+
+export function useCashStatsSemanas(from: string, to: string) {
+  return useQuery({
+    queryKey: ['repartos', 'stats-semanas', from, to] as const,
+    enabled: !!from && !!to,
+    queryFn: async (): Promise<StatsSemana[]> => {
+      const { data, error } = await supabase.rpc('cash_stats_semanas', {
+        p_from: from,
+        p_to: to,
+      })
+      if (error) throw error
+      type Raw = Omit<StatsSemana, 'horas' | 'total' | 'efectivo' | 'tarjeta' | 'jornadas'> & {
+        horas: number | string
+        total: number | string
+        efectivo: number | string
+        tarjeta: number | string
+        jornadas: number | string
+      }
+      return (data ?? []).map((r: Raw) => ({
+        semana_inicio: r.semana_inicio,
+        empleado_id: r.empleado_id,
+        empleado_nombre: r.empleado_nombre,
+        horas: Number(r.horas),
+        total: Number(r.total),
+        efectivo: Number(r.efectivo),
+        tarjeta: Number(r.tarjeta),
+        jornadas: Number(r.jornadas),
+      }))
+    },
+  })
+}
+
 // ── Reemplazar todas las líneas de una jornada (delete + insert) ────────
 export function useGuardarLineas() {
   const qc = useQueryClient()

@@ -7,6 +7,7 @@ import { MonthHeader } from './components/MonthHeader'
 import { KpiBar } from './components/KpiBar'
 import { CierreForm } from './components/CierreForm'
 import { CierreDiaPage } from './components/CierreDiaPage'
+import { EstadisticasView } from './components/EstadisticasView'
 import {
   shiftMonth,
   useCierresMes,
@@ -19,7 +20,7 @@ const eur = (n: number) =>
 
 const DOW_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
-type View = 'calendario' | 'cierre-dia'
+type View = 'calendario' | 'cierre-dia' | 'estadisticas'
 
 export function CashPage() {
   const { profile } = useAuth()
@@ -54,10 +55,16 @@ export function CashPage() {
             Cierre día
           </TabButton>
         )}
+        {puedeCierreDia && (
+          <TabButton active={view === 'estadisticas'} onClick={() => setView('estadisticas')}>
+            Estadísticas
+          </TabButton>
+        )}
       </div>
 
       {view === 'calendario' && <CalendarioView isAdminFull={isAdminFull} />}
       {view === 'cierre-dia' && puedeCierreDia && <CierreDiaPage />}
+      {view === 'estadisticas' && puedeCierreDia && <EstadisticasView />}
     </div>
   )
 }
