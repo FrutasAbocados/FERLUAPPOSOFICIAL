@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Award, BarChart3, BookCheck, CalendarClock, CalendarDays, CalendarOff, Construction, ShoppingBasket } from 'lucide-react'
+import { Award, BarChart3, BookCheck, CalendarClock, CalendarDays, CalendarOff, Clock4, Construction, ShoppingBasket } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { useAuth } from '@/shared/auth/useAuth'
 import { TareasPage } from '@/modules/tareas/TareasPage'
@@ -10,8 +10,9 @@ import { VacacionesView } from './components/VacacionesView'
 import { SabadosView } from './components/SabadosView'
 import { PuntosView } from './components/PuntosView'
 import { DashboardView } from './components/DashboardView'
+import { HorasExtrasView } from './components/HorasExtrasView'
 
-type Tab = 'dashboard' | 'tareas' | 'puntos' | 'vacaciones' | 'sabados' | 'credito' | 'turnos' | 'productividad'
+type Tab = 'dashboard' | 'tareas' | 'puntos' | 'vacaciones' | 'sabados' | 'credito' | 'horas_extras' | 'turnos' | 'productividad'
 
 const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'dashboard',     l: 'Dashboard',       Icon: BarChart3 },
@@ -20,11 +21,12 @@ const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'vacaciones',    l: 'Vacaciones',      Icon: CalendarOff },
   { k: 'sabados',       l: 'Sábados',         Icon: CalendarDays },
   { k: 'credito',       l: 'Crédito frutas',  Icon: ShoppingBasket },
+  { k: 'horas_extras',  l: 'Horas extras',    Icon: Clock4 },
   { k: 'turnos',        l: 'Turnos',          Icon: CalendarClock },
   { k: 'productividad', l: 'Plus productividad', Icon: Construction },
 ]
 
-const TABS_EMPLEADO: Tab[] = ['dashboard', 'tareas', 'puntos', 'vacaciones', 'sabados', 'turnos']
+const TABS_EMPLEADO: Tab[] = ['dashboard', 'tareas', 'puntos', 'vacaciones', 'sabados', 'horas_extras', 'turnos']
 
 const isTab = (v: string | null | undefined): v is Tab =>
   !!v && TABS.some(t => t.k === v)
@@ -65,6 +67,7 @@ export function TrabajadoresOpPage() {
       {tab === 'vacaciones' && <VacacionesView />}
       {tab === 'sabados' && <SabadosView />}
       {tab === 'credito' && <CreditoView />}
+      {tab === 'horas_extras' && <HorasExtrasView />}
       {tab === 'turnos' && <TurnosPage />}
       {tab === 'productividad' && <Placeholder titulo="Plus productividad" descripcion="Cálculo de plus por productividad según métricas." comingSoon />}
     </div>
