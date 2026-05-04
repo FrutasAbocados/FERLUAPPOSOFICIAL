@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Save, UserCog, Users, X } from 'lucide-react'
+import { FileText, Save, UserCog, Users, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
@@ -37,6 +37,67 @@ function useTrabajadores() {
         .order('nombre')
       if (error) throw error
       return (data ?? []) as Trabajador[]
+    },
+  })
+}
+
+interface Condiciones {
+  empleado_id: string
+  jornada_horas_semana: number | null
+  jornada_dias_semana: number | null
+  horario_entrada: string | null
+  horario_salida: string | null
+  dias_descanso: string | null
+  contrato_tipo: 'indefinido' | 'temporal' | 'practicas' | 'autonomo' | 'otro' | null
+  fecha_inicio_contrato: string | null
+  fecha_fin_contrato: string | null
+  vacaciones_dias_anuales: number | null
+  texto_libre: string | null
+}
+
+const CONDICIONES_VACIAS = (empleadoId: string): Condiciones => ({
+  empleado_id: empleadoId,
+  jornada_horas_semana: null,
+  jornada_dias_semana: null,
+  horario_entrada: null,
+  horario_salida: null,
+  dias_descanso: null,
+  contrato_tipo: null,
+  fecha_inicio_contrato: null,
+  fecha_fin_contrato: null,
+  vacaciones_dias_anuales: null,
+  texto_libre: null,
+})
+
+function useCondiciones(empleadoId: string | null) {
+  return useQuery({
+    queryKey: ['trab-condiciones', empleadoId] as const,
+    enabled: !!empleadoId,
+    queryFn: async (): Promise<Condiciones | null> => {
+      if (!empleadoId) return null
+      const { data, error } = await supabase
+        .from('trabajadores_condiciones')
+        .select('empleado_id, jornada_horas_semana, jornada_dias_semana, horario_entrada, horario_salida, dias_descanso, contrato_tipo, fecha_inicio_contrato, fecha_fin_contrato, vacaciones_dias_anuales, texto_libre')
+        .eq('empleado_id', empleadoId)
+        .maybeSingle()
+      if (error) throw error
+      return (data as Condiciones | null) ?? null
+    },
+  })
+}
+
+function useGuardarCondiciones() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (c: Condiciones) => {
+      const { data: u } = await supabase.auth.getUser()
+      const { error } = await supabase
+        .from('trabajadores_condiciones')
+        .upsert({ ...c, updated_by: u.user?.id ?? null }, { onConflict: 'empleado_id' })
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['trab-condiciones', vars.empleado_id] })
     },
   })
 }
@@ -303,6 +364,8 @@ function EditorTrabajador({ trabajador, onClose }: { trabajador: Trabajador; onC
             />
           </Field>
 
+          <CondicionesSection empleadoId={t.id} />
+
           <div className="flex justify-end gap-2 border-t border-[var(--color-border)] pt-3">
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
             <Button onClick={submit} disabled={guardar.isPending}>
@@ -311,6 +374,110 @@ function EditorTrabajador({ trabajador, onClose }: { trabajador: Trabajador; onC
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function CondicionesSection({ empleadoId }: { empleadoId: string }) {
+  const { data, isLoading } = useCondiciones(empleadoId)
+  const guardar = useGuardarCondiciones()
+  const [c, setC] = useState<Condiciones>(CONDICIONES_VACIAS(empleadoId))
+  const [dirty, setDirty] = useState(false)
+
+  useEffect(() => {
+    if (data) { setC(data); setDirty(false) }
+    else if (!isLoading) { setC(CONDICIONES_VACIAS(empleadoId)); setDirty(false) }
+  }, [data, isLoading, empleadoId])
+
+  const set = <K extends keyof Condiciones>(k: K, v: Condiciones[K]) => {
+    setC(prev => ({ ...prev, [k]: v }))
+    setDirty(true)
+  }
+  const setNum = (k: keyof Condiciones, v: string) =>
+    set(k, (v === '' ? null : Number(v.replace(',', '.'))) as Condiciones[typeof k])
+
+  const submit = async () => {
+    try {
+      await guardar.mutateAsync(c)
+      setDirty(false)
+      toast({ title: 'Condiciones guardadas', variant: 'success' })
+    } catch (e) {
+      toast({ title: 'No se pudo guardar', description: e instanceof Error ? e.message : '', variant: 'error' })
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-[var(--color-border)] p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <FileText className="h-4 w-4 text-[var(--color-primary-2)]" />
+        <h3 className="text-sm font-semibold text-[var(--color-ink)]">Condiciones / Contrato</h3>
+        {dirty && <span className="ml-auto text-[10px] uppercase tracking-wider text-amber-700">sin guardar</span>}
+      </div>
+
+      {isLoading ? (
+        <p className="text-xs text-[var(--color-ink-3)]">Cargando…</p>
+      ) : (
+        <>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Field label="Tipo de contrato">
+              <select
+                value={c.contrato_tipo ?? ''}
+                onChange={(e) => set('contrato_tipo', (e.target.value || null) as Condiciones['contrato_tipo'])}
+                className="h-9 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-sm"
+              >
+                <option value="">—</option>
+                <option value="indefinido">Indefinido</option>
+                <option value="temporal">Temporal</option>
+                <option value="practicas">Prácticas</option>
+                <option value="autonomo">Autónomo</option>
+                <option value="otro">Otro</option>
+              </select>
+            </Field>
+            <Field label="Vacaciones (días/año)">
+              <Input type="number" step="1" value={c.vacaciones_dias_anuales ?? ''}
+                onChange={(e) => setNum('vacaciones_dias_anuales', e.target.value)}
+                className="h-9 tabular-nums text-right" placeholder={`Default pack: ${'-'}`} />
+            </Field>
+            <Field label="Inicio contrato">
+              <Input type="date" value={c.fecha_inicio_contrato ?? ''} onChange={(e) => set('fecha_inicio_contrato', e.target.value || null)} className="h-9" />
+            </Field>
+            <Field label="Fin contrato">
+              <Input type="date" value={c.fecha_fin_contrato ?? ''} onChange={(e) => set('fecha_fin_contrato', e.target.value || null)} className="h-9" />
+            </Field>
+            <Field label="Jornada (h/sem)">
+              <Input type="number" step="1" value={c.jornada_horas_semana ?? ''} onChange={(e) => setNum('jornada_horas_semana', e.target.value)} className="h-9 tabular-nums text-right" placeholder="40" />
+            </Field>
+            <Field label="Días/sem trabajados">
+              <Input type="number" step="1" min={1} max={7} value={c.jornada_dias_semana ?? ''} onChange={(e) => setNum('jornada_dias_semana', e.target.value)} className="h-9 tabular-nums text-right" placeholder="6" />
+            </Field>
+            <Field label="Horario entrada">
+              <Input type="time" value={c.horario_entrada ?? ''} onChange={(e) => set('horario_entrada', e.target.value || null)} className="h-9" />
+            </Field>
+            <Field label="Horario salida">
+              <Input type="time" value={c.horario_salida ?? ''} onChange={(e) => set('horario_salida', e.target.value || null)} className="h-9" />
+            </Field>
+            <Field label="Días de descanso" full>
+              <Input value={c.dias_descanso ?? ''} onChange={(e) => set('dias_descanso', e.target.value || null)} className="h-9" placeholder="Ej: domingo · lunes y domingo" />
+            </Field>
+          </div>
+
+          <Field label="Cláusulas / observaciones (texto libre)">
+            <textarea
+              value={c.texto_libre ?? ''}
+              onChange={(e) => set('texto_libre', e.target.value || null)}
+              className="min-h-[100px] w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-sm focus:border-[var(--color-primary)] focus:outline-none"
+              placeholder="Acuerdos económicos pactados, condiciones especiales, etc."
+            />
+          </Field>
+
+          <div className="mt-3 flex justify-end">
+            <Button size="sm" variant="primary" onClick={submit} disabled={guardar.isPending || !dirty}>
+              <Save className="mr-1 h-3.5 w-3.5" />
+              {guardar.isPending ? 'Guardando…' : 'Guardar condiciones'}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
