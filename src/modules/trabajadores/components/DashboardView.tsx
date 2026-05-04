@@ -7,6 +7,7 @@ import { Button } from '@/shared/components/ui/button'
 import { supabase } from '@/shared/lib/supabase'
 import { useAuth } from '@/shared/auth/useAuth'
 import { SolicitarVacacionesModal } from './SolicitarVacacionesModal'
+import { ColaboradoresView } from './ColaboradoresView'
 
 interface Empleado {
   id: string
@@ -189,7 +190,11 @@ export function DashboardView() {
         </section>
       )}
 
-      {/* Cards resumen por empleado */}
+      {/* Colaboradores 5% — sustituye las tarjetas para admin */}
+      {isAdmin && <ColaboradoresView />}
+
+      {/* Cards resumen por empleado — solo para empleado (su tarjeta personal) */}
+      {!isAdmin && (
       <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {visibles.map(e => {
           const pts = ptsByEmp.get(e.id)
@@ -270,8 +275,9 @@ export function DashboardView() {
           )
         })}
       </ul>
+      )}
 
-      {visibles.length === 0 && (
+      {!isAdmin && visibles.length === 0 && (
         <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-sm text-[var(--color-ink-3)]">
           {isAdmin ? 'No hay trabajadores activos.' : 'Tu cuenta no está vinculada a un trabajador. Avisa a Luis o Álvaro.'}
         </p>
