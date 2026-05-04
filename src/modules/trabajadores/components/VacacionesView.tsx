@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { CalendarOff, Check, Clock, Plus, Trash2, X } from 'lucide-react'
+import { CalendarOff, CalendarX, Check, ChevronDown, ChevronRight, Clock, Plus, Trash2, X } from 'lucide-react'
+import { useAuth } from '@/shared/auth/useAuth'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
@@ -17,10 +18,24 @@ interface Resumen {
   nombre: string
   pack: 1 | 2
   dias_anuales: number
+  festivos_no_trabajados: number
+  dias_descontados_festivos: number
+  dias_anuales_efectivos: number
   disfrutados: number
   aprobados: number
   pendientes: number
   restantes: number
+}
+
+interface FestivoFila {
+  fecha: string
+  nombre: string
+  ambito: 'nacional' | 'andalucia' | 'malaga'
+  empleado_id: string
+  empleado_nombre: string
+  trabajado: boolean | null
+  notas: string | null
+  marca_id: string | null
 }
 
 interface Periodo {
@@ -45,6 +60,9 @@ function useResumen(anio: number) {
       return (data ?? []).map((r: Resumen) => ({
         ...r,
         dias_anuales: Number(r.dias_anuales),
+        festivos_no_trabajados: Number(r.festivos_no_trabajados ?? 0),
+        dias_descontados_festivos: Number(r.dias_descontados_festivos ?? 0),
+        dias_anuales_efectivos: Number(r.dias_anuales_efectivos ?? r.dias_anuales),
         disfrutados: Number(r.disfrutados),
         aprobados: Number(r.aprobados),
         pendientes: Number(r.pendientes),
@@ -123,10 +141,61 @@ function useDeletePeriodo() {
   })
 }
 
+function useFestivosLista(anio: number) {
+  return useQuery({
+    queryKey: ['festivos-lista', anio] as const,
+    queryFn: async (): Promise<FestivoFila[]> => {
+      const { data, error } = await supabase.rpc('trabajadores_festivos_lista_anio', { p_anio: anio })
+      if (error) throw error
+      return (data ?? []) as FestivoFila[]
+    },
+  })
+}
+
+function useUpsertFestivoMarca() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { empleado_id: string; fecha: string; trabajado: boolean }) => {
+      const { data: u } = await supabase.auth.getUser()
+      const { error } = await supabase
+        .from('trabajadores_festivos_marcados')
+        .upsert(
+          {
+            empleado_id: input.empleado_id,
+            fecha: input.fecha,
+            trabajado: input.trabajado,
+            marcado_por: u.user?.id ?? null,
+          },
+          { onConflict: 'empleado_id,fecha' },
+        )
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['festivos-lista'] })
+      qc.invalidateQueries({ queryKey: ['vacaciones-resumen'] })
+    },
+  })
+}
+
+function useBorrarFestivoMarca() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('trabajadores_festivos_marcados').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['festivos-lista'] })
+      qc.invalidateQueries({ queryKey: ['vacaciones-resumen'] })
+    },
+  })
+}
+
 export function VacacionesView() {
   const [anio, setAnio] = useState(new Date().getFullYear())
   const { data, isLoading } = useResumen(anio)
   const [selected, setSelected] = useState<Resumen | null>(null)
+  const [festivosOpen, setFestivosOpen] = useState(false)
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
@@ -135,7 +204,7 @@ export function VacacionesView() {
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Trabajadores</p>
           <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">Vacaciones</h1>
           <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
-            Pack 1 = 60 días · Pack 2 = 48 días · Año natural · Estados: pendiente → aprobado → disfrutado.
+            Pack 1 = 60 días · Pack 2 = 48 días · Año natural · Festivo NO trabajado = −2 días automático.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -144,6 +213,20 @@ export function VacacionesView() {
           <Button size="sm" variant="outline" onClick={() => setAnio(a => a + 1)}>+</Button>
         </div>
       </header>
+
+      <div className="mb-4">
+        <button
+          onClick={() => setFestivosOpen(o => !o)}
+          className="flex w-full items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-semibold text-[var(--color-ink)] transition hover:border-[var(--color-primary)]"
+        >
+          <span className="flex items-center gap-2">
+            <CalendarX className="h-4 w-4 text-amber-600" />
+            Calendario de festivos {anio}
+          </span>
+          {festivosOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </button>
+        {festivosOpen && <FestivosCalendario anio={anio} />}
+      </div>
 
       {isLoading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
       {data?.length === 0 && (
@@ -154,7 +237,7 @@ export function VacacionesView() {
 
       <ul className="space-y-3">
         {data?.map(t => {
-          const total = t.dias_anuales
+          const total = t.dias_anuales_efectivos
           const disf = Math.min(t.disfrutados, total)
           const apr = Math.min(t.aprobados, Math.max(0, total - disf))
           const pend = Math.min(t.pendientes, Math.max(0, total - disf - apr))
@@ -187,13 +270,19 @@ export function VacacionesView() {
                     <span><span className="inline-block h-2 w-2 rounded-full bg-emerald-500 align-middle" /> {t.disfrutados} disfr.</span>
                     <span><span className="inline-block h-2 w-2 rounded-full bg-blue-400 align-middle" /> {t.aprobados} aprob.</span>
                     <span><span className="inline-block h-2 w-2 rounded-full bg-amber-300 align-middle" /> {t.pendientes} pend.</span>
+                    {t.festivos_no_trabajados > 0 && (
+                      <span className="text-red-600">−{t.dias_descontados_festivos} festivos ({t.festivos_no_trabajados})</span>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
                   <div className={`font-display text-2xl font-bold tabular-nums ${t.restantes < 0 ? 'text-red-600' : 'text-[var(--color-ink)]'}`}>
                     {t.restantes}
                   </div>
-                  <div className="text-xs text-[var(--color-ink-3)]">de {total}</div>
+                  <div className="text-xs text-[var(--color-ink-3)]">
+                    de {total}
+                    {t.dias_descontados_festivos > 0 && <span className="text-[10px]"> ({t.dias_anuales}−{t.dias_descontados_festivos})</span>}
+                  </div>
                 </div>
               </button>
             </li>
@@ -337,6 +426,94 @@ function DetalleVacaciones({ empleado, anio, onClose }: { empleado: Resumen; ani
           </section>
         </div>
       </div>
+    </div>
+  )
+}
+
+function FestivosCalendario({ anio }: { anio: number }) {
+  const { profile } = useAuth()
+  const isAdmin = profile?.role === 'admin_full' || profile?.role === 'admin_op'
+  const { data, isLoading } = useFestivosLista(anio)
+  const upsert = useUpsertFestivoMarca()
+  const borrar = useBorrarFestivoMarca()
+
+  // Agrupar por fecha
+  const porFecha = useMemo(() => {
+    const m = new Map<string, { fecha: string; nombre: string; ambito: string; filas: FestivoFila[] }>()
+    for (const r of data ?? []) {
+      const ent = m.get(r.fecha) ?? { fecha: r.fecha, nombre: r.nombre, ambito: r.ambito, filas: [] }
+      ent.filas.push(r)
+      m.set(r.fecha, ent)
+    }
+    return Array.from(m.values()).sort((a, b) => a.fecha.localeCompare(b.fecha))
+  }, [data])
+
+  if (isLoading) return <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Cargando…</p>
+  if (porFecha.length === 0) {
+    return <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Sin festivos definidos para {anio}.</p>
+  }
+
+  const cycle = (fila: FestivoFila) => {
+    if (!isAdmin) return
+    if (fila.trabajado === null) {
+      // sin marcar → trabajado
+      upsert.mutate({ empleado_id: fila.empleado_id, fecha: fila.fecha, trabajado: true })
+    } else if (fila.trabajado === true) {
+      // trabajado → no trabajado
+      upsert.mutate({ empleado_id: fila.empleado_id, fecha: fila.fecha, trabajado: false })
+    } else if (fila.marca_id) {
+      // no trabajado → sin marcar (borrar marca)
+      borrar.mutate(fila.marca_id)
+    }
+  }
+
+  const ambitoLabel = (a: string) =>
+    a === 'nacional' ? 'Nacional' : a === 'andalucia' ? 'Andalucía' : 'Málaga'
+
+  return (
+    <div className="mt-2 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="border-b border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2 text-[11px] text-[var(--color-ink-3)]">
+        Click en cada celda cicla: sin marcar · trabajado · no trabajado (−2 días).
+      </div>
+      <ul className="divide-y divide-[var(--color-border)]">
+        {porFecha.map((f) => (
+          <li key={f.fecha} className="px-4 py-3">
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+              <div>
+                <span className="font-display text-sm font-bold capitalize text-[var(--color-ink)]">
+                  {format(parseISO(f.fecha), "EEE d 'de' LLLL", { locale: es })}
+                </span>
+                <span className="ml-2 text-xs text-[var(--color-ink-3)]">{f.nombre}</span>
+              </div>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                f.ambito === 'nacional' ? 'bg-blue-100 text-blue-800' :
+                f.ambito === 'andalucia' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+              }`}>{ambitoLabel(f.ambito)}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1 md:grid-cols-3 lg:grid-cols-4">
+              {f.filas.map((fila) => (
+                <button
+                  key={fila.empleado_id}
+                  onClick={() => cycle(fila)}
+                  disabled={!isAdmin || upsert.isPending || borrar.isPending}
+                  className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs transition ${
+                    fila.trabajado === true
+                      ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                      : fila.trabajado === false
+                        ? 'border-red-300 bg-red-50 text-red-900'
+                        : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-ink-3)]'
+                  } ${isAdmin ? 'hover:border-[var(--color-primary)]' : 'cursor-default'}`}
+                >
+                  <span className="truncate font-medium">{fila.empleado_nombre}</span>
+                  <span className="shrink-0 font-bold">
+                    {fila.trabajado === true ? '✓ Trab.' : fila.trabajado === false ? '✗ −2d' : '·'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
