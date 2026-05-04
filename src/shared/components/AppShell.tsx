@@ -4,7 +4,6 @@ import {
   BarChart3,
   Banknote,
   Bot,
-  CalendarDays,
   CheckSquare,
   ChevronRight,
   HandCoins,
@@ -37,10 +36,9 @@ const MODULES: ModuleNav[] = [
   { key: 'sueldos', label: 'Sueldos', to: '/sueldos', icon: Wallet },
 ]
 
-// Sub-grupo "Equipo" — agrupa los 3 módulos relacionados con personal
+// Sub-grupo "Equipo" — agrupa los módulos relacionados con personal
 const EQUIPO: ModuleNav[] = [
   { key: 'trabajadores', label: 'Trabajadores', to: '/trabajadores', icon: CheckSquare },
-  { key: 'turnos', label: 'Turnos', to: '/turnos', icon: CalendarDays },
   { key: 'bbdd_trabajadores', label: 'BBDD trabajadores', to: '/bbdd-trabajadores', icon: Users },
 ]
 

@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react'
-import { Award, BarChart3, BookCheck, CalendarDays, CalendarOff, Construction, ShoppingBasket } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Award, BarChart3, BookCheck, CalendarClock, CalendarDays, CalendarOff, Construction, ShoppingBasket } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { useAuth } from '@/shared/auth/useAuth'
 import { TareasPage } from '@/modules/tareas/TareasPage'
+import { TurnosPage } from '@/modules/turnos/TurnosPage'
 import { CreditoView } from './components/CreditoView'
 import { VacacionesView } from './components/VacacionesView'
 import { SabadosView } from './components/SabadosView'
 import { PuntosView } from './components/PuntosView'
 import { DashboardView } from './components/DashboardView'
 
-type Tab = 'dashboard' | 'tareas' | 'puntos' | 'vacaciones' | 'sabados' | 'credito' | 'productividad'
+type Tab = 'dashboard' | 'tareas' | 'puntos' | 'vacaciones' | 'sabados' | 'credito' | 'turnos' | 'productividad'
 
 const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'dashboard',     l: 'Dashboard',       Icon: BarChart3 },
@@ -18,10 +20,14 @@ const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'vacaciones',    l: 'Vacaciones',      Icon: CalendarOff },
   { k: 'sabados',       l: 'Sábados',         Icon: CalendarDays },
   { k: 'credito',       l: 'Crédito frutas',  Icon: ShoppingBasket },
+  { k: 'turnos',        l: 'Turnos',          Icon: CalendarClock },
   { k: 'productividad', l: 'Plus productividad', Icon: Construction },
 ]
 
-const TABS_EMPLEADO: Tab[] = ['dashboard', 'tareas', 'puntos', 'vacaciones', 'sabados']
+const TABS_EMPLEADO: Tab[] = ['dashboard', 'tareas', 'puntos', 'vacaciones', 'sabados', 'turnos']
+
+const isTab = (v: string | null | undefined): v is Tab =>
+  !!v && TABS.some(t => t.k === v)
 
 export function TrabajadoresOpPage() {
   const { profile } = useAuth()
@@ -30,7 +36,9 @@ export function TrabajadoresOpPage() {
     () => role === 'empleado' ? TABS.filter(t => TABS_EMPLEADO.includes(t.k)) : TABS,
     [role],
   )
-  const [tab, setTab] = useState<Tab>('dashboard')
+  const [searchParams] = useSearchParams()
+  const initialTab: Tab = isTab(searchParams.get('tab')) ? (searchParams.get('tab') as Tab) : 'dashboard'
+  const [tab, setTab] = useState<Tab>(initialTab)
 
   return (
     <div>
@@ -57,6 +65,7 @@ export function TrabajadoresOpPage() {
       {tab === 'vacaciones' && <VacacionesView />}
       {tab === 'sabados' && <SabadosView />}
       {tab === 'credito' && <CreditoView />}
+      {tab === 'turnos' && <TurnosPage />}
       {tab === 'productividad' && <Placeholder titulo="Plus productividad" descripcion="Cálculo de plus por productividad según métricas." comingSoon />}
     </div>
   )

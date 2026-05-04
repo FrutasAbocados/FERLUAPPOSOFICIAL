@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '@/shared/auth/AuthContext'
 import { ProtectedRoute } from '@/shared/auth/ProtectedRoute'
@@ -13,7 +13,6 @@ import { ManagerPage } from '@/modules/manager/ManagerPage'
 import { CashPage } from '@/modules/cash/CashPage'
 import { TareasPage } from '@/modules/tareas/TareasPage'
 import { TrabajadoresOpPage } from '@/modules/trabajadores/TrabajadoresOpPage'
-import { TurnosPage } from '@/modules/turnos/TurnosPage'
 import { CobrosPage } from '@/modules/cobros/CobrosPage'
 import { AgentePage } from '@/modules/agente/AgentePage'
 import { TrabajadoresPage } from '@/modules/trabajadores/TrabajadoresPage'
@@ -49,9 +48,7 @@ export default function App() {
                   <Route element={<ProtectedRoute module="trabajadores" />}>
                     <Route path="trabajadores" element={<TrabajadoresOpPage />} />
                     <Route path="tareas" element={<TareasPage />} />
-                  </Route>
-                  <Route element={<ProtectedRoute module="turnos" />}>
-                    <Route path="turnos" element={<TurnosPage />} />
+                    <Route path="turnos" element={<Navigate to="/trabajadores?tab=turnos" replace />} />
                   </Route>
                   <Route element={<ProtectedRoute module="cobros" />}>
                     <Route path="cobros" element={<CobrosPage />} />
