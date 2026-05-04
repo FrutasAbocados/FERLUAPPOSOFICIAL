@@ -9,7 +9,8 @@
 --    en src/, 0 referencias internas en otras RPCs/triggers.
 drop function if exists public.manager_pendiente_acumulado(int);
 
-
--- 2) Tabla manager_costes_manuales: 0 filas, 0 referencias en src/.
---    Tenía RLS policy en 20260429150000 pero nunca se llegó a usar.
-drop table if exists public.manager_costes_manuales cascade;
+-- NOTA: La tabla `manager_costes_manuales` ESTUVO marcada como zombi pero
+-- en realidad la usa el módulo Manager (queries.ts:394 useCosteManual).
+-- El drop se revirtió en `20260505050000_restore_manager_costes_manuales.sql`.
+-- Lección para el auditor: comprobar SIEMPRE con `grep -rn nombre src/`
+-- aunque herramientas previas hayan dicho que está sin uso.
