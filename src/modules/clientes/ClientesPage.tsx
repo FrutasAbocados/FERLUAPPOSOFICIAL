@@ -1,8 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Activity, Contact, Database } from 'lucide-react'
+import { endOfMonth, format, startOfMonth, subMonths } from 'date-fns'
 import { cn } from '@/shared/lib/utils'
 import { BBDDView } from './components/BBDDView'
 import { SeguimientoView } from './components/SeguimientoView'
+import {
+  clientesBBDDQueryKey,
+  clientesSeguimientoQueryKey,
+  fetchClientesBBDD,
+  fetchClientesSeguimiento,
+} from './lib/hooks'
 
 type SubTab = 'bbdd' | 'seguimiento'
 
@@ -14,6 +22,24 @@ const TABS: { key: SubTab; label: string; icon: React.ComponentType<{ className?
 export function ClientesPage() {
   const [tab, setTab] = useState<SubTab>('seguimiento')
   const [selected, setSelected] = useState<string | null>(null)
+  const qc = useQueryClient()
+
+  // Prefetch ambos tabs al montar — así el otro tab abre instantáneo.
+  useEffect(() => {
+    const today = new Date()
+    const from = format(startOfMonth(subMonths(today, 2)), 'yyyy-MM-dd')
+    const to   = format(endOfMonth(today), 'yyyy-MM-dd')
+    qc.prefetchQuery({
+      queryKey: clientesBBDDQueryKey(from, to),
+      queryFn: () => fetchClientesBBDD(from, to),
+      staleTime: 5 * 60_000,
+    })
+    qc.prefetchQuery({
+      queryKey: clientesSeguimientoQueryKey(7, 90),
+      queryFn: () => fetchClientesSeguimiento(7, 90),
+      staleTime: 5 * 60_000,
+    })
+  }, [qc])
 
   const goToBBDD = (name: string) => {
     setSelected(name)

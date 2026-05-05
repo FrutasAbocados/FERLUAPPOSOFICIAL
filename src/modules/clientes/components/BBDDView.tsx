@@ -41,7 +41,7 @@ function rangoFor(p: Periodo): { from: string; to: string } {
 const eur = eurosShort
 
 export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
-  const [periodo, setPeriodo] = useState<Periodo>('6m')
+  const [periodo, setPeriodo] = useState<Periodo>('3m')
   const [q, setQ] = useState('')
   const [filtroABC, setFiltroABC] = useState<'A' | 'B' | 'C' | null>(null)
   const [selectedInt, setSelectedInt] = useState<string | null>(null)
@@ -127,7 +127,20 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
 
         {/* Lista */}
         <div className="max-h-[70vh] divide-y divide-[var(--color-border)] overflow-y-auto">
-          {isLoading && <div className="px-3 py-6 text-center text-sm text-[var(--color-ink-3)]">Cargando…</div>}
+          {isLoading && (
+            <div className="divide-y divide-[var(--color-border)]">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-2 px-3 py-2">
+                  <div className="h-5 w-5 animate-pulse rounded bg-[var(--color-surface-2)]" />
+                  <div className="flex-1 space-y-1">
+                    <div className="h-3 w-3/5 animate-pulse rounded bg-[var(--color-surface-2)]" />
+                    <div className="h-2 w-2/5 animate-pulse rounded bg-[var(--color-surface-2)]" />
+                  </div>
+                  <div className="h-3 w-12 animate-pulse rounded bg-[var(--color-surface-2)]" />
+                </div>
+              ))}
+            </div>
+          )}
           {!isLoading && filtrados.length === 0 && <div className="px-3 py-6 text-center text-sm text-[var(--color-ink-3)]">Sin resultados</div>}
           {filtrados.map(c => (
             <button

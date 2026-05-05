@@ -70,34 +70,40 @@ export type SeguimientoFila = {
 
 // ── BBDD lista (con ABC frontend Pareto 70/90) ───────────────────────────────
 
+export async function fetchClientesBBDD(from: string, to: string): Promise<ClienteABC[]> {
+  const { data, error } = await supabase.rpc('manager_clientes_lista', { p_from: from, p_to: to })
+  if (error) throw error
+  const rows: ClienteFila[] = (data ?? []).map((r: any): ClienteFila => ({
+    contact_name_canon: r.contact_name_canon,
+    docs:               Number(r.docs ?? 0),
+    ventas:             Number(r.ventas ?? 0),
+    margen:             Number(r.margen ?? 0),
+    margen_pct:         r.margen_pct == null ? null : Number(r.margen_pct),
+    pendiente:          Number(r.pendiente ?? 0),
+    ultima_compra:      r.ultima_compra,
+    num_aliases:        Number(r.num_aliases ?? 0),
+  }))
+  const totalMargen = rows.reduce((s, r) => s + Math.max(r.margen, 0), 0)
+  const sorted = [...rows].sort((a, b) => b.margen - a.margen)
+  let acc = 0
+  return sorted.map((r): ClienteABC => {
+    const pos = totalMargen > 0 ? acc / totalMargen : 0
+    acc += Math.max(r.margen, 0)
+    const clase: 'A' | 'B' | 'C' = pos < 0.7 ? 'A' : pos < 0.9 ? 'B' : 'C'
+    return { ...r, clase }
+  })
+}
+
+export function clientesBBDDQueryKey(from: string, to: string) {
+  return ['clientes', 'bbdd', from, to] as const
+}
+
 export function useClientesBBDD(from: string, to: string) {
   return useQuery({
-    queryKey: ['clientes', 'bbdd', from, to] as const,
-    queryFn: async (): Promise<ClienteABC[]> => {
-      const { data, error } = await supabase.rpc('manager_clientes_lista', { p_from: from, p_to: to })
-      if (error) throw error
-      const rows: ClienteFila[] = (data ?? []).map((r: any): ClienteFila => ({
-        contact_name_canon: r.contact_name_canon,
-        docs:               Number(r.docs ?? 0),
-        ventas:             Number(r.ventas ?? 0),
-        margen:             Number(r.margen ?? 0),
-        margen_pct:         r.margen_pct == null ? null : Number(r.margen_pct),
-        pendiente:          Number(r.pendiente ?? 0),
-        ultima_compra:      r.ultima_compra,
-        num_aliases:        Number(r.num_aliases ?? 0),
-      }))
-      // Pareto sobre margen: A=0-70%, B=70-90%, C=resto
-      const totalMargen = rows.reduce((s, r) => s + Math.max(r.margen, 0), 0)
-      const sorted = [...rows].sort((a, b) => b.margen - a.margen)
-      let acc = 0
-      const withABC = sorted.map((r): ClienteABC => {
-        const pos = totalMargen > 0 ? acc / totalMargen : 0
-        acc += Math.max(r.margen, 0)
-        const clase: 'A' | 'B' | 'C' = pos < 0.7 ? 'A' : pos < 0.9 ? 'B' : 'C'
-        return { ...r, clase }
-      })
-      return withABC
-    },
+    queryKey: clientesBBDDQueryKey(from, to),
+    queryFn: () => fetchClientesBBDD(from, to),
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   })
 }
 
@@ -319,24 +325,32 @@ export function useDeleteAliasCliente() {
 
 // ── Seguimiento ──────────────────────────────────────────────────────────────
 
+export async function fetchClientesSeguimiento(diasUmbral: number, diasActivo: number): Promise<SeguimientoFila[]> {
+  const { data, error } = await supabase.rpc('clientes_seguimiento_semanal', {
+    p_dias_umbral: diasUmbral, p_dias_activo: diasActivo,
+  })
+  if (error) throw error
+  return (data ?? []).map((r: any): SeguimientoFila => ({
+    contact_name_canon: r.contact_name_canon,
+    ult_pedido: r.ult_pedido,
+    dias_sin_pedir: Number(r.dias_sin_pedir ?? 0),
+    cadencia_dias: r.cadencia_dias == null ? null : Number(r.cadencia_dias),
+    pedidos_activo: Number(r.pedidos_activo ?? 0),
+    ventas_activo: Number(r.ventas_activo ?? 0),
+    en_pausa_hasta: r.en_pausa_hasta,
+    estado: r.estado,
+  }))
+}
+
+export function clientesSeguimientoQueryKey(diasUmbral: number, diasActivo: number) {
+  return ['clientes', 'seguimiento', diasUmbral, diasActivo] as const
+}
+
 export function useClientesSeguimiento(diasUmbral: number = 7, diasActivo: number = 90) {
   return useQuery({
-    queryKey: ['clientes', 'seguimiento', diasUmbral, diasActivo] as const,
-    queryFn: async (): Promise<SeguimientoFila[]> => {
-      const { data, error } = await supabase.rpc('clientes_seguimiento_semanal', {
-        p_dias_umbral: diasUmbral, p_dias_activo: diasActivo,
-      })
-      if (error) throw error
-      return (data ?? []).map((r: any): SeguimientoFila => ({
-        contact_name_canon: r.contact_name_canon,
-        ult_pedido: r.ult_pedido,
-        dias_sin_pedir: Number(r.dias_sin_pedir ?? 0),
-        cadencia_dias: r.cadencia_dias == null ? null : Number(r.cadencia_dias),
-        pedidos_activo: Number(r.pedidos_activo ?? 0),
-        ventas_activo: Number(r.ventas_activo ?? 0),
-        en_pausa_hasta: r.en_pausa_hasta,
-        estado: r.estado,
-      }))
-    },
+    queryKey: clientesSeguimientoQueryKey(diasUmbral, diasActivo),
+    queryFn: () => fetchClientesSeguimiento(diasUmbral, diasActivo),
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   })
 }
