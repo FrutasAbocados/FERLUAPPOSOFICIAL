@@ -15,6 +15,9 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         cleanupOutdatedCaches: true,
+        // Bundle pasó de 2MB tras añadir Recharts + Gastos + Clientes (2026-05-06).
+        // 5 MiB cubre con margen y evita romper el build de Vercel.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
       manifest: {
         name: 'Abocados OS',
