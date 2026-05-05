@@ -237,6 +237,108 @@ export function useDeleteNota() {
   })
 }
 
+// ── Sesión 2: evolución mensual + heatmap + márgenes detallados ──────────────
+
+export type EvolucionMensualRow = {
+  mes_iso: string
+  anio: number
+  mes: number
+  docs: number
+  ventas: number
+  cogs: number
+  margen: number
+  margen_pct: number | null
+}
+
+export function useClienteEvolucionMensual(name: string | null, meses: number = 12) {
+  return useQuery({
+    queryKey: ['clientes', 'evolucion', name, meses] as const,
+    enabled: !!name,
+    queryFn: async (): Promise<EvolucionMensualRow[]> => {
+      if (!name) return []
+      const { data, error } = await supabase.rpc('manager_cliente_evolucion_mensual', {
+        p_contact_name_canon: name, p_meses: meses,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: any): EvolucionMensualRow => ({
+        mes_iso: r.mes_iso,
+        anio: Number(r.anio),
+        mes: Number(r.mes),
+        docs: Number(r.docs ?? 0),
+        ventas: Number(r.ventas ?? 0),
+        cogs: Number(r.cogs ?? 0),
+        margen: Number(r.margen ?? 0),
+        margen_pct: r.margen_pct == null ? null : Number(r.margen_pct),
+      }))
+    },
+    staleTime: 5 * 60_000,
+  })
+}
+
+export type HeatmapDiaRow = {
+  fecha: string
+  pedidos: number
+  ventas: number
+}
+
+export function useClienteHeatmap(name: string | null, from: string, to: string) {
+  return useQuery({
+    queryKey: ['clientes', 'heatmap', name, from, to] as const,
+    enabled: !!name,
+    queryFn: async (): Promise<HeatmapDiaRow[]> => {
+      if (!name) return []
+      const { data, error } = await supabase.rpc('manager_cliente_heatmap_dia', {
+        p_contact_name_canon: name, p_from: from, p_to: to,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: any): HeatmapDiaRow => ({
+        fecha: r.fecha,
+        pedidos: Number(r.pedidos ?? 0),
+        ventas: Number(r.ventas ?? 0),
+      }))
+    },
+    staleTime: 5 * 60_000,
+  })
+}
+
+export type MargenDetalleRow = {
+  product_id: string
+  nombre: string
+  unidades: number
+  ventas_subtotal: number
+  cogs: number
+  margen: number
+  margen_pct: number | null
+  margen_pct_global: number | null
+  delta_pp: number | null
+}
+
+export function useClienteMargenDetalle(name: string | null, from: string, to: string, limit: number = 20) {
+  return useQuery({
+    queryKey: ['clientes', 'margen-detalle', name, from, to, limit] as const,
+    enabled: !!name,
+    queryFn: async (): Promise<MargenDetalleRow[]> => {
+      if (!name) return []
+      const { data, error } = await supabase.rpc('manager_cliente_margen_detalle', {
+        p_contact_name_canon: name, p_from: from, p_to: to, p_limit: limit,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: any): MargenDetalleRow => ({
+        product_id: r.product_id,
+        nombre: r.nombre,
+        unidades: Number(r.unidades ?? 0),
+        ventas_subtotal: Number(r.ventas_subtotal ?? 0),
+        cogs: Number(r.cogs ?? 0),
+        margen: Number(r.margen ?? 0),
+        margen_pct: r.margen_pct == null ? null : Number(r.margen_pct),
+        margen_pct_global: r.margen_pct_global == null ? null : Number(r.margen_pct_global),
+        delta_pp: r.delta_pp == null ? null : Number(r.delta_pp),
+      }))
+    },
+    staleTime: 5 * 60_000,
+  })
+}
+
 // ── Aliases (unificar duplicados Holded) ─────────────────────────────────────
 
 export type AliasRow = {

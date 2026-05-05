@@ -14,6 +14,9 @@ import {
 import { PreferenciasCard } from './PreferenciasCard'
 import { NotasCard } from './NotasCard'
 import { AliasesCard } from './AliasesCard'
+import { EvolucionChart } from './EvolucionChart'
+import { HeatmapDiaCalendario } from './HeatmapDiaCalendario'
+import { MargenesDetalle } from './MargenesDetalle'
 
 type Props = {
   /** Si llega un cliente desde fuera (ej. click en Seguimiento), lo selecciona. */
@@ -290,6 +293,15 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
         </div>
       </div>
 
+      {/* Evolución mensual + Calendario actividad (sesión 2) */}
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <EvolucionChart name={cliente.contact_name_canon} />
+        <HeatmapDiaCalendario name={cliente.contact_name_canon} dias={90} />
+      </div>
+
+      {/* Márgenes detallados por producto vs media (sesión 2) */}
+      <MargenesDetalle name={cliente.contact_name_canon} from={from} to={to} />
+
       {/* Preferencias operativas (editable) */}
       <PreferenciasCard name={cliente.contact_name_canon} />
 
@@ -297,10 +309,6 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <NotasCard name={cliente.contact_name_canon} />
         <AliasesCard canon={cliente.contact_name_canon} />
-      </div>
-
-      <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)] p-4 text-center text-xs text-[var(--color-ink-3)]">
-        Pendiente sesión 2: gráficos evolución mensual · heatmap individual cliente×día · márgenes detallados.
       </div>
     </div>
   )
