@@ -167,6 +167,38 @@ export function usePedidosDelDia(fecha: string) {
   })
 }
 
+/** Último pedido de un cliente con sus líneas — para "Mismo que la última vez". */
+export function useUltimoPedidoCliente(clienteId: string | null) {
+  return useQuery({
+    queryKey: ['pedidos-wa', 'ultimo', clienteId] as const,
+    enabled: !!clienteId,
+    queryFn: async (): Promise<Pedido | null> => {
+      if (!clienteId) return null
+      const { data, error } = await supabase
+        .from('pedidos_wa')
+        .select(`
+          id, cliente_id, fecha, texto_original, notas_admin, faltas, estado,
+          created_by, created_at, updated_at,
+          lineas:pedidos_wa_lineas (
+            id, pedido_id, orden, cantidad, unidad,
+            producto_normalizado, producto_raw,
+            subseccion, notas, es_gratis, metodo, created_at
+          )
+        `)
+        .eq('cliente_id', clienteId)
+        .order('fecha', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (error) throw error
+      const p = data as Pedido | null
+      if (p?.lineas) p.lineas.sort((a, b) => a.orden - b.orden)
+      return p
+    },
+    staleTime: 60_000,
+  })
+}
+
 type CrearPedidoInput = {
   cliente_id: string
   fecha: string

@@ -25,6 +25,8 @@ type Props = {
   cliente: ClientePedido | null
   onClose: () => void
   onSaved?: (c: ClientePedido) => void
+  /** Nombre prefilled cuando se crea un cliente nuevo desde captura rápida. */
+  nombreInicial?: string
 }
 
 const EMPTY: ClienteInput = {
@@ -54,9 +56,12 @@ function fromCliente(c: ClientePedido | null): ClienteInput {
   }
 }
 
-export function ClienteModal({ cliente, onClose, onSaved }: Props) {
+export function ClienteModal({ cliente, onClose, onSaved, nombreInicial }: Props) {
   const editando = !!cliente
-  const [form, setForm] = useState<ClienteInput>(() => fromCliente(cliente))
+  const [form, setForm] = useState<ClienteInput>(() => {
+    const base = fromCliente(cliente)
+    return cliente ? base : { ...base, nombre: nombreInicial?.trim() ?? '' }
+  })
 
   const crear = useCrearClientePedido()
   const actualizar = useActualizarClientePedido()
