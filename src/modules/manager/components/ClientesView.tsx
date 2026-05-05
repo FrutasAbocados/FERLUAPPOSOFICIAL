@@ -4,6 +4,7 @@ import { es } from 'date-fns/locale'
 import { Search } from 'lucide-react'
 import { Input } from '@/shared/components/ui/input'
 import { Button } from '@/shared/components/ui/button'
+import { eurosShort } from '@/shared/lib/format'
 import type { Period } from '../lib/period'
 import type { ClienteListItem } from '../lib/types'
 import { useClientesLista } from '../lib/queries'
@@ -23,8 +24,7 @@ const CLASE_BADGE: Record<Clase, string> = {
   C: 'bg-slate-100 text-slate-700',
 }
 
-const eur0 = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+const eur0 = eurosShort
 const fmt = (d: string | null) =>
   d == null ? '—' : format(parseISO(d), 'd LLL', { locale: es })
 

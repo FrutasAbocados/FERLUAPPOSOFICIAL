@@ -1,8 +1,8 @@
 import { ArrowDown, ArrowUp, Minus } from 'lucide-react'
+import { eurosShort } from '@/shared/lib/format'
 import type { ResumenComparativo } from '../lib/types'
 
-const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+const eur = eurosShort
 
 const pct = (n: number | null) => n == null ? '—' : `${n.toFixed(1)}%`
 

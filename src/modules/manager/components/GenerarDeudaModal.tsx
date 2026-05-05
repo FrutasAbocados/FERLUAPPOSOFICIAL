@@ -6,6 +6,7 @@ import { Check, HandCoins, Sparkles, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
+import { eurosOrDash } from '@/shared/lib/format'
 import type { FacturaListItem } from '../lib/types'
 
 interface CobrosCliente {
@@ -14,8 +15,7 @@ interface CobrosCliente {
   activo: boolean
 }
 
-const eur = (n: number | null | undefined) =>
-  n == null ? '—' : new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
+const eur = eurosOrDash
 const fmt = (d: string | null) =>
   d == null ? '—' : format(parseISO(d), 'd LLL', { locale: es })
 

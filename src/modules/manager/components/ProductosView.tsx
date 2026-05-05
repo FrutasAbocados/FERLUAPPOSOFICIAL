@@ -4,6 +4,7 @@ import { es } from 'date-fns/locale'
 import { Search } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
+import { eurosShort } from '@/shared/lib/format'
 import type { Period } from '../lib/period'
 import type { ProductoListItem } from '../lib/types'
 import { useProductosLista } from '../lib/queries'
@@ -11,8 +12,7 @@ import { ProductoDetalleModal } from './ProductoDetalleModal'
 
 type SortKey = 'ventas' | 'margen' | 'unidades' | 'margen_pct'
 
-const eur0 = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+const eur0 = eurosShort
 const fmt = (d: string | null) =>
   d == null ? '—' : format(parseISO(d), 'd LLL', { locale: es })
 

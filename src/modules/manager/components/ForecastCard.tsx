@@ -2,10 +2,10 @@ import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YA
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ArrowDown, ArrowUp, TrendingUp } from 'lucide-react'
+import { eurosShort } from '@/shared/lib/format'
 import { useForecast } from '../lib/queries'
 
-const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+const eur = eurosShort
 
 const fmtMes = (d: string) => format(parseISO(d), 'LLL', { locale: es })
 

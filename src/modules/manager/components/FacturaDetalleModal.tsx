@@ -3,11 +3,11 @@ import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
+import { eurosOrDash } from '@/shared/lib/format'
 import type { FacturaListItem } from '../lib/types'
 import { useFacturaDetalle } from '../lib/queries'
 
-const eur = (n: number | null | undefined) =>
-  n == null ? '—' : new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
+const eur = eurosOrDash
 const fmt = (d: string | null) =>
   d == null ? '—' : format(parseISO(d), "EEEE d 'de' LLLL yyyy", { locale: es })
 

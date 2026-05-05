@@ -6,6 +6,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
+import { euros } from '@/shared/lib/format'
 import type { Period } from '../lib/period'
 import {
   useAbueloFacturas, useAbueloLineas,
@@ -24,8 +25,7 @@ interface LineaForm {
   tax_rate: IvaRate
 }
 
-const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
+const eur = euros
 const fmt = (d: string | null) =>
   d == null ? '—' : format(parseISO(d), 'd LLL yyyy', { locale: es })
 const lineaSubtotal = (l: LineaForm) => {

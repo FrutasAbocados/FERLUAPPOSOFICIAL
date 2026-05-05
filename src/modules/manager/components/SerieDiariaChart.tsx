@@ -1,10 +1,10 @@
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { eurosShort } from '@/shared/lib/format'
 import type { SerieDiariaPunto } from '../lib/types'
 
-const eur0 = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+const eur0 = eurosShort
 
 interface Props {
   data: SerieDiariaPunto[] | undefined

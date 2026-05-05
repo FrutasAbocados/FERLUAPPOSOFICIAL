@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { toast } from '@/shared/lib/toast'
+import { eurosOrDash, eurosShortOrDash } from '@/shared/lib/format'
 import type { Period } from '../lib/period'
 import type { ClienteListItem } from '../lib/types'
 import {
@@ -12,10 +13,8 @@ import {
   useClienteProductos, useDeleteAlias,
 } from '../lib/queries'
 
-const eur = (n: number | null | undefined) =>
-  n == null ? '—' : new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
-const eur0 = (n: number | null | undefined) =>
-  n == null ? '—' : new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+const eur = eurosOrDash
+const eur0 = eurosShortOrDash
 const fmt = (d: string | null) =>
   d == null ? '—' : format(parseISO(d), 'd LLL', { locale: es })
 
