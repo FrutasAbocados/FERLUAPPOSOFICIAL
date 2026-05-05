@@ -163,8 +163,9 @@ export function AppShell() {
 
       {/* Main area */}
       <main className="flex min-w-0 flex-1 flex-col">
-        {/* Header móvil */}
-        <header className="flex h-14 items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 md:hidden">
+        {/* Header móvil — wrapper con safe-area-inset-top para iPhones con notch / Dynamic Island */}
+        <div className="bg-[var(--color-surface)] pt-[env(safe-area-inset-top)] md:hidden">
+        <header className="flex h-14 items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4">
           <Link to="/" className="font-display text-base font-bold text-[var(--color-ink)]">
             Abocados
           </Link>
@@ -195,6 +196,7 @@ export function AppShell() {
             </button>
           </div>
         </header>
+        </div>
 
         <div className="w-full max-w-full flex-1 overflow-y-auto overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
           <Outlet key={location.pathname} />

@@ -27,6 +27,7 @@ export function CashPage() {
   const isAdminFull = profile?.role === 'admin_full'
   const isAdminOp = profile?.role === 'admin_op'
   const puedeCierreDia = isAdminFull || isAdminOp
+  const puedeEditarCalendario = isAdminFull || isAdminOp
   const [view, setView] = useState<View>('calendario')
 
   return (
@@ -40,7 +41,7 @@ export function CashPage() {
         </h1>
         <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
           Cierre diario completo y cierre por repartidor.{' '}
-          {!isAdminFull && view === 'calendario' && (
+          {!puedeEditarCalendario && view === 'calendario' && (
             <span className="text-[var(--color-ink-3)]">(Solo lectura)</span>
           )}
         </p>
@@ -62,7 +63,7 @@ export function CashPage() {
         )}
       </div>
 
-      {view === 'calendario' && <CalendarioView isAdminFull={isAdminFull} />}
+      {view === 'calendario' && <CalendarioView puedeEditar={puedeEditarCalendario} />}
       {view === 'cierre-dia' && puedeCierreDia && <CierreDiaPage />}
       {view === 'estadisticas' && puedeCierreDia && <EstadisticasView />}
     </div>
@@ -92,7 +93,7 @@ function TabButton({
   )
 }
 
-function CalendarioView({ isAdminFull }: { isAdminFull: boolean }) {
+function CalendarioView({ puedeEditar }: { puedeEditar: boolean }) {
   const [anchor, setAnchor] = useState<Date>(() => startOfMonth(new Date()))
   const [editing, setEditing] = useState<string | null>(null)
 
@@ -210,7 +211,7 @@ function CalendarioView({ isAdminFull }: { isAdminFull: boolean }) {
                     </div>
                   )}
                   {!tieneCierre && !futuro && (
-                    <div className="text-[10px] text-[var(--color-ink-3)]">{isAdminFull ? 'sin cierre' : '—'}</div>
+                    <div className="text-[10px] text-[var(--color-ink-3)]">{puedeEditar ? 'sin cierre' : '—'}</div>
                   )}
                 </button>
               )
@@ -235,7 +236,7 @@ function CalendarioView({ isAdminFull }: { isAdminFull: boolean }) {
           fecha={editing}
           cierre={editingCierre ?? null}
           onClose={() => setEditing(null)}
-          readOnly={!isAdminFull}
+          readOnly={!puedeEditar}
         />
       )}
     </>
