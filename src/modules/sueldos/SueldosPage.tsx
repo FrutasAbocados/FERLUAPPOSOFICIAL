@@ -6,6 +6,7 @@ import { Plus, Trash2, Wallet } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
+import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 
 type Socio = 'Luis' | 'Álvaro'
@@ -20,8 +21,7 @@ interface Retiro {
   created_at: string
 }
 
-const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
+const eur = euros
 const fmt = (d: string) => format(parseISO(d), 'd LLL yyyy', { locale: es })
 
 function useRetiros(from: string, to: string) {

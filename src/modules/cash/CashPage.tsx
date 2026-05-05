@@ -8,6 +8,7 @@ import { KpiBar } from './components/KpiBar'
 import { CierreForm } from './components/CierreForm'
 import { CierreDiaPage } from './components/CierreDiaPage'
 import { EstadisticasView } from './components/EstadisticasView'
+import { eurosShort } from '@/shared/lib/format'
 import {
   shiftMonth,
   useCierresMes,
@@ -15,8 +16,7 @@ import {
 } from './lib/queries'
 import type { Cierre } from './lib/types'
 
-const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+const eur = eurosShort
 
 const DOW_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 

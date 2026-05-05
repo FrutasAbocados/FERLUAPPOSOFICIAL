@@ -1,10 +1,12 @@
 import { addDays, differenceInCalendarDays, endOfMonth, format, nextSunday, startOfMonth } from 'date-fns'
+import { euros } from '@/shared/lib/format'
 import type { Estado, FormaPago, Movimiento } from './types'
 
 export const isoDate = (d: Date) => format(d, 'yyyy-MM-dd')
 
-export const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(n)
+// Re-export por compatibilidad — los 5 consumidores siguen importando `eur` desde aquí.
+// Código nuevo: usar `euros` directamente desde `@/shared/lib/format`.
+export const eur = euros
 
 /** Convierte un número serial Excel (epoch 1900-01-01, con bug año bisiesto) a Date. */
 export function excelSerialToDate(serial: number): Date {

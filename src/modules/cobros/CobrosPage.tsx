@@ -13,9 +13,9 @@ import { ClienteDetalleModal } from './components/ClienteDetalleModal'
 import { useMovimientos } from './lib/queries'
 import { estadoMovimiento, importePendiente } from './lib/utils'
 import type { TipoMovimiento } from './lib/types'
+import { eurosShort } from '@/shared/lib/format'
 
-const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+const eur = eurosShort
 
 type Tab = 'dashboard' | 'clientes' | 'facturas' | 'importar'
 

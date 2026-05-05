@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Save, UserCog, Users, X } from 'lucide-react'
+import { eurosOrDash } from '@/shared/lib/format'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
@@ -24,8 +25,7 @@ interface Trabajador {
   tarifa_sabado: number | null
 }
 
-const eur = (n: number | null | undefined) =>
-  n == null ? '—' : new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
+const eur = eurosOrDash
 
 function useTrabajadores() {
   return useQuery({

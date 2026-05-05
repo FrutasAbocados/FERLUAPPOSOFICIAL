@@ -5,6 +5,7 @@ import { es } from 'date-fns/locale'
 import { Users, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { supabase } from '@/shared/lib/supabase'
+import { euros, eurosShort } from '@/shared/lib/format'
 import type { Period } from '../lib/period'
 
 interface DiaCliente {
@@ -16,10 +17,8 @@ interface DiaCliente {
 }
 
 const DOW_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
-const eur2 = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
+const eur = eurosShort
+const eur2 = euros
 
 function useClientesPorDia(period: Period) {
   return useQuery({

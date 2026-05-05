@@ -5,6 +5,7 @@ import { es } from 'date-fns/locale'
 import { Award, CalendarDays, CalendarOff, Plus, ShoppingBasket, Users } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { supabase } from '@/shared/lib/supabase'
+import { euros } from '@/shared/lib/format'
 import { useAuth } from '@/shared/auth/useAuth'
 import { SolicitarVacacionesModal } from './SolicitarVacacionesModal'
 import { ColaboradoresView } from './ColaboradoresView'
@@ -43,8 +44,7 @@ interface SabadosFila {
   importe: number
 }
 
-const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
+const eur = euros
 
 function num(v: unknown): number { return Number(v ?? 0) }
 

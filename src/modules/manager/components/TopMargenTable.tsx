@@ -1,3 +1,5 @@
+import { eurosShort } from '@/shared/lib/format'
+
 interface Row {
   key: string
   nombre: string
@@ -8,8 +10,7 @@ interface Row {
   margen_pct: number | null
 }
 
-const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+const eur = eurosShort
 
 interface Props {
   title: string

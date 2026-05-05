@@ -5,6 +5,7 @@ import { es } from 'date-fns/locale'
 import { CalendarDays, Download, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { supabase } from '@/shared/lib/supabase'
+import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 
 interface Resumen {
@@ -21,8 +22,7 @@ interface SabadoFila {
   nota: string | null
 }
 
-const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
+const eur = euros
 
 const fmtMes = (d: Date) => format(d, "LLLL yyyy", { locale: es })
 

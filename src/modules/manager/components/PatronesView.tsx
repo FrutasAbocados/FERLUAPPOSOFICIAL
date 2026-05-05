@@ -5,6 +5,7 @@ import { es } from 'date-fns/locale'
 import { AlertTriangle, ArrowDown, ArrowUp, CalendarClock, Clock, EyeOff, Lightbulb, Moon, Search } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 import { Input } from '@/shared/components/ui/input'
+import { eurosShort } from '@/shared/lib/format'
 import type { Period } from '../lib/period'
 
 interface DiaSemana {
@@ -40,8 +41,7 @@ interface Recomendacion {
   fecha_ref: string
 }
 
-const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+const eur = eurosShort
 const fmt = (d: string | null) =>
   d == null ? '—' : format(parseISO(d), 'd LLL', { locale: es })
 

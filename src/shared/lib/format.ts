@@ -25,6 +25,10 @@ export const eurosShort = (n: number | null | undefined): string =>
 export const eurosOrDash = (n: number | null | undefined): string =>
   n == null ? '—' : eurFull.format(Number(n))
 
+/** Importe en euros sin decimales con guión si null (`13 €` o `—`). KPI compact + null-safe. */
+export const eurosShortOrDash = (n: number | null | undefined): string =>
+  n == null ? '—' : eurShort.format(Number(n))
+
 /** Formato fecha ISO → "lun 5 de may" (default). */
 export const fmtDate = (iso: string, fmt = "EEE d 'de' MMM"): string =>
   format(parseISO(iso), fmt, { locale: es })

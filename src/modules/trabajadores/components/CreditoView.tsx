@@ -6,12 +6,12 @@ import { ChevronDown, ChevronRight, Plus, ShoppingBasket, Trash2, X } from 'luci
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
+import { eurosOrDash } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
 import { ProductoAutocomplete } from '@/modules/manager/components/ProductoAutocomplete'
 
-const eur = (n: number | null | undefined) =>
-  n == null ? '—' : new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(Number(n))
+const eur = eurosOrDash
 
 const fmtFecha = (d: string | null | undefined) =>
   d == null ? '—' : format(parseISO(d), 'd LLL yyyy', { locale: es })

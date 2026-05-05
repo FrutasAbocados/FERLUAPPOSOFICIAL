@@ -6,6 +6,7 @@ import {
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '@/shared/auth/useAuth'
+import { eurosShort } from '@/shared/lib/format'
 import { canAccess, type ModuleKey } from '@/shared/types'
 import { AlertCard } from '@/modules/dashboard/components/AlertCard'
 import { EstadoDelDia } from '@/modules/dashboard/components/EstadoDelDia'
@@ -16,8 +17,7 @@ import {
   type DeudorCobros, type PedidoEsperado, type ClienteRiesgoFuga, type CosteSubiendo, type ProductoAnomalo,
 } from '@/modules/dashboard/lib/queries'
 
-const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+const eur = eurosShort
 const fmt = (d: string | null) =>
   d == null ? '—' : format(parseISO(d), 'd LLL', { locale: es })
 

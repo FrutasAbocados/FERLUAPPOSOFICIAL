@@ -7,6 +7,7 @@ import { useAuth } from '@/shared/auth/useAuth'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
+import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
 
@@ -43,8 +44,7 @@ type Item = {
 
 type EmpleadoOpt = { id: string; nombre: string }
 
-const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n)
+const eur = euros
 const fmtFechaCorta = (s: string) => format(parseISO(s), "d 'de' LLL", { locale: es })
 
 const MODO_LABEL: Record<Modo, string> = {
