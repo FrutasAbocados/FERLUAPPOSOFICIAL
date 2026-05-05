@@ -71,12 +71,14 @@ function HomeAdmin() {
         </h1>
       </header>
 
-      <div className="space-y-4">
-        <NotificacionesPanel />
+      <div className="space-y-5">
         <EstadoDelDia />
+        <NotificacionesPanel />
 
         {isAdmin && (
-        <div className="grid gap-3 md:grid-cols-2">
+        <section>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Alertas</h2>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {/* Top deudores Cobros */}
           <AlertCard
             titulo="Deuda pendiente Cobros"
@@ -162,7 +164,8 @@ function HomeAdmin() {
             loading={false}
             empty="Sin avisos del sistema"
           />
-        </div>
+          </div>
+        </section>
         )}
 
         {/* Atajos */}

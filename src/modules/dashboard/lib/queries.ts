@@ -11,6 +11,14 @@ export interface KpisHoy {
   minutos_desde_sync: number | null
 }
 
+export interface KpiPunto {
+  fecha: string       // ISO YYYY-MM-DD
+  ventas: number
+  compras: number
+  docs: number
+  pendiente: number
+}
+
 export interface PendienteMismatch {
   cliente_nombre: string
   pendiente_cobros: number
@@ -101,6 +109,24 @@ export function useKpisHoy() {
         ultimo_sync_ok:     r?.ultimo_sync_ok == null ? null : Boolean(r.ultimo_sync_ok),
         minutos_desde_sync: r?.minutos_desde_sync == null ? null : Number(r.minutos_desde_sync),
       }
+    },
+  })
+}
+
+export function useKpisSerie(dias = 7) {
+  return useQuery({
+    queryKey: ['dashboard', 'kpisSerie', dias] as const,
+    refetchInterval: 5 * 60_000,
+    queryFn: async (): Promise<KpiPunto[]> => {
+      const { data, error } = await supabase.rpc('dashboard_kpis_serie', { dias })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        fecha:     String(r.fecha ?? ''),
+        ventas:    num(r.ventas),
+        compras:   num(r.compras),
+        docs:      num(r.docs),
+        pendiente: num(r.pendiente),
+      }))
     },
   })
 }
