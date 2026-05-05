@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Search } from 'lucide-react'
+import { CircleAlert, Search, Wand2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { eurosShort } from '@/shared/lib/format'
@@ -9,6 +9,7 @@ import type { Period } from '../lib/period'
 import type { ProductoListItem } from '../lib/types'
 import { useProductosLista } from '../lib/queries'
 import { ProductoDetalleModal } from './ProductoDetalleModal'
+import { CosteManualQuickFix } from './CosteManualQuickFix'
 
 type SortKey = 'ventas' | 'margen' | 'unidades' | 'margen_pct'
 
@@ -25,11 +26,19 @@ export function ProductosView({ period }: Props) {
   const [q, setQ] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('ventas')
   const [selected, setSelected] = useState<ProductoListItem | null>(null)
+  const [quickFix, setQuickFix] = useState<ProductoListItem | null>(null)
+  const [soloSinCoste, setSoloSinCoste] = useState(false)
+
+  const sinCosteCount = useMemo(
+    () => (data ?? []).filter((r) => r.coste_unidad == null && r.product_id).length,
+    [data],
+  )
 
   const filtered = useMemo(() => {
     let rows = data ?? []
     const qq = q.trim().toLowerCase()
     if (qq) rows = rows.filter(r => r.nombre.toLowerCase().includes(qq))
+    if (soloSinCoste) rows = rows.filter(r => r.coste_unidad == null && r.product_id)
     rows = [...rows].sort((a, b) => {
       switch (sortKey) {
         case 'ventas':     return b.ventas - a.ventas
@@ -39,7 +48,7 @@ export function ProductosView({ period }: Props) {
       }
     })
     return rows
-  }, [data, q, sortKey])
+  }, [data, q, sortKey, soloSinCoste])
 
   return (
     <div className="space-y-3">
@@ -70,6 +79,18 @@ export function ProductosView({ period }: Props) {
             >{o.l}</Button>
           ))}
         </div>
+        {sinCosteCount > 0 && (
+          <Button
+            size="sm"
+            variant={soloSinCoste ? 'primary' : 'outline'}
+            onClick={() => setSoloSinCoste((v) => !v)}
+            className="shrink-0"
+            title="Filtrar productos sin coste asignado"
+          >
+            <CircleAlert className="mr-1 h-3.5 w-3.5" />
+            {sinCosteCount} sin coste
+          </Button>
+        )}
         <span className="ml-auto text-xs text-[var(--color-ink-3)] tabular-nums">{filtered.length} productos</span>
       </div>
 
@@ -104,7 +125,25 @@ export function ProductosView({ period }: Props) {
                 <div className="hidden text-right tabular-nums text-[var(--color-ink)] md:block">{eur0(p.ventas)}</div>
                 <div className="hidden text-right tabular-nums text-emerald-700 md:block">{eur0(p.margen)}</div>
                 <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">{p.margen_pct == null ? '—' : `${p.margen_pct.toFixed(0)}%`}</div>
-                <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">{p.coste_unidad == null ? '—' : `${p.coste_unidad.toFixed(2)}€`}</div>
+                <div className="hidden text-right tabular-nums md:block">
+                  {p.coste_unidad == null ? (
+                    p.product_id ? (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setQuickFix(p) }}
+                        className="inline-flex items-center gap-1 rounded-full bg-[#fee2e2] px-2 py-0.5 text-[10px] font-semibold text-[#b91c1c] hover:bg-[#fecaca]"
+                        title="Asignar coste manual"
+                      >
+                        <Wand2 className="h-3 w-3" />
+                        Asignar
+                      </button>
+                    ) : (
+                      <span className="text-[var(--color-ink-3)]">—</span>
+                    )
+                  ) : (
+                    <span className="text-[var(--color-ink-3)]">{p.coste_unidad.toFixed(2)}€</span>
+                  )}
+                </div>
                 <div className="hidden text-right text-xs text-[var(--color-ink-3)] md:block">{fmt(p.ultima_venta)}</div>
 
                 {/* Mobile compact */}
@@ -121,6 +160,15 @@ export function ProductosView({ period }: Props) {
 
       {selected && selected.product_id && (
         <ProductoDetalleModal producto={selected} period={period} onClose={() => setSelected(null)} />
+      )}
+
+      {quickFix && quickFix.product_id && (
+        <CosteManualQuickFix
+          productId={quickFix.product_id}
+          productNombre={quickFix.nombre}
+          costeActual={quickFix.coste_unidad}
+          onClose={() => setQuickFix(null)}
+        />
       )}
     </div>
   )

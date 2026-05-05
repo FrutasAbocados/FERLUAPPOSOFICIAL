@@ -93,6 +93,43 @@ export function useCategorias() {
   })
 }
 
+export function useCategoriaCreate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { nombre: string; color?: string | null; orden?: number }) => {
+      const { error } = await supabase.from('gastos_categorias').insert({
+        nombre: input.nombre,
+        color:  input.color ?? '#64748b',
+        orden:  input.orden ?? 50,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['gastos', 'categorias'] }),
+  })
+}
+
+export function useCategoriaUpdate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Partial<Pick<Categoria, 'nombre' | 'color' | 'orden' | 'activo'>> }) => {
+      const { error } = await supabase.from('gastos_categorias').update(patch).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['gastos', 'categorias'] }),
+  })
+}
+
+export function useCategoriaDelete() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('gastos_categorias').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['gastos'] }),
+  })
+}
+
 // ── Proveedores ──────────────────────────────────────────────────────────────
 
 export function useProveedoresManuales() {
@@ -368,4 +405,106 @@ export function useVariableDelete() {
 
 export function calcularTotal(subtotal: number, iva_pct: number): number {
   return Math.round(subtotal * (1 + iva_pct / 100) * 100) / 100
+}
+
+// ── Stats ────────────────────────────────────────────────────────────────────
+
+export type GastoUnificado = {
+  fecha: string                  // ISO date YYYY-MM-DD (variables) o YYYY-MM-01 (fijos)
+  anio: number
+  mes: number
+  tipo: 'fijo' | 'variable'
+  total: number
+  categoria_id: string | null
+  categoria_nombre: string | null
+  categoria_color: string | null
+  proveedor: string
+  proveedor_clave: string
+}
+
+export function useGastosUnificados(from: string, to: string) {
+  return useQuery({
+    queryKey: ['gastos', 'unificados', from, to] as const,
+    queryFn: async (): Promise<GastoUnificado[]> => {
+      // Fijos pagados en el rango (vía RPC)
+      const fijosResp = await supabase.rpc('gastos_fijos_pagos_detalle', { p_from: from, p_to: to })
+      if (fijosResp.error) throw fijosResp.error
+      const fijos: GastoUnificado[] = (fijosResp.data ?? []).map((r: any): GastoUnificado => ({
+        fecha: `${r.anio}-${String(r.mes).padStart(2, '0')}-01`,
+        anio: Number(r.anio),
+        mes: Number(r.mes),
+        tipo: 'fijo',
+        total: Number(r.total),
+        categoria_id: r.categoria_id,
+        categoria_nombre: r.categoria_nombre,
+        categoria_color: r.categoria_color,
+        proveedor: r.proveedor,
+        proveedor_clave: r.proveedor_clave,
+      }))
+
+      // Variables (con embed para nombre Holded y categoría)
+      const varsResp = await supabase
+        .from('gastos_variables')
+        .select(`
+          fecha, total, categoria_id, proveedor_holded_id, proveedor_manual_id, proveedor_libre,
+          gastos_categorias:categoria_id(nombre, color),
+          manager_contactos:proveedor_holded_id(nombre),
+          gastos_proveedores_manuales:proveedor_manual_id(nombre)
+        `)
+        .gte('fecha', from)
+        .lte('fecha', to)
+      if (varsResp.error) throw varsResp.error
+      const variables: GastoUnificado[] = (varsResp.data ?? []).map((r: any): GastoUnificado => {
+        const provHolded = r.manager_contactos?.nombre ?? null
+        const provManual = r.gastos_proveedores_manuales?.nombre ?? null
+        const proveedor  = provHolded ?? provManual ?? r.proveedor_libre ?? '—'
+        const proveedor_clave =
+          r.proveedor_holded_id ??
+          (r.proveedor_manual_id ? `m:${r.proveedor_manual_id}` : null) ??
+          (r.proveedor_libre ? `l:${r.proveedor_libre}` : '_sin')
+        const d: Date = new Date(r.fecha)
+        return {
+          fecha: r.fecha,
+          anio: d.getUTCFullYear(),
+          mes: d.getUTCMonth() + 1,
+          tipo: 'variable',
+          total: Number(r.total),
+          categoria_id: r.categoria_id,
+          categoria_nombre: r.gastos_categorias?.nombre ?? null,
+          categoria_color: r.gastos_categorias?.color ?? null,
+          proveedor,
+          proveedor_clave,
+        }
+      })
+
+      return [...fijos, ...variables]
+    },
+  })
+}
+
+export type SerieMensualRow = {
+  anio: number
+  mes: number
+  mes_iso: string
+  fijos_total: number
+  variables_total: number
+  total: number
+}
+
+export function useSerieMensual(meses: number = 12) {
+  return useQuery({
+    queryKey: ['gastos', 'serie-mensual', meses] as const,
+    queryFn: async (): Promise<SerieMensualRow[]> => {
+      const { data, error } = await supabase.rpc('gastos_serie_mensual', { p_meses: meses })
+      if (error) throw error
+      return (data ?? []).map((r: any): SerieMensualRow => ({
+        anio: Number(r.anio),
+        mes:  Number(r.mes),
+        mes_iso: r.mes_iso,
+        fijos_total: Number(r.fijos_total),
+        variables_total: Number(r.variables_total),
+        total: Number(r.total),
+      }))
+    },
+  })
 }

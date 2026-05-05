@@ -1,12 +1,15 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertTriangle, BarChart3, Banknote, Bot, CalendarClock,
-  CheckSquare, CalendarDays, HandCoins, Package, TrendingUp, UserMinus, Users, Wallet,
+  CheckSquare, CalendarDays, EyeOff, HandCoins, Package, RotateCcw, TrendingUp, UserMinus, Users, Wallet, X,
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '@/shared/auth/useAuth'
 import { eurosShort } from '@/shared/lib/format'
+import { toast } from '@/shared/lib/toast'
+import { confirm } from '@/shared/lib/confirm'
 import { canAccess, type ModuleKey } from '@/shared/types'
 import { AlertCard } from '@/modules/dashboard/components/AlertCard'
 import { EstadoDelDia } from '@/modules/dashboard/components/EstadoDelDia'
@@ -16,6 +19,12 @@ import {
   usePedidosEsperados, useProductosAnomalos, useTopDeudoresCobros,
   type DeudorCobros, type PedidoEsperado, type ClienteRiesgoFuga, type CosteSubiendo, type ProductoAnomalo,
 } from '@/modules/dashboard/lib/queries'
+import {
+  type AlertType,
+  useAlertasDescartadas,
+  useDescartarAlerta,
+  useRestaurarTodas,
+} from '@/modules/dashboard/lib/dismiss'
 
 const eur = eurosShort
 const fmt = (d: string | null) =>
@@ -50,11 +59,62 @@ function HomeAdmin() {
   // ejecutivo: sólo admin_full y admin_op las consumen. responsable cae aquí pero
   // no debe disparar esas RPCs (algunas pueden no estar concedidas a su rol).
   const isAdmin = role === 'admin_full' || role === 'admin_op'
-  const deudores  = useTopDeudoresCobros({ enabled: isAdmin })
-  const esperados = usePedidosEsperados({ enabled: isAdmin })
-  const anomalos  = useProductosAnomalos(30, { enabled: isAdmin })
-  const riesgoFuga = useClientesRiesgoFuga({ enabled: isAdmin })
-  const costes    = useCostesSubiendo(14, 15, { enabled: isAdmin })
+  const deudoresQ = useTopDeudoresCobros({ enabled: isAdmin })
+  const esperadosQ = usePedidosEsperados({ enabled: isAdmin })
+  const anomalosQ  = useProductosAnomalos(30, { enabled: isAdmin })
+  const riesgoFugaQ = useClientesRiesgoFuga({ enabled: isAdmin })
+  const costesQ    = useCostesSubiendo(14, 15, { enabled: isAdmin })
+
+  const dismissed = useAlertasDescartadas()
+  const descartar = useDescartarAlerta()
+  const restaurarTodas = useRestaurarTodas()
+
+  const handleDismiss = async (alert_type: AlertType, entity_id: string, label: string) => {
+    try {
+      await descartar.mutateAsync({ alert_type, entity_id })
+      toast({ title: `Descartado: ${label}`, variant: 'success' })
+    } catch (e: any) {
+      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    }
+  }
+
+  const handleRestaurarTodas = async () => {
+    if (dismissed.list.length === 0) return
+    const ok = await confirm({
+      title: `¿Restaurar ${dismissed.list.length} alerta${dismissed.list.length === 1 ? '' : 's'} descartada${dismissed.list.length === 1 ? '' : 's'}?`,
+      description: 'Volverán a aparecer en el Dashboard.',
+      confirmLabel: 'Restaurar',
+    })
+    if (!ok) return
+    try {
+      await restaurarTodas.mutateAsync()
+      toast({ title: 'Alertas restauradas', variant: 'success' })
+    } catch (e: any) {
+      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    }
+  }
+
+  // Filtrar descartadas
+  const deudores = useMemo(() => ({
+    ...deudoresQ,
+    data: (deudoresQ.data ?? []).filter((d) => !dismissed.isDescartada('deuda', d.cliente_id)),
+  }), [deudoresQ.data, dismissed.set])
+  const esperados = useMemo(() => ({
+    ...esperadosQ,
+    data: (esperadosQ.data ?? []).filter((p) => !dismissed.isDescartada('pedido_esperado', p.contact_name_canon)),
+  }), [esperadosQ.data, dismissed.set])
+  const anomalos = useMemo(() => ({
+    ...anomalosQ,
+    data: (anomalosQ.data ?? []).filter((p) => !dismissed.isDescartada('producto_anomalo', p.product_id ?? p.nombre)),
+  }), [anomalosQ.data, dismissed.set])
+  const riesgoFuga = useMemo(() => ({
+    ...riesgoFugaQ,
+    data: (riesgoFugaQ.data ?? []).filter((c) => !dismissed.isDescartada('riesgo_fuga', c.contact_name_canon)),
+  }), [riesgoFugaQ.data, dismissed.set])
+  const costes = useMemo(() => ({
+    ...costesQ,
+    data: (costesQ.data ?? []).filter((p) => !dismissed.isDescartada('coste_subiendo', p.product_id)),
+  }), [costesQ.data, dismissed.set])
 
   const totalDeuda = (deudores.data ?? []).reduce((s, d) => s + d.pendiente, 0)
   const totalVencido = (deudores.data ?? []).reduce((s, d) => s + d.vencido, 0)
@@ -87,11 +147,11 @@ function HomeAdmin() {
             severidad={totalVencido > 0 ? 'critica' : (totalDeuda > 0 ? 'aviso' : 'ok')}
             count={deudores.data?.length ?? 0}
             total={totalDeuda > 0 ? eur(totalDeuda) : undefined}
-            loading={deudores.isLoading}
+            loading={deudoresQ.isLoading}
             to="/cobros"
             empty="Sin deuda pendiente"
-            preview={<DeudoresList rows={deudores.data?.slice(0, 6)} />}
-            full={<DeudoresList rows={deudores.data ?? []} />}
+            preview={<DeudoresList rows={deudores.data?.slice(0, 6)} onDismiss={(id, label) => handleDismiss('deuda', id, label)} />}
+            full={<DeudoresList rows={deudores.data ?? []} onDismiss={(id, label) => handleDismiss('deuda', id, label)} />}
           />
 
           {/* Pedidos esperados hoy/inminentes */}
@@ -101,11 +161,11 @@ function HomeAdmin() {
             Icon={CalendarClock}
             severidad={esperadosUrgentes.length > 0 ? 'aviso' : 'ok'}
             count={esperadosUrgentes.length}
-            loading={esperados.isLoading}
+            loading={esperadosQ.isLoading}
             to="/manager"
             empty="Nadie por encima del patrón hoy"
-            preview={<EsperadosList rows={esperadosUrgentes.slice(0, 6)} />}
-            full={<EsperadosList rows={esperados.data ?? []} mostrarTodos />}
+            preview={<EsperadosList rows={esperadosUrgentes.slice(0, 6)} onDismiss={(id, label) => handleDismiss('pedido_esperado', id, label)} />}
+            full={<EsperadosList rows={esperados.data ?? []} mostrarTodos onDismiss={(id, label) => handleDismiss('pedido_esperado', id, label)} />}
           />
 
           {/* Productos anómalos */}
@@ -115,11 +175,11 @@ function HomeAdmin() {
             Icon={Package}
             severidad={(anomalos.data?.length ?? 0) > 0 ? 'aviso' : 'ok'}
             count={anomalos.data?.length ?? 0}
-            loading={anomalos.isLoading}
+            loading={anomalosQ.isLoading}
             to="/manager"
             empty="Todos los productos con margen razonable"
-            preview={<ProductosList rows={anomalos.data?.slice(0, 6)} />}
-            full={<ProductosList rows={anomalos.data ?? []} />}
+            preview={<ProductosList rows={anomalos.data?.slice(0, 6)} onDismiss={(id, label) => handleDismiss('producto_anomalo', id, label)} />}
+            full={<ProductosList rows={anomalos.data ?? []} onDismiss={(id, label) => handleDismiss('producto_anomalo', id, label)} />}
           />
 
           {/* Riesgo de fuga (inactivo / ralentiza / ticket cae) */}
@@ -133,11 +193,11 @@ function HomeAdmin() {
                 : (riesgoFuga.data?.length ?? 0) > 0 ? 'aviso' : 'ok'
             }
             count={riesgoFuga.data?.length ?? 0}
-            loading={riesgoFuga.isLoading}
+            loading={riesgoFugaQ.isLoading}
             to="/manager"
             empty="Sin clientes en riesgo"
-            preview={<RiesgoFugaList rows={riesgoFuga.data?.slice(0, 6)} />}
-            full={<RiesgoFugaList rows={riesgoFuga.data ?? []} />}
+            preview={<RiesgoFugaList rows={riesgoFuga.data?.slice(0, 6)} onDismiss={(id, label) => handleDismiss('riesgo_fuga', id, label)} />}
+            full={<RiesgoFugaList rows={riesgoFuga.data ?? []} onDismiss={(id, label) => handleDismiss('riesgo_fuga', id, label)} />}
           />
 
           {/* Costes subiendo */}
@@ -147,11 +207,11 @@ function HomeAdmin() {
             Icon={TrendingUp}
             severidad={(costes.data?.length ?? 0) > 0 ? 'aviso' : 'ok'}
             count={costes.data?.length ?? 0}
-            loading={costes.isLoading}
+            loading={costesQ.isLoading}
             to="/manager"
             empty="Sin subidas relevantes"
-            preview={<CostesList rows={costes.data?.slice(0, 6)} />}
-            full={<CostesList rows={costes.data ?? []} />}
+            preview={<CostesList rows={costes.data?.slice(0, 6)} onDismiss={(id, label) => handleDismiss('coste_subiendo', id, label)} />}
+            full={<CostesList rows={costes.data ?? []} onDismiss={(id, label) => handleDismiss('coste_subiendo', id, label)} />}
           />
 
           {/* Otra placeholder para llenar grid */}
@@ -165,6 +225,22 @@ function HomeAdmin() {
             empty="Sin avisos del sistema"
           />
           </div>
+
+          {dismissed.list.length > 0 && (
+            <div className="mt-3 flex items-center justify-end gap-2 text-xs text-[var(--color-ink-3)]">
+              <EyeOff className="h-3.5 w-3.5" />
+              <span>{dismissed.list.length} alerta{dismissed.list.length === 1 ? '' : 's'} descartada{dismissed.list.length === 1 ? '' : 's'}</span>
+              <button
+                type="button"
+                onClick={handleRestaurarTodas}
+                disabled={restaurarTodas.isPending}
+                className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] hover:bg-[var(--color-surface-2)]"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Restaurar todas
+              </button>
+            </div>
+          )}
         </section>
         )}
 
@@ -232,29 +308,43 @@ function HomeEmpleado() {
   )
 }
 
-function DeudoresList({ rows }: { rows?: DeudorCobros[] }) {
+function DismissBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick() }}
+      className="rounded-sm p-0.5 text-[var(--color-ink-3)] opacity-0 transition-opacity hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)] group-hover:opacity-100"
+      title="Descartar esta alerta"
+    >
+      <X className="h-3.5 w-3.5" />
+    </button>
+  )
+}
+
+function DeudoresList({ rows, onDismiss }: { rows?: DeudorCobros[]; onDismiss?: (entity_id: string, label: string) => void }) {
   return (
     <ul className="space-y-1.5">
       {rows?.map(d => (
-        <li key={d.cliente_id} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
+        <li key={d.cliente_id} className="group grid grid-cols-[1fr_auto_auto] items-start gap-2 text-sm">
           <div className="min-w-0">
             <div className="truncate text-[var(--color-ink)]">{d.nombre}</div>
             <div className="text-xs text-[var(--color-ink-3)]">{d.movimientos} mov · {d.vencido > 0 ? `${eur(d.vencido)} vencido` : 'al día'}</div>
           </div>
           <span className={`text-sm font-medium tabular-nums ${d.vencido > 0 ? 'text-red-700' : 'text-amber-700'}`}>{eur(d.pendiente)}</span>
+          {onDismiss && <DismissBtn onClick={() => onDismiss(d.cliente_id, d.nombre)} />}
         </li>
       ))}
     </ul>
   )
 }
 
-function EsperadosList({ rows, mostrarTodos }: { rows?: PedidoEsperado[]; mostrarTodos?: boolean }) {
+function EsperadosList({ rows, mostrarTodos, onDismiss }: { rows?: PedidoEsperado[]; mostrarTodos?: boolean; onDismiss?: (entity_id: string, label: string) => void }) {
   const colorPrioridad = (p: PedidoEsperado['prioridad']) =>
     p === 'urgente' ? 'text-red-700' : p === 'pronto' ? 'text-amber-700' : 'text-blue-700'
   return (
     <ul className="space-y-1.5">
       {rows?.map(p => (
-        <li key={p.contact_name_canon} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
+        <li key={p.contact_name_canon} className="group grid grid-cols-[1fr_auto_auto] items-start gap-2 text-sm">
           <div className="min-w-0">
             <div className="truncate text-[var(--color-ink)]">{p.contact_name_canon}</div>
             <div className="text-xs text-[var(--color-ink-3)]">cad. {p.cadencia_dias.toFixed(0)}d · ~{eur(p.ventas_medias)}</div>
@@ -263,28 +353,33 @@ function EsperadosList({ rows, mostrarTodos }: { rows?: PedidoEsperado[]; mostra
             {p.dias_para === 0 ? 'hoy' : p.dias_para < 0 ? `${Math.abs(p.dias_para)}d tarde` : `en ${p.dias_para}d`}
             {mostrarTodos && <span className="ml-1 text-[10px] uppercase">{p.prioridad}</span>}
           </span>
+          {onDismiss && <DismissBtn onClick={() => onDismiss(p.contact_name_canon, p.contact_name_canon)} />}
         </li>
       ))}
     </ul>
   )
 }
 
-function ProductosList({ rows }: { rows?: ProductoAnomalo[] }) {
+function ProductosList({ rows, onDismiss }: { rows?: ProductoAnomalo[]; onDismiss?: (entity_id: string, label: string) => void }) {
   return (
     <ul className="space-y-1.5">
-      {rows?.map(p => (
-        <li key={(p.product_id ?? p.nombre)} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
-          <div className="min-w-0">
-            <div className="truncate text-[var(--color-ink)]">{p.nombre}</div>
-            <div className="text-xs text-amber-700">
-              {p.motivo === 'sin_coste' ? 'sin coste registrado' : p.motivo === 'margen_bajo' ? 'margen bajo' : 'margen excesivo'}
+      {rows?.map(p => {
+        const id = p.product_id ?? p.nombre
+        return (
+          <li key={id} className="group grid grid-cols-[1fr_auto_auto] items-start gap-2 text-sm">
+            <div className="min-w-0">
+              <div className="truncate text-[var(--color-ink)]">{p.nombre}</div>
+              <div className="text-xs text-amber-700">
+                {p.motivo === 'sin_coste' ? 'sin coste registrado' : p.motivo === 'margen_bajo' ? 'margen bajo' : 'margen excesivo'}
+              </div>
             </div>
-          </div>
-          <span className="text-xs tabular-nums text-[var(--color-ink-3)]">
-            {p.margen_pct == null ? '—' : `${p.margen_pct.toFixed(0)}%`} · {eur(p.ventas)}
-          </span>
-        </li>
-      ))}
+            <span className="text-xs tabular-nums text-[var(--color-ink-3)]">
+              {p.margen_pct == null ? '—' : `${p.margen_pct.toFixed(0)}%`} · {eur(p.ventas)}
+            </span>
+            {onDismiss && <DismissBtn onClick={() => onDismiss(id, p.nombre)} />}
+          </li>
+        )
+      })}
     </ul>
   )
 }
@@ -307,7 +402,7 @@ function MotivoChip({ motivo }: { motivo: 'inactivo' | 'ralentiza' | 'ticket_cae
   )
 }
 
-function RiesgoFugaList({ rows }: { rows?: ClienteRiesgoFuga[] }) {
+function RiesgoFugaList({ rows, onDismiss }: { rows?: ClienteRiesgoFuga[]; onDismiss?: (entity_id: string, label: string) => void }) {
   return (
     <ul className="space-y-1.5">
       {rows?.map(c => {
@@ -317,7 +412,7 @@ function RiesgoFugaList({ rows }: { rows?: ClienteRiesgoFuga[] }) {
             : null
         const showTicket = c.motivos.includes('ticket_cae') && dropPct != null
         return (
-          <li key={c.contact_name_canon} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
+          <li key={c.contact_name_canon} className="group grid grid-cols-[1fr_auto_auto] items-start gap-2 text-sm">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 text-[var(--color-ink)]">
                 <span className="truncate">{c.contact_name_canon}</span>
@@ -335,6 +430,7 @@ function RiesgoFugaList({ rows }: { rows?: ClienteRiesgoFuga[] }) {
                 ? `${c.dias_sin_pedir}d sin pedir`
                 : showTicket ? `-${dropPct}%` : ''}
             </span>
+            {onDismiss && <DismissBtn onClick={() => onDismiss(c.contact_name_canon, c.contact_name_canon)} />}
           </li>
         )
       })}
@@ -342,16 +438,17 @@ function RiesgoFugaList({ rows }: { rows?: ClienteRiesgoFuga[] }) {
   )
 }
 
-function CostesList({ rows }: { rows?: CosteSubiendo[] }) {
+function CostesList({ rows, onDismiss }: { rows?: CosteSubiendo[]; onDismiss?: (entity_id: string, label: string) => void }) {
   return (
     <ul className="space-y-1.5">
       {rows?.map(p => (
-        <li key={p.product_id} className="grid grid-cols-[1fr_auto] gap-2 text-sm">
+        <li key={p.product_id} className="group grid grid-cols-[1fr_auto_auto] items-start gap-2 text-sm">
           <div className="min-w-0">
             <div className="truncate text-[var(--color-ink)]">{p.nombre}</div>
             <div className="text-xs text-[var(--color-ink-3)]">{p.coste_anterior.toFixed(2)}€ → {p.coste_actual.toFixed(2)}€</div>
           </div>
           <span className="text-xs font-medium tabular-nums text-amber-700">+{p.variacion_pct.toFixed(0)}%</span>
+          {onDismiss && <DismissBtn onClick={() => onDismiss(p.product_id, p.nombre)} />}
         </li>
       ))}
     </ul>

@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { addMonths, endOfMonth, format, startOfMonth, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { AlertTriangle, BarChart3, CalendarClock, ChevronLeft, ChevronRight, ListChecks, Receipt, TrendingDown } from 'lucide-react'
+import { AlertTriangle, BarChart3, CalendarClock, ChevronLeft, ChevronRight, ListChecks, Receipt } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 import { euros } from '@/shared/lib/format'
 import { cn } from '@/shared/lib/utils'
 import { FijosView } from './components/FijosView'
 import { CalendarioFijosMes } from './components/CalendarioFijosMes'
 import { VariablesView } from './components/VariablesView'
+import { StatsView } from './components/StatsView'
 
 type SubTab = 'fijos' | 'variables' | 'stats'
 
@@ -178,7 +179,7 @@ export function GastosPage() {
       <section>
         {tab === 'fijos'     && <FijosView anio={anio} mes={mes} CalendarioComp={CalendarioFijosMes} />}
         {tab === 'variables' && <VariablesView anchor={anchor} />}
-        {tab === 'stats'     && <StatsPlaceholder />}
+        {tab === 'stats'     && <StatsView anchor={anchor} />}
       </section>
     </div>
   )
@@ -213,30 +214,3 @@ function KpiTile(props: {
   )
 }
 
-function StatsPlaceholder() {
-  return (
-    <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2,#f8fafc)] p-6">
-      <div className="flex items-center gap-2 text-[var(--color-primary-2)]">
-        <TrendingDown className="h-5 w-5" />
-        <h2 className="font-display text-base font-bold text-[var(--color-ink)]">Estadísticas</h2>
-        <span className="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-primary-2)]">
-          Sesión 3
-        </span>
-      </div>
-      <ul className="mt-3 space-y-1.5 text-sm text-[var(--color-ink-2)]">
-        <li className="flex gap-2">
-          <span className="text-[var(--color-ink-3)]">•</span>
-          <span>Tabla dinámica configurable (Mes×Categoría / Mes×Proveedor / Categoría×Proveedor / YoY).</span>
-        </li>
-        <li className="flex gap-2">
-          <span className="text-[var(--color-ink-3)]">•</span>
-          <span>4 gráficos: línea evolución mensual · barras apiladas categoría · top 5 proveedores · donut % categoría.</span>
-        </li>
-        <li className="flex gap-2">
-          <span className="text-[var(--color-ink-3)]">•</span>
-          <span>Filtros de rango de fechas + drill-in por celda.</span>
-        </li>
-      </ul>
-    </div>
-  )
-}
