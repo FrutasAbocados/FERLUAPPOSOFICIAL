@@ -11,6 +11,7 @@ import {
   LogOut,
   Menu,
   MessageSquare,
+  Receipt,
   Users,
   UsersRound,
   Wallet,
@@ -33,6 +34,7 @@ const MODULES: ModuleNav[] = [
   { key: 'pedidos_wa', label: 'Pedidos', to: '/pedidos-wa', icon: MessageSquare },
   { key: 'cash', label: 'Caja', to: '/cash', icon: Banknote },
   { key: 'cobros', label: 'Cobros', to: '/cobros', icon: HandCoins },
+  { key: 'gastos', label: 'Gastos', to: '/gastos', icon: Receipt },
   { key: 'sueldos', label: 'Sueldos', to: '/sueldos', icon: Wallet },
 ]
 
