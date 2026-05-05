@@ -6,6 +6,9 @@ import { AlertTriangle, BarChart3, CalendarClock, ChevronLeft, ChevronRight, Lis
 import { supabase } from '@/shared/lib/supabase'
 import { euros } from '@/shared/lib/format'
 import { cn } from '@/shared/lib/utils'
+import { FijosView } from './components/FijosView'
+import { CalendarioFijosMes } from './components/CalendarioFijosMes'
+import { VariablesView } from './components/VariablesView'
 
 type SubTab = 'fijos' | 'variables' | 'stats'
 
@@ -80,6 +83,9 @@ export function GastosPage() {
 
   const totalAlertas = alertas?.length ?? 0
   const sumaAlertas  = (alertas ?? []).reduce((acc, a) => acc + a.total, 0)
+
+  const anio = anchor.getFullYear()
+  const mes  = anchor.getMonth() + 1
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-4 p-4 md:p-6">
@@ -170,8 +176,8 @@ export function GastosPage() {
 
       {/* Tab content */}
       <section>
-        {tab === 'fijos'     && <FijosPlaceholder anchor={anchor} />}
-        {tab === 'variables' && <VariablesPlaceholder />}
+        {tab === 'fijos'     && <FijosView anio={anio} mes={mes} CalendarioComp={CalendarioFijosMes} />}
+        {tab === 'variables' && <VariablesView anchor={anchor} />}
         {tab === 'stats'     && <StatsPlaceholder />}
       </section>
     </div>
@@ -207,75 +213,29 @@ function KpiTile(props: {
   )
 }
 
-// ── Placeholders sesión 1 ────────────────────────────────────────────────────
-
-function FijosPlaceholder({ anchor }: { anchor: Date }) {
-  return (
-    <PlaceholderCard
-      title="Gastos fijos"
-      icon={CalendarClock}
-      lines={[
-        'Aquí vendrá el CRUD de fijos recurrentes (alquiler, leasing, seguros, cuotas…)',
-        `Calendario visual del mes (${format(anchor, 'LLLL yyyy', { locale: es })}) con burbujas color por estado: pagado / próximo / vencido / futuro.`,
-        'Alta inline + marcar pagado + alerta automática 7 días antes del cargo.',
-      ]}
-    />
-  )
-}
-
-function VariablesPlaceholder() {
-  return (
-    <PlaceholderCard
-      title="Gastos variables"
-      icon={ListChecks}
-      lines={[
-        'Tabla con filtros (fecha, categoría, proveedor) + alta inline.',
-        'Proveedor: pickeable de Holded (manager_contactos) o manuales (gastos_proveedores_manuales) o texto libre.',
-        'Subtotal + IVA → total calculado. Categorías personalizables.',
-      ]}
-    />
-  )
-}
-
 function StatsPlaceholder() {
-  return (
-    <PlaceholderCard
-      title="Estadísticas"
-      icon={TrendingDown}
-      lines={[
-        'Tabla dinámica configurable (Mes×Categoría / Mes×Proveedor / Categoría×Proveedor / YoY).',
-        '4 gráficos: línea evolución mensual · barras apiladas categoría · top 5 proveedores · donut % categoría.',
-        'Filtros de rango de fechas + drill-in por celda.',
-      ]}
-    />
-  )
-}
-
-function PlaceholderCard({
-  title,
-  icon: Icon,
-  lines,
-}: {
-  title: string
-  icon: React.ComponentType<{ className?: string }>
-  lines: string[]
-}) {
   return (
     <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2,#f8fafc)] p-6">
       <div className="flex items-center gap-2 text-[var(--color-primary-2)]">
-        <Icon className="h-5 w-5" />
-        <h2 className="font-display text-base font-bold text-[var(--color-ink)]">{title}</h2>
+        <TrendingDown className="h-5 w-5" />
+        <h2 className="font-display text-base font-bold text-[var(--color-ink)]">Estadísticas</h2>
         <span className="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-primary-2)]">
-          Sesión 2
+          Sesión 3
         </span>
       </div>
       <ul className="mt-3 space-y-1.5 text-sm text-[var(--color-ink-2)]">
-        {lines.map((l, i) => (
-          <li key={i} className="flex gap-2">
-            <span className="text-[var(--color-ink-3)]">•</span>
-            <span>{l}</span>
-          </li>
-        ))}
+        <li className="flex gap-2">
+          <span className="text-[var(--color-ink-3)]">•</span>
+          <span>Tabla dinámica configurable (Mes×Categoría / Mes×Proveedor / Categoría×Proveedor / YoY).</span>
+        </li>
+        <li className="flex gap-2">
+          <span className="text-[var(--color-ink-3)]">•</span>
+          <span>4 gráficos: línea evolución mensual · barras apiladas categoría · top 5 proveedores · donut % categoría.</span>
+        </li>
+        <li className="flex gap-2">
+          <span className="text-[var(--color-ink-3)]">•</span>
+          <span>Filtros de rango de fechas + drill-in por celda.</span>
+        </li>
       </ul>
     </div>
   )
