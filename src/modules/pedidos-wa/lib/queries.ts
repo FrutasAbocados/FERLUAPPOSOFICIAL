@@ -143,7 +143,9 @@ export function usePedidosDelDia(fecha: string) {
       const { data, error } = await supabase
         .from('pedidos_wa')
         .select(`
-          *,
+          id, cliente_id, fecha, texto_original, notas_admin, faltas, estado,
+          override_repartidor, override_horario, override_salida,
+          created_by, created_at, updated_at,
           cliente:cliente_id (
             id, nombre, nombre_normalizado, holded_contact_id,
             repartidor, horario, tipo_factura, salida,
@@ -158,11 +160,36 @@ export function usePedidosDelDia(fecha: string) {
         .eq('fecha', fecha)
         .order('created_at', { ascending: true })
       if (error) throw error
-      const rows = (data ?? []) as Pedido[]
+      const rows = (data ?? []) as unknown as Pedido[]
       for (const p of rows) {
         if (p.lineas) p.lineas.sort((a, b) => a.orden - b.orden)
       }
       return rows
+    },
+  })
+}
+
+/** Mover un pedido a otro repartidor / horario / salida sólo para hoy. */
+export function useReasignarPedido() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      id: string
+      fecha: string
+      patch: Partial<{
+        override_repartidor: Repartidor | null
+        override_horario: string | null
+        override_salida: 'PRIMERA' | 'SEGUNDA' | null
+      }>
+    }) => {
+      const { error } = await supabase
+        .from('pedidos_wa')
+        .update(input.patch)
+        .eq('id', input.id)
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
     },
   })
 }

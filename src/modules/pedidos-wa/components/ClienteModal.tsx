@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Loader2, X } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Check, Loader2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
+import { supabase } from '@/shared/lib/supabase'
 import { toast } from '@/shared/lib/toast'
 import { cn } from '@/shared/lib/utils'
 import {
@@ -209,11 +211,13 @@ export function ClienteModal({ cliente, onClose, onSaved, nombreInicial }: Props
             />
           </Field>
 
-          <Field label="Holded contact ID" hint="Opcional. Solo necesario para auto-vincular factura en Holded más adelante.">
-            <Input
-              value={form.holded_contact_id ?? ''}
-              onChange={(e) => setForm(f => ({ ...f, holded_contact_id: e.target.value || null }))}
-              placeholder="(opcional)"
+          <Field
+            label="Holded contact ID"
+            hint="Opcional. Solo necesario para auto-vincular factura en Holded más adelante."
+          >
+            <HoldedContactInput
+              value={form.holded_contact_id}
+              onChange={(v) => setForm(f => ({ ...f, holded_contact_id: v }))}
             />
           </Field>
 
@@ -245,6 +249,51 @@ export function ClienteModal({ cliente, onClose, onSaved, nombreInicial }: Props
           </Button>
         </footer>
       </div>
+    </div>
+  )
+}
+
+function HoldedContactInput({
+  value, onChange,
+}: { value: string | null; onChange: (v: string | null) => void }) {
+  const id = (value ?? '').trim()
+  const lookup = useQuery({
+    queryKey: ['pedidos_wa', 'holded_contact_lookup', id] as const,
+    enabled: id.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('manager_contactos')
+        .select('id, name')
+        .eq('id', id)
+        .maybeSingle()
+      if (error) throw error
+      return data as { id: string; name: string } | null
+    },
+  })
+  return (
+    <div>
+      <Input
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value || null)}
+        placeholder="(opcional — pega el ID de Holded)"
+      />
+      {id.length > 0 && (
+        <div className="mt-1 text-[11px]">
+          {lookup.isFetching ? (
+            <span className="text-[var(--color-ink-3)]">Buscando…</span>
+          ) : lookup.data ? (
+            <span className="inline-flex items-center gap-1 text-emerald-700">
+              <Check className="h-3 w-3" />
+              Encontrado: <strong>{lookup.data.name}</strong>
+            </span>
+          ) : (
+            <span className="text-amber-700">
+              ⚠ No está en Holded aún. Se guardará igualmente — el sync horario lo enlazará cuando aparezca.
+            </span>
+          )}
+        </div>
+      )}
     </div>
   )
 }

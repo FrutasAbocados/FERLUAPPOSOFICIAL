@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
@@ -10,8 +10,10 @@ import {
   Gift,
   Loader2,
   Package,
+  Pencil,
   Trash2,
   Truck,
+  X,
 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { toast } from '@/shared/lib/toast'
@@ -21,10 +23,12 @@ import {
   REPARTIDOR_COLOR,
   REPARTIDOR_LABEL,
   UNIDAD_LABEL,
+  type ClientePedido,
   type EstadoPedido,
   type Pedido,
 } from '../lib/types'
 import {
+  useActualizarClientePedido,
   useActualizarPedido,
   useEliminarPedido,
   usePedidosDelDia,
@@ -86,7 +90,7 @@ export function ListaPedidosHoy() {
 
       {lista.length === 0 ? (
         <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-ink-3)]">
-          Hoy aún no hay pedidos. Crea el primero en la pestaña “Nuevo pedido”.
+          Hoy aún no hay pedidos. Crea el primero en la pestaña “Captura”.
         </div>
       ) : (
         <ul className="space-y-2">
@@ -223,12 +227,7 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
         </div>
       </div>
 
-      {cliente?.notas && (
-        <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-red-50 px-2 py-1 text-xs text-red-700">
-          <AlertCircle className="h-3.5 w-3.5" />
-          {cliente.notas}
-        </div>
-      )}
+      {cliente && <NotaClienteEditable cliente={cliente} />}
 
       {open && (
         <div className="mt-3 space-y-3 border-t border-[var(--color-border)]/40 pt-3">
@@ -288,4 +287,102 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
 function formatN(n: number): string {
   if (Number.isInteger(n)) return String(n)
   return n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+}
+
+function NotaClienteEditable({ cliente }: { cliente: ClientePedido }) {
+  const [editando, setEditando] = useState(false)
+  const [valor, setValor] = useState(cliente.notas ?? '')
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  const actualizar = useActualizarClientePedido()
+
+  useEffect(() => {
+    setValor(cliente.notas ?? '')
+  }, [cliente.notas])
+
+  useEffect(() => {
+    if (editando) inputRef.current?.focus()
+  }, [editando])
+
+  const guardar = async (nuevo: string | null) => {
+    try {
+      await actualizar.mutateAsync({ id: cliente.id, patch: { notas: nuevo } })
+      setEditando(false)
+      toast({
+        title: nuevo ? 'Nota guardada' : 'Nota eliminada',
+        variant: 'success',
+      })
+    } catch (e) {
+      toast({
+        title: 'Error',
+        description: e instanceof Error ? e.message : 'No se pudo guardar',
+        variant: 'error',
+      })
+    }
+  }
+
+  const onBlur = () => {
+    const limpio = valor.trim()
+    if (limpio === (cliente.notas ?? '')) {
+      setEditando(false)
+      return
+    }
+    guardar(limpio || null)
+  }
+
+  if (editando) {
+    return (
+      <div className="mt-2 flex items-start gap-1.5 rounded-md bg-red-50 px-2 py-1.5 text-xs text-red-700">
+        <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <textarea
+          ref={inputRef}
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+          onBlur={onBlur}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') { setValor(cliente.notas ?? ''); setEditando(false) }
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); onBlur() }
+          }}
+          rows={1}
+          placeholder="Escribe una nota (vaciar = eliminar)"
+          className="min-w-0 flex-1 resize-none border-0 bg-transparent text-xs text-red-700 placeholder:text-red-400 focus:outline-none focus:ring-0"
+        />
+        {actualizar.isPending && <Loader2 className="mt-0.5 h-3 w-3 shrink-0 animate-spin" />}
+      </div>
+    )
+  }
+
+  if (!cliente.notas) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditando(true)}
+        className="mt-2 inline-flex items-center gap-1 rounded-md border border-dashed border-[var(--color-border)] px-2 py-0.5 text-[11px] text-[var(--color-ink-3)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink-2)]"
+      >
+        <Pencil className="h-3 w-3" /> Añadir nota
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-red-50 px-2 py-1 text-xs text-red-700">
+      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+      <button
+        type="button"
+        onClick={() => setEditando(true)}
+        className="text-left underline-offset-2 hover:underline"
+        title="Editar nota (afecta a todos los pedidos del cliente)"
+      >
+        {cliente.notas}
+      </button>
+      <button
+        type="button"
+        onClick={() => guardar(null)}
+        disabled={actualizar.isPending}
+        className="rounded p-0.5 hover:bg-red-100 disabled:opacity-50"
+        title="Eliminar nota"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  )
 }

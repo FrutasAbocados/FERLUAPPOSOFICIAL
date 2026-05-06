@@ -63,6 +63,12 @@ export type Pedido = {
   notas_admin: string | null
   faltas: string | null
   estado: EstadoPedido
+  /** Si está set, este pedido va con otro repartidor sólo hoy (no toca al cliente). */
+  override_repartidor: Repartidor | null
+  /** Si está set, sustituye `cliente.horario` sólo para este pedido. */
+  override_horario: string | null
+  /** Si está set, sustituye `cliente.salida` sólo para este pedido. */
+  override_salida: 'PRIMERA' | 'SEGUNDA' | null
   created_by: string | null
   created_at: string
   updated_at: string
