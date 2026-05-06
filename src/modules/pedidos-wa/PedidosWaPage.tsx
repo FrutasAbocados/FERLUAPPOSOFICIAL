@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { MessageSquare, Truck, Users, Zap } from 'lucide-react'
+import { MessageSquare, ShoppingCart, Truck, Users, Zap } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { CapturaRapida } from './components/CapturaRapida'
+import { Compra } from './components/Compra'
 import { HojaRuta } from './components/HojaRuta'
 import { ListaClientes } from './components/ListaClientes'
 import { ListaPedidosHoy } from './components/ListaPedidosHoy'
 
-type Tab = 'captura' | 'hoy' | 'ruta' | 'clientes'
+type Tab = 'captura' | 'hoy' | 'compra' | 'ruta' | 'clientes'
 
 export function PedidosWaPage() {
   const [tab, setTab] = useState<Tab>('captura')
@@ -28,6 +29,9 @@ export function PedidosWaPage() {
             <Zap className="h-3.5 w-3.5" /> Captura
           </TabBtn>
           <TabBtn active={tab === 'hoy'}   onClick={() => setTab('hoy')}>   Hoy </TabBtn>
+          <TabBtn active={tab === 'compra'} onClick={() => setTab('compra')}>
+            <ShoppingCart className="h-3.5 w-3.5" /> Compra
+          </TabBtn>
           <TabBtn active={tab === 'ruta'}  onClick={() => setTab('ruta')}>
             <Truck className="h-3.5 w-3.5" /> Hoja de ruta
           </TabBtn>
@@ -40,6 +44,7 @@ export function PedidosWaPage() {
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
         {tab === 'captura'  && <CapturaRapida />}
         {tab === 'hoy'      && <ListaPedidosHoy />}
+        {tab === 'compra'   && <Compra />}
         {tab === 'ruta'     && <HojaRuta />}
         {tab === 'clientes' && <ListaClientes />}
       </div>

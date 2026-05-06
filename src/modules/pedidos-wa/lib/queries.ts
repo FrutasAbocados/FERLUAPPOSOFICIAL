@@ -15,6 +15,8 @@ const KEYS = {
   clientesAll:     ['pedidos_wa', 'clientes', 'all'] as const,
   pedidosDelDia:   (fecha: string) => ['pedidos_wa', 'pedidos', fecha] as const,
   pedido:          (id: string) => ['pedidos_wa', 'pedido', id] as const,
+  inventario:      (fecha: string) => ['pedidos_wa', 'inventario', fecha] as const,
+  cotejo:          (fecha: string) => ['pedidos_wa', 'cotejo', fecha] as const,
 }
 
 export function useClientesPedidosWa() {
@@ -316,6 +318,153 @@ export function useEliminarPedido() {
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+    },
+  })
+}
+
+// ===== Inventario + Cotejo (Compra del día) =====
+
+export type InventarioLinea = {
+  id: string
+  fecha: string
+  orden: number
+  producto_normalizado: string
+  unidad: string
+  cantidad: number
+  notas: string | null
+}
+
+export type InventarioDia = {
+  fecha: string
+  texto_original: string
+  created_at: string
+  updated_at: string
+  lineas: InventarioLinea[]
+}
+
+export function useInventarioDelDia(fecha: string) {
+  return useQuery({
+    queryKey: KEYS.inventario(fecha),
+    queryFn: async (): Promise<InventarioDia | null> => {
+      const { data, error } = await supabase
+        .from('pedidos_wa_inventario')
+        .select(`
+          fecha, texto_original, created_at, updated_at,
+          lineas:pedidos_wa_inventario_lineas (
+            id, fecha, orden, producto_normalizado, unidad, cantidad, notas
+          )
+        `)
+        .eq('fecha', fecha)
+        .maybeSingle()
+      if (error) throw error
+      if (!data) return null
+      const inv = data as unknown as InventarioDia
+      inv.lineas?.sort((a, b) => a.orden - b.orden)
+      return inv
+    },
+  })
+}
+
+type GuardarInventarioInput = {
+  fecha: string
+  texto: string
+  lineas: Array<{
+    orden: number
+    cantidad: number
+    unidad: string
+    producto_normalizado: string
+    notas: string | null
+  }>
+}
+
+export function useGuardarInventario() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: GuardarInventarioInput) => {
+      const { error: errInv } = await supabase
+        .from('pedidos_wa_inventario')
+        .upsert(
+          { fecha: input.fecha, texto_original: input.texto },
+          { onConflict: 'fecha' },
+        )
+      if (errInv) throw errInv
+
+      const { error: errDel } = await supabase
+        .from('pedidos_wa_inventario_lineas')
+        .delete()
+        .eq('fecha', input.fecha)
+      if (errDel) throw errDel
+
+      if (input.lineas.length > 0) {
+        const rows = input.lineas.map(l => ({
+          fecha:                input.fecha,
+          orden:                l.orden,
+          cantidad:             l.cantidad,
+          unidad:               l.unidad,
+          producto_normalizado: l.producto_normalizado,
+          notas:                l.notas,
+        }))
+        const { error: errIns } = await supabase
+          .from('pedidos_wa_inventario_lineas')
+          .insert(rows)
+        if (errIns) throw errIns
+      }
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.inventario(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.cotejo(vars.fecha) })
+    },
+  })
+}
+
+export function useEliminarInventario() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { fecha: string }) => {
+      const { error } = await supabase
+        .from('pedidos_wa_inventario')
+        .delete()
+        .eq('fecha', input.fecha)
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.inventario(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.cotejo(vars.fecha) })
+    },
+  })
+}
+
+export type CotejoFila = {
+  producto:         string
+  unidad:           string
+  pedido_total:     number
+  inventario:       number
+  a_comprar:        number
+  sobra:            number
+  kg_por_caja:      number | null
+  pedido_cajas:     number | null
+  inventario_cajas: number | null
+  a_comprar_cajas:  number | null
+}
+
+export function useCotejoDelDia(fecha: string) {
+  return useQuery({
+    queryKey: KEYS.cotejo(fecha),
+    queryFn: async (): Promise<CotejoFila[]> => {
+      const { data, error } = await supabase.rpc('pedidos_wa_cotejo', { p_fecha: fecha })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        producto:          String(r.producto ?? ''),
+        unidad:            String(r.unidad ?? ''),
+        pedido_total:      Number(r.pedido_total ?? 0),
+        inventario:        Number(r.inventario ?? 0),
+        a_comprar:         Number(r.a_comprar ?? 0),
+        sobra:             Number(r.sobra ?? 0),
+        kg_por_caja:       r.kg_por_caja == null ? null : Number(r.kg_por_caja),
+        pedido_cajas:      r.pedido_cajas == null ? null : Number(r.pedido_cajas),
+        inventario_cajas:  r.inventario_cajas == null ? null : Number(r.inventario_cajas),
+        a_comprar_cajas:   r.a_comprar_cajas == null ? null : Number(r.a_comprar_cajas),
+      }))
     },
   })
 }
