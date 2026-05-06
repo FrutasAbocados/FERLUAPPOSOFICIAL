@@ -283,20 +283,35 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
   useEffect(() => { setHorarioEdit(horarioActual) }, [horarioActual])
 
   const guardarHorario = () => {
-    const nuevo = horarioEdit.trim()
-    if (nuevo === (cliente?.horario ?? '')) {
-      // Igual al del cliente → reset override.
+    const raw = horarioEdit.trim()
+    const normalizado = raw ? normalizarHorario(raw) : ''
+    if (raw && normalizado === null) {
+      toast({
+        title: 'Horario inválido',
+        description: 'Usa formato HH:MM (p. ej. 8:30 o 14:00).',
+        variant: 'error',
+      })
+      setHorarioEdit(horarioActual)
+      return
+    }
+    const valor = normalizado || ''
+    if (valor === (cliente?.horario ?? '')) {
       if (pedido.override_horario !== null) {
         reasignar.mutate(
           { id: pedido.id, fecha, patch: { override_horario: null } },
           { onSuccess: () => toast({ title: 'Horario restaurado', variant: 'success' }) },
         )
+      } else {
+        setHorarioEdit(valor)
       }
       return
     }
-    if (nuevo === (pedido.override_horario ?? '')) return
+    if (valor === (pedido.override_horario ?? '')) {
+      setHorarioEdit(valor)
+      return
+    }
     reasignar.mutate(
-      { id: pedido.id, fecha, patch: { override_horario: nuevo || null } },
+      { id: pedido.id, fecha, patch: { override_horario: valor || null } },
       {
         onSuccess: () => toast({ title: 'Horario actualizado', variant: 'success' }),
         onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'error' }),
@@ -592,4 +607,25 @@ function ordenSalida(s: string | null | undefined): number {
 function formatN(n: number): string {
   if (Number.isInteger(n)) return String(n)
   return n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+}
+
+// Acepta '8', '8:30', '08:30', '8.30', '0830', '830' → 'HH:MM'. null si no parsea.
+function normalizarHorario(raw: string): string | null {
+  const s = raw.replace(/\s+/g, '')
+  // HH:MM o H:MM con separador : o .
+  let m = s.match(/^(\d{1,2})[:.h](\d{1,2})$/)
+  if (!m) {
+    // Solo dígitos: HHMM, HMM, HH, H
+    m = s.match(/^(\d{1,2})(\d{2})$/) ?? s.match(/^(\d{1,2})$/)
+    if (!m) return null
+    if (!m[2]) return formatHora(parseInt(m[1], 10), 0)
+  }
+  const h = parseInt(m[1], 10)
+  const mi = parseInt(m[2], 10)
+  if (h < 0 || h > 23 || mi < 0 || mi > 59) return null
+  return formatHora(h, mi)
+}
+
+function formatHora(h: number, m: number): string {
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }

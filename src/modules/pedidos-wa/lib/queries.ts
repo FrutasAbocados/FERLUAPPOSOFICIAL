@@ -17,6 +17,7 @@ const KEYS = {
   pedido:          (id: string) => ['pedidos_wa', 'pedido', id] as const,
   inventario:      (fecha: string) => ['pedidos_wa', 'inventario', fecha] as const,
   cotejo:          (fecha: string) => ['pedidos_wa', 'cotejo', fecha] as const,
+  kgPorCaja:       ['pedidos_wa', 'kg_por_caja'] as const,
 }
 
 export function useClientesPedidosWa() {
@@ -322,6 +323,102 @@ export function useEliminarPedido() {
   })
 }
 
+// ===== Líneas de pedido (CRUD inline desde Hoy) =====
+
+type ActualizarLineaInput = {
+  id: string
+  fecha: string
+  patch: Partial<{
+    cantidad: number
+    unidad: string
+    producto_normalizado: string
+    subseccion: string | null
+    notas: string | null
+    es_gratis: boolean
+  }>
+}
+
+export function useActualizarLineaPedido() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: ActualizarLineaInput) => {
+      const { error } = await supabase
+        .from('pedidos_wa_lineas')
+        .update(input.patch)
+        .eq('id', input.id)
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.cotejo(vars.fecha) })
+    },
+  })
+}
+
+export function useEliminarLineaPedido() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { id: string; fecha: string }) => {
+      const { error } = await supabase
+        .from('pedidos_wa_lineas')
+        .delete()
+        .eq('id', input.id)
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.cotejo(vars.fecha) })
+    },
+  })
+}
+
+export function useAgregarLineaPedido() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      pedido_id: string
+      fecha: string
+      linea: {
+        cantidad: number
+        unidad: string
+        producto_normalizado: string
+        subseccion: string | null
+        notas: string | null
+        es_gratis: boolean
+      }
+    }) => {
+      // Calcular orden: max(orden) + 1
+      const { data: existentes } = await supabase
+        .from('pedidos_wa_lineas')
+        .select('orden')
+        .eq('pedido_id', input.pedido_id)
+        .order('orden', { ascending: false })
+        .limit(1)
+      const proxOrden = existentes && existentes.length > 0
+        ? (existentes[0].orden as number) + 1
+        : 1
+      const row = {
+        pedido_id:            input.pedido_id,
+        orden:                proxOrden,
+        cantidad:             input.linea.cantidad,
+        unidad:               input.linea.unidad,
+        producto_normalizado: input.linea.producto_normalizado,
+        producto_raw:         input.linea.producto_normalizado,
+        subseccion:           input.linea.subseccion,
+        notas:                input.linea.notas,
+        es_gratis:            input.linea.es_gratis,
+        metodo:               'manual',
+      }
+      const { error } = await supabase.from('pedidos_wa_lineas').insert(row)
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.cotejo(vars.fecha) })
+    },
+  })
+}
+
 // ===== Inventario + Cotejo (Compra del día) =====
 
 export type InventarioLinea = {
@@ -465,6 +562,72 @@ export function useCotejoDelDia(fecha: string) {
         inventario_cajas:  r.inventario_cajas == null ? null : Number(r.inventario_cajas),
         a_comprar_cajas:   r.a_comprar_cajas == null ? null : Number(r.a_comprar_cajas),
       }))
+    },
+  })
+}
+
+// ===== CRUD factores kg/caja =====
+
+export type KgPorCajaRow = {
+  producto_normalizado: string
+  kg_por_caja: number
+  updated_at: string
+}
+
+export function useFactoresKgCaja() {
+  return useQuery({
+    queryKey: KEYS.kgPorCaja,
+    queryFn: async (): Promise<KgPorCajaRow[]> => {
+      const { data, error } = await supabase
+        .from('pedidos_wa_kg_por_caja')
+        .select('producto_normalizado, kg_por_caja, updated_at')
+        .order('producto_normalizado', { ascending: true })
+      if (error) throw error
+      return (data ?? []).map(r => ({
+        producto_normalizado: String(r.producto_normalizado ?? ''),
+        kg_por_caja:          Number(r.kg_por_caja ?? 0),
+        updated_at:           String(r.updated_at ?? ''),
+      }))
+    },
+  })
+}
+
+export function useUpsertFactorKgCaja() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { producto_normalizado: string; kg_por_caja: number }) => {
+      if (input.kg_por_caja <= 0) throw new Error('kg/caja debe ser > 0')
+      const producto = input.producto_normalizado.trim().toLowerCase()
+      if (!producto) throw new Error('Producto vacío')
+      const { error } = await supabase
+        .from('pedidos_wa_kg_por_caja')
+        .upsert(
+          { producto_normalizado: producto, kg_por_caja: input.kg_por_caja },
+          { onConflict: 'producto_normalizado' },
+        )
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.kgPorCaja })
+      // Invalidar todos los cotejos (afecta a TODOS los días)
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'cotejo'] })
+    },
+  })
+}
+
+export function useEliminarFactorKgCaja() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { producto_normalizado: string }) => {
+      const { error } = await supabase
+        .from('pedidos_wa_kg_por_caja')
+        .delete()
+        .eq('producto_normalizado', input.producto_normalizado)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.kgPorCaja })
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'cotejo'] })
     },
   })
 }

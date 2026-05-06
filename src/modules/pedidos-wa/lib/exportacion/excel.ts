@@ -129,3 +129,52 @@ export function exportarHojaRuta(pedidos: Pedido[], fechaIso: string) {
 
   XLSX.writeFile(wb, `ruta-${fechaIso}.xlsx`)
 }
+
+// ===== Export lista de compra =====
+export type CompraFila = {
+  producto: string
+  unidad: string
+  pedido_total: number
+  inventario: number
+  a_comprar: number
+  pedido_cajas: number | null
+  inventario_cajas: number | null
+  a_comprar_cajas: number | null
+  kg_por_caja: number | null
+}
+
+export function exportarCompra(filas: CompraFila[], fechaIso: string) {
+  const HEADER_COMPRA = [
+    'PRODUCTO', 'UNIDAD',
+    'PEDIDO', 'PEDIDO (cajas)',
+    'INVENTARIO', 'INVENTARIO (cajas)',
+    'A COMPRAR', 'A COMPRAR (cajas)',
+    'kg/caja',
+  ]
+  const rows: Fila[] = [HEADER_COMPRA]
+  for (const f of filas) {
+    rows.push([
+      f.producto,
+      f.unidad,
+      f.pedido_total,
+      f.pedido_cajas ?? '',
+      f.inventario,
+      f.inventario_cajas ?? '',
+      f.a_comprar,
+      f.a_comprar_cajas ?? '',
+      f.kg_por_caja ?? '',
+    ])
+  }
+  const ws = XLSX.utils.aoa_to_sheet(rows)
+  ws['!cols'] = [
+    { wch: 28 },  // PRODUCTO
+    { wch: 8 },   // UNIDAD
+    { wch: 10 }, { wch: 12 },
+    { wch: 12 }, { wch: 14 },
+    { wch: 12 }, { wch: 14 },
+    { wch: 8 },
+  ]
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'COMPRA')
+  XLSX.writeFile(wb, `compra-${fechaIso}.xlsx`)
+}

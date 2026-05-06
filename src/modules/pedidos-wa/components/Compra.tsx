@@ -4,26 +4,36 @@ import { es } from 'date-fns/locale'
 import {
   AlertTriangle,
   Boxes,
+  Check,
   CheckCircle2,
   ClipboardCopy,
+  Download,
   Loader2,
+  Plus,
   RefreshCw,
+  Settings2,
   ShoppingCart,
   Sparkles,
   Trash2,
+  X,
 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
 import { cn } from '@/shared/lib/utils'
+import { exportarCompra } from '../lib/exportacion/excel'
 import { parsearPedido } from '../lib/parser'
 import {
   useCotejoDelDia,
+  useEliminarFactorKgCaja,
   useEliminarInventario,
+  useFactoresKgCaja,
   useGuardarInventario,
   useInventarioDelDia,
   usePedidosDelDia,
+  useUpsertFactorKgCaja,
   type CotejoFila,
+  type KgPorCajaRow,
 } from '../lib/queries'
 
 export function Compra() {
@@ -120,6 +130,23 @@ export function Compra() {
       toast({ title: `${aComprar.length} líneas copiadas`, variant: 'success' })
     } catch {
       toast({ title: 'No se pudo copiar', description: 'Selecciona y copia manualmente.', variant: 'error' })
+    }
+  }
+
+  const exportarExcel = () => {
+    if (aComprar.length === 0) {
+      toast({ title: 'Nada que exportar', variant: 'success' })
+      return
+    }
+    try {
+      exportarCompra(aComprar, fechaIso)
+      toast({ title: 'Excel descargado', variant: 'success' })
+    } catch (e) {
+      toast({
+        title: 'Error exportando',
+        description: e instanceof Error ? e.message : 'Inesperado',
+        variant: 'error',
+      })
     }
   }
 
@@ -226,10 +253,16 @@ export function Compra() {
               accent="bg-amber-500"
               count={aComprar.length}
               accion={
-                <Button size="sm" variant="secondary" onClick={copiarLista}>
-                  <ClipboardCopy className="h-3.5 w-3.5" />
-                  Copiar lista
-                </Button>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={exportarExcel} title="Exportar a Excel">
+                    <Download className="h-3.5 w-3.5" />
+                    Excel
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={copiarLista}>
+                    <ClipboardCopy className="h-3.5 w-3.5" />
+                    Copiar
+                  </Button>
+                </div>
               }
             >
               <Tabla filas={aComprar} columna="a_comprar" />
@@ -271,6 +304,8 @@ export function Compra() {
           )}
         </>
       )}
+
+      <ConversionesEditor />
     </div>
   )
 }
@@ -427,4 +462,256 @@ function formateaLineaCompra(f: CotejoFila): string {
     return `${formatNum(f.a_comprar_cajas)} cajas (${formatNum(f.a_comprar)} kg) · ${f.producto}`
   }
   return `${formatNum(f.a_comprar)} ${f.unidad} · ${f.producto}`
+}
+
+// ===== Editor de factores kg/caja =====
+function ConversionesEditor() {
+  const [open, setOpen] = useState(false)
+  const factores = useFactoresKgCaja()
+  const upsert = useUpsertFactorKgCaja()
+  const eliminar = useEliminarFactorKgCaja()
+
+  const [agregando, setAgregando] = useState(false)
+  const [nuevoProducto, setNuevoProducto] = useState('')
+  const [nuevoFactor, setNuevoFactor] = useState<number | ''>('')
+
+  const onCrear = async () => {
+    const prod = nuevoProducto.trim()
+    if (!prod) {
+      toast({ title: 'Producto vacío', variant: 'error' })
+      return
+    }
+    const factor = typeof nuevoFactor === 'number' ? nuevoFactor : Number(nuevoFactor)
+    if (!factor || factor <= 0) {
+      toast({ title: 'kg/caja inválido', variant: 'error' })
+      return
+    }
+    try {
+      await upsert.mutateAsync({ producto_normalizado: prod, kg_por_caja: factor })
+      setNuevoProducto('')
+      setNuevoFactor('')
+      setAgregando(false)
+      toast({ title: 'Factor guardado', variant: 'success' })
+    } catch (e) {
+      toast({
+        title: 'Error',
+        description: e instanceof Error ? e.message : 'Inesperado',
+        variant: 'error',
+      })
+    }
+  }
+
+  return (
+    <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)]"
+      >
+        <span className="inline-flex items-center gap-2">
+          <Settings2 className="h-4 w-4" />
+          Conversiones (kg / caja)
+          <span className="rounded-full bg-[var(--color-surface-2)] px-1.5 py-0.5 text-[10px] tabular-nums text-[var(--color-ink-3)]">
+            {factores.data?.length ?? 0}
+          </span>
+        </span>
+        <span className="text-[10px] uppercase tracking-wide text-[var(--color-ink-3)]">
+          {open ? 'Ocultar' : 'Editar'}
+        </span>
+      </button>
+
+      {open && (
+        <div className="space-y-2 border-t border-[var(--color-border)] p-3">
+          <p className="text-[11px] text-[var(--color-ink-3)]">
+            Por defecto 1 caja = <strong>10 kg</strong>. Aquí defines excepciones por producto.
+            El cotejo y la lista de compra usan estos factores.
+          </p>
+
+          {factores.isLoading ? (
+            <div className="flex items-center gap-2 text-xs text-[var(--color-ink-3)]">
+              <Loader2 className="h-3 w-3 animate-spin" /> Cargando…
+            </div>
+          ) : factores.data && factores.data.length > 0 ? (
+            <ul className="divide-y divide-[var(--color-border)] overflow-hidden rounded-md border border-[var(--color-border)]">
+              {factores.data.map(f => (
+                <FactorRow
+                  key={f.producto_normalizado}
+                  fila={f}
+                  onSave={async (kg) => {
+                    await upsert.mutateAsync({
+                      producto_normalizado: f.producto_normalizado,
+                      kg_por_caja: kg,
+                    })
+                  }}
+                  onDelete={async () => {
+                    const ok = await confirm({
+                      title: `¿Eliminar factor de "${f.producto_normalizado}"?`,
+                      description: 'Volverá a usarse el default 10 kg/caja.',
+                      confirmLabel: 'Eliminar',
+                      variant: 'danger',
+                    })
+                    if (!ok) return
+                    await eliminar.mutateAsync({ producto_normalizado: f.producto_normalizado })
+                  }}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs italic text-[var(--color-ink-3)]">
+              Sin excepciones definidas — todo va con default 10 kg/caja.
+            </p>
+          )}
+
+          {agregando ? (
+            <div className="rounded-md border border-[var(--color-primary)]/40 bg-[var(--color-primary-soft)]/30 p-2">
+              <div className="grid grid-cols-12 gap-1.5">
+                <input
+                  type="text"
+                  value={nuevoProducto}
+                  onChange={(e) => setNuevoProducto(e.target.value)}
+                  className="col-span-7 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                  placeholder="producto (ej: saco patata)"
+                  autoFocus
+                />
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0.01"
+                  value={nuevoFactor}
+                  onChange={(e) => setNuevoFactor(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="col-span-3 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-1 text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                  placeholder="kg"
+                />
+                <span className="col-span-2 inline-flex items-center text-xs text-[var(--color-ink-3)]">
+                  kg / caja
+                </span>
+              </div>
+              <div className="mt-1.5 flex justify-end gap-1">
+                <button
+                  type="button"
+                  onClick={() => { setAgregando(false); setNuevoProducto(''); setNuevoFactor('') }}
+                  className="rounded-md px-2 py-1 text-xs text-[var(--color-ink-3)] hover:bg-[var(--color-surface-2)]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={onCrear}
+                  disabled={upsert.isPending}
+                  className="inline-flex items-center gap-1 rounded-md bg-[var(--color-primary)] px-2 py-1 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                >
+                  {upsert.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                  Guardar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAgregando(true)}
+              className="inline-flex items-center gap-1 rounded-md border border-dashed border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-ink-3)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink-2)]"
+            >
+              <Plus className="h-3 w-3" /> Añadir excepción
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function FactorRow({
+  fila, onSave, onDelete,
+}: {
+  fila: KgPorCajaRow
+  onSave: (kg: number) => Promise<void>
+  onDelete: () => Promise<void>
+}) {
+  const [editando, setEditando] = useState(false)
+  const [kg, setKg] = useState<number | ''>(fila.kg_por_caja)
+  const [pending, setPending] = useState(false)
+
+  useEffect(() => { setKg(fila.kg_por_caja) }, [fila.kg_por_caja])
+
+  const guardar = async () => {
+    const v = typeof kg === 'number' ? kg : Number(kg)
+    if (!v || v <= 0) {
+      toast({ title: 'kg/caja inválido', variant: 'error' })
+      return
+    }
+    if (v === fila.kg_por_caja) { setEditando(false); return }
+    setPending(true)
+    try {
+      await onSave(v)
+      setEditando(false)
+      toast({ title: 'Factor actualizado', variant: 'success' })
+    } catch (e) {
+      toast({ title: 'Error', description: e instanceof Error ? e.message : '', variant: 'error' })
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <li className="group/row flex items-center gap-2 bg-[var(--color-surface)] px-2 py-1.5 hover:bg-[var(--color-surface-2)]">
+      <span className="min-w-0 flex-1 truncate text-sm text-[var(--color-ink)]">
+        {fila.producto_normalizado}
+      </span>
+      {editando ? (
+        <>
+          <input
+            type="number"
+            step="0.1"
+            min="0.01"
+            value={kg}
+            onChange={(e) => setKg(e.target.value === '' ? '' : Number(e.target.value))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') guardar()
+              if (e.key === 'Escape') { setKg(fila.kg_por_caja); setEditando(false) }
+            }}
+            autoFocus
+            className="w-16 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-0.5 text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+          />
+          <span className="text-xs text-[var(--color-ink-3)]">kg/caja</span>
+          <button
+            type="button"
+            onClick={guardar}
+            disabled={pending}
+            className="rounded p-1 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+            title="Guardar"
+          >
+            {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setKg(fila.kg_por_caja); setEditando(false) }}
+            className="rounded p-1 text-[var(--color-ink-3)] hover:bg-[var(--color-surface-2)]"
+            title="Cancelar"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => setEditando(true)}
+            className="rounded px-2 py-0.5 text-sm tabular-nums text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)]"
+            title="Editar"
+          >
+            <strong>{formatNum(fila.kg_por_caja)}</strong>
+            <span className="text-xs text-[var(--color-ink-3)]"> kg/caja</span>
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="rounded p-1 text-[var(--color-ink-3)] opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover/row:opacity-100"
+            title="Eliminar"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </>
+      )}
+    </li>
+  )
 }
