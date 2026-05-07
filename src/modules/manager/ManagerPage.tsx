@@ -10,9 +10,10 @@ import { AbueloView } from './components/AbueloView'
 import { PatronesView } from './components/PatronesView'
 import { CalendarioClientesView } from './components/CalendarioClientesView'
 import { EstacionalidadCosteView } from './components/EstacionalidadCosteView'
+import { MapaClientesView } from './components/MapaClientesView'
 import { periodFromPreset, type Period } from './lib/period'
 
-type Tab = 'resumen' | 'clientes' | 'productos' | 'facturas' | 'calendario' | 'patrones' | 'abuelo' | 'estacionalidad'
+type Tab = 'resumen' | 'clientes' | 'productos' | 'facturas' | 'calendario' | 'patrones' | 'abuelo' | 'estacionalidad' | 'mapa'
 
 export function ManagerPage() {
   const [period, setPeriod] = useState<Period>(() => periodFromPreset('mes'))
@@ -42,6 +43,7 @@ export function ManagerPage() {
             { k: 'patrones',   l: 'Patrones' },
             { k: 'abuelo',     l: 'Abuelo' },
             { k: 'estacionalidad', l: 'Estacionalidad coste' },
+            { k: 'mapa',       l: 'Mapa' },
           ] as Array<{ k: Tab; l: string }>).map(t => (
             <Button
               key={t.k}
@@ -61,6 +63,7 @@ export function ManagerPage() {
         {tab === 'patrones'   && <PatronesView  period={period} />}
         {tab === 'abuelo'     && <AbueloView    period={period} />}
         {tab === 'estacionalidad' && <EstacionalidadCosteView />}
+        {tab === 'mapa'       && <MapaClientesView period={period} />}
       </div>
     </div>
   )

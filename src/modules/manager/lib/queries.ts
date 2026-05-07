@@ -345,6 +345,47 @@ export function useProductoClientes(productId: string | null, period: Period) {
   })
 }
 
+export interface MapaCliente {
+  contact_id: string
+  nombre: string
+  cp: string | null
+  poblacion: string | null
+  provincia: string | null
+  direccion: string | null
+  lat: number
+  lng: number
+  geocode_precision: string | null
+  ventas: number
+  num_facturas: number
+  ultima_venta: string | null
+}
+
+export function useMapaClientes(period: Period) {
+  return useQuery({
+    queryKey: ['manager', 'mapa-clientes', period.from, period.to] as const,
+    queryFn: async (): Promise<MapaCliente[]> => {
+      const { data, error } = await supabase.rpc('manager_mapa_clientes', {
+        p_from: period.from, p_to: period.to,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        contact_id:        String(r.contact_id ?? ''),
+        nombre:            String(r.nombre ?? ''),
+        cp:                r.cp == null ? null : String(r.cp),
+        poblacion:         r.poblacion == null ? null : String(r.poblacion),
+        provincia:         r.provincia == null ? null : String(r.provincia),
+        direccion:         r.direccion == null ? null : String(r.direccion),
+        lat:               Number(r.lat),
+        lng:               Number(r.lng),
+        geocode_precision: r.geocode_precision == null ? null : String(r.geocode_precision),
+        ventas:            Number(r.ventas ?? 0),
+        num_facturas:      Number(r.num_facturas ?? 0),
+        ultima_venta:      r.ultima_venta == null ? null : String(r.ultima_venta),
+      }))
+    },
+  })
+}
+
 export function useProductoHistorico(productId: string | null, meses = 12) {
   return useQuery({
     queryKey: ['manager', 'producto', productId, 'historico', meses] as const,
