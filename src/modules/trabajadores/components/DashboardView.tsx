@@ -9,6 +9,8 @@ import { euros } from '@/shared/lib/format'
 import { useAuth } from '@/shared/auth/useAuth'
 import { SolicitarVacacionesModal } from './SolicitarVacacionesModal'
 import { ColaboradoresView } from './ColaboradoresView'
+import { PlusSelfCard } from './PlusSelfCard'
+import { RuletaSelfCard } from './RuletaSelfCard'
 
 interface Empleado {
   id: string
@@ -192,6 +194,14 @@ export function DashboardView() {
 
       {/* Colaboradores 5% — sustituye las tarjetas para admin */}
       {isAdmin && <ColaboradoresView />}
+
+      {/* Cards destacadas para empleado: ruleta + plus 5% */}
+      {!isAdmin && (
+        <>
+          <RuletaSelfCard />
+          <PlusSelfCard />
+        </>
+      )}
 
       {/* Cards resumen por empleado — solo para empleado (su tarjeta personal) */}
       {!isAdmin && (
