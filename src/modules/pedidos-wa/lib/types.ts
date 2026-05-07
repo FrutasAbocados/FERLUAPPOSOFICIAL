@@ -71,6 +71,8 @@ export type Pedido = {
   override_horario: string | null
   /** Si está set, sustituye `cliente.salida` sólo para este pedido. */
   override_salida: 'PRIMERA' | 'SEGUNDA' | null
+  /** Orden manual dentro del repartidor (1..N). NULL = ordenar por salida+horario. */
+  override_orden: number | null
   /** Set tras subir el pedido a Holded (factura o albarán). NULL = sin subir. */
   holded_invoice_id: string | null
   holded_invoice_num: string | null

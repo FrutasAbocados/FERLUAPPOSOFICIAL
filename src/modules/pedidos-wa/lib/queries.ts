@@ -155,7 +155,7 @@ export function usePedidosDelDia(fecha: string) {
         .from('pedidos_wa')
         .select(`
           id, cliente_id, fecha, texto_original, notas_admin, faltas, estado,
-          override_repartidor, override_horario, override_salida,
+          override_repartidor, override_horario, override_salida, override_orden,
           holded_invoice_id, holded_invoice_num, holded_invoice_doc_type, holded_invoice_created_at,
           created_by, created_at, updated_at,
           cliente:cliente_id (
@@ -192,12 +192,31 @@ export function useReasignarPedido() {
         override_repartidor: Repartidor | null
         override_horario: string | null
         override_salida: 'PRIMERA' | 'SEGUNDA' | null
+        override_orden: number | null
       }>
     }) => {
       const { error } = await supabase
         .from('pedidos_wa')
         .update(input.patch)
         .eq('id', input.id)
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+    },
+  })
+}
+
+/** Reordena masivamente las paradas de un repartidor en una fecha. Asigna 1..N. */
+export function useReordenarRuta() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { fecha: string; repartidor: Repartidor; ids: string[] }) => {
+      const { error } = await supabase.rpc('pedidos_wa_reordenar_ruta', {
+        p_fecha: input.fecha,
+        p_repartidor: input.repartidor,
+        p_orden: input.ids,
+      })
       if (error) throw error
     },
     onSuccess: (_d, vars) => {

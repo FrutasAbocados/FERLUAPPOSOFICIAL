@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  GripVertical,
   Loader2,
   MoreVertical,
   Package,
@@ -13,6 +14,25 @@ import {
   Truck,
   Undo2,
 } from 'lucide-react'
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  KeyboardSensor,
+  closestCorners,
+  useSensor,
+  useSensors,
+  useDroppable,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  arrayMove,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/shared/components/ui/button'
 import { toast } from '@/shared/lib/toast'
 import { cn } from '@/shared/lib/utils'
@@ -23,7 +43,7 @@ import {
   type Repartidor,
 } from '../lib/types'
 import { exportarHojaRuta } from '../lib/exportacion/excel'
-import { usePedidosDelDia, useReasignarPedido } from '../lib/queries'
+import { usePedidosDelDia, useReasignarPedido, useReordenarRuta } from '../lib/queries'
 
 const REPARTIDOR_ORDER: Repartidor[] = ['TORRES', 'GERMAN', 'RAUL', 'ALEX']
 
@@ -84,6 +104,13 @@ export function HojaRuta() {
     }
     for (const [, arr] of map) {
       arr.sort((a, b) => {
+        // Si alguno tiene orden manual: los ordenados delante por su valor;
+        // los que no tienen, detrás, ordenados por salida+horario.
+        const oa = a.override_orden
+        const ob = b.override_orden
+        if (oa != null && ob != null) return oa - ob
+        if (oa != null) return -1
+        if (ob != null) return 1
         const sa = ordenSalida(a.override_salida ?? a.cliente?.salida)
         const sb = ordenSalida(b.override_salida ?? b.cliente?.salida)
         if (sa !== sb) return sa - sb
@@ -97,6 +124,95 @@ export function HojaRuta() {
 
   const total = (pedidos ?? []).length
   const repartidoresActivos = grupos.filter(g => g.pedidos.length > 0).length
+
+  const reasignar = useReasignarPedido()
+  const reordenar = useReordenarRuta()
+
+  // Mapa rápido id → repartidor actual (según override_repartidor o cliente)
+  const repartidorPorId = useMemo(() => {
+    const m = new Map<string, Repartidor>()
+    for (const g of grupos) for (const p of g.pedidos) m.set(p.id, g.repartidor)
+    return m
+  }, [grupos])
+
+  const idsPorRepartidor = useMemo(() => {
+    const m = new Map<Repartidor, string[]>()
+    for (const g of grupos) m.set(g.repartidor, g.pedidos.map(p => p.id))
+    return m
+  }, [grupos])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 180, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over) return
+    const activeId = String(active.id)
+    const overId = String(over.id)
+    if (activeId === overId) return
+
+    const repOrigen = repartidorPorId.get(activeId)
+    if (!repOrigen) return
+
+    // overId puede ser otro pedido o "col:REPARTIDOR" (drop sobre columna vacía)
+    let repDestino: Repartidor | undefined
+    if (overId.startsWith('col:')) {
+      repDestino = overId.slice(4) as Repartidor
+    } else {
+      repDestino = repartidorPorId.get(overId)
+    }
+    if (!repDestino) return
+
+    const pedido = (pedidos ?? []).find(p => p.id === activeId)
+    if (!pedido) return
+
+    if (repOrigen === repDestino) {
+      // Reordenar dentro de la misma columna
+      const ids = idsPorRepartidor.get(repDestino) ?? []
+      const from = ids.indexOf(activeId)
+      const to = overId.startsWith('col:') ? ids.length - 1 : ids.indexOf(overId)
+      if (from < 0 || to < 0 || from === to) return
+      const next = arrayMove(ids, from, to)
+      reordenar.mutate(
+        { fecha: fechaIso, repartidor: repDestino, ids: next },
+        { onError: (err: Error) => toast({ title: 'Error reordenando', description: err.message, variant: 'error' }) },
+      )
+      return
+    }
+
+    // Cambio de columna: cambiar override_repartidor + colocar en posición destino
+    const idsDest = idsPorRepartidor.get(repDestino) ?? []
+    const insertAt = overId.startsWith('col:') ? idsDest.length : idsDest.indexOf(overId)
+    const nextDest = [...idsDest]
+    nextDest.splice(Math.max(0, insertAt), 0, activeId)
+    const idsOrig = (idsPorRepartidor.get(repOrigen) ?? []).filter(id => id !== activeId)
+
+    const nuevoOverride: Repartidor | null =
+      repDestino === pedido.cliente?.repartidor ? null : repDestino
+
+    // 1) Reasignar repartidor + reset salida si vuelve al original; 2) reordenar destino; 3) reordenar origen
+    reasignar.mutate(
+      {
+        id: activeId,
+        fecha: fechaIso,
+        patch: nuevoOverride === null
+          ? { override_repartidor: null, override_salida: null }
+          : { override_repartidor: nuevoOverride },
+      },
+      {
+        onSuccess: () => {
+          reordenar.mutate({ fecha: fechaIso, repartidor: repDestino, ids: nextDest })
+          if (idsOrig.length > 0) {
+            reordenar.mutate({ fecha: fechaIso, repartidor: repOrigen, ids: idsOrig })
+          }
+        },
+        onError: (err: Error) => toast({ title: 'Error moviendo', description: err.message, variant: 'error' }),
+      },
+    )
+  }
 
   const onExport = () => {
     if (total === 0) {
@@ -165,18 +281,20 @@ export function HojaRuta() {
           No hay pedidos para hoy todavía.
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
-          {grupos.map(g => (
-            <ColumnaRepartidor
-              key={g.repartidor}
-              repartidor={g.repartidor}
-              pedidos={g.pedidos}
-              colapsada={colapsadas[g.repartidor]}
-              onToggle={() => setColapsadas(c => ({ ...c, [g.repartidor]: !c[g.repartidor] }))}
-              fecha={fechaIso}
-            />
-          ))}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={onDragEnd}>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
+            {grupos.map(g => (
+              <ColumnaRepartidor
+                key={g.repartidor}
+                repartidor={g.repartidor}
+                pedidos={g.pedidos}
+                colapsada={colapsadas[g.repartidor]}
+                onToggle={() => setColapsadas(c => ({ ...c, [g.repartidor]: !c[g.repartidor] }))}
+                fecha={fechaIso}
+              />
+            ))}
+          </div>
+        </DndContext>
       )}
     </div>
   )
@@ -197,11 +315,18 @@ function ColumnaRepartidor({
     [pedidos],
   )
 
+  // Drop target para que se pueda soltar también en columna vacía o al final
+  const { setNodeRef, isOver } = useDroppable({ id: `col:${repartidor}` })
+
   return (
-    <section className={cn(
-      'flex flex-col overflow-hidden rounded-[var(--radius-lg)] border',
-      p.border, p.bgCol,
-    )}>
+    <section
+      ref={setNodeRef}
+      className={cn(
+        'flex flex-col overflow-hidden rounded-[var(--radius-lg)] border transition-colors',
+        p.border, p.bgCol,
+        isOver && 'ring-2 ring-[var(--color-primary)] ring-offset-1',
+      )}
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -227,13 +352,15 @@ function ColumnaRepartidor({
       </button>
 
       {!colapsada && (
-        <div className="space-y-2 p-2">
+        <div className="space-y-2 p-2 min-h-[60px]">
           {pedidos.length === 0 ? (
             <div className="rounded-md border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-center text-xs text-[var(--color-ink-3)]">
               Sin pedidos para {REPARTIDOR_LABEL[repartidor]}.
             </div>
           ) : (
-            renderConSeparadores(pedidos, repartidor, fecha)
+            <SortableContext items={pedidos.map(p => p.id)} strategy={verticalListSortingStrategy}>
+              {renderConSeparadores(pedidos, repartidor, fecha)}
+            </SortableContext>
           )}
         </div>
       )}
@@ -278,9 +405,17 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
   const horarioActual = pedido.override_horario ?? cliente?.horario ?? ''
   const salidaActual = pedido.override_salida ?? cliente?.salida ?? null
   const movido = pedido.override_repartidor && pedido.override_repartidor !== cliente?.repartidor
+  const ordenManual = pedido.override_orden != null
 
   const [horarioEdit, setHorarioEdit] = useState(horarioActual)
   useEffect(() => { setHorarioEdit(horarioActual) }, [horarioActual])
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: pedido.id })
+  const dragStyle: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
 
   const guardarHorario = () => {
     const raw = horarioEdit.trim()
@@ -352,7 +487,7 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
   }
 
   const resetOverrides = () => {
-    if (!pedido.override_repartidor && !pedido.override_horario && !pedido.override_salida) return
+    if (!pedido.override_repartidor && !pedido.override_horario && !pedido.override_salida && pedido.override_orden == null) return
     reasignar.mutate(
       {
         id: pedido.id,
@@ -361,6 +496,7 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
           override_repartidor: null,
           override_horario:    null,
           override_salida:     null,
+          override_orden:      null,
         },
       },
       {
@@ -371,11 +507,25 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
   }
 
   return (
-    <article className={cn(
-      'group rounded-[var(--radius-md)] border bg-[var(--color-surface)] p-3 shadow-sm transition-shadow hover:shadow-md',
-      movido ? 'border-amber-300 ring-1 ring-amber-200' : 'border-[var(--color-border)]',
-    )}>
+    <article
+      ref={setNodeRef}
+      style={dragStyle}
+      className={cn(
+        'group rounded-[var(--radius-md)] border bg-[var(--color-surface)] p-3 shadow-sm transition-shadow hover:shadow-md',
+        movido ? 'border-amber-300 ring-1 ring-amber-200' : 'border-[var(--color-border)]',
+        isDragging && 'shadow-lg ring-2 ring-[var(--color-primary)]',
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label="Arrastrar para reordenar"
+          className="flex h-6 w-4 shrink-0 cursor-grab touch-none items-center justify-center text-[var(--color-ink-3)] hover:text-[var(--color-ink)] active:cursor-grabbing"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <input
@@ -436,6 +586,11 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
             {movido && (
               <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-800">
                 <Undo2 className="h-2.5 w-2.5" /> movido (era {REPARTIDOR_LABEL[cliente?.repartidor ?? 'TORRES']})
+              </span>
+            )}
+            {ordenManual && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--color-primary-soft)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[var(--color-primary-2)]">
+                #{pedido.override_orden}
               </span>
             )}
           </div>
