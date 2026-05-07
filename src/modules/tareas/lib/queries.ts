@@ -27,7 +27,7 @@ export function useEmpleadosList() {
     queryKey: EMPLEADOS_KEY,
     queryFn: async (): Promise<Empleado[]> => {
       const { data, error } = await supabase
-        .from('empleados')
+        .from('empleados_equipo')
         .select('id, user_id, nombre, alias, color, activo, orden')
         .eq('activo', true)
         .order('nombre', { ascending: true })

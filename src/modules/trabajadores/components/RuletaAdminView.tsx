@@ -174,7 +174,7 @@ function DarTiradaSection() {
     queryKey: ['ruleta', 'empleados-activos'] as const,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('empleados')
+        .from('empleados_equipo')
         .select('id, nombre')
         .eq('activo', true)
         .order('nombre')

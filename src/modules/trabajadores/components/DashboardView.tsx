@@ -63,7 +63,7 @@ export function DashboardView() {
     queryKey: ['dash-trab-empleados'] as const,
     queryFn: async (): Promise<Empleado[]> => {
       const { data, error } = await supabase
-        .from('empleados')
+        .from('empleados_equipo')
         .select('id, nombre, pack, user_id, activo')
         .eq('activo', true)
         .order('nombre')
