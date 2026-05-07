@@ -139,15 +139,15 @@ export function FichajeCard() {
 
       {abierto ? (
         <div className="space-y-3">
-          <div className="rounded-xl bg-emerald-50 px-4 py-3 ring-1 ring-emerald-200">
-            <div className="text-xs text-emerald-700">Dentro desde</div>
-            <div className="font-display text-2xl font-bold tabular-nums text-emerald-900">
+          <div className="rounded-xl bg-[var(--color-success-soft,rgba(16,185,129,0.12))] px-4 py-3 ring-1 ring-[var(--color-success,rgb(16,185,129))]/30">
+            <div className="text-xs text-[var(--color-success,rgb(16,185,129))]">Dentro desde</div>
+            <div className="font-display text-2xl font-bold tabular-nums text-[var(--color-ink)]">
               {new Date(abierto.ts_in).toLocaleTimeString('es-ES', {
                 hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid',
               })}
             </div>
-            <div className="text-sm text-emerald-700 tabular-nums">
-              llevas <strong>{fmtDuracion(segs)}</strong>
+            <div className="text-sm text-[var(--color-ink-2)] tabular-nums">
+              llevas <strong className="text-[var(--color-ink)]">{fmtDuracion(segs)}</strong>
             </div>
           </div>
           <Button
@@ -162,7 +162,7 @@ export function FichajeCard() {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
+          <div className="rounded-xl bg-[var(--color-surface-2)] px-4 py-3 ring-1 ring-[var(--color-border)]">
             <div className="text-xs text-[var(--color-ink-3)]">Estado</div>
             <div className="font-display text-lg font-semibold text-[var(--color-ink)]">
               Fuera de turno

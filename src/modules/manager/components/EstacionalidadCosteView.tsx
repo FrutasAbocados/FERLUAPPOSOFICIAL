@@ -282,10 +282,10 @@ function KpiCard({
   return (
     <div
       className={
-        'rounded-xl border bg-[var(--color-surface)] px-3 py-2 ' +
+        'rounded-xl border px-3 py-2 ' +
         (tone === 'warn'
-          ? 'border-amber-300 bg-amber-50/50'
-          : 'border-[var(--color-border)]')
+          ? 'border-amber-500/40 bg-amber-500/10'
+          : 'border-[var(--color-border)] bg-[var(--color-surface)]')
       }
     >
       <div className="text-xs text-[var(--color-ink-3)]">{label}</div>
