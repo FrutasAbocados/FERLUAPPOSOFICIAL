@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FileText, MessageSquare, ShoppingCart, Truck, Users, Zap } from 'lucide-react'
+import { FileText, MessageSquare, Package, ShoppingCart, Truck, Users, Zap } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { CapturaRapida } from './components/CapturaRapida'
 import { Compra } from './components/Compra'
@@ -7,8 +7,9 @@ import { Compras } from './components/Compras'
 import { HojaRuta } from './components/HojaRuta'
 import { ListaClientes } from './components/ListaClientes'
 import { ListaPedidosHoy } from './components/ListaPedidosHoy'
+import { Productos } from './components/Productos'
 
-type Tab = 'captura' | 'hoy' | 'compra' | 'compras-prov' | 'ruta' | 'clientes'
+type Tab = 'captura' | 'hoy' | 'compra' | 'compras-prov' | 'ruta' | 'clientes' | 'productos'
 
 export function PedidosWaPage() {
   const [tab, setTab] = useState<Tab>('captura')
@@ -42,6 +43,9 @@ export function PedidosWaPage() {
           <TabBtn active={tab === 'clientes'} onClick={() => setTab('clientes')}>
             <Users className="h-3.5 w-3.5" /> Clientes
           </TabBtn>
+          <TabBtn active={tab === 'productos'} onClick={() => setTab('productos')}>
+            <Package className="h-3.5 w-3.5" /> Productos
+          </TabBtn>
         </nav>
       </header>
 
@@ -52,6 +56,7 @@ export function PedidosWaPage() {
         {tab === 'compras-prov' && <Compras />}
         {tab === 'ruta'         && <HojaRuta />}
         {tab === 'clientes'     && <ListaClientes />}
+        {tab === 'productos'    && <Productos />}
       </div>
     </div>
   )

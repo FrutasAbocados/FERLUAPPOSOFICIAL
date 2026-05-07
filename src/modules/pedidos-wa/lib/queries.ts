@@ -237,6 +237,85 @@ export function useReemitirBorrador() {
   })
 }
 
+// ─── Productos WA ↔ catálogo Holded ─────────────────────────────────────────
+
+export type ProductoWaConMapeo = {
+  producto_normalizado: string  // lowercase clave única
+  primer_uso: string             // texto original tal cual (ej: "Cebolla morada")
+  veces_usado: number
+  holded_product_id: string | null
+  holded_product_name: string | null
+  source: 'manual' | 'auto_match' | null
+}
+
+/** Lista todos los productos distintos en pedidos_wa_lineas + mapeo actual a Holded. */
+export function useProductosWa() {
+  return useQuery({
+    queryKey: ['pedidos_wa', 'productos_wa'] as const,
+    queryFn: async (): Promise<ProductoWaConMapeo[]> => {
+      const { data, error } = await supabase.rpc('pedidos_wa_productos_resumen')
+      if (error) throw error
+      return (data ?? []) as ProductoWaConMapeo[]
+    },
+    staleTime: 30_000,
+  })
+}
+
+export type CandidatoHolded = {
+  product_id: string
+  nombre: string
+  veces_visto: number
+}
+
+/** Búsqueda de productos en el catálogo Holded (vía manager_lineas que ya los tiene). */
+export function useBuscarProductosHolded(q: string) {
+  return useQuery({
+    queryKey: ['pedidos_wa', 'productos_holded_search', q] as const,
+    enabled: q.trim().length >= 1,
+    queryFn: async (): Promise<CandidatoHolded[]> => {
+      const { data, error } = await supabase.rpc('pedidos_wa_buscar_productos_holded', {
+        p_query: q.trim(),
+        p_limit: 20,
+      })
+      if (error) throw error
+      return (data ?? []) as CandidatoHolded[]
+    },
+    staleTime: 60_000,
+  })
+}
+
+export function useUpsertProductoHolded() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { producto_normalizado: string; holded_product_id: string; holded_product_name: string }) => {
+      const { error } = await supabase
+        .from('pedidos_wa_productos_holded')
+        .upsert({
+          producto_normalizado: input.producto_normalizado.toLowerCase(),
+          holded_product_id: input.holded_product_id,
+          holded_product_name: input.holded_product_name,
+          source: 'manual',
+        }, { onConflict: 'producto_normalizado' })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pedidos_wa', 'productos_wa'] }),
+  })
+}
+
+export function useDeleteProductoHolded() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (producto_normalizado: string) => {
+      const { error } = await supabase
+        .from('pedidos_wa_productos_holded')
+        .delete()
+        .eq('producto_normalizado', producto_normalizado.toLowerCase())
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pedidos_wa', 'productos_wa'] }),
+  })
+}
+
 // ─── Logs Holded ────────────────────────────────────────────────────────────
 
 export type HoldedLastLog = {
