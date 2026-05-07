@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { format, parseISO, startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Search, Trash2 } from 'lucide-react'
+import { Search, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { toast } from '@/shared/lib/toast'
@@ -80,6 +80,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
   const [customTo, setCustomTo] = useState<string>('')
   const [sortKey, setSortKey] = useState<SortKey>('fecha')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const { from: rangoFrom, to: rangoTo } = useMemo(() => {
     if (preset === 'custom') return { from: customFrom || null, to: customTo || null }
@@ -149,6 +150,58 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
     }
     return { imp, pend, num }
   }, [filtradas])
+
+  // IDs visibles tras filtrar — usado para "seleccionar todo" y para podar selección
+  const idsVisibles = useMemo(() => new Set(filtradas.map(m => m.id)), [filtradas])
+
+  // Si cambian los filtros, descartar selecciones que ya no se ven
+  useEffect(() => {
+    setSelected(prev => {
+      let cambio = false
+      const next = new Set<string>()
+      for (const id of prev) {
+        if (idsVisibles.has(id)) next.add(id)
+        else cambio = true
+      }
+      return cambio ? next : prev
+    })
+  }, [idsVisibles])
+
+  const seleccion = useMemo(() => {
+    let imp = 0, pend = 0, num = 0
+    for (const m of filtradas) {
+      if (!selected.has(m.id)) continue
+      imp += Number(m.importe)
+      pend += importePendiente(m)
+      num++
+    }
+    return { imp, pend, num }
+  }, [filtradas, selected])
+
+  const toggleOne = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const allVisibleSelected = filtradas.length > 0 && filtradas.every(m => selected.has(m.id))
+  const someVisibleSelected = filtradas.some(m => selected.has(m.id))
+
+  const toggleAll = () => {
+    setSelected(prev => {
+      if (allVisibleSelected) {
+        const next = new Set(prev)
+        for (const id of idsVisibles) next.delete(id)
+        return next
+      }
+      const next = new Set(prev)
+      for (const id of idsVisibles) next.add(id)
+      return next
+    })
+  }
 
   const sortBy = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -269,11 +322,44 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
         </div>
       </div>
 
+      {/* Barra de selección */}
+      {seleccion.num > 0 && (
+        <div className="sticky top-2 z-10 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-soft)] px-3 py-2 text-sm shadow-sm">
+          <span className="font-semibold text-[var(--color-primary-2)]">
+            {seleccion.num} seleccionada{seleccion.num === 1 ? '' : 's'}
+          </span>
+          <span className="text-[var(--color-ink-2)]">
+            · importe <strong className="tabular-nums text-[var(--color-ink)]">{eur(seleccion.imp)}</strong>
+          </span>
+          <span className="text-[var(--color-ink-2)]">
+            · pendiente <strong className={`tabular-nums ${seleccion.pend < 0 ? 'text-amber-700' : 'text-[var(--color-ink)]'}`}>{eur(seleccion.pend)}</strong>
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelected(new Set())}
+            className="ml-auto h-7 text-xs"
+          >
+            <X className="h-3.5 w-3.5" /> Limpiar
+          </Button>
+        </div>
+      )}
+
       {/* Tabla */}
       <div className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
         <table className="w-full min-w-[700px] border-collapse text-sm">
           <thead className="bg-[var(--color-surface-2,#f8fafc)]">
             <tr className="text-left">
+              <th className="px-3 py-2 w-8">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  ref={(el) => { if (el) el.indeterminate = !allVisibleSelected && someVisibleSelected }}
+                  onChange={toggleAll}
+                  aria-label="Seleccionar todas las visibles"
+                  className="h-4 w-4 cursor-pointer accent-[var(--color-primary)]"
+                />
+              </th>
               <Th onClick={() => sortBy('fecha')} active={sortKey === 'fecha'} dir={sortDir}>Fecha</Th>
               <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Nº</th>
               <Th onClick={() => sortBy('cliente')} active={sortKey === 'cliente'} dir={sortDir}>Cliente</Th>
@@ -287,7 +373,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
           <tbody>
             {filtradas.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-sm text-[var(--color-ink-3)]">
+                <td colSpan={9} className="px-3 py-6 text-center text-sm text-[var(--color-ink-3)]">
                   Sin movimientos que coincidan.
                 </td>
               </tr>
@@ -296,8 +382,21 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
               const est = estadoEfectivo(m)
               const pend = importePendiente(m)
               const esAbono = Number(m.importe) < 0
+              const isSel = selected.has(m.id)
               return (
-                <tr key={m.id} className="border-t border-[var(--color-border)] hover:bg-[var(--color-surface-2,#f8fafc)]">
+                <tr
+                  key={m.id}
+                  className={`border-t border-[var(--color-border)] ${isSel ? 'bg-[var(--color-primary-soft)]/50' : 'hover:bg-[var(--color-surface-2,#f8fafc)]'}`}
+                >
+                  <td className="px-3 py-2 w-8">
+                    <input
+                      type="checkbox"
+                      checked={isSel}
+                      onChange={() => toggleOne(m.id)}
+                      aria-label="Seleccionar fila"
+                      className="h-4 w-4 cursor-pointer accent-[var(--color-primary)]"
+                    />
+                  </td>
                   <td className="px-3 py-2 whitespace-nowrap text-[var(--color-ink-2)]">{fmt(m.fecha_factura)}</td>
                   <td className="px-3 py-2 whitespace-nowrap font-medium text-[var(--color-ink)]">
                     {m.numero_factura ?? <span className="text-[var(--color-ink-3)]">—</span>}
