@@ -529,3 +529,70 @@ export function useRestaurarBackup() {
     },
   })
 }
+
+// ─── Backups automáticos ─────────────────────────────────────────
+
+export interface BackupLog {
+  id: string
+  fecha: string
+  storage_path: string
+  size_bytes: number | null
+  num_clientes: number | null
+  num_movimientos: number | null
+  ok: boolean
+  error_msg: string | null
+  trigger_source: string
+  created_at: string
+}
+
+const BACKUPS_KEY = ['cobros', 'backups'] as const
+
+export function useBackupsList(limit = 30) {
+  return useQuery({
+    queryKey: [...BACKUPS_KEY, limit] as const,
+    queryFn: async (): Promise<BackupLog[]> => {
+      const { data, error } = await supabase.rpc('cobros_backups_lista', { p_limit: limit })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        id:               String(r.id ?? ''),
+        fecha:            String(r.fecha ?? ''),
+        storage_path:     String(r.storage_path ?? ''),
+        size_bytes:       r.size_bytes == null ? null : Number(r.size_bytes),
+        num_clientes:     r.num_clientes == null ? null : Number(r.num_clientes),
+        num_movimientos:  r.num_movimientos == null ? null : Number(r.num_movimientos),
+        ok:               !!r.ok,
+        error_msg:        r.error_msg == null ? null : String(r.error_msg),
+        trigger_source:   String(r.trigger_source ?? ''),
+        created_at:       String(r.created_at ?? ''),
+      }))
+    },
+  })
+}
+
+export function useGenerarBackupAhora() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('cobros-backup-diario', {
+        body: { trigger: 'manual' },
+      })
+      if (error) throw error
+      return data as { ok: boolean; storage_path?: string; error?: string }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: BACKUPS_KEY })
+    },
+  })
+}
+
+export async function descargarBackup(storagePath: string): Promise<void> {
+  const { data, error } = await supabase.storage
+    .from('cobros-backups')
+    .createSignedUrl(storagePath, 60 * 5)  // 5 min
+  if (error) throw error
+  if (!data?.signedUrl) throw new Error('Sin URL firmada')
+  const a = document.createElement('a')
+  a.href = data.signedUrl
+  a.download = storagePath.split('/').pop() ?? 'backup.json'
+  a.click()
+}

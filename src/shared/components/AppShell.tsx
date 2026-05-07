@@ -37,7 +37,6 @@ const MODULES: ModuleNav[] = [
   { key: 'clientes', label: 'Clientes', to: '/clientes', icon: Contact },
   { key: 'cobros', label: 'Cobros', to: '/cobros', icon: HandCoins },
   { key: 'gastos', label: 'Gastos', to: '/gastos', icon: Receipt },
-  { key: 'sueldos', label: 'Sueldos', to: '/sueldos', icon: Wallet },
 ]
 
 // Sub-grupo "Equipo" — agrupa los módulos relacionados con personal
@@ -46,25 +45,35 @@ const EQUIPO: ModuleNav[] = [
   { key: 'bbdd_trabajadores', label: 'BBDD trabajadores', to: '/bbdd-trabajadores', icon: Users },
 ]
 
+// Sub-grupo "Socios" — agrupa los módulos relacionados con los socios (Luis/Álvaro)
+const SOCIOS: ModuleNav[] = [
+  { key: 'sueldos', label: 'Sueldos', to: '/sueldos', icon: Wallet },
+]
+
 export function AppShell() {
   const { profile, signOut } = useAuth()
   const location = useLocation()
   const role = profile?.role
   const visible = MODULES.filter((m) => role && canAccess(m.key, role))
   const equipo  = EQUIPO.filter((m) => role && canAccess(m.key, role))
+  const socios  = SOCIOS.filter((m) => role && canAccess(m.key, role))
   const [equipoOpen, setEquipoOpen] = useState(false)
+  const [sociosOpen, setSociosOpen] = useState(false)
 
-  // Cierra drawer al navegar
-  useEffect(() => { setEquipoOpen(false) }, [location.pathname])
+  // Cierra drawers al navegar
+  useEffect(() => { setEquipoOpen(false); setSociosOpen(false) }, [location.pathname])
   // Cierra con Escape
   useEffect(() => {
-    if (!equipoOpen) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setEquipoOpen(false) }
+    if (!equipoOpen && !sociosOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setEquipoOpen(false); setSociosOpen(false) }
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [equipoOpen])
+  }, [equipoOpen, sociosOpen])
 
   const isEquipoActive = equipo.some(m => location.pathname.startsWith(m.to))
+  const isSociosActive = socios.some(m => location.pathname.startsWith(m.to))
 
   return (
     <div className="flex h-full overflow-x-hidden">
@@ -119,28 +128,56 @@ export function AppShell() {
             </NavLink>
           ))}
 
-          {equipo.length > 0 && (
-            <div className="pt-2">
-              <div className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
-                Equipo
-              </div>
-              {equipo.map((m) => (
-                <NavLink
-                  key={m.key}
-                  to={m.to}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm transition-colors',
-                      isActive
-                        ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-2)] font-semibold'
-                        : 'text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]',
-                    )
-                  }
-                >
-                  <m.icon className="h-4 w-4" />
-                  {m.label}
-                </NavLink>
-              ))}
+          {(equipo.length > 0 || socios.length > 0) && (
+            <div className="grid grid-cols-2 gap-2 pt-3">
+              {equipo.length > 0 && (
+                <div>
+                  <div className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+                    Equipo
+                  </div>
+                  {equipo.map((m) => (
+                    <NavLink
+                      key={m.key}
+                      to={m.to}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center gap-1.5 rounded-[var(--radius-md)] px-2 py-2 text-xs transition-colors',
+                          isActive
+                            ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-2)] font-semibold'
+                            : 'text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]',
+                        )
+                      }
+                    >
+                      <m.icon className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{m.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+              {socios.length > 0 && (
+                <div>
+                  <div className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+                    Socios
+                  </div>
+                  {socios.map((m) => (
+                    <NavLink
+                      key={m.key}
+                      to={m.to}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center gap-1.5 rounded-[var(--radius-md)] px-2 py-2 text-xs transition-colors',
+                          isActive
+                            ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-2)] font-semibold'
+                            : 'text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]',
+                        )
+                      }
+                    >
+                      <m.icon className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{m.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </nav>
@@ -188,6 +225,22 @@ export function AppShell() {
               >
                 <UsersRound className="h-4 w-4" />
                 Equipo
+              </button>
+            )}
+            {socios.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSociosOpen(true)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors',
+                  isSociosActive
+                    ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]'
+                    : 'text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)]',
+                )}
+                aria-label="Abrir menú socios"
+              >
+                <Wallet className="h-4 w-4" />
+                Socios
               </button>
             )}
             <button
@@ -273,6 +326,57 @@ export function AppShell() {
               </div>
               <nav className="space-y-1 p-3">
                 {equipo.map((m) => (
+                  <NavLink
+                    key={m.key}
+                    to={m.to}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex items-center justify-between gap-3 rounded-[var(--radius-md)] px-3 py-3 text-sm transition-colors',
+                        isActive
+                          ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-2)] font-semibold'
+                          : 'text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]',
+                      )
+                    }
+                  >
+                    <span className="flex items-center gap-3">
+                      <m.icon className="h-4 w-4" />
+                      {m.label}
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-[var(--color-ink-3)]" />
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
+          </div>
+        )}
+
+        {/* Drawer Socios (móvil) */}
+        {sociosOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/40 md:hidden"
+            onClick={() => setSociosOpen(false)}
+            aria-hidden
+          >
+            <div
+              className="absolute right-0 top-0 h-full w-72 max-w-[85%] bg-[var(--color-surface)] shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex h-14 items-center justify-between border-b border-[var(--color-border)] px-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-ink)]">
+                  <Wallet className="h-4 w-4 text-[var(--color-primary-2)]" />
+                  Socios
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSociosOpen(false)}
+                  className="rounded-md p-1.5 text-[var(--color-ink-3)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]"
+                  aria-label="Cerrar menú socios"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <nav className="space-y-1 p-3">
+                {socios.map((m) => (
                   <NavLink
                     key={m.key}
                     to={m.to}
