@@ -237,6 +237,165 @@ export function useReemitirBorrador() {
   })
 }
 
+// ─── Recurrentes ─────────────────────────────────────────────────────────────
+
+export type Recurrente = {
+  id: string
+  cliente_id: string
+  nombre: string
+  dias_semana: number[]
+  activo: boolean
+  notas_admin: string | null
+  ultima_generacion: string | null
+  created_at: string
+  updated_at: string
+  cliente?: { id: string; nombre: string }
+  lineas?: RecurrenteLinea[]
+}
+
+export type RecurrenteLinea = {
+  id: string
+  recurrente_id: string
+  orden: number
+  producto_normalizado: string
+  cantidad: number | string
+  unidad: string
+  es_gratis: boolean
+  subseccion: string | null
+  notas: string | null
+}
+
+export function useRecurrentes() {
+  return useQuery({
+    queryKey: ['pedidos_wa', 'recurrentes'] as const,
+    queryFn: async (): Promise<Recurrente[]> => {
+      const { data, error } = await supabase
+        .from('pedidos_wa_recurrentes')
+        .select(`
+          id, cliente_id, nombre, dias_semana, activo, notas_admin,
+          ultima_generacion, created_at, updated_at,
+          cliente:cliente_id (id, nombre),
+          lineas:pedidos_wa_recurrentes_lineas (
+            id, recurrente_id, orden, producto_normalizado,
+            cantidad, unidad, es_gratis, subseccion, notas
+          )
+        `)
+        .order('nombre')
+      if (error) throw error
+      const rows = (data ?? []) as unknown as Recurrente[]
+      for (const r of rows) {
+        if (r.lineas) r.lineas.sort((a, b) => a.orden - b.orden)
+      }
+      return rows
+    },
+  })
+}
+
+export function useUpsertRecurrente() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      id?: string
+      cliente_id: string
+      nombre: string
+      dias_semana: number[]
+      activo: boolean
+      notas_admin: string | null
+      lineas: Array<Omit<RecurrenteLinea, 'id' | 'recurrente_id'>>
+    }) => {
+      let recurrenteId = input.id
+      if (recurrenteId) {
+        const { error } = await supabase
+          .from('pedidos_wa_recurrentes')
+          .update({
+            cliente_id: input.cliente_id,
+            nombre: input.nombre,
+            dias_semana: input.dias_semana,
+            activo: input.activo,
+            notas_admin: input.notas_admin,
+          })
+          .eq('id', recurrenteId)
+        if (error) throw error
+        const { error: delError } = await supabase
+          .from('pedidos_wa_recurrentes_lineas')
+          .delete().eq('recurrente_id', recurrenteId)
+        if (delError) throw delError
+      } else {
+        const { data, error } = await supabase
+          .from('pedidos_wa_recurrentes')
+          .insert({
+            cliente_id: input.cliente_id,
+            nombre: input.nombre,
+            dias_semana: input.dias_semana,
+            activo: input.activo,
+            notas_admin: input.notas_admin,
+          })
+          .select('id').single()
+        if (error) throw error
+        recurrenteId = data.id
+      }
+      if (input.lineas.length > 0) {
+        const { error } = await supabase
+          .from('pedidos_wa_recurrentes_lineas')
+          .insert(input.lineas.map((l, idx) => ({
+            recurrente_id: recurrenteId,
+            orden: idx,
+            producto_normalizado: l.producto_normalizado,
+            cantidad: l.cantidad,
+            unidad: l.unidad,
+            es_gratis: l.es_gratis,
+            subseccion: l.subseccion,
+            notas: l.notas,
+          })))
+        if (error) throw error
+      }
+      return recurrenteId
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pedidos_wa', 'recurrentes'] }),
+  })
+}
+
+export function useToggleRecurrente() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { id: string; activo: boolean }) => {
+      const { error } = await supabase
+        .from('pedidos_wa_recurrentes')
+        .update({ activo: input.activo })
+        .eq('id', input.id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pedidos_wa', 'recurrentes'] }),
+  })
+}
+
+export function useDeleteRecurrente() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('pedidos_wa_recurrentes').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pedidos_wa', 'recurrentes'] }),
+  })
+}
+
+/** Generar manualmente los recurrentes de una fecha (ej. "ahora"). */
+export function useGenerarRecurrentes() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (fecha: string): Promise<Array<{ recurrente_id: string; pedido_id: string | null; status: string }>> => {
+      const { data, error } = await supabase.rpc('pedidos_wa_recurrentes_generar', { p_fecha: fecha })
+      if (error) throw error
+      return (data ?? []) as Array<{ recurrente_id: string; pedido_id: string | null; status: string }>
+    },
+    onSuccess: (_d, fecha) => {
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'recurrentes'] })
+      qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(fecha) })
+    },
+  })
+}
+
 // ─── Productos WA ↔ catálogo Holded ─────────────────────────────────────────
 
 export type ProductoWaConMapeo = {
