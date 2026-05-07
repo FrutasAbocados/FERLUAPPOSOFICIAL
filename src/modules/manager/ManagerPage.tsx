@@ -9,9 +9,10 @@ import { FacturasView } from './components/FacturasView'
 import { AbueloView } from './components/AbueloView'
 import { PatronesView } from './components/PatronesView'
 import { CalendarioClientesView } from './components/CalendarioClientesView'
+import { EstacionalidadCosteView } from './components/EstacionalidadCosteView'
 import { periodFromPreset, type Period } from './lib/period'
 
-type Tab = 'resumen' | 'clientes' | 'productos' | 'facturas' | 'calendario' | 'patrones' | 'abuelo'
+type Tab = 'resumen' | 'clientes' | 'productos' | 'facturas' | 'calendario' | 'patrones' | 'abuelo' | 'estacionalidad'
 
 export function ManagerPage() {
   const [period, setPeriod] = useState<Period>(() => periodFromPreset('mes'))
@@ -40,6 +41,7 @@ export function ManagerPage() {
             { k: 'calendario', l: 'Calendario' },
             { k: 'patrones',   l: 'Patrones' },
             { k: 'abuelo',     l: 'Abuelo' },
+            { k: 'estacionalidad', l: 'Estacionalidad coste' },
           ] as Array<{ k: Tab; l: string }>).map(t => (
             <Button
               key={t.k}
@@ -58,6 +60,7 @@ export function ManagerPage() {
         {tab === 'calendario' && <CalendarioClientesView period={period} />}
         {tab === 'patrones'   && <PatronesView  period={period} />}
         {tab === 'abuelo'     && <AbueloView    period={period} />}
+        {tab === 'estacionalidad' && <EstacionalidadCosteView />}
       </div>
     </div>
   )
