@@ -4,6 +4,7 @@ export type Unidad =
 
 export type Repartidor = 'TORRES' | 'GERMAN' | 'RAUL' | 'ALEX'
 export type TipoFactura = 'HOLDED' | 'DRIVE' | 'NINGUNA'
+export type TipoDocHolded = 'invoice' | 'waybill'
 export type Salida = 'PRIMERA' | 'SEGUNDA' | null
 export type Metodo = 'regex' | 'claude' | 'manual'
 export type EstadoPedido = 'pendiente' | 'preparado' | 'entregado' | 'cancelado'
@@ -13,6 +14,7 @@ export type ClientePedido = {
   nombre: string
   nombre_normalizado: string
   holded_contact_id: string | null
+  holded_doc_type: TipoDocHolded | null
   repartidor: Repartidor
   horario: string | null
   tipo_factura: TipoFactura
@@ -69,6 +71,11 @@ export type Pedido = {
   override_horario: string | null
   /** Si está set, sustituye `cliente.salida` sólo para este pedido. */
   override_salida: 'PRIMERA' | 'SEGUNDA' | null
+  /** Set tras subir el pedido a Holded (factura o albarán). NULL = sin subir. */
+  holded_invoice_id: string | null
+  holded_invoice_num: string | null
+  holded_invoice_doc_type: TipoDocHolded | null
+  holded_invoice_created_at: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -82,6 +89,73 @@ export type Abreviatura = {
   producto_normalizado: string
   creada_por_user: boolean
   created_at: string
+}
+
+// ─── Compras a proveedores ───────────────────────────────────────────────────
+
+export type ProveedorDetectado = 'alcalde' | 'abasthosur' | 'otro'
+
+export type CompraLineaExtraida = {
+  orden: number
+  codigo_proveedor: string | null
+  descripcion: string
+  cantidad: number
+  unidad: string
+  precio_unitario: number
+  iva_pct: number
+  importe: number
+  notas: string | null
+}
+
+export type CompraExtraccion = {
+  proveedor_detectado: ProveedorDetectado
+  proveedor_nombre: string
+  num_factura: string
+  fecha: string
+  total_bruto: number
+  total_iva: number
+  total: number
+  iva_desglose: { base: number; tipo: number; importe: number }[]
+  lineas: CompraLineaExtraida[]
+}
+
+export type CompraDB = {
+  id: string
+  proveedor_holded_id: string
+  proveedor_nombre: string
+  num_factura: string
+  fecha: string
+  total_bruto: number
+  total_iva: number
+  total: number
+  iva_desglose: { base: number; tipo: number; importe: number }[] | null
+  pdf_filename: string | null
+  notas: string | null
+  holded_purchase_id: string | null
+  holded_purchase_num: string | null
+  holded_purchase_created_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type CompraLineaDB = {
+  id: string
+  compra_id: string
+  orden: number
+  codigo_proveedor: string | null
+  descripcion: string
+  cantidad: number
+  unidad: string
+  precio_unitario: number
+  iva_pct: number
+  importe: number
+  notas: string | null
+}
+
+// Mapeo proveedor_detectado → holded_contact_id (manager_contactos.id)
+export const PROVEEDOR_HOLDED_ID: Record<Exclude<ProveedorDetectado, 'otro'>, string> = {
+  alcalde:    '6923e68c528c6c69df09b578',
+  abasthosur: '6980edf440e80f35360b88ed',
 }
 
 export const UNIDAD_LABEL: Record<Unidad, string> = {

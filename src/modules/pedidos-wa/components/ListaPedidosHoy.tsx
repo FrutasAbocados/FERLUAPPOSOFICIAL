@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  CloudUpload,
   Gift,
   Loader2,
   Package,
@@ -39,7 +40,10 @@ import {
   useEliminarLineaPedido,
   useEliminarPedido,
   usePedidosDelDia,
+  useSubirPedidoAHolded,
+  type SubirPedidoDryRun,
 } from '../lib/queries'
+import { euros } from '@/shared/lib/format'
 import { BadgeMetodo } from './BadgeMetodo'
 
 const UNIDADES: Unidad[] = [
@@ -115,12 +119,53 @@ export function ListaPedidosHoy() {
 
 function PedidoCard({ pedido }: { pedido: Pedido }) {
   const [open, setOpen] = useState(false)
+  const [modalHolded, setModalHolded] = useState<{
+    preview: SubirPedidoDryRun | null
+    cargando: boolean
+    error: string | null
+  } | null>(null)
   const cliente = pedido.cliente
   const lineas = useMemo(() => pedido.lineas ?? [], [pedido.lineas])
   const fecha = pedido.fecha
 
   const actualizar = useActualizarPedido()
   const eliminar = useEliminarPedido()
+  const subirHolded = useSubirPedidoAHolded()
+
+  const subirInfo = bloqueoSubir(pedido)
+  const yaSubido  = !!pedido.holded_invoice_id
+
+  const abrirModalHolded = async () => {
+    setModalHolded({ preview: null, cargando: true, error: null })
+    try {
+      const res = await subirHolded.mutateAsync({ pedido_id: pedido.id, fecha, dry_run: true })
+      if (!('dry_run' in res)) throw new Error('respuesta inesperada (no dry_run)')
+      setModalHolded({ preview: res, cargando: false, error: null })
+    } catch (e) {
+      setModalHolded({ preview: null, cargando: false, error: e instanceof Error ? e.message : String(e) })
+    }
+  }
+
+  const subirDefinitivoHolded = async () => {
+    try {
+      const res = await subirHolded.mutateAsync({ pedido_id: pedido.id, fecha, dry_run: false })
+      if ('holded_invoice_id' in res) {
+        toast({
+          title: 'Subido a Holded',
+          description: res.holded_invoice_num
+            ? `${cliente?.nombre ?? '—'} → ${res.holded_invoice_num}`
+            : (cliente?.nombre ?? '—'),
+        })
+      }
+      setModalHolded(null)
+    } catch (e) {
+      toast({
+        title: 'Holded rechazó la subida',
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'error',
+      })
+    }
+  }
 
   const repColor = cliente
     ? REPARTIDOR_COLOR[cliente.repartidor]
@@ -227,6 +272,31 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
               {ESTADO_LABEL[siguiente]}
             </Button>
           )}
+          {yaSubido ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700"
+              title={pedido.holded_invoice_id ?? ''}
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              Holded {pedido.holded_invoice_num ?? '✓'}
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={abrirModalHolded}
+              disabled={!subirInfo.ok}
+              title={subirInfo.ok ? 'Subir a Holded' : subirInfo.motivo}
+              className={cn(
+                'rounded-md p-1.5 disabled:cursor-not-allowed disabled:opacity-40',
+                subirInfo.ok
+                  ? 'text-emerald-700 hover:bg-emerald-50'
+                  : 'text-[var(--color-ink-3)]',
+              )}
+              aria-label="Subir a Holded"
+            >
+              <CloudUpload className="h-4 w-4" />
+            </button>
+          )}
           <button
             type="button"
             onClick={onEliminar}
@@ -259,8 +329,31 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
           </details>
         </div>
       )}
+
+      {modalHolded && cliente && (
+        <ModalSubirPedidoHolded
+          pedido={pedido}
+          cliente={cliente}
+          preview={modalHolded.preview}
+          cargando={modalHolded.cargando}
+          error={modalHolded.error}
+          subiendo={subirHolded.isPending}
+          onCancelar={() => setModalHolded(null)}
+          onConfirmar={subirDefinitivoHolded}
+        />
+      )}
     </li>
   )
+}
+
+function bloqueoSubir(pedido: Pedido): { ok: true } | { ok: false; motivo: string } {
+  const c = pedido.cliente
+  if (!c) return { ok: false, motivo: 'pedido sin cliente' }
+  if (c.tipo_factura !== 'HOLDED') return { ok: false, motivo: `cliente factura por ${c.tipo_factura}, no Holded` }
+  if (!c.holded_contact_id)        return { ok: false, motivo: 'vincula el cliente con un contacto Holded primero' }
+  if (!c.holded_doc_type)          return { ok: false, motivo: 'elige factura o albarán en la ficha del cliente' }
+  if ((pedido.lineas ?? []).length === 0) return { ok: false, motivo: 'pedido sin líneas' }
+  return { ok: true }
 }
 
 function formatN(n: number): string {
@@ -769,5 +862,200 @@ function NuevaLineaForm({
       onSave={onSave}
       pending={pending}
     />
+  )
+}
+
+// ─── Modal "Subir pedido a Holded" ───────────────────────────────────────────
+
+function ModalSubirPedidoHolded({
+  pedido,
+  cliente,
+  preview,
+  cargando,
+  error,
+  subiendo,
+  onCancelar,
+  onConfirmar,
+}: {
+  pedido: Pedido
+  cliente: ClientePedido
+  preview: SubirPedidoDryRun | null
+  cargando: boolean
+  error: string | null
+  subiendo: boolean
+  onCancelar: () => void
+  onConfirmar: () => void
+}) {
+  const items = (preview?.body?.items ?? []) as Array<{
+    name: string; desc?: string; units: number; price: number; tax: number
+  }>
+  const subtotal = items.reduce((s, it) => s + it.units * it.price, 0)
+  const docTypeLabel = preview?.doc_type === 'waybill' ? 'Albarán' : 'Factura'
+  const noResueltas = preview?.summary.no_resueltas ?? 0
+  const lineasResueltas = preview?.lineas_resueltas ?? []
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-2 md:p-6"
+      onClick={(e) => { if (e.target === e.currentTarget) onCancelar() }}
+    >
+      <div className="w-full max-w-3xl rounded-[var(--radius-md)] bg-[var(--color-surface)] shadow-lg">
+        <div className="flex items-start justify-between gap-2 border-b border-[var(--color-border)] p-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-[var(--color-ink-2)]">
+              <CloudUpload className="h-3.5 w-3.5" /> Subir a Holded · {docTypeLabel.toLowerCase()} en borrador
+            </div>
+            <div className="mt-1 truncate font-display text-base font-semibold">{cliente.nombre}</div>
+            <div className="text-xs text-[var(--color-ink-2)]">
+              {pedido.fecha} · {pedido.lineas?.length ?? 0} líneas
+              {preview && (
+                <> · resueltas {preview.summary.resueltas}/{preview.summary.total_lineas}</>
+              )}
+            </div>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onCancelar} aria-label="Cerrar">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="max-h-[60vh] overflow-y-auto p-3">
+          {cargando && (
+            <div className="flex items-center gap-2 text-sm text-[var(--color-ink-3)]">
+              <Loader2 className="h-4 w-4 animate-spin" /> Resolviendo precios desde manager_lineas…
+            </div>
+          )}
+
+          {error && (
+            <div className="flex items-start gap-2 rounded border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <div>
+                <div className="font-semibold">No se pudo construir el body</div>
+                <div className="mt-0.5 break-all">{error}</div>
+              </div>
+            </div>
+          )}
+
+          {preview && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3 text-xs">
+                <Kv k="contactId"   v={String(preview.body.contactId ?? '—')} />
+                <Kv k="doc_type"    v={String(preview.doc_type)} />
+                <Kv k="desc"        v={String(preview.body.desc ?? '—')} />
+                <Kv k="date (unix)" v={String(preview.body.date ?? '—')} />
+                {preview.body.notes ? (
+                  <Kv k="notes" v={String(preview.body.notes).slice(0, 200)} className="col-span-2" />
+                ) : null}
+              </div>
+
+              {noResueltas > 0 && (
+                <div className="flex items-start gap-2 rounded border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <div>
+                    <div className="font-semibold">{noResueltas} línea(s) sin precio histórico</div>
+                    <div className="mt-0.5">
+                      No se pueden subir hasta que todas las líneas tengan precio. Edita las líneas en el pedido o añade un precio histórico al cliente en Manager.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="overflow-x-auto rounded border border-[var(--color-border)]">
+                <table className="w-full text-xs tabular-nums">
+                  <thead className="bg-[var(--color-surface-2)] text-left text-[var(--color-ink-2)]">
+                    <tr>
+                      <th className="px-2 py-1.5">producto</th>
+                      <th className="w-20 px-2 py-1.5 text-right">units</th>
+                      <th className="w-24 px-2 py-1.5 text-right">price</th>
+                      <th className="w-12 px-2 py-1.5 text-right">tax</th>
+                      <th className="w-24 px-2 py-1.5 text-right">subt.</th>
+                      <th className="px-2 py-1.5">fuente</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lineasResueltas.map((l) => (
+                      <tr key={l.linea_id} className={cn(
+                        'border-t border-[var(--color-border)]',
+                        l.precio_fuente === 'no_resuelto' && 'bg-rose-50',
+                        l.es_gratis && 'opacity-60',
+                      )}>
+                        <td className="px-2 py-1">
+                          {l.producto_normalizado}
+                          <span className="ml-1 text-[10px] text-[var(--color-ink-3)]">
+                            ({Number(l.cantidad)} {l.unidad})
+                          </span>
+                        </td>
+                        <td className="px-2 py-1 text-right">{Number(l.cantidad)}</td>
+                        <td className="px-2 py-1 text-right">
+                          {l.precio_resuelto != null ? Number(l.precio_resuelto).toFixed(4) : '—'}
+                        </td>
+                        <td className="px-2 py-1 text-right">{Number(l.iva_pct)}%</td>
+                        <td className="px-2 py-1 text-right">{euros(Number(l.total_estimado))}</td>
+                        <td className="px-2 py-1 text-[10px] text-[var(--color-ink-3)]">
+                          {l.precio_fuente === 'historico_cliente' && l.precio_fecha ? (
+                            <>hist · {l.precio_fecha}</>
+                          ) : l.precio_fuente === 'gratis' ? (
+                            'gratis'
+                          ) : (
+                            <span className="text-rose-600 font-semibold">sin precio</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-[var(--color-border)] bg-[var(--color-surface-2)]">
+                      <td colSpan={4} className="px-2 py-1.5 text-right text-[var(--color-ink-2)]">
+                        Subtotal sin IVA
+                      </td>
+                      <td className="px-2 py-1.5 text-right font-semibold">{euros(subtotal)}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <details className="rounded border border-[var(--color-border)] text-xs">
+                <summary className="cursor-pointer select-none px-3 py-2 text-[var(--color-ink-2)]">
+                  Ver JSON completo enviado a Holded
+                </summary>
+                <pre className="overflow-x-auto bg-[var(--color-surface-2)] p-3 text-[11px] leading-relaxed">
+                  {JSON.stringify(preview.body, null, 2)}
+                </pre>
+                <div className="border-t border-[var(--color-border)] px-3 py-1.5 text-[var(--color-ink-2)]">
+                  POST → {preview.holded_endpoint}
+                </div>
+              </details>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface-2)] p-3">
+          <div className="text-xs text-[var(--color-ink-2)]">
+            Esto creará un {docTypeLabel.toLowerCase()} en Holded para {cliente.nombre}.
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={onCancelar} disabled={subiendo}>
+              Cancelar
+            </Button>
+            <Button onClick={onConfirmar} disabled={!preview || subiendo || noResueltas > 0}>
+              {subiendo ? (
+                <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Subiendo…</>
+              ) : (
+                <><CloudUpload className="mr-1.5 h-4 w-4" /> Subir definitivamente</>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Kv({ k, v, className }: { k: string; v: string; className?: string }) {
+  return (
+    <div className={cn('min-w-0', className)}>
+      <div className="text-[10px] uppercase tracking-wide text-[var(--color-ink-2)]">{k}</div>
+      <div className="break-all font-mono text-xs">{v}</div>
+    </div>
   )
 }

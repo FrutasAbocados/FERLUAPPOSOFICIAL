@@ -2,11 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import type {
   ClientePedido,
+  CompraDB,
+  CompraExtraccion,
+  CompraLineaDB,
+  CompraLineaExtraida,
   EstadoPedido,
   LineaParseada,
   Pedido,
   Repartidor,
   Salida,
+  TipoDocHolded,
   TipoFactura,
 } from './types'
 
@@ -18,6 +23,8 @@ const KEYS = {
   inventario:      (fecha: string) => ['pedidos_wa', 'inventario', fecha] as const,
   cotejo:          (fecha: string) => ['pedidos_wa', 'cotejo', fecha] as const,
   kgPorCaja:       ['pedidos_wa', 'kg_por_caja'] as const,
+  comprasMes:      (yyyymm: string) => ['pedidos_wa', 'compras', yyyymm] as const,
+  compra:          (id: string) => ['pedidos_wa', 'compra', id] as const,
 }
 
 export function useClientesPedidosWa() {
@@ -61,6 +68,7 @@ export type ClienteInput = {
   subseccion_default: string | null
   notas: string | null
   holded_contact_id: string | null
+  holded_doc_type: TipoDocHolded | null
   activo: boolean
 }
 
@@ -148,9 +156,10 @@ export function usePedidosDelDia(fecha: string) {
         .select(`
           id, cliente_id, fecha, texto_original, notas_admin, faltas, estado,
           override_repartidor, override_horario, override_salida,
+          holded_invoice_id, holded_invoice_num, holded_invoice_doc_type, holded_invoice_created_at,
           created_by, created_at, updated_at,
           cliente:cliente_id (
-            id, nombre, nombre_normalizado, holded_contact_id,
+            id, nombre, nombre_normalizado, holded_contact_id, holded_doc_type,
             repartidor, horario, tipo_factura, salida,
             subseccion_default, notas, activo
           ),
@@ -628,6 +637,281 @@ export function useEliminarFactorKgCaja() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.kgPorCaja })
       qc.invalidateQueries({ queryKey: ['pedidos_wa', 'cotejo'] })
+    },
+  })
+}
+
+// ─── Compras a proveedores (Fase 3) ──────────────────────────────────────────
+
+export type CompraConLineas = CompraDB & { lineas: CompraLineaDB[] }
+
+export function useComprasMes(yyyymm: string) {
+  return useQuery({
+    queryKey: KEYS.comprasMes(yyyymm),
+    queryFn: async (): Promise<CompraConLineas[]> => {
+      const inicio = `${yyyymm}-01`
+      const [y, m] = yyyymm.split('-').map(Number)
+      const finFecha = new Date(y, m, 1)
+      const fin = `${finFecha.getFullYear()}-${String(finFecha.getMonth() + 1).padStart(2, '0')}-01`
+
+      const { data, error } = await supabase
+        .from('pedidos_wa_compras')
+        .select('*, lineas:pedidos_wa_compras_lineas(*)')
+        .gte('fecha', inicio)
+        .lt('fecha', fin)
+        .order('fecha', { ascending: false })
+      if (error) throw error
+      return (data ?? []).map((c) => ({
+        ...c,
+        lineas: ((c as { lineas?: CompraLineaDB[] }).lineas ?? [])
+          .slice()
+          .sort((a, b) => a.orden - b.orden),
+      })) as CompraConLineas[]
+    },
+  })
+}
+
+export async function parsearFacturaProveedor(
+  file: File,
+): Promise<CompraExtraccion> {
+  const b64 = await fileToBase64(file)
+  const { data, error } = await supabase.functions.invoke<CompraExtraccion | { error: string }>(
+    'parsear-factura-proveedor',
+    { body: { pdf_base64: b64, filename: file.name } },
+  )
+  if (error) throw error
+  if (!data || 'error' in data) {
+    throw new Error((data as { error?: string })?.error ?? 'Respuesta vacía del parser')
+  }
+  return data as CompraExtraccion
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      const idx = result.indexOf(',')
+      resolve(idx >= 0 ? result.slice(idx + 1) : result)
+    }
+    reader.onerror = () => reject(reader.error ?? new Error('Lectura PDF falló'))
+    reader.readAsDataURL(file)
+  })
+}
+
+type GuardarCompraInput = {
+  proveedor_holded_id: string
+  proveedor_nombre:    string
+  num_factura:         string
+  fecha:               string
+  total_bruto:         number
+  total_iva:           number
+  total:               number
+  iva_desglose:        CompraExtraccion['iva_desglose']
+  pdf_filename:        string | null
+  raw_extraction:      CompraExtraccion
+  notas:               string | null
+  lineas:              CompraLineaExtraida[]
+}
+
+export function useGuardarCompra() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: GuardarCompraInput): Promise<CompraDB> => {
+      const { data: compra, error: errCab } = await supabase
+        .from('pedidos_wa_compras')
+        .insert({
+          proveedor_holded_id: input.proveedor_holded_id,
+          proveedor_nombre:    input.proveedor_nombre,
+          num_factura:         input.num_factura,
+          fecha:               input.fecha,
+          total_bruto:         input.total_bruto,
+          total_iva:           input.total_iva,
+          total:               input.total,
+          iva_desglose:        input.iva_desglose,
+          pdf_filename:        input.pdf_filename,
+          raw_extraction:      input.raw_extraction,
+          notas:               input.notas,
+        })
+        .select('*')
+        .single()
+      if (errCab) throw errCab
+
+      if (input.lineas.length > 0) {
+        const filas = input.lineas.map((l) => ({
+          compra_id:        compra.id,
+          orden:            l.orden,
+          codigo_proveedor: l.codigo_proveedor,
+          descripcion:      l.descripcion,
+          cantidad:         l.cantidad,
+          unidad:           l.unidad,
+          precio_unitario:  l.precio_unitario,
+          iva_pct:          l.iva_pct,
+          importe:          l.importe,
+          notas:            l.notas,
+        }))
+        const { error: errLin } = await supabase
+          .from('pedidos_wa_compras_lineas')
+          .insert(filas)
+        if (errLin) {
+          // rollback
+          await supabase.from('pedidos_wa_compras').delete().eq('id', compra.id)
+          throw errLin
+        }
+      }
+      return compra as CompraDB
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'compras'] })
+    },
+  })
+}
+
+export function useEliminarCompra() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('pedidos_wa_compras').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'compras'] })
+    },
+  })
+}
+
+// ─── Subir compra a Holded (Fase 3b) ─────────────────────────────────────────
+
+export type SubirCompraDryRun = {
+  ok: true
+  dry_run: true
+  holded_endpoint: string
+  body: Record<string, unknown>
+  summary: {
+    proveedor: string
+    num_factura: string
+    fecha: string
+    lineas: number
+    total_bruto: number
+    total: number
+  }
+}
+
+export type SubirCompraOk = {
+  ok: true
+  holded_purchase_id: string
+  holded_purchase_num: string | null
+}
+
+export type SubirCompraResult = SubirCompraDryRun | SubirCompraOk
+
+export function useSubirCompraAHolded() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { compra_id: string; dry_run?: boolean }): Promise<SubirCompraResult> => {
+      const { data, error } = await supabase.functions.invoke<SubirCompraResult | { error: string; detail?: string; sent_body?: unknown }>(
+        'compra-a-holded',
+        { body: { compra_id: input.compra_id, dry_run: input.dry_run === true } },
+      )
+      if (error) {
+        // Edge devuelve detalle JSON aunque sea status != 2xx — extraerlo
+        const ctx = (error as unknown as { context?: { json?: () => Promise<unknown> } }).context
+        if (ctx?.json) {
+          try {
+            const j = await ctx.json() as { error?: string; detail?: string }
+            throw new Error(j.error || j.detail || error.message)
+          } catch (e) {
+            if (e instanceof Error && e.message !== error.message) throw e
+          }
+        }
+        throw error
+      }
+      if (!data || (data as { error?: string }).error) {
+        throw new Error((data as { error?: string })?.error ?? 'Respuesta vacía')
+      }
+      return data as SubirCompraResult
+    },
+    onSuccess: (res) => {
+      if ('holded_purchase_id' in res && res.holded_purchase_id) {
+        qc.invalidateQueries({ queryKey: ['pedidos_wa', 'compras'] })
+      }
+    },
+  })
+}
+
+// ─── Subir pedido a Holded (Fase 3c) ─────────────────────────────────────────
+
+export type LineaResuelta = {
+  linea_id: string
+  orden: number
+  producto_normalizado: string
+  cantidad: number
+  unidad: string
+  es_gratis: boolean
+  iva_pct: number
+  precio_resuelto: number | null
+  precio_fuente: 'historico_cliente' | 'no_resuelto' | 'gratis'
+  precio_fecha: string | null
+  total_estimado: number
+}
+
+export type SubirPedidoDryRun = {
+  ok: true
+  dry_run: true
+  holded_endpoint: string
+  doc_type: TipoDocHolded
+  body: Record<string, unknown>
+  summary: {
+    cliente: string
+    fecha: string
+    doc_type: TipoDocHolded
+    total_lineas: number
+    resueltas: number
+    no_resueltas: number
+    gratis: number
+    total_estimado: number
+  }
+  lineas_resueltas: LineaResuelta[]
+}
+
+export type SubirPedidoOk = {
+  ok: true
+  holded_invoice_id: string
+  holded_invoice_num: string | null
+  doc_type: TipoDocHolded
+}
+
+export type SubirPedidoResult = SubirPedidoDryRun | SubirPedidoOk
+
+export function useSubirPedidoAHolded() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { pedido_id: string; fecha: string; dry_run?: boolean }): Promise<SubirPedidoResult> => {
+      const { data, error } = await supabase.functions.invoke<SubirPedidoResult | { error: string }>(
+        'pedido-a-holded',
+        { body: { pedido_id: input.pedido_id, dry_run: input.dry_run === true } },
+      )
+      if (error) {
+        const ctx = (error as unknown as { context?: { json?: () => Promise<unknown> } }).context
+        if (ctx?.json) {
+          try {
+            const j = await ctx.json() as { error?: string; detail?: string }
+            throw new Error(j.error || j.detail || error.message)
+          } catch (e) {
+            if (e instanceof Error && e.message !== error.message) throw e
+          }
+        }
+        throw error
+      }
+      if (!data || (data as { error?: string }).error) {
+        throw new Error((data as { error?: string })?.error ?? 'Respuesta vacía')
+      }
+      return data as SubirPedidoResult
+    },
+    onSuccess: (res, vars) => {
+      if ('holded_invoice_id' in res && res.holded_invoice_id) {
+        qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+      }
     },
   })
 }

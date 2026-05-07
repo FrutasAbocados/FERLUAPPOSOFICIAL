@@ -12,6 +12,7 @@ import {
   type ClientePedido,
   type Repartidor,
   type Salida,
+  type TipoDocHolded,
   type TipoFactura,
 } from '../lib/types'
 import {
@@ -40,6 +41,7 @@ const EMPTY: ClienteInput = {
   subseccion_default: null,
   notas: null,
   holded_contact_id: null,
+  holded_doc_type: 'invoice',
   activo: true,
 }
 
@@ -54,6 +56,7 @@ function fromCliente(c: ClientePedido | null): ClienteInput {
     subseccion_default: c.subseccion_default,
     notas:              c.notas,
     holded_contact_id:  c.holded_contact_id,
+    holded_doc_type:    c.holded_doc_type,
     activo:             c.activo,
   }
 }
@@ -193,6 +196,22 @@ export function ClienteModal({ cliente, onClose, onSaved, nombreInicial }: Props
             </Field>
           </div>
 
+          {form.tipo_factura === 'HOLDED' && (
+            <Field
+              label="Documento Holded"
+              hint="Cuando subas el pedido a Holded, se creará este tipo de documento."
+            >
+              <Select
+                value={form.holded_doc_type ?? ''}
+                onChange={(v) => setForm(f => ({ ...f, holded_doc_type: (v || null) as TipoDocHolded | null }))}
+              >
+                <option value="">— Sin decidir —</option>
+                <option value="invoice">Factura (invoice)</option>
+                <option value="waybill">Albarán (waybill)</option>
+              </Select>
+            </Field>
+          )}
+
           <Field label="Sub-sección por defecto" hint="Ej. ANDREA en BLACKBERRY (un sub-comprador del local).">
             <Input
               value={form.subseccion_default ?? ''}
@@ -212,12 +231,13 @@ export function ClienteModal({ cliente, onClose, onSaved, nombreInicial }: Props
           </Field>
 
           <Field
-            label="Holded contact ID"
-            hint="Opcional. Solo necesario para auto-vincular factura en Holded más adelante."
+            label="Vincular a Holded"
+            hint="Busca por nombre del contacto en Holded y selecciónalo. Imprescindible para subir pedidos a Holded."
           >
-            <HoldedContactInput
+            <HoldedContactPicker
               value={form.holded_contact_id}
               onChange={(v) => setForm(f => ({ ...f, holded_contact_id: v }))}
+              nombrePedidoWa={form.nombre}
             />
           </Field>
 
@@ -253,44 +273,121 @@ export function ClienteModal({ cliente, onClose, onSaved, nombreInicial }: Props
   )
 }
 
-function HoldedContactInput({
-  value, onChange,
-}: { value: string | null; onChange: (v: string | null) => void }) {
-  const id = (value ?? '').trim()
-  const lookup = useQuery({
-    queryKey: ['pedidos_wa', 'holded_contact_lookup', id] as const,
-    enabled: id.length > 0,
+function HoldedContactPicker({
+  value, onChange, nombrePedidoWa,
+}: {
+  value: string | null
+  onChange: (v: string | null) => void
+  /** Nombre del cliente WA — se usa como query inicial para sugerir matches. */
+  nombrePedidoWa: string
+}) {
+  // Resuelve el nombre del contacto vinculado (si hay value)
+  const vinculado = useQuery({
+    queryKey: ['pedidos_wa', 'holded_contact_byid', value] as const,
+    enabled: !!value && value.length >= 20,
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('manager_contactos')
-        .select('id, name')
-        .eq('id', id)
+        .select('id, nombre')
+        .eq('id', value as string)
         .maybeSingle()
       if (error) throw error
-      return data as { id: string; name: string } | null
+      return data as { id: string; nombre: string } | null
     },
   })
+
+  const [open, setOpen] = useState(false)
+  const [q, setQ]       = useState('')
+
+  // Búsqueda por nombre (solo si el modal está "abierto" o el usuario escribió algo)
+  const queryActiva = q.trim().length >= 2
+    ? q.trim()
+    : (open && !value && nombrePedidoWa.trim().length >= 2 ? nombrePedidoWa.trim() : '')
+
+  const sugerencias = useQuery({
+    queryKey: ['pedidos_wa', 'holded_contact_search', queryActiva] as const,
+    enabled: queryActiva.length >= 2,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('manager_contactos')
+        .select('id, nombre')
+        .ilike('nombre', `%${queryActiva}%`)
+        .order('nombre')
+        .limit(8)
+      if (error) throw error
+      return (data ?? []) as Array<{ id: string; nombre: string }>
+    },
+  })
+
+  if (value) {
+    return (
+      <div className="space-y-1">
+        <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-sm">
+          <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+          <div className="min-w-0 flex-1">
+            {vinculado.isFetching ? (
+              <span className="text-[var(--color-ink-3)]">Resolviendo…</span>
+            ) : vinculado.data ? (
+              <>
+                <div className="truncate font-medium text-emerald-900">{vinculado.data.nombre}</div>
+                <div className="truncate font-mono text-[10px] text-emerald-700/70">{value}</div>
+              </>
+            ) : (
+              <>
+                <div className="text-amber-700">⚠ ID no encontrado en manager_contactos</div>
+                <div className="truncate font-mono text-[10px] text-[var(--color-ink-3)]">{value}</div>
+              </>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => { onChange(null); setQ(''); setOpen(true) }}
+            className="rounded-md p-1 text-[var(--color-ink-3)] hover:bg-white hover:text-rose-600"
+            title="Desvincular"
+            aria-label="Desvincular"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div>
+    <div className="space-y-1">
       <Input
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value || null)}
-        placeholder="(opcional — pega el ID de Holded)"
+        value={q}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => { setQ(e.target.value); setOpen(true) }}
+        placeholder={`Buscar contacto Holded… (sugerencia: "${nombrePedidoWa.slice(0, 30)}")`}
       />
-      {id.length > 0 && (
-        <div className="mt-1 text-[11px]">
-          {lookup.isFetching ? (
-            <span className="text-[var(--color-ink-3)]">Buscando…</span>
-          ) : lookup.data ? (
-            <span className="inline-flex items-center gap-1 text-emerald-700">
-              <Check className="h-3 w-3" />
-              Encontrado: <strong>{lookup.data.name}</strong>
-            </span>
+      {open && queryActiva.length >= 2 && (
+        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+          {sugerencias.isFetching ? (
+            <div className="px-2 py-1.5 text-xs text-[var(--color-ink-3)]">Buscando…</div>
+          ) : (sugerencias.data ?? []).length === 0 ? (
+            <div className="px-2 py-1.5 text-xs text-amber-700">
+              Sin coincidencias en Holded. Crea primero el contacto en Holded o cambia el nombre del cliente WA.
+            </div>
           ) : (
-            <span className="text-amber-700">
-              ⚠ No está en Holded aún. Se guardará igualmente — el sync horario lo enlazará cuando aparezca.
-            </span>
+            <ul className="max-h-56 overflow-y-auto">
+              {(sugerencias.data ?? []).map(s => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => { onChange(s.id); setQ(''); setOpen(false) }}
+                    className="flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-sm hover:bg-[var(--color-surface-2)]"
+                  >
+                    <span className="truncate">{s.nombre}</span>
+                    <span className="shrink-0 font-mono text-[10px] text-[var(--color-ink-3)]">
+                      {s.id.slice(-6)}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       )}
