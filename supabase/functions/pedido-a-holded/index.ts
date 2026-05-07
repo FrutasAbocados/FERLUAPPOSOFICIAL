@@ -93,7 +93,7 @@ interface PrecioResuelto {
   es_gratis: boolean
   iva_pct: number | string
   precio_resuelto: number | string | null
-  precio_fuente: 'historico_cliente' | 'no_resuelto' | 'gratis'
+  precio_fuente: 'historico_cliente' | 'tarifa_base' | 'no_resuelto' | 'gratis'
   precio_fecha: string | null
   total_estimado: number | string
   holded_product_id: string | null
@@ -131,11 +131,13 @@ async function writeLog(row: {
 function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
   const docType = p.cliente.holded_doc_type === 'waybill' ? 'albarán' : 'factura'
   const sinPrecio = lineas.filter(l => !l.es_gratis && l.precio_fuente === 'no_resuelto').length
+  const conTarifaBase = lineas.filter(l => l.precio_fuente === 'tarifa_base').length
   const noteParts = [
     p.texto_original ? `WhatsApp:\n${p.texto_original}` : null,
     p.notas_admin   ? `Notas: ${p.notas_admin}` : null,
     p.faltas        ? `Faltas: ${p.faltas}` : null,
-    sinPrecio > 0   ? `⚠️ ${sinPrecio} línea(s) sin precio histórico — revisar en Holded antes de emitir.` : null,
+    sinPrecio > 0   ? `⚠️ ${sinPrecio} línea(s) sin precio en histórico — quedan a 0€, revisar en Holded.` : null,
+    conTarifaBase > 0 ? `ℹ️ ${conTarifaBase} línea(s) con precio tarifa base (avg últimos 60d) — verificar.` : null,
   ].filter(Boolean)
 
   return {
@@ -270,6 +272,7 @@ Deno.serve(async (req) => {
         doc_type:     docType,
         total_lineas: lineas.length,
         resueltas:    lineas.filter(l => l.precio_fuente === 'historico_cliente').length,
+        tarifa_base:  lineas.filter(l => l.precio_fuente === 'tarifa_base').length,
         no_resueltas: noResueltas.length,
         gratis:       lineas.filter(l => l.es_gratis).length,
         total_estimado: lineas.reduce((s, l) => s + Number(l.total_estimado), 0),
