@@ -13,6 +13,7 @@ import { confirm } from '@/shared/lib/confirm'
 import { canAccess, type ModuleKey } from '@/shared/types'
 import { AlertCard } from '@/modules/dashboard/components/AlertCard'
 import { EstadoDelDia } from '@/modules/dashboard/components/EstadoDelDia'
+import { ForecastCajaCard } from '@/modules/dashboard/components/ForecastCajaCard'
 import { NotificacionesPanel } from '@/modules/dashboard/components/NotificacionesPanel'
 import {
   useClientesRiesgoFuga, useCostesSubiendo,
@@ -134,6 +135,8 @@ function HomeAdmin() {
       <div className="space-y-5">
         <EstadoDelDia />
         <NotificacionesPanel />
+
+        {isAdmin && <ForecastCajaCard />}
 
         {isAdmin && (
         <section>
