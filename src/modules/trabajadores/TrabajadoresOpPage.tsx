@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Award, BarChart3, BookCheck, CalendarClock, CalendarDays, CalendarOff, Clock4, Construction, ShoppingBasket, Sparkles } from 'lucide-react'
+import { Award, BarChart3, BookCheck, CalendarClock, CalendarDays, CalendarOff, Clock4, Construction, Fingerprint, ShoppingBasket, Sparkles } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { useAuth } from '@/shared/auth/useAuth'
 import { TareasPage } from '@/modules/tareas/TareasPage'
@@ -12,8 +12,9 @@ import { PuntosView } from './components/PuntosView'
 import { DashboardView } from './components/DashboardView'
 import { HorasExtrasView } from './components/HorasExtrasView'
 import { RuletaAdminView } from './components/RuletaAdminView'
+import { FichajesView } from './components/FichajesView'
 
-type Tab = 'dashboard' | 'tareas' | 'puntos' | 'vacaciones' | 'sabados' | 'credito' | 'horas_extras' | 'turnos' | 'ruleta' | 'productividad'
+type Tab = 'dashboard' | 'tareas' | 'puntos' | 'vacaciones' | 'sabados' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad'
 
 const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'dashboard',     l: 'Dashboard',       Icon: BarChart3 },
@@ -23,6 +24,7 @@ const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'sabados',       l: 'Sábados',         Icon: CalendarDays },
   { k: 'credito',       l: 'Crédito frutas',  Icon: ShoppingBasket },
   { k: 'horas_extras',  l: 'Horas extras',    Icon: Clock4 },
+  { k: 'fichajes',      l: 'Fichajes',        Icon: Fingerprint },
   { k: 'turnos',        l: 'Turnos',          Icon: CalendarClock },
   { k: 'ruleta',        l: 'Ruleta',          Icon: Sparkles },
   { k: 'productividad', l: 'Plus productividad', Icon: Construction },
@@ -70,6 +72,7 @@ export function TrabajadoresOpPage() {
       {tab === 'sabados' && <SabadosView />}
       {tab === 'credito' && <CreditoView />}
       {tab === 'horas_extras' && <HorasExtrasView />}
+      {tab === 'fichajes' && <FichajesView />}
       {tab === 'turnos' && <TurnosPage />}
       {tab === 'ruleta' && <RuletaAdminView />}
       {tab === 'productividad' && <Placeholder titulo="Plus productividad" descripcion="Cálculo de plus por productividad según métricas." comingSoon />}

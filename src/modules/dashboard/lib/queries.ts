@@ -267,33 +267,3 @@ export function useCostesSubiendo(dias = 14, pctMin = 15, opts: { enabled?: bool
   })
 }
 
-// ─── Forecast caja 30d ─────────────────────────────────────────
-
-export interface ForecastDia {
-  fecha: string
-  entradas: number
-  salidas: number
-  neto_dia: number
-  neto_acumulado: number
-  num_cobros: number
-  num_gastos: number
-}
-
-export function useForecastCaja(dias = 30) {
-  return useQuery({
-    queryKey: ['dashboard', 'forecast-caja', dias] as const,
-    queryFn: async (): Promise<ForecastDia[]> => {
-      const { data, error } = await supabase.rpc('manager_forecast_caja', { p_dias: dias })
-      if (error) throw error
-      return (data ?? []).map((r: Record<string, unknown>) => ({
-        fecha:          String(r.fecha ?? ''),
-        entradas:       num(r.entradas),
-        salidas:        num(r.salidas),
-        neto_dia:       num(r.neto_dia),
-        neto_acumulado: num(r.neto_acumulado),
-        num_cobros:     Number(r.num_cobros ?? 0),
-        num_gastos:     Number(r.num_gastos ?? 0),
-      }))
-    },
-  })
-}

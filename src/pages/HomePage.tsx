@@ -13,8 +13,8 @@ import { confirm } from '@/shared/lib/confirm'
 import { canAccess, type ModuleKey } from '@/shared/types'
 import { AlertCard } from '@/modules/dashboard/components/AlertCard'
 import { EstadoDelDia } from '@/modules/dashboard/components/EstadoDelDia'
-import { ForecastCajaCard } from '@/modules/dashboard/components/ForecastCajaCard'
 import { NotificacionesPanel } from '@/modules/dashboard/components/NotificacionesPanel'
+import { FichajeCard } from '@/modules/trabajadores/components/FichajeCard'
 import {
   useClientesRiesgoFuga, useCostesSubiendo,
   usePedidosEsperados, useProductosAnomalos, useTopDeudoresCobros,
@@ -135,8 +135,7 @@ function HomeAdmin() {
       <div className="space-y-5">
         <EstadoDelDia />
         <NotificacionesPanel />
-
-        {isAdmin && <ForecastCajaCard />}
+        <FichajeCard />
 
         {isAdmin && (
         <section>
@@ -288,6 +287,7 @@ function HomeEmpleado() {
 
       <div className="space-y-4">
         <NotificacionesPanel />
+        <FichajeCard />
 
         <section>
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Tus módulos</h2>
