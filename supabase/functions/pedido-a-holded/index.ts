@@ -104,6 +104,27 @@ function jsonRes(obj: unknown, status = 200) {
   })
 }
 
+async function writeLog(row: {
+  pedido_id: string
+  source: 'trigger' | 'manual' | 'retry'
+  status: number | null
+  ok: boolean
+  doc_type?: 'invoice' | 'waybill' | null
+  holded_id?: string | null
+  holded_num?: string | null
+  error_msg?: string | null
+  request_body?: unknown
+  response_body?: unknown
+}) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/pedidos_wa_holded_log`, {
+      method: 'POST',
+      headers: { ...dbHeaders, prefer: 'return=minimal' },
+      body: JSON.stringify(row),
+    })
+  } catch { /* no romper la respuesta principal por un fallo de log */ }
+}
+
 function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
   const docType = p.cliente.holded_doc_type === 'waybill' ? 'albarán' : 'factura'
   const sinPrecio = lineas.filter(l => !l.es_gratis && l.precio_fuente === 'no_resuelto').length
@@ -155,6 +176,8 @@ Deno.serve(async (req) => {
   if (!body.pedido_id) return jsonRes({ error: 'falta pedido_id' }, 400)
   const dryRun = body.dry_run === true
   const auto   = body.auto === true
+  const source: 'trigger' | 'manual' = auto ? 'trigger' : 'manual'
+  const pedidoId = body.pedido_id
 
   // Cargar pedido + cliente
   const pedRes = await fetch(
@@ -186,18 +209,25 @@ Deno.serve(async (req) => {
   }
 
   // Validar cliente
-  if (!pedido.cliente) return jsonRes({ error: 'pedido sin cliente' }, 422)
+  const failValidation = async (msg: string) => {
+    if (auto) {
+      await writeLog({ pedido_id: pedidoId, source, status: 422, ok: false, error_msg: msg })
+    }
+    return jsonRes({ error: msg }, 422)
+  }
+
+  if (!pedido.cliente) return failValidation('pedido sin cliente')
   if (pedido.cliente.tipo_factura !== 'HOLDED') {
-    return jsonRes({ error: `cliente con tipo_factura=${pedido.cliente.tipo_factura}, no se sube a Holded` }, 422)
+    return failValidation(`cliente con tipo_factura=${pedido.cliente.tipo_factura}, no se sube a Holded`)
   }
   if (!pedido.cliente.holded_contact_id) {
-    return jsonRes({ error: 'cliente sin holded_contact_id (vincúlalo primero en tab Clientes)' }, 422)
+    return failValidation('cliente sin holded_contact_id (vincúlalo primero en tab Clientes)')
   }
   if (!pedido.cliente.holded_doc_type) {
-    return jsonRes({ error: 'cliente sin holded_doc_type (elige factura o albarán en su ficha)' }, 422)
+    return failValidation('cliente sin holded_doc_type (elige factura o albarán en su ficha)')
   }
   if (pedido.cliente.holded_doc_type !== 'invoice' && pedido.cliente.holded_doc_type !== 'waybill') {
-    return jsonRes({ error: `holded_doc_type inválido: ${pedido.cliente.holded_doc_type}` }, 422)
+    return failValidation(`holded_doc_type inválido: ${pedido.cliente.holded_doc_type}`)
   }
 
   // Resolver precios via RPC
@@ -248,9 +278,15 @@ Deno.serve(async (req) => {
       body: JSON.stringify(holdedBody),
     })
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    await writeLog({
+      pedido_id: pedidoId, source, status: null, ok: false,
+      doc_type: docType, error_msg: `fetch a Holded falló: ${msg}`,
+      request_body: holdedBody,
+    })
     return jsonRes({
       error: 'fetch a Holded falló',
-      detail: e instanceof Error ? e.message : String(e),
+      detail: msg,
     }, 502)
   }
 
@@ -259,6 +295,13 @@ Deno.serve(async (req) => {
   try { holdedJson = JSON.parse(holdedTxt) } catch { /* */ }
 
   if (!holdedRes.ok || !holdedJson.id) {
+    await writeLog({
+      pedido_id: pedidoId, source, status: holdedRes.status, ok: false,
+      doc_type: docType,
+      error_msg: holdedTxt.slice(0, 500),
+      request_body: holdedBody,
+      response_body: { raw: holdedTxt.slice(0, 1000) },
+    })
     return jsonRes({
       error: `Holded ${holdedRes.status}`,
       detail: holdedTxt.slice(0, 600),
@@ -282,15 +325,30 @@ Deno.serve(async (req) => {
     },
   )
   if (!patchRes.ok) {
+    const bdErr = (await patchRes.text()).slice(0, 400)
+    await writeLog({
+      pedido_id: pedidoId, source, status: holdedRes.status, ok: false,
+      doc_type: docType, holded_id: holdedJson.id, holded_num: docNum,
+      error_msg: `update BD falló: ${bdErr}`,
+      request_body: holdedBody,
+      response_body: holdedJson as unknown,
+    })
     return jsonRes({
       ok: false,
       warning: 'Subido a Holded pero update BD falló — anota el id manualmente',
       holded_invoice_id: holdedJson.id,
       holded_invoice_num: docNum,
       doc_type: docType,
-      bd_error: (await patchRes.text()).slice(0, 400),
+      bd_error: bdErr,
     }, 207)
   }
+
+  await writeLog({
+    pedido_id: pedidoId, source, status: holdedRes.status, ok: true,
+    doc_type: docType, holded_id: holdedJson.id, holded_num: docNum,
+    request_body: holdedBody,
+    response_body: holdedJson as unknown,
+  })
 
   return jsonRes({
     ok: true,

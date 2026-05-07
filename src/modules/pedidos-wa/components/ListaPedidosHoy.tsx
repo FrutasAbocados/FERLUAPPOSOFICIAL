@@ -40,8 +40,11 @@ import {
   useConfirmarPedido,
   useEliminarLineaPedido,
   useEliminarPedido,
+  useHoldedLastLogs,
   usePedidosDelDia,
+  useReemitirBorrador,
   useSubirPedidoAHolded,
+  type HoldedLastLog,
   type SubirPedidoDryRun,
 } from '../lib/queries'
 import { euros } from '@/shared/lib/format'
@@ -77,8 +80,51 @@ const SIGUIENTE_ESTADO: Partial<Record<EstadoPedido, EstadoPedido>> = {
 export function ListaPedidosHoy() {
   const fecha = format(new Date(), 'yyyy-MM-dd')
   const { data: pedidos, isLoading, error } = usePedidosDelDia(fecha)
+  const confirmar = useConfirmarPedido()
+  const [confirmandoTodos, setConfirmandoTodos] = useState(false)
 
   const titulo = format(new Date(), "EEEE d 'de' MMMM", { locale: es })
+
+  const lista = pedidos ?? []
+  const idsList = useMemo(() => lista.map(p => p.id), [lista])
+  const { data: logsMap } = useHoldedLastLogs(fecha, idsList)
+
+  const confirmables = useMemo(
+    () => lista.filter(p =>
+      p.estado === 'pendiente'
+      && !p.holded_invoice_id
+      && p.cliente?.tipo_factura === 'HOLDED'
+      && !!p.cliente?.holded_contact_id
+      && !!p.cliente?.holded_doc_type,
+    ),
+    [lista],
+  )
+
+  const onConfirmarTodos = async () => {
+    if (confirmables.length === 0) return
+    const ok = await confirm({
+      title: `¿Confirmar ${confirmables.length} pedido${confirmables.length === 1 ? '' : 's'}?`,
+      description: 'Se creará un borrador en Holded por cada uno. Los chicos editarán pesos y precios antes de emitir.',
+      confirmLabel: 'Confirmar todos',
+    })
+    if (!ok) return
+    setConfirmandoTodos(true)
+    let okCount = 0, errCount = 0
+    for (const p of confirmables) {
+      try {
+        await confirmar.mutateAsync({ id: p.id, fecha })
+        okCount++
+      } catch {
+        errCount++
+      }
+    }
+    setConfirmandoTodos(false)
+    toast({
+      title: `${okCount} confirmado${okCount === 1 ? '' : 's'}`,
+      description: errCount > 0 ? `${errCount} fallaron — revisa la app` : 'Generando borradores en Holded…',
+      variant: errCount > 0 ? 'error' : 'success',
+    })
+  }
 
   if (isLoading) {
     return (
@@ -95,17 +141,30 @@ export function ListaPedidosHoy() {
     )
   }
 
-  const lista = pedidos ?? []
-
   return (
     <div className="space-y-3">
-      <div className="flex items-baseline justify-between">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-[var(--color-ink)] capitalize">
           {titulo}
         </h2>
-        <span className="text-xs text-[var(--color-ink-3)]">
-          {lista.length} {lista.length === 1 ? 'pedido' : 'pedidos'}
-        </span>
+        <div className="flex items-center gap-2">
+          {confirmables.length > 0 && (
+            <Button
+              size="sm"
+              onClick={onConfirmarTodos}
+              disabled={confirmandoTodos}
+            >
+              {confirmandoTodos ? (
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Confirmando {confirmables.length}…</>
+              ) : (
+                <><CheckCircle2 className="h-3.5 w-3.5" /> Confirmar {confirmables.length} pendiente{confirmables.length === 1 ? '' : 's'}</>
+              )}
+            </Button>
+          )}
+          <span className="text-xs text-[var(--color-ink-3)]">
+            {lista.length} {lista.length === 1 ? 'pedido' : 'pedidos'}
+          </span>
+        </div>
       </div>
 
       {lista.length === 0 ? (
@@ -114,14 +173,14 @@ export function ListaPedidosHoy() {
         </div>
       ) : (
         <ul className="space-y-2">
-          {lista.map(p => <PedidoCard key={p.id} pedido={p} />)}
+          {lista.map(p => <PedidoCard key={p.id} pedido={p} log={logsMap?.get(p.id) ?? null} />)}
         </ul>
       )}
     </div>
   )
 }
 
-function PedidoCard({ pedido }: { pedido: Pedido }) {
+function PedidoCard({ pedido, log }: { pedido: Pedido; log: HoldedLastLog | null }) {
   const [open, setOpen] = useState(false)
   const [modalHolded, setModalHolded] = useState<{
     preview: SubirPedidoDryRun | null
@@ -136,9 +195,12 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
   const confirmar = useConfirmarPedido()
   const eliminar = useEliminarPedido()
   const subirHolded = useSubirPedidoAHolded()
+  const reemitir = useReemitirBorrador()
 
   const subirInfo = bloqueoSubir(pedido)
   const yaSubido  = !!pedido.holded_invoice_id
+  const noEsHolded = pedido.cliente?.tipo_factura !== undefined && pedido.cliente.tipo_factura !== 'HOLDED'
+  const holdedFallo = !yaSubido && log?.ok === false
 
   const abrirModalHolded = async () => {
     setModalHolded({ preview: null, cargando: true, error: null })
@@ -187,9 +249,27 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
 
   const siguiente = SIGUIENTE_ESTADO[pedido.estado]
 
-  const onAvanzar = () => {
+  const onAvanzar = async () => {
     if (!siguiente) return
     if (siguiente === 'confirmado') {
+      // Pre-check: si hay líneas sin precio histórico, avisar antes
+      try {
+        const dr = await subirHolded.mutateAsync({ pedido_id: pedido.id, fecha, dry_run: true })
+        if ('dry_run' in dr) {
+          const sinPrecio = dr.summary.no_resueltas
+          const total = dr.summary.total_lineas
+          if (sinPrecio > 0) {
+            const ok = await confirm({
+              title: `${sinPrecio} de ${total} líneas sin precio histórico`,
+              description: `Saldrán a 0€ en el borrador de Holded. Los chicos las editarán antes de emitir. ¿Confirmar igualmente?`,
+              confirmLabel: 'Confirmar',
+            })
+            if (!ok) return
+          }
+        }
+      } catch {
+        // Si dry_run falla por validación cliente, dejamos que el confirm dispare igual y vea el error en logs
+      }
       confirmar.mutate(
         { id: pedido.id, fecha },
         {
@@ -208,6 +288,23 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
       {
         onSuccess: () => toast({ title: `Marcado como ${ESTADO_LABEL[siguiente]}`, variant: 'success' }),
         onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'error' }),
+      },
+    )
+  }
+
+  const onReemitir = async () => {
+    const ok = await confirm({
+      title: '¿Re-emitir borrador?',
+      description: `Borrará el doc Holded ${pedido.holded_invoice_num ?? ''} y dejará el pedido pendiente. Si Holded ya lo emitió no se podrá borrar desde aquí.`,
+      confirmLabel: 'Re-emitir',
+      variant: 'danger',
+    })
+    if (!ok) return
+    reemitir.mutate(
+      { pedido_id: pedido.id, fecha },
+      {
+        onSuccess: () => toast({ title: 'Borrador eliminado', description: 'Vuelve a "pendiente". Confírmalo de nuevo.', variant: 'success' }),
+        onError: (e: Error) => toast({ title: 'No se pudo borrar', description: e.message, variant: 'error' }),
       },
     )
   }
@@ -292,13 +389,33 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
             </Button>
           )}
           {yaSubido ? (
-            <span
-              className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700"
-              title={pedido.holded_invoice_id ?? ''}
+            <button
+              type="button"
+              onClick={onReemitir}
+              disabled={reemitir.isPending}
+              className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+              title={`Holded ${pedido.holded_invoice_id ?? ''}\nClic para re-emitir borrador (borra y vuelve a pendiente)`}
             >
               <CheckCircle2 className="h-3 w-3" />
               Holded {pedido.holded_invoice_num ?? '✓'}
+            </button>
+          ) : noEsHolded ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600"
+              title={`tipo_factura=${pedido.cliente?.tipo_factura} — no se sube a Holded`}
+            >
+              {pedido.cliente?.tipo_factura ?? '—'}
             </span>
+          ) : holdedFallo ? (
+            <button
+              type="button"
+              onClick={abrirModalHolded}
+              title={`Holded ${log?.status ?? ''}: ${log?.error_msg ?? 'error desconocido'}\n\nClic para reintentar`}
+              className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700 hover:bg-red-100"
+              aria-label="Holded falló, reintentar"
+            >
+              ⚠ Holded {log?.status ?? '—'}
+            </button>
           ) : (
             <button
               type="button"

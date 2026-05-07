@@ -207,6 +207,71 @@ export function useReasignarPedido() {
   })
 }
 
+/** Borra un borrador en Holded y resetea el pedido a 'pendiente' para volver a confirmarlo. */
+export function useReemitirBorrador() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { pedido_id: string; fecha: string }) => {
+      const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string; detail?: string; hint?: string }>(
+        'borrar-borrador-holded',
+        { body: { pedido_id: input.pedido_id } },
+      )
+      if (error) {
+        const ctx = (error as unknown as { context?: { json?: () => Promise<unknown> } }).context
+        if (ctx?.json) {
+          try {
+            const j = await ctx.json() as { error?: string; hint?: string }
+            throw new Error(j.hint ? `${j.error} — ${j.hint}` : (j.error ?? error.message))
+          } catch (e) {
+            if (e instanceof Error && e.message !== error.message) throw e
+          }
+        }
+        throw error
+      }
+      if (!data || data.error) throw new Error(data?.error ?? 'respuesta vacía')
+      return data
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+    },
+  })
+}
+
+// ─── Logs Holded ────────────────────────────────────────────────────────────
+
+export type HoldedLastLog = {
+  pedido_id: string
+  log_id: string
+  source: 'trigger' | 'manual' | 'retry'
+  status: number | null
+  ok: boolean
+  doc_type: 'invoice' | 'waybill' | null
+  holded_id: string | null
+  holded_num: string | null
+  error_msg: string | null
+  created_at: string
+}
+
+/** Último log Holded por pedido para una fecha concreta. Permite ver fallos en la UI. */
+export function useHoldedLastLogs(fecha: string, pedidoIds: string[]) {
+  return useQuery({
+    queryKey: ['pedidos_wa', 'holded_logs', fecha, pedidoIds.length] as const,
+    enabled: pedidoIds.length > 0,
+    queryFn: async (): Promise<Map<string, HoldedLastLog>> => {
+      if (pedidoIds.length === 0) return new Map()
+      const { data, error } = await supabase
+        .from('pedidos_wa_holded_last_log')
+        .select('*')
+        .in('pedido_id', pedidoIds)
+      if (error) throw error
+      const map = new Map<string, HoldedLastLog>()
+      for (const r of (data ?? []) as HoldedLastLog[]) map.set(r.pedido_id, r)
+      return map
+    },
+    staleTime: 15_000,
+  })
+}
+
 /** Marca un pedido como 'confirmado'. El trigger de BD dispara la creación de borrador en Holded. */
 export function useConfirmarPedido() {
   const qc = useQueryClient()
