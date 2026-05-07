@@ -96,6 +96,9 @@ interface PrecioResuelto {
   precio_fuente: 'historico_cliente' | 'no_resuelto' | 'gratis'
   precio_fecha: string | null
   total_estimado: number | string
+  holded_product_id: string | null
+  holded_product_name: string | null
+  trazabilidad: string | null
 }
 
 function jsonRes(obj: unknown, status = 200) {
@@ -146,16 +149,22 @@ function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
     language:    'es',
     currency:    'eur',
     items:       lineas
-      // Filtramos solo las gratis con precio 0 (no aportan nada). El resto va,
-      // incluyendo las "no_resuelto" que entran a precio 0 — los chicos editan en Holded.
       .filter(l => !(l.es_gratis && Number(l.precio_resuelto ?? 0) === 0))
-      .map(l => ({
-        name:  l.producto_normalizado,
-        desc:  `${Number(l.cantidad)} ${l.unidad}`,
-        units: Number(l.cantidad),
-        price: Number(l.precio_resuelto ?? 0),
-        tax:   Number(l.iva_pct),
-      })),
+      .map(l => {
+        const item: Record<string, unknown> = {
+          // Si tenemos productId Holded, lo enviamos para reusar el del catálogo.
+          // Cuando productId va, Holded usa name/price del producto pero el price
+          // que pasamos sigue prevaleciendo si lo enviamos explícito.
+          name:  l.holded_product_name ?? l.producto_normalizado,
+          // Descripción = trazabilidad (proveedor/lote) cuando existe.
+          desc:  l.trazabilidad ?? `${Number(l.cantidad)} ${l.unidad}`,
+          units: Number(l.cantidad),
+          price: Number(l.precio_resuelto ?? 0),
+          tax:   Number(l.iva_pct),
+        }
+        if (l.holded_product_id) item.productId = l.holded_product_id
+        return item
+      }),
     _meta: {
       doc_type: docType,
       pedido_id: p.id,
@@ -231,12 +240,12 @@ Deno.serve(async (req) => {
   }
 
   // Resolver precios via RPC
-  const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/pedidos_wa_resolver_precios`, {
+  const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/pedidos_wa_resolver_completo`, {
     method: 'POST',
     headers: dbHeaders,
     body: JSON.stringify({ p_pedido_id: body.pedido_id }),
   })
-  if (!rpcRes.ok) return jsonRes({ error: `RPC resolver_precios ${rpcRes.status}`, detail: (await rpcRes.text()).slice(0, 300) }, 500)
+  if (!rpcRes.ok) return jsonRes({ error: `RPC resolver_completo ${rpcRes.status}`, detail: (await rpcRes.text()).slice(0, 300) }, 500)
   const lineas = await rpcRes.json() as PrecioResuelto[]
   if (lineas.length === 0) return jsonRes({ error: 'pedido sin líneas' }, 422)
 
