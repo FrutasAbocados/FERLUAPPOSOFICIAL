@@ -43,7 +43,7 @@ export function ManagerPage() {
             { k: 'patrones',   l: 'Patrones' },
             { k: 'abuelo',     l: 'Abuelo' },
             { k: 'estacionalidad', l: 'Estacionalidad coste' },
-            { k: 'mapa',       l: 'Mapa' },
+            // { k: 'mapa', l: 'Mapa' },  // oculto — geocoding poco preciso, retomar
           ] as Array<{ k: Tab; l: string }>).map(t => (
             <Button
               key={t.k}
