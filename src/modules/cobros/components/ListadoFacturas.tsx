@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Search, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
@@ -13,8 +13,28 @@ import type { Estado, Movimiento } from '../lib/types'
 type FiltroEstado = 'todos' | Estado | 'Pizarra'
 type FiltroTipo = 'todos' | 'Factura' | 'Pizarra'
 type FiltroSigno = 'todos' | 'cargos' | 'abonos'
+type Preset = 'todo' | 'hoy' | '7d' | '30d' | 'mes' | 'mes_anterior' | '90d' | 'anio' | 'custom'
 type SortKey = 'fecha' | 'cliente' | 'importe' | 'pendiente' | 'estado'
 type SortDir = 'asc' | 'desc'
+
+const fmtISO = (d: Date) => format(d, 'yyyy-MM-dd')
+function rangeForPreset(p: Preset): { from: string | null; to: string | null } {
+  const today = new Date()
+  switch (p) {
+    case 'todo':         return { from: null, to: null }
+    case 'hoy':          return { from: fmtISO(today), to: fmtISO(today) }
+    case '7d':           return { from: fmtISO(subDays(today, 6)), to: fmtISO(today) }
+    case '30d':          return { from: fmtISO(subDays(today, 29)), to: fmtISO(today) }
+    case 'mes':          return { from: fmtISO(startOfMonth(today)), to: fmtISO(endOfMonth(today)) }
+    case 'mes_anterior': {
+      const m = subMonths(today, 1)
+      return { from: fmtISO(startOfMonth(m)), to: fmtISO(endOfMonth(m)) }
+    }
+    case '90d':          return { from: fmtISO(subDays(today, 89)), to: fmtISO(today) }
+    case 'anio':         return { from: fmtISO(startOfYear(today)), to: fmtISO(today) }
+    default:             return { from: null, to: null }
+  }
+}
 
 type Props = {
   onCobrar: (movimientoId: string) => void
@@ -55,8 +75,16 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
   const [fEstado, setFEstado] = useState<FiltroEstado>('todos')
   const [fTipo, setFTipo] = useState<FiltroTipo>('todos')
   const [fSigno, setFSigno] = useState<FiltroSigno>('todos')
+  const [preset, setPreset] = useState<Preset>('todo')
+  const [customFrom, setCustomFrom] = useState<string>('')
+  const [customTo, setCustomTo] = useState<string>('')
   const [sortKey, setSortKey] = useState<SortKey>('fecha')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+
+  const { from: rangoFrom, to: rangoTo } = useMemo(() => {
+    if (preset === 'custom') return { from: customFrom || null, to: customTo || null }
+    return rangeForPreset(preset)
+  }, [preset, customFrom, customTo])
 
   const nombrePorId = useMemo(() => {
     const map = new Map<string, string>()
@@ -78,6 +106,9 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
       const imp = Number(m.importe)
       if (fSigno === 'cargos' && imp < 0) return false
       if (fSigno === 'abonos' && imp >= 0) return false
+      // rango fechas (sobre fecha_factura, ISO comparable lexicográficamente)
+      if (rangoFrom && m.fecha_factura < rangoFrom) return false
+      if (rangoTo && m.fecha_factura > rangoTo) return false
       // estado
       const est = estadoEfectivo(m)
       if (fEstado !== 'todos' && est !== fEstado) return false
@@ -107,7 +138,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
     })
 
     return sorted
-  }, [movs.data, q, fEstado, fTipo, fSigno, sortKey, sortDir, nombrePorId])
+  }, [movs.data, q, fEstado, fTipo, fSigno, rangoFrom, rangoTo, sortKey, sortDir, nombrePorId])
 
   const totales = useMemo(() => {
     let imp = 0, pend = 0, num = 0
@@ -132,7 +163,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
     <div className="space-y-3">
       {/* Filtros */}
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-        <div className="grid gap-2 md:grid-cols-[1fr_auto_auto_auto]">
+        <div className="grid gap-2 md:grid-cols-[1fr_auto_auto_auto_auto]">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--color-ink-3)]" />
             <Input
@@ -142,6 +173,22 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
               className="h-9 pl-8"
             />
           </div>
+          <select
+            value={preset}
+            onChange={(e) => setPreset(e.target.value as Preset)}
+            className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm"
+            title="Rango de fechas"
+          >
+            <option value="todo">📅 Todas las fechas</option>
+            <option value="hoy">Hoy</option>
+            <option value="7d">Últimos 7 días</option>
+            <option value="30d">Últimos 30 días</option>
+            <option value="mes">Este mes</option>
+            <option value="mes_anterior">Mes anterior</option>
+            <option value="90d">Últimos 90 días</option>
+            <option value="anio">Este año</option>
+            <option value="custom">Personalizado…</option>
+          </select>
           <select
             value={fEstado}
             onChange={(e) => setFEstado(e.target.value as FiltroEstado)}
@@ -173,8 +220,50 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
             <option value="abonos">Solo abonos</option>
           </select>
         </div>
+        {preset === 'custom' && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            <label className="flex items-center gap-1 text-[var(--color-ink-3)]">
+              Desde
+              <Input
+                type="date"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="h-8 w-[150px]"
+              />
+            </label>
+            <label className="flex items-center gap-1 text-[var(--color-ink-3)]">
+              Hasta
+              <Input
+                type="date"
+                value={customTo}
+                onChange={(e) => setCustomTo(e.target.value)}
+                className="h-8 w-[150px]"
+              />
+            </label>
+            {(customFrom || customTo) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => { setCustomFrom(''); setCustomTo('') }}
+                className="h-7 text-xs"
+              >
+                Limpiar
+              </Button>
+            )}
+          </div>
+        )}
         <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-[var(--color-border)] pt-2 text-xs text-[var(--color-ink-3)]">
           <span><strong>{totales.num}</strong> movimiento{totales.num === 1 ? '' : 's'}</span>
+          {(rangoFrom || rangoTo) && (
+            <span>
+              · rango{' '}
+              <strong className="tabular-nums text-[var(--color-ink)]">
+                {rangoFrom ? format(parseISO(rangoFrom), 'd LLL', { locale: es }) : '—'}
+                {' → '}
+                {rangoTo ? format(parseISO(rangoTo), 'd LLL yyyy', { locale: es }) : '—'}
+              </strong>
+            </span>
+          )}
           <span>· importe total <strong className="tabular-nums text-[var(--color-ink)]">{eur(totales.imp)}</strong></span>
           <span>· pendiente <strong className={`tabular-nums ${totales.pend < 0 ? 'text-amber-700' : 'text-[var(--color-ink)]'}`}>{eur(totales.pend)}</strong></span>
         </div>
