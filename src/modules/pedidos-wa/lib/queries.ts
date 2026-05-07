@@ -207,6 +207,26 @@ export function useReasignarPedido() {
   })
 }
 
+/** Marca un pedido como 'confirmado'. El trigger de BD dispara la creación de borrador en Holded. */
+export function useConfirmarPedido() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { id: string; fecha: string }) => {
+      const { error } = await supabase
+        .from('pedidos_wa')
+        .update({ estado: 'confirmado' })
+        .eq('id', input.id)
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+      // Polling 3-5s para captar el holded_invoice_id que rellena el trigger
+      setTimeout(() => qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) }), 3000)
+      setTimeout(() => qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) }), 8000)
+    },
+  })
+}
+
 /** Reordena masivamente las paradas de un repartidor en una fecha. Asigna 1..N. */
 export function useReordenarRuta() {
   const qc = useQueryClient()

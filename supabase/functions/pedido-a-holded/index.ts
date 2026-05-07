@@ -49,6 +49,8 @@ async function checkAuth(req: Request): Promise<{ ok: true } | { ok: false; stat
   catch { return { ok: false, status: 401, msg: 'jwt inválido' } }
   const role = String(payload.role ?? '')
   if (role === 'service_role') return { ok: true }
+  // Trigger pg_net invoca con anon key (rol "anon"); aceptamos siempre que venga el JWT correcto.
+  if (role === 'anon') return { ok: true }
   if (role !== 'authenticated') return { ok: false, status: 403, msg: `rol JWT no permitido: ${role || '—'}` }
   const sub = String(payload.sub ?? '')
   if (!sub) return { ok: false, status: 403, msg: 'jwt sin sub' }
@@ -56,8 +58,8 @@ async function checkAuth(req: Request): Promise<{ ok: true } | { ok: false; stat
   if (!res.ok) return { ok: false, status: 500, msg: `profiles ${res.status}` }
   const rows = await res.json() as Array<{ role?: string }>
   const userRole = rows[0]?.role ?? ''
-  if (userRole !== 'admin_full' && userRole !== 'admin_op') {
-    return { ok: false, status: 403, msg: 'sólo admin_full o admin_op pueden subir pedidos a Holded' }
+  if (userRole !== 'admin_full' && userRole !== 'admin_op' && userRole !== 'responsable') {
+    return { ok: false, status: 403, msg: 'sólo admin_full, admin_op o responsable pueden subir pedidos a Holded' }
   }
   return { ok: true }
 }
@@ -104,13 +106,17 @@ function jsonRes(obj: unknown, status = 200) {
 
 function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
   const docType = p.cliente.holded_doc_type === 'waybill' ? 'albarán' : 'factura'
+  const sinPrecio = lineas.filter(l => !l.es_gratis && l.precio_fuente === 'no_resuelto').length
   const noteParts = [
     p.texto_original ? `WhatsApp:\n${p.texto_original}` : null,
     p.notas_admin   ? `Notas: ${p.notas_admin}` : null,
     p.faltas        ? `Faltas: ${p.faltas}` : null,
+    sinPrecio > 0   ? `⚠️ ${sinPrecio} línea(s) sin precio histórico — revisar en Holded antes de emitir.` : null,
   ].filter(Boolean)
 
   return {
+    // approveDoc=0 → borrador (no aprobado, sin numeración oficial, no notifica al cliente)
+    approveDoc: 0,
     contactId:   p.cliente.holded_contact_id,
     contactName: p.cliente.nombre,
     desc:        `Pedido WhatsApp ${p.fecha}`,
@@ -119,7 +125,9 @@ function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
     language:    'es',
     currency:    'eur',
     items:       lineas
-      .filter(l => !l.es_gratis || (l.es_gratis && Number(l.precio_resuelto ?? 0) > 0))
+      // Filtramos solo las gratis con precio 0 (no aportan nada). El resto va,
+      // incluyendo las "no_resuelto" que entran a precio 0 — los chicos editan en Holded.
+      .filter(l => !(l.es_gratis && Number(l.precio_resuelto ?? 0) === 0))
       .map(l => ({
         name:  l.producto_normalizado,
         desc:  `${Number(l.cantidad)} ${l.unidad}`,
@@ -142,10 +150,11 @@ Deno.serve(async (req) => {
 
   if (!HOLDED_KEY) return jsonRes({ error: 'HOLDED_API_KEY no configurada' }, 500)
 
-  let body: { pedido_id?: string; dry_run?: boolean } = {}
+  let body: { pedido_id?: string; dry_run?: boolean; auto?: boolean } = {}
   try { body = await req.json() } catch { /* */ }
   if (!body.pedido_id) return jsonRes({ error: 'falta pedido_id' }, 400)
   const dryRun = body.dry_run === true
+  const auto   = body.auto === true
 
   // Cargar pedido + cliente
   const pedRes = await fetch(
@@ -158,6 +167,16 @@ Deno.serve(async (req) => {
   const pedido = pedRows[0]
 
   if (pedido.holded_invoice_id) {
+    // Auto (trigger): silenciar idempotencia. Manual: 409 para que el frontend lo sepa.
+    if (auto) {
+      return jsonRes({
+        ok: true,
+        already: true,
+        holded_invoice_id: pedido.holded_invoice_id,
+        holded_invoice_num: pedido.holded_invoice_num,
+        doc_type: pedido.holded_invoice_doc_type as 'invoice' | 'waybill' | null,
+      })
+    }
     return jsonRes({
       error: 'pedido ya subido a Holded',
       holded_invoice_id: pedido.holded_invoice_id,
@@ -192,13 +211,8 @@ Deno.serve(async (req) => {
   if (lineas.length === 0) return jsonRes({ error: 'pedido sin líneas' }, 422)
 
   const noResueltas = lineas.filter(l => l.precio_fuente === 'no_resuelto')
-  const allUnresolved = noResueltas.length === lineas.filter(l => !l.es_gratis).length
-  if (allUnresolved) {
-    return jsonRes({
-      error: 'ninguna línea tiene precio histórico para este cliente — no se puede crear documento',
-      lineas_sin_precio: noResueltas.map(l => ({ orden: l.orden, producto: l.producto_normalizado })),
-    }, 422)
-  }
+  // Política nueva: el doc se crea como BORRADOR siempre. Las líneas sin precio
+  // van a 0€ y los chicos las editan en Holded antes de emitir.
 
   const holdedBody = buildHoldedBody(pedido, lineas)
   const docType = pedido.cliente.holded_doc_type as 'invoice' | 'waybill'
@@ -223,14 +237,6 @@ Deno.serve(async (req) => {
       },
       lineas_resueltas: lineas,
     })
-  }
-
-  // Bloqueo extra: si hay líneas no resueltas, en POST real no permitimos.
-  if (noResueltas.length > 0) {
-    return jsonRes({
-      error: `${noResueltas.length} línea(s) sin precio. Edítalas en el pedido o usa dry_run para ver detalles antes.`,
-      lineas_sin_precio: noResueltas.map(l => ({ orden: l.orden, producto: l.producto_normalizado })),
-    }, 422)
   }
 
   // POST a Holded

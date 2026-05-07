@@ -7,7 +7,7 @@ export type TipoFactura = 'HOLDED' | 'DRIVE' | 'NINGUNA'
 export type TipoDocHolded = 'invoice' | 'waybill'
 export type Salida = 'PRIMERA' | 'SEGUNDA' | null
 export type Metodo = 'regex' | 'claude' | 'manual'
-export type EstadoPedido = 'pendiente' | 'preparado' | 'entregado' | 'cancelado'
+export type EstadoPedido = 'pendiente' | 'confirmado' | 'preparado' | 'entregado' | 'cancelado'
 
 export type ClientePedido = {
   id: string

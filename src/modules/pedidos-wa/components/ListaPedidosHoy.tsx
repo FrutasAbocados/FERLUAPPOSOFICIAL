@@ -37,6 +37,7 @@ import {
   useActualizarLineaPedido,
   useActualizarPedido,
   useAgregarLineaPedido,
+  useConfirmarPedido,
   useEliminarLineaPedido,
   useEliminarPedido,
   usePedidosDelDia,
@@ -53,6 +54,7 @@ const UNIDADES: Unidad[] = [
 
 const ESTADO_LABEL: Record<EstadoPedido, string> = {
   pendiente:  'Pendiente',
+  confirmado: 'Confirmado',
   preparado:  'Preparado',
   entregado:  'Entregado',
   cancelado:  'Cancelado',
@@ -60,14 +62,16 @@ const ESTADO_LABEL: Record<EstadoPedido, string> = {
 
 const ESTADO_STYLE: Record<EstadoPedido, string> = {
   pendiente:  'bg-amber-50 text-amber-700 border-amber-200',
+  confirmado: 'bg-violet-50 text-violet-700 border-violet-200',
   preparado:  'bg-sky-50 text-sky-700 border-sky-200',
   entregado:  'bg-emerald-50 text-emerald-700 border-emerald-200',
   cancelado:  'bg-zinc-100 text-zinc-600 border-zinc-200',
 }
 
 const SIGUIENTE_ESTADO: Partial<Record<EstadoPedido, EstadoPedido>> = {
-  pendiente: 'preparado',
-  preparado: 'entregado',
+  pendiente:  'confirmado',
+  confirmado: 'preparado',
+  preparado:  'entregado',
 }
 
 export function ListaPedidosHoy() {
@@ -129,6 +133,7 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
   const fecha = pedido.fecha
 
   const actualizar = useActualizarPedido()
+  const confirmar = useConfirmarPedido()
   const eliminar = useEliminarPedido()
   const subirHolded = useSubirPedidoAHolded()
 
@@ -184,6 +189,20 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
 
   const onAvanzar = () => {
     if (!siguiente) return
+    if (siguiente === 'confirmado') {
+      confirmar.mutate(
+        { id: pedido.id, fecha },
+        {
+          onSuccess: () => toast({
+            title: 'Confirmado',
+            description: 'Generando borrador en Holded…',
+            variant: 'success',
+          }),
+          onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'error' }),
+        },
+      )
+      return
+    }
     actualizar.mutate(
       { id: pedido.id, fecha, patch: { estado: siguiente } },
       {
@@ -266,7 +285,7 @@ function PedidoCard({ pedido }: { pedido: Pedido }) {
               size="sm"
               variant="secondary"
               onClick={onAvanzar}
-              disabled={actualizar.isPending}
+              disabled={actualizar.isPending || confirmar.isPending}
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               {ESTADO_LABEL[siguiente]}
