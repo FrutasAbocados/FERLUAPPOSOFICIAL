@@ -7,6 +7,7 @@ export type AlertType =
   | 'producto_anomalo'
   | 'riesgo_fuga'
   | 'coste_subiendo'
+  | 'pvp_sugerido'
 
 export type AlertaDescartada = {
   alert_type: AlertType

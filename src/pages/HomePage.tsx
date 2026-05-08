@@ -15,6 +15,7 @@ import { AlertCard } from '@/modules/dashboard/components/AlertCard'
 import { BriefingDiarioCard } from '@/modules/dashboard/components/BriefingDiarioCard'
 import { EstadoDelDia } from '@/modules/dashboard/components/EstadoDelDia'
 import { NotificacionesPanel } from '@/modules/dashboard/components/NotificacionesPanel'
+import { PvpSugeridoCard } from '@/modules/dashboard/components/PvpSugeridoCard'
 import { FichajeCard } from '@/modules/trabajadores/components/FichajeCard'
 import {
   useClientesRiesgoFuga, useCostesSubiendo,
@@ -136,6 +137,7 @@ function HomeAdmin() {
       <div className="space-y-5">
         <EstadoDelDia />
         {isAdmin && <BriefingDiarioCard />}
+        {isAdmin && <PvpSugeridoCard />}
         <NotificacionesPanel />
         <FichajeCard />
 

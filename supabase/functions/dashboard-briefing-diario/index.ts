@@ -6,7 +6,37 @@
 // Devuelve: { ok, contenido_md, resumen_corto, fecha, modelo, tokens_in, tokens_out }
 // ----------------------------------------------------------------------------
 
-import { reportEdgeError } from '../_shared/sentry.ts'
+// Helper Sentry inline (no-op si SENTRY_EDGE_DSN vacío). Inlineado porque el
+// deploy del MCP no resuelve imports a `_shared/`.
+const SENTRY_DSN_BRIEFING = Deno.env.get('SENTRY_EDGE_DSN') ?? ''
+async function reportEdgeError(error: unknown, context: { fn: string; extra?: Record<string, unknown> } = { fn: 'unknown' }): Promise<void> {
+  if (!SENTRY_DSN_BRIEFING) return
+  const m = SENTRY_DSN_BRIEFING.match(/^(https?):\/\/([^@]+)@([^/]+)\/(\d+)$/)
+  if (!m) return
+  const [, protocol, publicKey, host, projectId] = m
+  const message = error instanceof Error ? error.message : String(error)
+  const eventId = crypto.randomUUID().replace(/-/g, '')
+  const now = new Date().toISOString()
+  const event = {
+    event_id: eventId, timestamp: now, platform: 'javascript', level: 'error',
+    server_name: context.fn,
+    environment: Deno.env.get('SENTRY_ENV') ?? 'production',
+    tags: { runtime: 'deno-edge', function: context.fn },
+    extra: context.extra ?? {},
+    exception: { values: [{ type: error instanceof Error ? error.name : 'Error', value: message }] },
+  }
+  const body = `${JSON.stringify({ event_id: eventId, sent_at: now, dsn: SENTRY_DSN_BRIEFING })}\n${JSON.stringify({ type: 'event', length: 0 })}\n${JSON.stringify(event)}\n`
+  try {
+    await fetch(`${protocol}://${host}/api/${projectId}/envelope/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-sentry-envelope',
+        'X-Sentry-Auth': `Sentry sentry_version=7, sentry_key=${publicKey}, sentry_client=abocados-edge/1.0`,
+      },
+      body,
+    })
+  } catch { /* fire-and-forget */ }
+}
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY') || ''

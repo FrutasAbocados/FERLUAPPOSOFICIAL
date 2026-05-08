@@ -319,3 +319,45 @@ export function useGenerarBriefingAhora() {
     },
   })
 }
+
+// ─── PVP sugerido (margen objetivo) ────────────────────────────
+
+export interface PvpSugerido {
+  product_id: string
+  nombre: string
+  coste_actual: number
+  coste_anterior: number
+  coste_variacion_pct: number
+  pvp_actual: number | null
+  pvp_sugerido: number
+  margen_actual_pct: number | null
+  delta_pvp_pct: number | null
+  ultimas_ventas_dias: number
+  ultima_compra: string
+}
+
+export function usePvpSugerido(margenObjetivoPct = 25, opts: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: ['dashboard', 'pvpSugerido', margenObjetivoPct] as const,
+    enabled: opts.enabled ?? true,
+    queryFn: async (): Promise<PvpSugerido[]> => {
+      const { data, error } = await supabase.rpc('dashboard_pvp_sugerido', {
+        p_dias: 14, p_pct_min: 15, p_margen_objetivo_pct: margenObjetivoPct,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        product_id:          String(r.product_id ?? ''),
+        nombre:              String(r.nombre ?? ''),
+        coste_actual:        num(r.coste_actual),
+        coste_anterior:      num(r.coste_anterior),
+        coste_variacion_pct: num(r.coste_variacion_pct),
+        pvp_actual:          numN(r.pvp_actual),
+        pvp_sugerido:        num(r.pvp_sugerido),
+        margen_actual_pct:   numN(r.margen_actual_pct),
+        delta_pvp_pct:       numN(r.delta_pvp_pct),
+        ultimas_ventas_dias: Number(r.ultimas_ventas_dias ?? 0),
+        ultima_compra:       String(r.ultima_compra ?? ''),
+      }))
+    },
+  })
+}

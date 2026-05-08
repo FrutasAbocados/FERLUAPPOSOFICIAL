@@ -10,7 +10,37 @@ import {
   cors, dbHeaders,
   checkAuth, fechaToUnixMadrid, jsonRes,
 } from '../_shared/holded.ts'
-import { reportEdgeError } from '../_shared/sentry.ts'
+
+// Helper Sentry inline (no-op si SENTRY_EDGE_DSN vacío).
+const SENTRY_DSN_HOLDED = Deno.env.get('SENTRY_EDGE_DSN') ?? ''
+async function reportEdgeError(error: unknown, context: { fn: string; extra?: Record<string, unknown> } = { fn: 'unknown' }): Promise<void> {
+  if (!SENTRY_DSN_HOLDED) return
+  const m = SENTRY_DSN_HOLDED.match(/^(https?):\/\/([^@]+)@([^/]+)\/(\d+)$/)
+  if (!m) return
+  const [, protocol, publicKey, host, projectId] = m
+  const message = error instanceof Error ? error.message : String(error)
+  const eventId = crypto.randomUUID().replace(/-/g, '')
+  const now = new Date().toISOString()
+  const event = {
+    event_id: eventId, timestamp: now, platform: 'javascript', level: 'error',
+    server_name: context.fn,
+    environment: Deno.env.get('SENTRY_ENV') ?? 'production',
+    tags: { runtime: 'deno-edge', function: context.fn },
+    extra: context.extra ?? {},
+    exception: { values: [{ type: error instanceof Error ? error.name : 'Error', value: message }] },
+  }
+  const body = `${JSON.stringify({ event_id: eventId, sent_at: now, dsn: SENTRY_DSN_HOLDED })}\n${JSON.stringify({ type: 'event', length: 0 })}\n${JSON.stringify(event)}\n`
+  try {
+    await fetch(`${protocol}://${host}/api/${projectId}/envelope/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-sentry-envelope',
+        'X-Sentry-Auth': `Sentry sentry_version=7, sentry_key=${publicKey}, sentry_client=abocados-edge/1.0`,
+      },
+      body,
+    })
+  } catch { /* fire-and-forget */ }
+}
 
 interface PedidoRow {
   id: string
