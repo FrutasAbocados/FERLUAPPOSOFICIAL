@@ -5,9 +5,9 @@
 // Body: { compra_id: uuid, dry_run?: boolean }
 // Auth: admin_full | admin_op
 //
-// FIX 2026-05-08: NO se envía `sku` (Holded vincula con catalogo y precio
-// del producto pisa el precio enviado). Tampoco se envía `productId`
-// porque las compras de proveedor no se enlazan al catálogo de venta.
+// FIX 2026-05-08: documents/purchase usa `subtotal` como PRECIO UNITARIO
+// (no `price` como invoice/waybill). Confirmado via experimentos en
+// debug-holded-get. Tampoco se envía `sku` (Holded vincula al catálogo).
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -116,11 +116,13 @@ function buildHoldedBody(c: CompraRow, lineas: CompraLineaRow[]) {
       const descParts = [`${Number(l.cantidad)} ${l.unidad}`]
       if (l.codigo_proveedor) descParts.push(`ref ${l.codigo_proveedor}`)
       return {
-        name:  l.descripcion,
-        desc:  descParts.join(' · '),
-        units: Number(l.cantidad),
-        price: precioReparado(l),
-        tax:   Number(l.iva_pct),
+        name:     l.descripcion,
+        desc:     descParts.join(' · '),
+        units:    Number(l.cantidad),
+        // ⚠️ documents/purchase usa `subtotal` como precio unitario.
+        // El campo `price` se ignora silenciosamente en este endpoint.
+        subtotal: precioReparado(l),
+        tax:      Number(l.iva_pct),
       }
     }),
   }
