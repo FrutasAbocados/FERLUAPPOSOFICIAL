@@ -12,6 +12,7 @@ import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
 import { canAccess, type ModuleKey } from '@/shared/types'
 import { AlertCard } from '@/modules/dashboard/components/AlertCard'
+import { BriefingDiarioCard } from '@/modules/dashboard/components/BriefingDiarioCard'
 import { EstadoDelDia } from '@/modules/dashboard/components/EstadoDelDia'
 import { NotificacionesPanel } from '@/modules/dashboard/components/NotificacionesPanel'
 import { FichajeCard } from '@/modules/trabajadores/components/FichajeCard'
@@ -134,6 +135,7 @@ function HomeAdmin() {
 
       <div className="space-y-5">
         <EstadoDelDia />
+        {isAdmin && <BriefingDiarioCard />}
         <NotificacionesPanel />
         <FichajeCard />
 

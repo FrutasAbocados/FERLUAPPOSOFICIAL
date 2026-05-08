@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 
 export interface KpisHoy {
@@ -267,3 +267,55 @@ export function useCostesSubiendo(dias = 14, pctMin = 15, opts: { enabled?: bool
   })
 }
 
+
+// ─── Briefing diario IA ────────────────────────────────────────
+
+export interface BriefingDia {
+  id: string
+  fecha: string
+  contenido_md: string
+  resumen_corto: string | null
+  modelo: string | null
+  fuente: string
+  generated_at: string
+}
+
+const BRIEFING_KEY = ['dashboard', 'briefing-hoy'] as const
+
+export function useBriefingHoy() {
+  return useQuery({
+    queryKey: BRIEFING_KEY,
+    queryFn: async (): Promise<BriefingDia | null> => {
+      const { data, error } = await supabase.rpc('dashboard_briefing_get')
+      if (error) throw error
+      const row = (data ?? [])[0] as Record<string, unknown> | undefined
+      if (!row) return null
+      return {
+        id: String(row.id ?? ''),
+        fecha: String(row.fecha ?? ''),
+        contenido_md: String(row.contenido_md ?? ''),
+        resumen_corto: row.resumen_corto == null ? null : String(row.resumen_corto),
+        modelo: row.modelo == null ? null : String(row.modelo),
+        fuente: String(row.fuente ?? ''),
+        generated_at: String(row.generated_at ?? ''),
+      }
+    },
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useGenerarBriefingAhora() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('dashboard-briefing-diario', {
+        body: {},
+      })
+      if (error) throw error
+      return data as { ok: boolean; contenido_md?: string; error?: string }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: BRIEFING_KEY })
+    },
+  })
+}
