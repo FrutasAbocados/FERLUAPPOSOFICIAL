@@ -1025,7 +1025,29 @@ export async function parsearFacturaProveedor(
   if (!data || 'error' in data) {
     throw new Error((data as { error?: string })?.error ?? 'Respuesta vacía del parser')
   }
-  return data as CompraExtraccion
+  return repararLineasExtraccion(data as CompraExtraccion)
+}
+
+/**
+ * Defensa contra extracciones donde el modelo devuelve precio_unitario = 0
+ * pero sí ha sacado bien cantidad e importe. Si cantidad × precio no cuadra
+ * con importe (tolerancia 0.05€) y el importe es coherente, se recalcula
+ * el precio desde importe/cantidad. Idempotente.
+ */
+function repararLineasExtraccion(extr: CompraExtraccion): CompraExtraccion {
+  const lineas = (extr.lineas ?? []).map((l) => {
+    const cantidad = Number(l.cantidad ?? 0)
+    const importe  = Number(l.importe ?? 0)
+    const precio   = Number(l.precio_unitario ?? 0)
+    if (cantidad <= 0) return l
+    const cuadra = Math.abs(cantidad * precio - importe) <= 0.05
+    if (cuadra && precio > 0) return l
+    if (importe > 0) {
+      return { ...l, precio_unitario: Number((importe / cantidad).toFixed(4)) }
+    }
+    return l
+  })
+  return { ...extr, lineas }
 }
 
 function fileToBase64(file: File): Promise<string> {
