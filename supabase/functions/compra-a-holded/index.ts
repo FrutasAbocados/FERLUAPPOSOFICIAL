@@ -1,18 +1,66 @@
 // Edge Function: compra-a-holded
-// Sube una factura de proveedor (pedidos_wa_compras) a Holded como
-// documents/purchase. Idempotente — si la compra ya tiene holded_purchase_id,
-// devuelve 409 sin tocar nada.
+// Sube una factura de proveedor a Holded como documents/purchase.
+// Idempotente — si ya tiene holded_purchase_id, devuelve 409.
 //
 // Body: { compra_id: uuid, dry_run?: boolean }
 // Auth: admin_full | admin_op
+//
+// FIX 2026-05-08: NO se envía `sku` (Holded vincula con catalogo y precio
+// del producto pisa el precio enviado). Tampoco se envía `productId`
+// porque las compras de proveedor no se enlazan al catálogo de venta.
 
-import {
-  HOLDED_KEY, SUPABASE_URL,
-  cors, dbHeaders,
-  checkAuth, fechaToUnixMadrid, jsonRes,
-} from '../_shared/holded.ts'
-
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+const SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const HOLDED_KEY   = Deno.env.get('HOLDED_API_KEY') || ''
 const HOLDED_PURCHASE_URL = 'https://api.holded.com/api/invoicing/v1/documents/purchase'
+
+const dbHeaders = {
+  apikey: SERVICE_KEY,
+  authorization: `Bearer ${SERVICE_KEY}`,
+  'content-type': 'application/json',
+}
+
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+function jsonRes(obj: unknown, status = 200): Response {
+  return new Response(JSON.stringify(obj, null, 2), { status, headers: { ...cors, 'content-type': 'application/json' } })
+}
+
+function fechaToUnixMadrid(fechaIso: string): number {
+  const d = new Date(fechaIso + 'T12:00:00Z')
+  return Math.floor(d.getTime() / 1000)
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  const part = token.split('.')[1]
+  if (!part) throw new Error('jwt sin payload')
+  const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+  const pad = (4 - b64.length % 4) % 4
+  return JSON.parse(atob(b64 + '='.repeat(pad)))
+}
+
+async function checkAuthAdmin(req: Request): Promise<{ ok: true } | { ok: false; status: number; msg: string }> {
+  const header = req.headers.get('Authorization') ?? ''
+  const token = header.replace(/^Bearer\s+/i, '').trim()
+  if (!token) return { ok: false, status: 401, msg: 'falta Authorization' }
+  let payload: Record<string, unknown>
+  try { payload = decodeJwtPayload(token) } catch { return { ok: false, status: 401, msg: 'jwt inválido' } }
+  const role = String(payload.role ?? '')
+  if (role === 'service_role') return { ok: true }
+  if (role !== 'authenticated') return { ok: false, status: 403, msg: `rol JWT: ${role}` }
+  const sub = String(payload.sub ?? '')
+  if (!sub) return { ok: false, status: 403, msg: 'jwt sin sub' }
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${sub}&select=role`, { headers: dbHeaders })
+  if (!res.ok) return { ok: false, status: 500, msg: `profiles ${res.status}` }
+  const rows = await res.json() as Array<{ role?: string }>
+  const userRole = rows[0]?.role ?? ''
+  if (!['admin_full', 'admin_op'].includes(userRole)) return { ok: false, status: 403, msg: 'solo admin' }
+  return { ok: true }
+}
 
 interface CompraRow {
   id: string
@@ -40,11 +88,7 @@ interface CompraLineaRow {
   importe: number | string
 }
 
-/**
- * Defensa: si una línea llega con precio_unitario 0 pero cantidad e importe
- * son coherentes, derivar precio = importe/cantidad antes de mandar a Holded.
- * Idempotente: si el precio en BD ya estaba bien, no se toca.
- */
+/** Defensa: si precio_unitario=0 pero importe y cantidad cuadran, deriva precio. */
 function precioReparado(l: CompraLineaRow): number {
   const cantidad = Number(l.cantidad ?? 0)
   const importe  = Number(l.importe ?? 0)
@@ -66,20 +110,25 @@ function buildHoldedBody(c: CompraRow, lineas: CompraLineaRow[]) {
     notes:       [c.pdf_filename, c.notas].filter(Boolean).join(' · ') || undefined,
     language:    'es',
     currency:    'eur',
-    items:       lineas.map(l => ({
-      name:  l.descripcion,
-      desc:  `${Number(l.cantidad)} ${l.unidad}`,
-      units: Number(l.cantidad),
-      price: precioReparado(l),
-      tax:   Number(l.iva_pct),
-      sku:   l.codigo_proveedor || undefined,
-    })),
+    items:       lineas.map(l => {
+      // Código proveedor va en la descripción de la línea, NO como sku
+      // (porque sku hace que Holded pise el precio con el del catalogo).
+      const descParts = [`${Number(l.cantidad)} ${l.unidad}`]
+      if (l.codigo_proveedor) descParts.push(`ref ${l.codigo_proveedor}`)
+      return {
+        name:  l.descripcion,
+        desc:  descParts.join(' · '),
+        units: Number(l.cantidad),
+        price: precioReparado(l),
+        tax:   Number(l.iva_pct),
+      }
+    }),
   }
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
-  const auth = await checkAuth(req, { allowedRoles: ['admin_full', 'admin_op'] })
+  const auth = await checkAuthAdmin(req)
   if (!auth.ok) return jsonRes({ error: auth.msg }, auth.status)
   if (!HOLDED_KEY) return jsonRes({ error: 'HOLDED_API_KEY no configurada' }, 500)
 
@@ -97,7 +146,7 @@ Deno.serve(async (req) => {
   if (cabRows.length === 0) return jsonRes({ error: 'compra no encontrada' }, 404)
   const compra = cabRows[0]
 
-  if (compra.holded_purchase_id) {
+  if (compra.holded_purchase_id && !dryRun) {
     return jsonRes({
       error: 'compra ya subida a Holded',
       holded_purchase_id: compra.holded_purchase_id,
