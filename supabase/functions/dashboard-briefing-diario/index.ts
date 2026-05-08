@@ -6,6 +6,8 @@
 // Devuelve: { ok, contenido_md, resumen_corto, fecha, modelo, tokens_in, tokens_out }
 // ----------------------------------------------------------------------------
 
+import { reportEdgeError } from '../_shared/sentry.ts'
+
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY') || ''
 const MODEL         = Deno.env.get('BRIEFING_MODEL') || 'claude-haiku-4-5-20251001'
@@ -301,6 +303,7 @@ Deno.serve(async (req) => {
       coste_eur: coste,
     })
   } catch (e) {
+    await reportEdgeError(e, { fn: 'dashboard-briefing-diario', extra: { fecha, isService: auth.isService } })
     return jsonRes({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500)
   }
 })

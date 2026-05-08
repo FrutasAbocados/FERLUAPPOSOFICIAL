@@ -10,6 +10,7 @@ import {
   cors, dbHeaders,
   checkAuth, fechaToUnixMadrid, jsonRes,
 } from '../_shared/holded.ts'
+import { reportEdgeError } from '../_shared/sentry.ts'
 
 interface PedidoRow {
   id: string
@@ -221,6 +222,7 @@ Deno.serve(async (req) => {
       doc_type: docType, error_msg: `fetch a Holded falló: ${msg}`,
       request_body: holdedBody,
     })
+    await reportEdgeError(e, { fn: 'pedido-a-holded', extra: { pedidoId, docType, source, stage: 'fetch_holded' } })
     return jsonRes({ error: 'fetch a Holded falló', detail: msg }, 502)
   }
 

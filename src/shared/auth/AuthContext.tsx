@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/shared/lib/supabase'
 import type { Profile, Role } from '@/shared/types'
+import { clearSentryUser, setSentryUser } from '@/shared/lib/sentry'
 import { AuthContext, type AuthContextValue, type AuthState } from './auth-context'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -39,7 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const sync = async (session: Session | null) => {
       const user = session?.user ?? null
       const profile = await loadProfile(user)
-      if (active) setState({ loading: false, user, session, profile })
+      if (active) {
+        setState({ loading: false, user, session, profile })
+        if (profile && user) {
+          setSentryUser({ id: profile.id, email: profile.email, role: profile.role, display_name: profile.display_name })
+        } else {
+          clearSentryUser()
+        }
+      }
     }
 
     supabase.auth.getSession().then(({ data }) => sync(data.session))
