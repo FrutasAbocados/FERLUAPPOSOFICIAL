@@ -40,6 +40,22 @@ interface CompraLineaRow {
   importe: number | string
 }
 
+/**
+ * Defensa: si una línea llega con precio_unitario 0 pero cantidad e importe
+ * son coherentes, derivar precio = importe/cantidad antes de mandar a Holded.
+ * Idempotente: si el precio en BD ya estaba bien, no se toca.
+ */
+function precioReparado(l: CompraLineaRow): number {
+  const cantidad = Number(l.cantidad ?? 0)
+  const importe  = Number(l.importe ?? 0)
+  const precio   = Number(l.precio_unitario ?? 0)
+  if (cantidad <= 0) return precio
+  const cuadra = Math.abs(cantidad * precio - importe) <= 0.05
+  if (cuadra && precio > 0) return precio
+  if (importe > 0) return Number((importe / cantidad).toFixed(4))
+  return precio
+}
+
 function buildHoldedBody(c: CompraRow, lineas: CompraLineaRow[]) {
   return {
     contactId:   c.proveedor_holded_id,
@@ -54,7 +70,7 @@ function buildHoldedBody(c: CompraRow, lineas: CompraLineaRow[]) {
       name:  l.descripcion,
       desc:  `${Number(l.cantidad)} ${l.unidad}`,
       units: Number(l.cantidad),
-      price: Number(l.precio_unitario),
+      price: precioReparado(l),
       tax:   Number(l.iva_pct),
       sku:   l.codigo_proveedor || undefined,
     })),
