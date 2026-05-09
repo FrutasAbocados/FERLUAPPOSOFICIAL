@@ -17,6 +17,11 @@ export function initSentry(): void {
     dsn: env.sentryDsn,
     environment: env.appEnv,
     release: env.appVersion,
+    // Tag obligatorio multi-tenant Plan Maestro Fase 2.
+    // Mirror de @lumo/shared-observability buildSentryConfig — mantener sincronizado.
+    initialScope: {
+      tags: { tenant: 'ferlu', app: 'abocados-os' },
+    },
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration({
@@ -28,7 +33,7 @@ export function initSentry(): void {
     tracesSampleRate: env.appEnv === 'production' ? 0.1 : 0,
     replaysSessionSampleRate: 0,        // no grabamos sesiones por defecto
     replaysOnErrorSampleRate: 1.0,      // sí grabamos cuando hay error (para reproducir)
-    // Filtros de ruido típico
+    // Filtros de ruido típico — mirror de COMMON_IGNORE_ERRORS en @lumo/shared-observability
     ignoreErrors: [
       'ResizeObserver loop',
       'ResizeObserver loop limit exceeded',

@@ -12,6 +12,8 @@ import {
 } from '../_shared/holded.ts'
 
 // Helper Sentry inline (no-op si SENTRY_EDGE_DSN vacío).
+// MIRROR de @lumo/shared-observability/edge — mantener sincronizado.
+// Edges Deno no pueden importar packages npm ni _shared/ → inline obligatorio.
 const SENTRY_DSN_HOLDED = Deno.env.get('SENTRY_EDGE_DSN') ?? ''
 async function reportEdgeError(error: unknown, context: { fn: string; extra?: Record<string, unknown> } = { fn: 'unknown' }): Promise<void> {
   if (!SENTRY_DSN_HOLDED) return
@@ -25,7 +27,8 @@ async function reportEdgeError(error: unknown, context: { fn: string; extra?: Re
     event_id: eventId, timestamp: now, platform: 'javascript', level: 'error',
     server_name: context.fn,
     environment: Deno.env.get('SENTRY_ENV') ?? 'production',
-    tags: { runtime: 'deno-edge', function: context.fn },
+    // Tags multi-tenant Plan Maestro Fase 2 — mirror de @lumo/shared-observability/edge.
+    tags: { runtime: 'deno-edge', function: context.fn, tenant: 'ferlu', app: 'abocados-os' },
     extra: context.extra ?? {},
     exception: { values: [{ type: error instanceof Error ? error.name : 'Error', value: message }] },
   }
