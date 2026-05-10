@@ -5,15 +5,74 @@
 // Body: { pedido_id: uuid, dry_run?: boolean, auto?: boolean }
 // Auth: admin_full | admin_op | responsable, o JWT service_role / anon (trigger).
 
-import {
-  HOLDED_BASE, HOLDED_KEY, SUPABASE_URL,
-  cors, dbHeaders,
-  checkAuth, fechaToUnixMadrid, jsonRes,
-} from '../_shared/holded.ts'
+// ── inline de _shared/holded.ts ──────────────────────────────────────────────
+const HOLDED_BASE = 'https://api.holded.com/api/invoicing/v1/documents'
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+const SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const HOLDED_KEY   = Deno.env.get('HOLDED_API_KEY') || ''
+const dbHeaders = {
+  apikey: SERVICE_KEY,
+  authorization: `Bearer ${SERVICE_KEY}`,
+  'content-type': 'application/json',
+}
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+function jsonRes(obj: unknown, status = 200): Response {
+  return new Response(JSON.stringify(obj, null, 2), {
+    status, headers: { ...cors, 'content-type': 'application/json' },
+  })
+}
+function fechaToUnixMadrid(fechaIso: string): number {
+  const d = new Date(fechaIso + 'T12:00:00Z')
+  return Math.floor(d.getTime() / 1000)
+}
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  const part = token.split('.')[1]
+  if (!part) throw new Error('jwt sin payload')
+  const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+  const pad = (4 - b64.length % 4) % 4
+  return JSON.parse(atob(b64 + '='.repeat(pad)))
+}
+type AppRole = 'admin_full' | 'admin_op' | 'responsable' | 'empleado'
+type AuthOk = { ok: true }
+type AuthFail = { ok: false; status: number; msg: string }
+type AuthResult = AuthOk | AuthFail
+async function checkAuth(
+  req: Request,
+  options: { allowedRoles: AppRole[]; allowAnon?: boolean } = { allowedRoles: ['admin_full', 'admin_op'] },
+): Promise<AuthResult> {
+  const header = req.headers.get('Authorization') ?? ''
+  const token = header.replace(/^Bearer\s+/i, '').trim()
+  if (!token) return { ok: false, status: 401, msg: 'falta Authorization' }
+  let payload: Record<string, unknown>
+  try { payload = decodeJwtPayload(token) }
+  catch { return { ok: false, status: 401, msg: 'jwt inválido' } }
+  const role = String(payload.role ?? '')
+  if (role === 'service_role') return { ok: true }
+  if (role === 'anon' && options.allowAnon !== false) return { ok: true }
+  if (role !== 'authenticated') {
+    return { ok: false, status: 403, msg: `rol JWT no permitido: ${role || '—'}` }
+  }
+  const sub = String(payload.sub ?? '')
+  if (!sub) return { ok: false, status: 403, msg: 'jwt sin sub' }
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/profiles?id=eq.${sub}&select=role`,
+    { headers: dbHeaders },
+  )
+  if (!res.ok) return { ok: false, status: 500, msg: `profiles ${res.status}` }
+  const rows = await res.json() as Array<{ role?: string }>
+  const userRole = (rows[0]?.role ?? '') as AppRole
+  if (!options.allowedRoles.includes(userRole)) {
+    return { ok: false, status: 403, msg: `solo ${options.allowedRoles.join('|')} pueden ejecutar esta operación` }
+  }
+  return { ok: true }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Helper Sentry inline (no-op si SENTRY_EDGE_DSN vacío).
-// MIRROR de @lumo/shared-observability/edge — mantener sincronizado.
-// Edges Deno no pueden importar packages npm ni _shared/ → inline obligatorio.
 const SENTRY_DSN_HOLDED = Deno.env.get('SENTRY_EDGE_DSN') ?? ''
 async function reportEdgeError(error: unknown, context: { fn: string; extra?: Record<string, unknown> } = { fn: 'unknown' }): Promise<void> {
   if (!SENTRY_DSN_HOLDED) return
@@ -27,7 +86,6 @@ async function reportEdgeError(error: unknown, context: { fn: string; extra?: Re
     event_id: eventId, timestamp: now, platform: 'javascript', level: 'error',
     server_name: context.fn,
     environment: Deno.env.get('SENTRY_ENV') ?? 'production',
-    // Tags multi-tenant Plan Maestro Fase 2 — mirror de @lumo/shared-observability/edge.
     tags: { runtime: 'deno-edge', function: context.fn, tenant: 'ferlu', app: 'abocados-os' },
     extra: context.extra ?? {},
     exception: { values: [{ type: error instanceof Error ? error.name : 'Error', value: message }] },
@@ -104,9 +162,7 @@ async function writeLog(row: {
 }
 
 function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
-  const docType = p.cliente.holded_doc_type === 'waybill' ? 'albarán' : 'factura'
   const sinPrecio = lineas.filter(l => !l.es_gratis && l.precio_fuente === 'no_resuelto').length
-  const conTarifaBase = lineas.filter(l => l.precio_fuente === 'tarifa_base').length
   const sinTraza = lineas.filter(l => !l.es_gratis && !l.trazabilidad).length
   const noteParts = [
     p.texto_original ? `WhatsApp:\n${p.texto_original}` : null,
@@ -114,7 +170,6 @@ function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
     p.faltas        ? `Faltas: ${p.faltas}` : null,
     sinPrecio > 0   ? `⚠️ ${sinPrecio} línea(s) sin precio en histórico — quedan a 0€, revisar en Holded.` : null,
     sinTraza > 0    ? `⚠️ ${sinTraza} línea(s) sin trazabilidad — completar lote+proveedor antes de aprobar.` : null,
-    conTarifaBase > 0 ? `ℹ️ ${conTarifaBase} línea(s) con precio tarifa base (avg últimos 60d) — verificar.` : null,
   ].filter(Boolean)
 
   return {
@@ -130,10 +185,6 @@ function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
     items:       lineas
       .filter(l => !(l.es_gratis && Number(l.precio_resuelto ?? 0) === 0))
       .map(l => {
-        // Trazabilidad obligatoria por sanidad (mayorista fruta/verdura).
-        // Si el RPC no resuelve lote+proveedor (sin compra Holded ni factura
-        // proveedor parseada), metemos placeholder para que Luis lo arregle
-        // a mano en Holded antes de aprobar el borrador.
         const desc = l.trazabilidad ?? '⚠️ Lote pendiente — completar manualmente'
         const item: Record<string, unknown> = {
           name:  l.holded_product_name ?? l.producto_normalizado,
@@ -146,7 +197,7 @@ function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
         return item
       }),
     _meta: {
-      doc_type: docType,
+      doc_type: p.cliente.holded_doc_type === 'waybill' ? 'albarán' : 'factura',
       pedido_id: p.id,
     },
   }
@@ -203,7 +254,7 @@ Deno.serve(async (req) => {
     return failValidation(`cliente con tipo_factura=${pedido.cliente.tipo_factura}, no se sube a Holded`)
   }
   if (!pedido.cliente.holded_contact_id) {
-    return failValidation('cliente sin holded_contact_id (vincúlalo primero en tab Clientes)')
+    return failValidation('cliente sin holded_contact_id (vinculalo primero en tab Clientes)')
   }
   if (!pedido.cliente.holded_doc_type) {
     return failValidation('cliente sin holded_doc_type (elige factura o albarán en su ficha)')

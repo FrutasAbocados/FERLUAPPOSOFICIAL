@@ -10,6 +10,7 @@ import {
   Loader2,
   MoreVertical,
   Package,
+  Printer,
   RotateCcw,
   Truck,
   Undo2,
@@ -43,6 +44,7 @@ import {
   type Repartidor,
 } from '../lib/types'
 import { exportarHojaRuta } from '../lib/exportacion/excel'
+import { imprimirHojaRuta } from '../lib/exportacion/print'
 import { usePedidosDelDia, useReasignarPedido, useReordenarRuta } from '../lib/queries'
 
 const REPARTIDOR_ORDER: Repartidor[] = ['TORRES', 'GERMAN', 'RAUL', 'ALEX']
@@ -214,17 +216,25 @@ export function HojaRuta() {
     )
   }
 
-  const onExport = () => {
+  const onExport = async () => {
     if (total === 0) {
       toast({ title: 'Sin pedidos', description: 'Aún no hay pedidos para exportar.', variant: 'error' })
       return
     }
     try {
-      exportarHojaRuta(pedidos ?? [], fechaIso)
+      await exportarHojaRuta(pedidos ?? [], fechaIso)
       toast({ title: 'Excel descargado', variant: 'success' })
     } catch (e) {
       toast({ title: 'Error exportando', description: (e as Error).message, variant: 'error' })
     }
+  }
+
+  const onPrint = () => {
+    if (total === 0) {
+      toast({ title: 'Sin pedidos', description: 'Aún no hay pedidos para imprimir.', variant: 'error' })
+      return
+    }
+    imprimirHojaRuta(pedidos ?? [], fechaIso)
   }
 
   if (isLoading) {
@@ -269,6 +279,9 @@ export function HojaRuta() {
             className="text-xs"
           >
             <ChevronUp className="h-3.5 w-3.5" /> Plegar todo
+          </Button>
+          <Button size="sm" variant="secondary" onClick={onPrint} disabled={total === 0}>
+            <Printer className="h-3.5 w-3.5" /> Imprimir
           </Button>
           <Button size="sm" variant="secondary" onClick={onExport} disabled={total === 0}>
             <Download className="h-3.5 w-3.5" /> Excel
