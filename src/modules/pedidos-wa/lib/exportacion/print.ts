@@ -166,12 +166,13 @@ export function imprimirHojaRuta(pedidos: Pedido[], fechaIso: string) {
     table{width:100%;border-collapse:collapse}
     th{background:#1D4E2A;color:#fff;font-size:7.5pt;padding:4px 6px;text-align:left;border:1px solid #444;text-transform:uppercase;letter-spacing:.04em}
     td{border:1px solid #d1d5db;padding:4px 7px;vertical-align:top}
-    .col-horario{width:52px;text-align:center;font-weight:bold;font-size:9.5pt;white-space:nowrap}
-    .col-cliente{width:155px;font-weight:bold;font-size:9pt}
-    .col-factura{width:62px;text-align:center;font-size:8pt}
-    .col-faltas{width:130px;font-size:8.5pt}
-    ul.productos{list-style:none;padding:0;margin:0;line-height:1.55}
-    ul.productos li{display:inline;font-size:8.5pt}
+    .col-horario{width:48px;text-align:center;font-weight:bold;font-size:9.5pt;white-space:nowrap}
+    .col-cliente{width:140px;font-weight:bold;font-size:9pt}
+    .col-factura{width:55px;text-align:center;font-size:8pt}
+    .col-faltas{width:90px;font-size:8.5pt}
+    .col-pedido{width:auto;min-width:120px}
+    ul.productos{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:0;line-height:1.6}
+    ul.productos li{display:inline;font-size:8.5pt;white-space:nowrap}
     ul.productos li::after{content:" · ";color:#aaa}
     ul.productos li:last-child::after{content:""}
     .sec-label{display:block;font-weight:bold;color:#374151;font-size:8pt;text-decoration:underline;margin-top:3px}
@@ -184,8 +185,10 @@ export function imprimirHojaRuta(pedidos: Pedido[], fechaIso: string) {
     .tr-salida td{background:#e5e7eb !important;font-weight:bold;font-style:italic;text-align:center;font-size:8pt;color:#374151;border-color:#9ca3af}
     .btn-print{position:fixed;top:12px;right:12px;background:#1D4E2A;color:#fff;border:none;padding:8px 18px;border-radius:6px;font-size:10pt;cursor:pointer;font-weight:bold;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,.25)}
     .btn-print:hover{background:#16402a}
+    .tip-horizontal{position:fixed;top:12px;left:12px;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:6px;padding:6px 14px;font-size:9pt;font-weight:bold;z-index:999}
     @page{size:A4 landscape;margin:10mm 12mm}
     @media print{
+      @page{size:A4 landscape;margin:10mm 12mm}
       body{padding:0}
       .rep-section{page-break-after:always;margin-bottom:0}
       .rep-section:last-child{page-break-after:avoid}
@@ -195,6 +198,7 @@ export function imprimirHojaRuta(pedidos: Pedido[], fechaIso: string) {
 </head>
 <body>
   <button class="btn-print no-print" onclick="window.print()">Imprimir / PDF</button>
+  <div class="tip-horizontal no-print">⚠️ Selecciona HORIZONTAL en el diálogo de impresión</div>
   <div class="page-title">Hoja de Ruta &middot; ${esc(titulo)}</div>
   <div class="page-sub">Generado a las ${hora} &middot; Frutas Abocados</div>
   ${sectionsHtml}
