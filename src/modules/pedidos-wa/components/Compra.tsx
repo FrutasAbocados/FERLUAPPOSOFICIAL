@@ -452,7 +452,8 @@ function formatCantidad(n: number, unidad: string, cajas: number | null): string
   return principal
 }
 
-function formatNum(n: number): string {
+function formatNum(n: number | null | undefined): string {
+  if (n == null) return '—'
   if (Number.isInteger(n)) return String(n)
   return n.toFixed(2).replace(/\.?0+$/, '')
 }

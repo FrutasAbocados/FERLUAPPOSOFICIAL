@@ -772,7 +772,8 @@ function ordenSalida(s: string | null | undefined): number {
   return 2
 }
 
-function formatN(n: number): string {
+function formatN(n: number | null | undefined): string {
+  if (n == null) return '—'
   if (Number.isInteger(n)) return String(n)
   return n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
 }

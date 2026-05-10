@@ -703,10 +703,10 @@ function ModalSubirHolded({
                         <td className="px-2 py-1">{it.name}</td>
                         <td className="px-2 py-1 text-[var(--color-ink-2)]">{it.desc ?? '—'}</td>
                         <td className="px-2 py-1 text-right">{it.units}</td>
-                        <td className="px-2 py-1 text-right">{it.subtotal.toFixed(4)}</td>
+                        <td className="px-2 py-1 text-right">{(it.subtotal ?? 0).toFixed(4)}</td>
                         <td className="px-2 py-1 text-right">{it.tax}%</td>
                         <td className="px-2 py-1 text-[10px] text-[var(--color-ink-2)]">{it.sku ?? '—'}</td>
-                        <td className="px-2 py-1 text-right">{euros(it.units * it.subtotal)}</td>
+                        <td className="px-2 py-1 text-right">{euros(it.units * (it.subtotal ?? 0))}</td>
                       </tr>
                     ))}
                   </tbody>
