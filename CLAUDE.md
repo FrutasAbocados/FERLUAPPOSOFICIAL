@@ -29,8 +29,8 @@ Producción: `https://abocadosos.vercel.app`. Repo: `FrutasAbocados/FERLUAPPOSOF
 11. **Gastos** `/gastos` — fijos + variables + stats
 12. **Clientes** `/clientes` — ficha 360° + seguimiento semanal
 
-## Edge Functions (11)
-`parser-pedido` · `parsear-factura-proveedor` · `compra-a-holded` · `pedido-a-holded` · `borrar-borrador-holded` · `holded-webhook` · `holded-sync` · `holded-sync-contactos` · `geocode-contactos` · `notif-push-send` · `notificaciones-ia` · `agent-chat` · `cobros-backup-diario` · `dashboard-briefing-diario` · `pedidos-esperados-push`.
+## Edge Functions (16)
+`parser-pedido` · `parsear-factura-proveedor` · `compra-a-holded` · `pedido-a-holded` · `borrar-borrador-holded` · `holded-webhook` · `holded-sync` · `holded-sync-contactos` · `geocode-contactos` · `notif-push-send` · `notificaciones-ia` · `agent-chat` · `cobros-backup-diario` · `dashboard-briefing-diario` · `pedidos-esperados-push` · `event-dispatcher`.
 
 ## Cron jobs (7 activos via pg_cron)
 Detalle en `~/.claude/projects/-Users-luis/memory/cron_jobs_ferlu.md`.

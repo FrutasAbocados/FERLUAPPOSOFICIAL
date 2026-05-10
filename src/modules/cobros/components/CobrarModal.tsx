@@ -6,14 +6,13 @@ import { Label } from '@/shared/components/ui/label'
 import { Modal } from './Modal'
 import { useCobrar, useMovimientos } from '../lib/queries'
 import { eur, importePendiente, isoDate } from '../lib/utils'
+import { METODOS_COBRO } from '../lib/constants'
 import type { MetodoCobro, Movimiento } from '../lib/types'
 
 type Props = {
   movimientoId: string | null
   onClose: () => void
 }
-
-const METODOS: MetodoCobro[] = ['Efectivo', 'Transferencia', 'Bizum', 'Otro']
 
 export function CobrarModal({ movimientoId, onClose }: Props) {
   const movs = useMovimientos()
@@ -130,7 +129,7 @@ function CobrarForm({ movimiento: m, onClose }: FormProps) {
           onChange={(e) => setMetodo(e.target.value as MetodoCobro)}
           className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm"
         >
-          {METODOS.map((opt) => (
+          {METODOS_COBRO.map((opt) => (
             <option key={opt} value={opt}>
               {opt}
             </option>

@@ -15,13 +15,12 @@ import {
 } from '../lib/hooks'
 import { CategoriaPicker } from './CategoriaPicker'
 import { ProveedorPicker, type ProveedorValue } from './ProveedorPicker'
+import { METODOS_GASTO } from '../lib/constants'
 
 type Props = {
   fijo?: Fijo | null
   onClose: () => void
 }
-
-const METODOS = ['domiciliado', 'transferencia', 'tarjeta', 'efectivo']
 
 const empty: FijoFormInput = {
   nombre: '',
@@ -198,7 +197,7 @@ export function FijoModal({ fijo, onClose }: Props) {
               className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-ink)] focus:border-[var(--color-primary)] focus:outline-none"
             >
               <option value="">— Sin especificar —</option>
-              {METODOS.map((m) => <option key={m} value={m}>{m}</option>)}
+              {METODOS_GASTO.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
 

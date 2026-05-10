@@ -16,13 +16,12 @@ import {
 } from '../lib/hooks'
 import { CategoriaPicker } from './CategoriaPicker'
 import { ProveedorPicker, type ProveedorValue } from './ProveedorPicker'
+import { METODOS_GASTO } from '../lib/constants'
 
 type Props = {
   variable?: Variable | null
   onClose: () => void
 }
-
-const METODOS = ['domiciliado', 'transferencia', 'tarjeta', 'efectivo']
 
 const empty = (): VariableFormInput => ({
   fecha: format(new Date(), 'yyyy-MM-dd'),
@@ -180,7 +179,7 @@ export function VariableModal({ variable, onClose }: Props) {
               className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-ink)] focus:border-[var(--color-primary)] focus:outline-none"
             >
               <option value="">— Sin especificar —</option>
-              {METODOS.map((m) => <option key={m} value={m}>{m}</option>)}
+              {METODOS_GASTO.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
 

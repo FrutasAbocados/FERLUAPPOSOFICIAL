@@ -13,6 +13,7 @@ import {
   useUpsertCliente,
 } from '../lib/queries'
 import { eur, estadoMovimiento, importePendiente } from '../lib/utils'
+import { METODOS_COBRO } from '../lib/constants'
 import { FORMA_PAGO_LABEL } from '../lib/types'
 import type { Cliente, FormaPago, MetodoCobro } from '../lib/types'
 
@@ -21,8 +22,6 @@ type Props = {
   onClose: () => void
   onCobrar: (movId: string) => void
 }
-
-const METODOS: MetodoCobro[] = ['Efectivo', 'Transferencia', 'Bizum', 'Otro']
 
 export function ClienteDetalleModal({ clienteId, onClose, onCobrar }: Props) {
   const clientes = useClientes()
@@ -148,7 +147,7 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
                 className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm"
               >
                 <option value="">—</option>
-                {METODOS.map((m) => (
+                {METODOS_COBRO.map((m) => (
                   <option key={m} value={m}>
                     {m}
                   </option>
