@@ -477,6 +477,7 @@ function ConversionesEditor() {
   const [agregando, setAgregando] = useState(false)
   const [nuevoProducto, setNuevoProducto] = useState('')
   const [nuevoFactor, setNuevoFactor] = useState<number | ''>('')
+  const [nuevoUds, setNuevoUds] = useState<number | ''>('')
 
   const onCrear = async () => {
     const prod = nuevoProducto.trim()
@@ -484,15 +485,13 @@ function ConversionesEditor() {
       toast({ title: 'Producto vacío', variant: 'error' })
       return
     }
-    const factor = typeof nuevoFactor === 'number' ? nuevoFactor : Number(nuevoFactor)
-    if (!factor || factor <= 0) {
-      toast({ title: 'kg/caja inválido', variant: 'error' })
-      return
-    }
+    const kg  = nuevoFactor !== '' ? Number(nuevoFactor) : null
+    const uds = nuevoUds    !== '' ? Number(nuevoUds)    : null
     try {
-      await upsert.mutateAsync({ producto_normalizado: prod, kg_por_caja: factor })
+      await upsert.mutateAsync({ producto_normalizado: prod, kg_por_caja: kg, unidades_por_kg: uds })
       setNuevoProducto('')
       setNuevoFactor('')
+      setNuevoUds('')
       setAgregando(false)
       toast({ title: 'Factor guardado', variant: 'success' })
     } catch (e) {
@@ -540,10 +539,11 @@ function ConversionesEditor() {
                 <FactorRow
                   key={f.producto_normalizado}
                   fila={f}
-                  onSave={async (kg) => {
+                  onSave={async (kg, uds) => {
                     await upsert.mutateAsync({
                       producto_normalizado: f.producto_normalizado,
-                      kg_por_caja: kg,
+                      kg_por_caja:     kg,
+                      unidades_por_kg: uds,
                     })
                   }}
                   onDelete={async () => {
@@ -572,7 +572,7 @@ function ConversionesEditor() {
                   type="text"
                   value={nuevoProducto}
                   onChange={(e) => setNuevoProducto(e.target.value)}
-                  className="col-span-7 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                  className="col-span-12 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
                   placeholder="producto (ej: saco patata)"
                   autoFocus
                 />
@@ -582,11 +582,23 @@ function ConversionesEditor() {
                   min="0.01"
                   value={nuevoFactor}
                   onChange={(e) => setNuevoFactor(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="col-span-3 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-1 text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                  className="col-span-4 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-1 text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
                   placeholder="kg"
                 />
                 <span className="col-span-2 inline-flex items-center text-xs text-[var(--color-ink-3)]">
-                  kg / caja
+                  kg/caja
+                </span>
+                <input
+                  type="number"
+                  step="1"
+                  min="1"
+                  value={nuevoUds}
+                  onChange={(e) => setNuevoUds(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="col-span-4 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-1 text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                  placeholder="N"
+                />
+                <span className="col-span-2 inline-flex items-center text-xs text-[var(--color-ink-3)]">
+                  ud/kg
                 </span>
               </div>
               <div className="mt-1.5 flex justify-end gap-1">
@@ -627,25 +639,31 @@ function FactorRow({
   fila, onSave, onDelete,
 }: {
   fila: KgPorCajaRow
-  onSave: (kg: number) => Promise<void>
+  onSave: (kg: number | null, uds: number | null) => Promise<void>
   onDelete: () => Promise<void>
 }) {
   const [editando, setEditando] = useState(false)
-  const [kg, setKg] = useState<number | ''>(fila.kg_por_caja)
+  const [kg,  setKg]  = useState<number | ''>(fila.kg_por_caja  ?? '')
+  const [uds, setUds] = useState<number | ''>(fila.unidades_por_kg ?? '')
   const [pending, setPending] = useState(false)
 
-  useEffect(() => { setKg(fila.kg_por_caja) }, [fila.kg_por_caja])
+  useEffect(() => {
+    setKg(fila.kg_por_caja      ?? '')
+    setUds(fila.unidades_por_kg ?? '')
+  }, [fila.kg_por_caja, fila.unidades_por_kg])
+
+  const cancelar = () => {
+    setKg(fila.kg_por_caja      ?? '')
+    setUds(fila.unidades_por_kg ?? '')
+    setEditando(false)
+  }
 
   const guardar = async () => {
-    const v = typeof kg === 'number' ? kg : Number(kg)
-    if (!v || v <= 0) {
-      toast({ title: 'kg/caja inválido', variant: 'error' })
-      return
-    }
-    if (v === fila.kg_por_caja) { setEditando(false); return }
+    const kgVal  = kg  !== '' ? Number(kg)  : null
+    const udsVal = uds !== '' ? Number(uds) : null
     setPending(true)
     try {
-      await onSave(v)
+      await onSave(kgVal, udsVal)
       setEditando(false)
       toast({ title: 'Factor actualizado', variant: 'success' })
     } catch (e) {
@@ -668,26 +686,37 @@ function FactorRow({
             min="0.01"
             value={kg}
             onChange={(e) => setKg(e.target.value === '' ? '' : Number(e.target.value))}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') guardar()
-              if (e.key === 'Escape') { setKg(fila.kg_por_caja); setEditando(false) }
-            }}
+            onKeyDown={(e) => { if (e.key === 'Enter') guardar(); if (e.key === 'Escape') cancelar() }}
             autoFocus
-            className="w-16 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-0.5 text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+            className="w-14 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-0.5 text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+            placeholder="kg"
+            title="kg por caja"
           />
-          <span className="text-xs text-[var(--color-ink-3)]">kg/caja</span>
+          <span className="text-[10px] text-[var(--color-ink-3)]">kg/caja</span>
+          <input
+            type="number"
+            step="1"
+            min="1"
+            value={uds}
+            onChange={(e) => setUds(e.target.value === '' ? '' : Number(e.target.value))}
+            onKeyDown={(e) => { if (e.key === 'Enter') guardar(); if (e.key === 'Escape') cancelar() }}
+            className="w-14 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-0.5 text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+            placeholder="N"
+            title="unidades por kg"
+          />
+          <span className="text-[10px] text-[var(--color-ink-3)]">ud/kg</span>
           <button
             type="button"
             onClick={guardar}
             disabled={pending}
-            className="rounded p-1 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+            className="rounded p-1 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 disabled:opacity-50"
             title="Guardar"
           >
             {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
           </button>
           <button
             type="button"
-            onClick={() => { setKg(fila.kg_por_caja); setEditando(false) }}
+            onClick={cancelar}
             className="rounded p-1 text-[var(--color-ink-3)] hover:bg-[var(--color-surface-2)]"
             title="Cancelar"
           >
@@ -699,16 +728,29 @@ function FactorRow({
           <button
             type="button"
             onClick={() => setEditando(true)}
-            className="rounded px-2 py-0.5 text-sm tabular-nums text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)]"
+            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-sm tabular-nums text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)]"
             title="Editar"
           >
-            <strong>{formatNum(fila.kg_por_caja)}</strong>
-            <span className="text-xs text-[var(--color-ink-3)]"> kg/caja</span>
+            {fila.kg_por_caja != null && (
+              <span>
+                <strong>{formatNum(fila.kg_por_caja)}</strong>
+                <span className="text-xs text-[var(--color-ink-3)]"> kg/caja</span>
+              </span>
+            )}
+            {fila.kg_por_caja != null && fila.unidades_por_kg != null && (
+              <span className="text-xs text-[var(--color-ink-3)]">·</span>
+            )}
+            {fila.unidades_por_kg != null && (
+              <span>
+                <strong>{formatNum(fila.unidades_por_kg)}</strong>
+                <span className="text-xs text-[var(--color-ink-3)]"> ud/kg</span>
+              </span>
+            )}
           </button>
           <button
             type="button"
             onClick={onDelete}
-            className="rounded p-1 text-[var(--color-ink-3)] opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover/row:opacity-100"
+            className="rounded p-1 text-[var(--color-ink-3)] opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 group-hover/row:opacity-100"
             title="Eliminar"
           >
             <Trash2 className="h-3 w-3" />

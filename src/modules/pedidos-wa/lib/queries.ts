@@ -953,8 +953,9 @@ export function useCotejoDelDia(fecha: string) {
 
 export type KgPorCajaRow = {
   producto_normalizado: string
-  kg_por_caja: number
-  updated_at: string
+  kg_por_caja:          number | null
+  unidades_por_kg:      number | null
+  updated_at:           string
 }
 
 export function useFactoresKgCaja() {
@@ -963,12 +964,13 @@ export function useFactoresKgCaja() {
     queryFn: async (): Promise<KgPorCajaRow[]> => {
       const { data, error } = await supabase
         .from('pedidos_wa_kg_por_caja')
-        .select('producto_normalizado, kg_por_caja, updated_at')
+        .select('producto_normalizado, kg_por_caja, unidades_por_kg, updated_at')
         .order('producto_normalizado', { ascending: true })
       if (error) throw error
       return (data ?? []).map(r => ({
         producto_normalizado: String(r.producto_normalizado ?? ''),
-        kg_por_caja:          Number(r.kg_por_caja ?? 0),
+        kg_por_caja:          r.kg_por_caja == null ? null : Number(r.kg_por_caja),
+        unidades_por_kg:      r.unidades_por_kg == null ? null : Number(r.unidades_por_kg),
         updated_at:           String(r.updated_at ?? ''),
       }))
     },
@@ -978,14 +980,25 @@ export function useFactoresKgCaja() {
 export function useUpsertFactorKgCaja() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { producto_normalizado: string; kg_por_caja: number }) => {
-      if (input.kg_por_caja <= 0) throw new Error('kg/caja debe ser > 0')
+    mutationFn: async (input: {
+      producto_normalizado: string
+      kg_por_caja: number | null
+      unidades_por_kg: number | null
+    }) => {
       const producto = input.producto_normalizado.trim().toLowerCase()
       if (!producto) throw new Error('Producto vacío')
+      const { kg_por_caja: kg, unidades_por_kg: uds } = input
+      if ((kg == null || kg <= 0) && (uds == null || uds <= 0)) {
+        throw new Error('Indica al menos un factor (kg/caja o unidades/kg)')
+      }
       const { error } = await supabase
         .from('pedidos_wa_kg_por_caja')
         .upsert(
-          { producto_normalizado: producto, kg_por_caja: input.kg_por_caja },
+          {
+            producto_normalizado: producto,
+            kg_por_caja:          kg != null && kg > 0 ? kg : null,
+            unidades_por_kg:      uds != null && uds > 0 ? uds : null,
+          },
           { onConflict: 'producto_normalizado' },
         )
       if (error) throw error
