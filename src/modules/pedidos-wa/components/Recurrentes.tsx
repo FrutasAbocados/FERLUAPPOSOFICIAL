@@ -6,7 +6,7 @@ import { Input } from '@/shared/components/ui/input'
 import { Card } from '@/shared/components/ui/card'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
-import { cn } from '@/shared/lib/utils'
+import { cn, getBusinessDate } from '@/shared/lib/utils'
 import {
   useClientesPedidosWa,
   useDeleteRecurrente,
@@ -38,7 +38,7 @@ export function Recurrentes() {
   const [creando, setCreando] = useState(false)
 
   const onGenerarHoy = async () => {
-    const fecha = format(new Date(), 'yyyy-MM-dd')
+    const fecha = format(getBusinessDate(), 'yyyy-MM-dd')
     const res = await generar.mutateAsync(fecha)
     const creados = res.filter(r => r.status === 'creado').length
     const yaExistian = res.filter(r => r.status === 'ya_existia').length

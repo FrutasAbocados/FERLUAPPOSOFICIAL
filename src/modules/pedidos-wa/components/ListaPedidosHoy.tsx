@@ -21,7 +21,7 @@ import {
 import { Button } from '@/shared/components/ui/button'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
-import { cn } from '@/shared/lib/utils'
+import { cn, getBusinessDate } from '@/shared/lib/utils'
 import {
   REPARTIDOR_COLOR,
   REPARTIDOR_LABEL,
@@ -78,12 +78,12 @@ const SIGUIENTE_ESTADO: Partial<Record<EstadoPedido, EstadoPedido>> = {
 }
 
 export function ListaPedidosHoy() {
-  const fecha = format(new Date(), 'yyyy-MM-dd')
+  const fecha = format(getBusinessDate(), 'yyyy-MM-dd')
   const { data: pedidos, isLoading, error } = usePedidosDelDia(fecha)
   const confirmar = useConfirmarPedido()
   const [confirmandoTodos, setConfirmandoTodos] = useState(false)
 
-  const titulo = format(new Date(), "EEEE d 'de' MMMM", { locale: es })
+  const titulo = format(getBusinessDate(), "EEEE d 'de' MMMM", { locale: es })
 
   const lista = pedidos ?? []
   const idsList = useMemo(() => lista.map(p => p.id), [lista])
