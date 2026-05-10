@@ -3,7 +3,7 @@ import { CheckCircle2, Mic, MicOff, RotateCcw, Send, Undo2, UserPlus } from 'luc
 import { format } from 'date-fns'
 import { Button } from '@/shared/components/ui/button'
 import { toast } from '@/shared/lib/toast'
-import { cn } from '@/shared/lib/utils'
+import { cn, getBusinessDate } from '@/shared/lib/utils'
 import { parsearPedido } from '../lib/parser'
 import {
   useCrearPedido,
@@ -194,7 +194,7 @@ export function CapturaRapida() {
     try {
       const parsed = await parsearPedido(rawProductos || texto, clienteMatch.nombre)
       const lineas = parsed.lineas
-      const fecha = format(new Date(), 'yyyy-MM-dd')
+      const fecha = format(getBusinessDate(), 'yyyy-MM-dd')
       const r = await crear.mutateAsync({
         cliente_id: clienteMatch.id,
         fecha,

@@ -20,7 +20,7 @@ import {
 import { Button } from '@/shared/components/ui/button'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
-import { cn } from '@/shared/lib/utils'
+import { cn, getBusinessDate } from '@/shared/lib/utils'
 import { exportarCompra } from '../lib/exportacion/excel'
 import { parsearPedido } from '../lib/parser'
 import {
@@ -37,8 +37,8 @@ import {
 } from '../lib/queries'
 
 export function Compra() {
-  const fechaIso = format(new Date(), 'yyyy-MM-dd')
-  const titulo = format(new Date(), "EEEE d 'de' MMMM", { locale: es })
+  const fechaIso = format(getBusinessDate(), 'yyyy-MM-dd')
+  const titulo = format(getBusinessDate(), "EEEE d 'de' MMMM", { locale: es })
 
   const inv = useInventarioDelDia(fechaIso)
   const cotejo = useCotejoDelDia(fechaIso)

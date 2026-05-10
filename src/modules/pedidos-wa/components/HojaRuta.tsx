@@ -36,7 +36,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/shared/components/ui/button'
 import { toast } from '@/shared/lib/toast'
-import { cn } from '@/shared/lib/utils'
+import { cn, getBusinessDate } from '@/shared/lib/utils'
 import {
   REPARTIDOR_LABEL,
   UNIDAD_LABEL,
@@ -88,8 +88,8 @@ const PALETA: Record<Repartidor, {
 }
 
 export function HojaRuta() {
-  const fechaIso = format(new Date(), 'yyyy-MM-dd')
-  const titulo = format(new Date(), "EEEE d 'de' MMMM", { locale: es })
+  const fechaIso = format(getBusinessDate(), 'yyyy-MM-dd')
+  const titulo = format(getBusinessDate(), "EEEE d 'de' MMMM", { locale: es })
   const { data: pedidos, isLoading, error } = usePedidosDelDia(fechaIso)
 
   const [colapsadas, setColapsadas] = useState<Record<Repartidor, boolean>>({

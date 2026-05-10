@@ -170,13 +170,14 @@ export function imprimirHojaRuta(pedidos: Pedido[], fechaIso: string) {
     .col-cliente{width:155px;font-weight:bold;font-size:9pt}
     .col-factura{width:62px;text-align:center;font-size:8pt}
     .col-faltas{width:130px;font-size:8.5pt}
-    ul.productos{list-style:none;padding:0;margin:0}
-    ul.productos li{line-height:1.45;font-size:8.5pt;padding:1px 0}
-    ul.productos li::before{content:"· ";color:#888}
-    .sec-label::before{content:"" !important}
-    .sec-label{font-weight:bold;color:#374151;font-size:8pt;text-decoration:underline;margin-top:2px}
-    .nota-admin{color:#b45309;font-style:italic}
-    .nota-admin::before{content:"" !important}
+    ul.productos{list-style:none;padding:0;margin:0;line-height:1.55}
+    ul.productos li{display:inline;font-size:8.5pt}
+    ul.productos li::after{content:" · ";color:#aaa}
+    ul.productos li:last-child::after{content:""}
+    .sec-label{display:block;font-weight:bold;color:#374151;font-size:8pt;text-decoration:underline;margin-top:3px}
+    .sec-label::after{content:""}
+    .nota-admin{display:block;color:#b45309;font-style:italic;margin-bottom:2px}
+    .nota-admin::after{content:""}
     .nota-cliente{color:#dc2626;font-size:7.5pt;font-weight:bold;margin-top:2px}
     .l-nota{color:#6b7280;font-size:8pt}
     .l-free{color:#059669;font-weight:bold;font-size:7.5pt}
