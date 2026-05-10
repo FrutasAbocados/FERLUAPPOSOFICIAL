@@ -15,12 +15,74 @@ const ANTHROPIC_KEY  = Deno.env.get('ANTHROPIC_API_KEY') || ''
 const MODEL          = Deno.env.get('AGENT_MODEL') || 'claude-sonnet-4-5'
 const SUPABASE_URL   = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY    = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const TENANT_ID      = 'ferlu'
 
 const dbHeaders = {
   apikey: SERVICE_KEY,
   authorization: `Bearer ${SERVICE_KEY}`,
   'content-type': 'application/json',
 }
+
+// ---------------------------------------------------------------------------
+// Helpers de Memoria Empresarial (Fase 3 Plan Maestro)
+// ---------------------------------------------------------------------------
+
+interface MemoryDecision {
+  id: string; title: string; context: string; decision: string
+  rationale?: string | null; made_by: string; created_at: string
+}
+
+/** Últimas N decisiones del tenant (no requiere embeddings) */
+async function fetchRecentDecisions(limit = 5): Promise<MemoryDecision[]> {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/memory_decisions?tenant_id=eq.${TENANT_ID}&order=created_at.desc&limit=${limit}`,
+      { headers: dbHeaders },
+    )
+    if (!res.ok) return []
+    return await res.json() as MemoryDecision[]
+  } catch { return [] }
+}
+
+/** Construye el bloque de contexto que se inyecta en el system prompt */
+function buildMemoryBlock(decisions: MemoryDecision[]): string {
+  if (!decisions.length) return ''
+
+  const lines = decisions.map(d =>
+    `- [${d.created_at.slice(0, 10)}] ${d.title}: ${d.decision}${d.rationale ? ` (${d.rationale})` : ''}`
+  )
+  return `\n\n--- MEMORIA EMPRESARIAL ---\nÚltimas decisiones registradas:\n${lines.join('\n')}`
+}
+
+/** Registra la interacción en agent_interactions (fire-and-forget) */
+async function logInteraction(opts: {
+  inputTokens: number; outputTokens: number; cacheReadTokens: number
+  costEur: number; latencyMs: number; success: boolean
+  inputSummary: string; outputSummary: string; toolCount: number
+}): Promise<void> {
+  const body = {
+    tenant_id:          TENANT_ID,
+    agent_name:         'agent-chat',
+    model_used:         MODEL,
+    input_tokens:       opts.inputTokens,
+    output_tokens:      opts.outputTokens,
+    cache_read_tokens:  opts.cacheReadTokens,
+    cost_eur:           opts.costEur,
+    latency_ms:         opts.latencyMs,
+    success:            opts.success,
+    input_summary:      opts.inputSummary.slice(0, 500),
+    output_summary:     opts.outputSummary.slice(0, 500),
+    actions_taken:      [{ tool_calls: opts.toolCount }],
+  }
+  await fetch(`${SUPABASE_URL}/rest/v1/agent_interactions`, {
+    method: 'POST',
+    headers: { ...dbHeaders, 'Prefer': 'return=minimal' },
+    body: JSON.stringify(body),
+  }).catch(() => { /* fire-and-forget */ })
+}
+
+/** Precio €/token Sonnet 4.5–4.6 (input $2.7/1M, output $13.5/1M, cache_read $0.27/1M @ ~0.93 USD/EUR) */
+const EUR_PER_TOKEN = { input: 2.511e-6, output: 12.555e-6, cacheRead: 0.2511e-6 }
 
 // ---------------------------------------------------------------------------
 // Tools que el agente puede invocar
@@ -205,10 +267,15 @@ Deno.serve(async (req) => {
     return json({ error: 'ANTHROPIC_API_KEY no configurada' }, 500)
   }
 
+  const t0 = Date.now()
   let body: { messages?: Msg[]; currentDate?: string } = {}
   try { body = await req.json() } catch { /* nada */ }
   const userMessages = body.messages ?? []
   const today = body.currentDate || new Date().toISOString().slice(0, 10)
+
+  // Cargar contexto de memoria (no bloquea si falla)
+  const recentDecisions = await fetchRecentDecisions(5)
+  const memoryBlock = buildMemoryBlock(recentDecisions)
 
   const system = `Eres un asistente experto en análisis de negocio para Frutas Abocados, una distribuidora mayorista de frutas y verduras en Málaga (España).
 
@@ -233,7 +300,7 @@ Cuando el usuario te pregunte por un periodo:
 
 Responde en español, conciso y directo. Cuando muestres listas, usa Markdown (tablas o listas con guión). Pon cifras en formato europeo (ej. 1.234,56 €).
 
-Si una pregunta requiere varias herramientas, encadena llamadas. Si la pregunta no se puede responder con los datos disponibles, dilo claramente.`
+Si una pregunta requiere varias herramientas, encadena llamadas. Si la pregunta no se puede responder con los datos disponibles, dilo claramente.${memoryBlock}`
 
   // Convert messages al formato Anthropic
   const anthropicMessages: Array<unknown> = userMessages.map(m => ({
@@ -243,6 +310,7 @@ Si una pregunta requiere varias herramientas, encadena llamadas. Si la pregunta 
 
   const toolCalls: Array<{ name: string; input: unknown; summary?: string }> = []
   let finalText = ''
+  let lastData: unknown = null
   const MAX_ITERS = 6
 
   for (let iter = 0; iter < MAX_ITERS; iter++) {
@@ -266,7 +334,7 @@ Si una pregunta requiere varias herramientas, encadena llamadas. Si la pregunta 
       const errText = await res.text()
       return json({ error: `Anthropic ${res.status}: ${errText.slice(0, 500)}`, toolCalls }, 500)
     }
-    const data = await res.json() as {
+    const data = lastData = await res.json() as {
       content: Array<{ type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }>
       stop_reason: string
     }
@@ -308,7 +376,28 @@ Si una pregunta requiere varias herramientas, encadena llamadas. Si la pregunta 
     anthropicMessages.push({ role: 'user', content: toolResults })
   }
 
-  return json({ reply: finalText || '(sin respuesta)', toolCalls })
+  const reply = finalText || '(sin respuesta)'
+
+  // Log en agent_interactions (fire-and-forget, no bloquea la respuesta)
+  const lastUsage = (lastData as { usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number } } | null)?.usage
+  const inputTokens     = lastUsage?.input_tokens ?? 0
+  const outputTokens    = lastUsage?.output_tokens ?? 0
+  const cacheReadTokens = lastUsage?.cache_read_input_tokens ?? 0
+  const costEur = inputTokens * EUR_PER_TOKEN.input
+               + outputTokens * EUR_PER_TOKEN.output
+               + cacheReadTokens * EUR_PER_TOKEN.cacheRead
+  const userText = userMessages.at(-1)?.content
+  logInteraction({
+    inputTokens, outputTokens, cacheReadTokens,
+    costEur: Math.round(costEur * 1e6) / 1e6,
+    latencyMs: Date.now() - t0,
+    success: true,
+    inputSummary: typeof userText === 'string' ? userText : '',
+    outputSummary: reply,
+    toolCount: toolCalls.length,
+  })
+
+  return json({ reply, toolCalls })
 })
 
 function json(obj: unknown, status = 200) {
