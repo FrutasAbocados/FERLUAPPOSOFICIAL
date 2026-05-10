@@ -12,7 +12,7 @@
 
 const ANTHROPIC_URL  = 'https://api.anthropic.com/v1/messages'
 const ANTHROPIC_KEY  = Deno.env.get('ANTHROPIC_API_KEY') || ''
-const MODEL          = Deno.env.get('AGENT_MODEL') || 'claude-sonnet-4-5'
+const MODEL          = Deno.env.get('AGENT_MODEL') || 'claude-sonnet-4-6'
 const SUPABASE_URL   = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY    = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const TENANT_ID      = 'ferlu'
