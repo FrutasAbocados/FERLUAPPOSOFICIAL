@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { PageTopbar } from '@/shared/components/PageTopbar'
 import { eachDayOfInterval, endOfMonth, format, getDay, isAfter, isSameDay, startOfDay, startOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Loader2 } from 'lucide-react'
@@ -31,21 +32,13 @@ export function CashPage() {
   const [view, setView] = useState<View>('calendario')
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
-      <header className="mb-5 border-b border-[var(--color-border)] pb-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
-          Módulo
-        </p>
-        <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">
-          Caja
-        </h1>
-        <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
-          Cierre diario completo y cierre por repartidor.{' '}
-          {!puedeEditarCalendario && view === 'calendario' && (
-            <span className="text-[var(--color-ink-3)]">(Solo lectura)</span>
-          )}
-        </p>
-      </header>
+    <div>
+      <PageTopbar
+        breadcrumb="OPERACIONES · CAJA"
+        title="Caja"
+        subtitle={`Cierre diario y por repartidor${!puedeEditarCalendario && view === 'calendario' ? ' · Solo lectura' : ''}`}
+      />
+      <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
 
       <div className="mb-5 flex gap-1 border-b border-[var(--color-border)]">
         <TabButton active={view === 'calendario'} onClick={() => setView('calendario')}>
@@ -66,6 +59,7 @@ export function CashPage() {
       {view === 'calendario' && <CalendarioView puedeEditar={puedeEditarCalendario} />}
       {view === 'cierre-dia' && puedeCierreDia && <CierreDiaPage />}
       {view === 'estadisticas' && puedeCierreDia && <EstadisticasView />}
+      </div>
     </div>
   )
 }

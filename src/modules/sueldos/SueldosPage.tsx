@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { PageTopbar } from '@/shared/components/PageTopbar'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -96,23 +97,22 @@ export function SueldosPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-8">
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-[var(--color-border)] pb-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Módulo</p>
-          <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">Sueldos socios</h1>
-          <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
-            Registro mensual de lo que Luis y Álvaro se cogen del negocio.
-          </p>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button size="sm" variant="ghost" onClick={() => setAnchor(a => startOfMonth(subMonths(a, 1)))}>‹</Button>
-          <span className="min-w-[140px] text-center text-sm font-medium capitalize">
-            {format(anchor, 'LLLL yyyy', { locale: es })}
-          </span>
-          <Button size="sm" variant="ghost" onClick={() => setAnchor(a => startOfMonth(subMonths(a, -1)))}>›</Button>
-        </div>
-      </header>
+    <div>
+      <PageTopbar
+        breadcrumb="SOCIOS · SUELDOS"
+        title="Sueldos socios"
+        subtitle="Registro mensual de lo que Luis y Álvaro se cogen del negocio."
+        actions={
+          <div className="flex items-center gap-1" style={{ border: '1px solid var(--line)', borderRadius: 'var(--radius)', padding: 4 }}>
+            <Button size="sm" variant="ghost" onClick={() => setAnchor(a => startOfMonth(subMonths(a, 1)))}>‹</Button>
+            <span className="mono text-sm font-medium capitalize" style={{ minWidth: 140, textAlign: 'center', color: 'var(--ink)' }}>
+              {format(anchor, 'LLLL yyyy', { locale: es })}
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => setAnchor(a => startOfMonth(subMonths(a, -1)))}>›</Button>
+          </div>
+        }
+      />
+      <div className="mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-8">
 
       {/* KPIs por socio */}
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -188,6 +188,7 @@ export function SueldosPage() {
           ))}
         </ul>
       </section>
+      </div>
     </div>
   )
 }

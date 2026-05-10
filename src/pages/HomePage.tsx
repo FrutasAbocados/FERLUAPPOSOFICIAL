@@ -11,6 +11,7 @@ import { eurosShort } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
 import { canAccess, type ModuleKey } from '@/shared/types'
+import { PageTopbar } from '@/shared/components/PageTopbar'
 import { AlertCard } from '@/modules/dashboard/components/AlertCard'
 import { BriefingDiarioCard } from '@/modules/dashboard/components/BriefingDiarioCard'
 import { EstadoDelDia } from '@/modules/dashboard/components/EstadoDelDia'
@@ -124,15 +125,12 @@ function HomeAdmin() {
   const esperadosUrgentes = (esperados.data ?? []).filter(p => p.prioridad === 'urgente' || p.prioridad === 'pronto')
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
-      <header className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
-          Hola, {profile?.display_name ?? '—'}
-        </p>
-        <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">
-          Centro de control
-        </h1>
-      </header>
+    <div>
+      <PageTopbar
+        title="Centro de control"
+        subtitle={`Hola, ${profile?.display_name ?? '—'}`}
+      />
+      <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
 
       <div className="space-y-5">
         <EstadoDelDia />
@@ -269,6 +267,7 @@ function HomeAdmin() {
           </div>
         </section>
       </div>
+      </div>
     </div>
   )
 }
@@ -279,15 +278,9 @@ function HomeEmpleado() {
   const moduleEntries = MODULOS.filter(m => role && canAccess(m.key as ModuleKey, role))
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8">
-      <header className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
-          Hola, {profile?.display_name ?? '—'}
-        </p>
-        <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">
-          Tu panel
-        </h1>
-      </header>
+    <div>
+      <PageTopbar title="Tu panel" subtitle={`Hola, ${profile?.display_name ?? '—'}`} />
+      <div className="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8">
 
       <div className="space-y-4">
         <NotificacionesPanel />
@@ -310,6 +303,7 @@ function HomeEmpleado() {
             ))}
           </div>
         </section>
+      </div>
       </div>
     </div>
   )

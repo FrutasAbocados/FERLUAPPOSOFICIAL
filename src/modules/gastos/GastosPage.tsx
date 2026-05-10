@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { PageTopbar } from '@/shared/components/PageTopbar'
 import { useQuery } from '@tanstack/react-query'
 import { addMonths, endOfMonth, format, startOfMonth, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -89,41 +90,26 @@ export function GastosPage() {
   const mes  = anchor.getMonth() + 1
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 p-4 md:p-6">
-      {/* Header */}
-      <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-[var(--color-primary-2)]">
-            <Receipt className="h-5 w-5" />
-            <h1 className="font-display text-xl font-bold text-[var(--color-ink)] md:text-2xl">Gastos</h1>
+    <div>
+      <PageTopbar
+        breadcrumb="OPERACIONES · GASTOS"
+        title="Gastos"
+        subtitle="Fijos recurrentes, gastos variables y estadísticas"
+        actions={
+          <div className="flex items-center gap-1" style={{ border: '1px solid var(--line)', borderRadius: 'var(--radius)', padding: 4 }}>
+            <button type="button" onClick={() => setAnchor((d) => subMonths(d, 1))} className="rounded p-1.5 transition hover:bg-[rgba(255,255,255,.04)]" style={{ color: 'var(--ink-dim)' }} aria-label="Mes anterior">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="mono px-3 py-1 text-sm font-medium capitalize" style={{ color: 'var(--ink)', minWidth: 120, textAlign: 'center' }}>
+              {titulo}
+            </div>
+            <button type="button" onClick={() => setAnchor((d) => addMonths(d, 1))} className="rounded p-1.5 transition hover:bg-[rgba(255,255,255,.04)]" style={{ color: 'var(--ink-dim)' }} aria-label="Mes siguiente">
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
-          <p className="text-xs text-[var(--color-ink-3)] md:text-sm">
-            Fijos recurrentes, gastos variables y estadísticas
-          </p>
-        </div>
-
-        <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
-          <button
-            type="button"
-            onClick={() => setAnchor((d) => subMonths(d, 1))}
-            className="rounded-md p-1.5 text-[var(--color-ink-2)] transition hover:bg-[var(--color-surface-2)]"
-            aria-label="Mes anterior"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <div className="px-3 py-1 text-sm font-semibold capitalize text-[var(--color-ink)] tabular-nums">
-            {titulo}
-          </div>
-          <button
-            type="button"
-            onClick={() => setAnchor((d) => addMonths(d, 1))}
-            className="rounded-md p-1.5 text-[var(--color-ink-2)] transition hover:bg-[var(--color-surface-2)]"
-            aria-label="Mes siguiente"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      </header>
+        }
+      />
+      <div className="mx-auto w-full max-w-7xl space-y-4 p-4 md:p-6">
 
       {/* KPIs hero row */}
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -181,6 +167,7 @@ export function GastosPage() {
         {tab === 'variables' && <VariablesView anchor={anchor} />}
         {tab === 'stats'     && <StatsView anchor={anchor} />}
       </section>
+      </div>
     </div>
   )
 }

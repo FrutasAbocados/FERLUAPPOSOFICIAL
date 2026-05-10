@@ -1,63 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap');
 @import "tailwindcss";
 
+/* ============================================================
+   Design tokens — Abocados OS dark futurista mint
+   ============================================================ */
+
 @theme {
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-display: 'Manrope', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  /* fonts */
+  --font-sans:    'Geist', -apple-system, system-ui, sans-serif;
+  --font-mono:    'Geist Mono', ui-monospace, monospace;
+  --font-serif:   'Instrument Serif', serif;
+  --font-display: 'Geist', -apple-system, system-ui, sans-serif;
 
-  /* Paleta unificada Abocados — verde fruta + tonos cálidos */
-  --color-bg: #fafaf5;
-  --color-surface: #ffffff;
-  --color-surface-2: #f3f4ee;
-  --color-surface-3: #e7e9e2;
-  --color-border: #d8dad3;
-  --color-border-strong: #b0b3ac;
+  /* surfaces */
+  --color-bg:       #07090a;
+  --color-bg-2:     #0c1010;
+  --color-panel:    #0e1413;
+  --color-panel-2:  #121a18;
+  --color-line:     rgba(140, 200, 170, 0.08);
+  --color-line-2:   rgba(140, 200, 170, 0.14);
 
-  --color-ink: #1f2520;
-  --color-ink-2: #5c605a;
-  --color-ink-3: #898d86;
+  /* text */
+  --color-ink:      #e8efeb;
+  --color-ink-dim:  #a4b3ad;
+  --color-ink-mute: #5d6d66;
 
-  --color-primary: #3b6944;
-  --color-primary-2: #2f5d38;
-  --color-primary-soft: #bcefc0;
+  /* accents */
+  --color-mint:       oklch(78% 0.14 158);
+  --color-mint-2:     oklch(72% 0.16 158);
+  --color-mint-deep:  oklch(38% 0.10 158);
+  --color-mint-glow:  oklch(78% 0.14 158 / .18);
+  --color-amber:      oklch(78% 0.16 70);
+  --color-coral:      oklch(70% 0.18 25);
+  --color-sky:        oklch(76% 0.12 235);
+  --color-violet:     oklch(72% 0.16 295);
 
-  --color-accent: #c9a961;
-  --color-accent-soft: #f5ecd6;
-
-  --color-success: #4f7a3c;
-  --color-success-soft: #ecf3e5;
-  --color-warn: #ca8a04;
-  --color-warn-soft: #fef3c7;
-  --color-danger: #aa371c;
-  --color-danger-soft: #fde0d3;
-
-  /* Radio + sombras */
-  --radius-md: 0.625rem;
-  --radius-lg: 0.875rem;
-  --radius-xl: 1.125rem;
+  /* radii */
+  --radius-xs:   4px;
+  --radius-sm:   6px;
+  --radius:      8px;
+  --radius-md:   10px;
+  --radius-lg:   12px;
+  --radius-xl:   14px;
+  --radius-pill: 99px;
 }
 
-@media (prefers-color-scheme: dark) {
-  @theme {
-    --color-bg: #0f120e;
-    --color-surface: #181b16;
-    --color-surface-2: #20241e;
-    --color-surface-3: #2a2f27;
-    --color-border: #2e3329;
-    --color-border-strong: #4a5043;
+/* Short aliases — used in inline CSS and ported prototype code */
+:root {
+  --bg:        var(--color-bg);
+  --bg-2:      var(--color-bg-2);
+  --panel:     var(--color-panel);
+  --panel-2:   var(--color-panel-2);
+  --line:      var(--color-line);
+  --line-2:    var(--color-line-2);
+  --ink:       var(--color-ink);
+  --ink-dim:   var(--color-ink-dim);
+  --ink-mute:  var(--color-ink-mute);
+  --mint:      var(--color-mint);
+  --mint-2:    var(--color-mint-2);
+  --mint-deep: var(--color-mint-deep);
+  --mint-glow: var(--color-mint-glow);
+  --amber:     var(--color-amber);
+  --coral:     var(--color-coral);
+  --sky:       var(--color-sky);
+  --violet:    var(--color-violet);
 
-    --color-ink: #e9ece5;
-    --color-ink-2: #b1b6ac;
-    --color-ink-3: #7c8077;
-
-    --color-primary: #7fc587;
-    --color-primary-2: #6cb574;
-    --color-primary-soft: #1e3622;
-
-    --color-accent: #e0c180;
-    --color-accent-soft: #3a3220;
-  }
+  /* backward compat — existing components keep using these Tailwind classes */
+  --color-surface:       var(--color-panel);
+  --color-surface-2:     var(--color-panel-2);
+  --color-surface-3:     rgba(18, 26, 24, 0.8);
+  --color-border:        var(--color-line);
+  --color-border-strong: var(--color-line-2);
+  --color-primary:       var(--color-mint);
+  --color-primary-2:     var(--color-mint-2);
+  --color-primary-soft:  var(--color-mint-glow);
+  --color-accent:        var(--color-amber);
+  --color-accent-soft:   oklch(30% .10 70 / .25);
+  --color-success:       var(--color-mint);
+  --color-success-soft:  var(--color-mint-glow);
+  --color-warn:          var(--color-amber);
+  --color-warn-soft:     oklch(30% .10 70 / .25);
+  --color-danger:        var(--color-coral);
+  --color-danger-soft:   oklch(30% .12 25 / .22);
+  --color-ink-2:         var(--color-ink-dim);
+  --color-ink-3:         var(--color-ink-mute);
 }
+
+/* ============================================================
+   Base
+   ============================================================ */
 
 * {
   box-sizing: border-box;
@@ -65,37 +96,192 @@
 }
 
 html, body, #root {
-  /* dvh respeta el viewport dinámico de móvil (URL bar que aparece/desaparece).
-     Fallback a 100% para navegadores antiguos. */
   height: 100%;
   height: 100dvh;
-  /* Prevenir scroll horizontal involuntario en móvil — sólo permitimos
-     scroll-x explícito en contenedores marcados con overflow-x-auto. */
   overflow-x: hidden;
   max-width: 100vw;
 }
 
 body {
   margin: 0;
+  background: var(--bg);
+  color: var(--ink);
   font-family: var(--font-sans);
-  background: var(--color-bg);
-  color: var(--color-ink);
+  font-size: 14px;
+  font-feature-settings: "ss01","cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior-y: none;
 }
 
-/* Hide scrollbars on horizontal scroll containers */
+/* Atmospheric gradient */
+body::before {
+  content: ""; position: fixed; inset: 0;
+  pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(1100px 700px at 12% -10%, oklch(35% 0.10 158 / .25), transparent 55%),
+    radial-gradient(900px  600px at 100% 10%, oklch(35% 0.10 235 / .12), transparent 55%),
+    radial-gradient(1200px 800px at 50% 110%, oklch(30% 0.06 158 / .18), transparent 55%);
+}
+
+/* Scanline texture */
+body::after {
+  content: ""; position: fixed; inset: 0;
+  pointer-events: none; z-index: 0;
+  background-image: repeating-linear-gradient(0deg,
+    rgba(255,255,255,.012) 0 1px, transparent 1px 3px);
+  mix-blend-mode: overlay; opacity: .6;
+}
+
+::selection { background: var(--mint-glow); color: var(--ink); }
+
+/* ============================================================
+   Scrollbar
+   ============================================================ */
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: rgba(160, 180, 170, .10);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(160, 180, 170, .18); }
+::-webkit-scrollbar-track { background: transparent; }
+
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
 
-/* Estilos para imprimir / exportar PDF */
+/* ============================================================
+   Typography utilities
+   ============================================================ */
+
+.mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum","ss01";
+  letter-spacing: -0.01em;
+}
+
+.serif {
+  font-family: var(--font-serif);
+  font-style: italic;
+}
+
+.label-caps {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.micro-caps {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   Primitive: Card
+   ============================================================ */
+
+.card {
+  background: linear-gradient(180deg, rgba(18,26,24,.6), rgba(14,20,19,.4));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 22px 24px;
+}
+
+/* ============================================================
+   Primitive: Skeleton
+   ============================================================ */
+
+.skeleton {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,.03) 0%,
+    rgba(255,255,255,.07) 50%,
+    rgba(255,255,255,.03) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+  border-radius: var(--radius);
+}
+
+/* ============================================================
+   Animations
+   ============================================================ */
+
+@keyframes ping {
+  75%, 100% { transform: scale(1.6); opacity: 0; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+/* ============================================================
+   Sidebar nav items
+   ============================================================ */
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--ink-dim);
+  text-decoration: none;
+  transition: background .15s ease, color .15s ease;
+  position: relative;
+  overflow: hidden;
+}
+.sidebar-nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 25%; bottom: 25%;
+  width: 2px;
+  background: var(--mint);
+  border-radius: 0 1px 1px 0;
+  box-shadow: 0 0 8px var(--mint);
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.sidebar-nav-item:hover {
+  background: var(--mint-glow);
+  color: var(--ink);
+}
+.sidebar-nav-active {
+  background: linear-gradient(90deg, var(--mint-glow), transparent) !important;
+  color: var(--mint) !important;
+}
+.sidebar-nav-active::before {
+  opacity: 1;
+}
+
+/* ============================================================
+   App shell stacking (above body::before atmospheric overlay)
+   ============================================================ */
+
+.app-shell-sidebar,
+.app-shell-main {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================
+   Print
+   ============================================================ */
+
 @media print {
   body { background: white !important; }
+  body::before, body::after { display: none !important; }
   aside, nav, header button, .no-print { display: none !important; }
   .print-only { display: block !important; }
   main { padding: 0 !important; }
   section, .rounded-xl { break-inside: avoid; box-shadow: none !important; }
   a[href]:after { content: ""; }
 }
+
 .print-only { display: none; }

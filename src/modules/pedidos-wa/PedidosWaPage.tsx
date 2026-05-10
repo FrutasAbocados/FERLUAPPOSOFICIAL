@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PageTopbar } from '@/shared/components/PageTopbar'
 import { FileText, MessageSquare, Package, Repeat, ShoppingCart, Truck, Users, Zap } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { CapturaRapida } from './components/CapturaRapida'
@@ -17,41 +18,36 @@ export function PedidosWaPage() {
 
   return (
     <div className="flex h-full flex-col overflow-x-hidden">
-      <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 sm:px-6">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <MessageSquare className="h-5 w-5 shrink-0 text-[var(--color-primary)]" />
-            <h1 className="font-display text-lg font-bold text-[var(--color-ink)] sm:text-xl">
-              Pedidos WhatsApp
-            </h1>
-          </div>
-        </div>
+      <PageTopbar
+        breadcrumb="OPERACIONES · PEDIDOS"
+        title="Pedidos WhatsApp"
+        subtitle="Automatización Holded completa · 8 tabs"
+      />
 
-        <nav className="mt-3 flex gap-1 overflow-x-auto" role="tablist">
-          <TabBtn active={tab === 'captura'} onClick={() => setTab('captura')}>
-            <Zap className="h-3.5 w-3.5" /> Captura
-          </TabBtn>
-          <TabBtn active={tab === 'hoy'}   onClick={() => setTab('hoy')}>   Hoy </TabBtn>
-          <TabBtn active={tab === 'compra'} onClick={() => setTab('compra')}>
-            <ShoppingCart className="h-3.5 w-3.5" /> Compra
-          </TabBtn>
-          <TabBtn active={tab === 'compras-prov'} onClick={() => setTab('compras-prov')}>
-            <FileText className="h-3.5 w-3.5" /> Facturas prov
-          </TabBtn>
-          <TabBtn active={tab === 'ruta'}  onClick={() => setTab('ruta')}>
-            <Truck className="h-3.5 w-3.5" /> Hoja de ruta
-          </TabBtn>
-          <TabBtn active={tab === 'clientes'} onClick={() => setTab('clientes')}>
-            <Users className="h-3.5 w-3.5" /> Clientes
-          </TabBtn>
-          <TabBtn active={tab === 'productos'} onClick={() => setTab('productos')}>
-            <Package className="h-3.5 w-3.5" /> Productos
-          </TabBtn>
-          <TabBtn active={tab === 'recurrentes'} onClick={() => setTab('recurrentes')}>
-            <Repeat className="h-3.5 w-3.5" /> Recurrentes
-          </TabBtn>
-        </nav>
-      </header>
+      <nav className="flex gap-1 overflow-x-auto border-b px-4 sm:px-6" style={{ borderColor: 'var(--line)', paddingTop: 8, paddingBottom: 8 }} role="tablist">
+        <TabBtn active={tab === 'captura'} onClick={() => setTab('captura')}>
+          <Zap className="h-3.5 w-3.5" /> Captura
+        </TabBtn>
+        <TabBtn active={tab === 'hoy'}   onClick={() => setTab('hoy')}>   Hoy </TabBtn>
+        <TabBtn active={tab === 'compra'} onClick={() => setTab('compra')}>
+          <ShoppingCart className="h-3.5 w-3.5" /> Compra
+        </TabBtn>
+        <TabBtn active={tab === 'compras-prov'} onClick={() => setTab('compras-prov')}>
+          <FileText className="h-3.5 w-3.5" /> Facturas prov
+        </TabBtn>
+        <TabBtn active={tab === 'ruta'}  onClick={() => setTab('ruta')}>
+          <Truck className="h-3.5 w-3.5" /> Hoja de ruta
+        </TabBtn>
+        <TabBtn active={tab === 'clientes'} onClick={() => setTab('clientes')}>
+          <Users className="h-3.5 w-3.5" /> Clientes
+        </TabBtn>
+        <TabBtn active={tab === 'productos'} onClick={() => setTab('productos')}>
+          <Package className="h-3.5 w-3.5" /> Productos
+        </TabBtn>
+        <TabBtn active={tab === 'recurrentes'} onClick={() => setTab('recurrentes')}>
+          <Repeat className="h-3.5 w-3.5" /> Recurrentes
+        </TabBtn>
+      </nav>
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
         {tab === 'captura'      && <CapturaRapida />}

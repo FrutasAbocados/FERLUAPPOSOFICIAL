@@ -46,10 +46,12 @@ export function AgentePage() {
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-3.5rem-4rem-env(safe-area-inset-bottom))] max-w-4xl flex-col px-4 py-4 md:h-[calc(100dvh-3rem)] md:px-6 md:py-6">
-      <header className="mb-4 border-b border-[var(--color-border)] pb-3">
-        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Módulo</p>
-        <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">Agente IA</h1>
-        <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
+      <header style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--line)' }}>
+        <div className="micro-caps" style={{ color: 'var(--ink-mute)', marginBottom: 4 }}>IA · AGENTE</div>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+          Agente IA
+        </h1>
+        <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--ink-dim)' }}>
           Asistente experto en tus datos del Manager. Pregúntale en lenguaje natural.
         </p>
       </header>

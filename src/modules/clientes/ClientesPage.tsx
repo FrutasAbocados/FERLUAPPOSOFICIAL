@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { PageTopbar } from '@/shared/components/PageTopbar'
 import { useQueryClient } from '@tanstack/react-query'
 import { Activity, Contact, Database } from 'lucide-react'
 import { endOfMonth, format, startOfMonth, subMonths } from 'date-fns'
@@ -47,18 +48,13 @@ export function ClientesPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 p-4 md:p-6">
-      <header className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-[var(--color-primary-2)]">
-            <Contact className="h-5 w-5" />
-            <h1 className="font-display text-xl font-bold text-[var(--color-ink)] md:text-2xl">Clientes</h1>
-          </div>
-          <p className="text-xs text-[var(--color-ink-3)] md:text-sm">
-            BBDD completa con ficha 360° y seguimiento semanal de actividad
-          </p>
-        </div>
-      </header>
+    <div>
+      <PageTopbar
+        breadcrumb="OPERACIONES · CLIENTES"
+        title="Clientes"
+        subtitle="BBDD completa con ficha 360° y seguimiento semanal de actividad"
+      />
+      <div className="mx-auto w-full max-w-7xl space-y-4 p-4 md:p-6">
 
       <nav className="flex gap-1 overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
         {TABS.map((t) => {
@@ -86,6 +82,7 @@ export function ClientesPage() {
         {tab === 'bbdd'        && <BBDDView selected={selected} onSelectChange={setSelected} />}
         {tab === 'seguimiento' && <SeguimientoView onSelect={goToBBDD} />}
       </section>
+      </div>
     </div>
   )
 }

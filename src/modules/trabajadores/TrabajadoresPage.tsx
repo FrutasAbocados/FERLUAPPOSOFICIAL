@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { PageTopbar } from '@/shared/components/PageTopbar'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Save, UserCog, Users, X } from 'lucide-react'
 import { eurosOrDash } from '@/shared/lib/format'
@@ -149,14 +150,13 @@ export function TrabajadoresPage() {
     [data])
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
-      <header className="mb-5 border-b border-[var(--color-border)] pb-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Módulo</p>
-        <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">Trabajadores</h1>
-        <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
-          Plantilla, condiciones y pluses individualizados.
-        </p>
-      </header>
+    <div>
+      <PageTopbar
+        breadcrumb="EQUIPO · BBDD TRABAJADORES"
+        title="Trabajadores"
+        subtitle="Plantilla, condiciones y pluses individualizados."
+      />
+      <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
 
       <section className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <div className="flex items-center gap-2">
@@ -203,6 +203,7 @@ export function TrabajadoresPage() {
       {editing && (
         <EditorTrabajador trabajador={editing} onClose={() => setEditing(null)} />
       )}
+      </div>
     </div>
   )
 }

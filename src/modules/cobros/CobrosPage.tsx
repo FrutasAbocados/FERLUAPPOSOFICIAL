@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { AlertTriangle, BarChart3, Clock, LayoutGrid, ListChecks, Plus, Upload, Wallet } from 'lucide-react'
+import { PageTopbar } from '@/shared/components/PageTopbar'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/components/ui/button'
 import { Dashboard } from './components/Dashboard'
@@ -58,25 +59,23 @@ export function CobrosPage() {
     setNuevo({ open: true, tipo, clienteId })
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 md:py-8">
-      <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
-            Frutas Abocados
-          </p>
-          <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">
-            Control Deuda Abocados
-          </h1>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => abrirNuevo('Pizarra')}>
-            <Plus className="h-4 w-4" /> Pizarra
-          </Button>
-          <Button size="sm" onClick={() => abrirNuevo('Factura')}>
-            <Plus className="h-4 w-4" /> Factura
-          </Button>
-        </div>
-      </header>
+    <div>
+      <PageTopbar
+        breadcrumb="OPERACIONES · COBROS"
+        title="Cobros"
+        subtitle="Control de deuda · Pizarra + Facturas"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => abrirNuevo('Pizarra')}>
+              <Plus className="h-4 w-4" /> Pizarra
+            </Button>
+            <Button size="sm" onClick={() => abrirNuevo('Factura')}>
+              <Plus className="h-4 w-4" /> Factura
+            </Button>
+          </>
+        }
+      />
+      <div className="mx-auto max-w-7xl px-4 py-6 md:py-8">
 
       {kpi && (
         <div className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -163,6 +162,7 @@ export function CobrosPage() {
           setCobrarId(id)
         }}
       />
+      </div>
     </div>
   )
 }
