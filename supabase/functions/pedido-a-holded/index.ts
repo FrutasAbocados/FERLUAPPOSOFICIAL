@@ -107,11 +107,13 @@ function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
   const docType = p.cliente.holded_doc_type === 'waybill' ? 'albarán' : 'factura'
   const sinPrecio = lineas.filter(l => !l.es_gratis && l.precio_fuente === 'no_resuelto').length
   const conTarifaBase = lineas.filter(l => l.precio_fuente === 'tarifa_base').length
+  const sinTraza = lineas.filter(l => !l.es_gratis && !l.trazabilidad).length
   const noteParts = [
     p.texto_original ? `WhatsApp:\n${p.texto_original}` : null,
     p.notas_admin   ? `Notas: ${p.notas_admin}` : null,
     p.faltas        ? `Faltas: ${p.faltas}` : null,
     sinPrecio > 0   ? `⚠️ ${sinPrecio} línea(s) sin precio en histórico — quedan a 0€, revisar en Holded.` : null,
+    sinTraza > 0    ? `⚠️ ${sinTraza} línea(s) sin trazabilidad — completar lote+proveedor antes de aprobar.` : null,
     conTarifaBase > 0 ? `ℹ️ ${conTarifaBase} línea(s) con precio tarifa base (avg últimos 60d) — verificar.` : null,
   ].filter(Boolean)
 
@@ -128,9 +130,14 @@ function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
     items:       lineas
       .filter(l => !(l.es_gratis && Number(l.precio_resuelto ?? 0) === 0))
       .map(l => {
+        // Trazabilidad obligatoria por sanidad (mayorista fruta/verdura).
+        // Si el RPC no resuelve lote+proveedor (sin compra Holded ni factura
+        // proveedor parseada), metemos placeholder para que Luis lo arregle
+        // a mano en Holded antes de aprobar el borrador.
+        const desc = l.trazabilidad ?? '⚠️ Lote pendiente — completar manualmente'
         const item: Record<string, unknown> = {
           name:  l.holded_product_name ?? l.producto_normalizado,
-          desc:  l.trazabilidad ?? `${Number(l.cantidad)} ${l.unidad}`,
+          desc,
           units: Number(l.cantidad),
           price: Number(l.precio_resuelto ?? 0),
           tax:   Number(l.iva_pct),
