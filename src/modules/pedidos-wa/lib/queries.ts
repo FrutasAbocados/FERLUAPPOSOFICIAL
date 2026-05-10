@@ -457,7 +457,11 @@ export function useUpsertProductoHolded() {
         }, { onConflict: 'producto_normalizado' })
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['pedidos_wa', 'productos_wa'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'productos_wa'] })
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'sugerencias_mapeo'] })
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'cotejo'] })
+    },
   })
 }
 
@@ -472,6 +476,34 @@ export function useDeleteProductoHolded() {
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pedidos_wa', 'productos_wa'] }),
+  })
+}
+
+// ─── Sugerencias de mapeo (unificación) ────────────────────────────────────
+
+export type SugerenciaMapeo = {
+  producto_raw:           string
+  fuente:                 'pedido' | 'inventario'
+  veces:                  number
+  sugerencia_normalizado: string | null
+  sugerencia_holded_id:   string | null
+  sugerencia_nombre:      string | null
+  confianza:              number | null
+}
+
+export function useSugerenciasMapeo() {
+  return useQuery({
+    queryKey: ['pedidos_wa', 'sugerencias_mapeo'] as const,
+    queryFn: async (): Promise<SugerenciaMapeo[]> => {
+      const { data, error } = await supabase.rpc('pedidos_wa_sugerencias_mapeo')
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        ...r,
+        veces:     Number(r.veces ?? 0),
+        confianza: r.confianza == null ? null : Number(r.confianza),
+      })) as SugerenciaMapeo[]
+    },
+    staleTime: 30_000,
   })
 }
 
