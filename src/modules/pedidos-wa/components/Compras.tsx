@@ -624,9 +624,9 @@ function ModalSubirHolded({
   onConfirmar: () => void
 }) {
   const items = (preview?.body?.items ?? []) as Array<{
-    name: string; desc?: string; units: number; price: number; tax: number; sku?: string
+    name: string; desc?: string; units: number; subtotal: number; tax: number; sku?: string
   }>
-  const subtotal = items.reduce((s, it) => s + it.units * it.price, 0)
+  const subtotal = items.reduce((s, it) => s + it.units * it.subtotal, 0)
 
   return (
     <div
@@ -691,7 +691,7 @@ function ModalSubirHolded({
                       <th className="px-2 py-1.5">name</th>
                       <th className="px-2 py-1.5">desc</th>
                       <th className="w-16 px-2 py-1.5 text-right">units</th>
-                      <th className="w-20 px-2 py-1.5 text-right">price</th>
+                      <th className="w-20 px-2 py-1.5 text-right">subtotal u.</th>
                       <th className="w-12 px-2 py-1.5 text-right">tax</th>
                       <th className="w-20 px-2 py-1.5">sku</th>
                       <th className="w-24 px-2 py-1.5 text-right">subt.</th>
@@ -703,10 +703,10 @@ function ModalSubirHolded({
                         <td className="px-2 py-1">{it.name}</td>
                         <td className="px-2 py-1 text-[var(--color-ink-2)]">{it.desc ?? '—'}</td>
                         <td className="px-2 py-1 text-right">{it.units}</td>
-                        <td className="px-2 py-1 text-right">{it.price.toFixed(4)}</td>
+                        <td className="px-2 py-1 text-right">{it.subtotal.toFixed(4)}</td>
                         <td className="px-2 py-1 text-right">{it.tax}%</td>
                         <td className="px-2 py-1 text-[10px] text-[var(--color-ink-2)]">{it.sku ?? '—'}</td>
-                        <td className="px-2 py-1 text-right">{euros(it.units * it.price)}</td>
+                        <td className="px-2 py-1 text-right">{euros(it.units * it.subtotal)}</td>
                       </tr>
                     ))}
                   </tbody>
