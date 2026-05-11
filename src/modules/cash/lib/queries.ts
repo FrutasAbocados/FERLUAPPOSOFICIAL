@@ -92,6 +92,7 @@ export type AutorrellenarDia = {
   compras: number
   pedidos: number
   deuda_generada: number
+  deuda_cobrada: number
 }
 
 export async function fetchAutorrellenarDia(fecha: string): Promise<AutorrellenarDia> {
@@ -104,5 +105,6 @@ export async function fetchAutorrellenarDia(fecha: string): Promise<Autorrellena
     compras:        Number(row?.compras ?? 0),
     pedidos:        Number(row?.pedidos ?? 0),
     deuda_generada: Number(row?.deuda_generada ?? 0),
+    deuda_cobrada:  Number(row?.deuda_cobrada ?? 0),
   }
 }

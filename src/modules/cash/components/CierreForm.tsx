@@ -46,6 +46,7 @@ function CierreFormContent({ fecha, cierre, onClose, readOnly }: Props) {
         compras:        d.compras,
         pedidos:        d.pedidos,
         deuda_generada: d.deuda_generada,
+        deuda_cobrada:  d.deuda_cobrada,
       }))
     } catch (err) {
       setAutoError((err as Error).message ?? 'Error al autorellenar')
