@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { PageTopbar } from '@/shared/components/PageTopbar'
 import { useQueryClient } from '@tanstack/react-query'
-import { Activity, Contact, Database } from 'lucide-react'
+import { Activity, Database } from 'lucide-react'
 import { endOfMonth, format, startOfMonth, subMonths } from 'date-fns'
 import { cn } from '@/shared/lib/utils'
 import { BBDDView } from './components/BBDDView'

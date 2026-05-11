@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { PageTopbar } from '@/shared/components/PageTopbar'
-import { FileText, MessageSquare, Package, Repeat, ShoppingCart, Truck, Users, Zap } from 'lucide-react'
+import { FileText, Package, Repeat, ShoppingCart, Truck, Users, Zap } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { CapturaRapida } from './components/CapturaRapida'
 import { Compra } from './components/Compra'
