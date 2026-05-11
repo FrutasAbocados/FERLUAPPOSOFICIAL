@@ -188,23 +188,27 @@ function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
     items:       lineas
       .filter(l => !(l.es_gratis && Number(l.precio_resuelto ?? 0) === 0))
       .map(l => {
-        // ⚠️ Holded auto-vincula por nombre exacto al catálogo aunque no se envíe
-        // productId, usando el precio del catálogo (0) e ignorando el `price`
-        // que enviamos. Fix: usar producto_normalizado como name (no coincide
-        // con nombres del catálogo Holded que van en MAYÚSCULAS + sufijo unidad).
-        // holded_product_name va en desc junto a trazabilidad para que sea legible.
         const traDesc = l.trazabilidad ?? '⚠️ Lote pendiente — completar manualmente'
-        const desc = l.holded_product_name
-          ? `${l.holded_product_name} · ${traDesc}`
-          : traDesc
+        // Si hay productId: name=nombre catálogo Holded, desc=solo trazabilidad.
+        // Si no hay productId: name=producto_normalizado (no coincide con catálogo,
+        // evita auto-vinculación que sobrescribiría el precio), desc incluye holded_product_name.
+        const hasProduct = !!l.holded_product_id
+        const name = hasProduct
+          ? (l.holded_product_name ?? l.producto_normalizado)
+          : l.producto_normalizado
+        const desc = hasProduct
+          ? traDesc
+          : (l.holded_product_name ? `${l.holded_product_name} · ${traDesc}` : traDesc)
         return {
-          name:     l.producto_normalizado,
+          name,
           desc,
           units:    Number(l.cantidad),
-          // ⚠️ invoice/waybill SIN productId: Holded ignora `price` igual que purchase.
-          // Usar `subtotal` como precio unitario (quirk verificado experimentalmente).
+          // Holded ignora `price` (tanto en invoice como en waybill y purchase).
+          // Usar `subtotal` como precio unitario — comportamiento verificado experimentalmente.
           subtotal: Number(l.precio_resuelto ?? 0),
           tax:      Number(l.iva_pct),
+          // productId vincula la línea al catálogo → SKU + COSTE/UD se rellenan
+          ...(hasProduct ? { productId: l.holded_product_id } : {}),
         }
       }),
     _meta: {
