@@ -76,7 +76,7 @@ async function checkAuth(
 const SENTRY_DSN_HOLDED = Deno.env.get('SENTRY_EDGE_DSN') ?? ''
 async function reportEdgeError(error: unknown, context: { fn: string; extra?: Record<string, unknown> } = { fn: 'unknown' }): Promise<void> {
   if (!SENTRY_DSN_HOLDED) return
-  const m = SENTRY_DSN_HOLDED.match(/^(https?):\/\/([^@]+)@([^/]+)\/(\d+)$/)
+  const m = SENTRY_DSN_HOLDED.match(new RegExp('^(https?):' + '//([^@]+)@([^/]+)/(\\d+)$'))
   if (!m) return
   const [, protocol, publicKey, host, projectId] = m
   const message = error instanceof Error ? error.message : String(error)
@@ -176,7 +176,10 @@ function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
     // approveDoc=0 → borrador (no aprobado, sin numeración oficial, no notifica al cliente)
     approveDoc: 0,
     contactId:   p.cliente.holded_contact_id,
-    contactName: p.cliente.nombre,
+    // NO enviar contactName cuando hay contactId: Holded usa el nombre fiscal
+    // del contacto almacenado. Si lo enviamos con nombre de display pisamos
+    // la razón social y la factura sería inválida fiscalmente.
+    ...(!p.cliente.holded_contact_id ? { contactName: p.cliente.nombre } : {}),
     desc:        `Pedido WhatsApp ${p.fecha}`,
     date:        fechaToUnixMadrid(p.fecha),
     notes:       noteParts.join('\n\n') || undefined,
@@ -185,16 +188,22 @@ function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
     items:       lineas
       .filter(l => !(l.es_gratis && Number(l.precio_resuelto ?? 0) === 0))
       .map(l => {
-        const desc = l.trazabilidad ?? '⚠️ Lote pendiente — completar manualmente'
-        const item: Record<string, unknown> = {
-          name:  l.holded_product_name ?? l.producto_normalizado,
+        // ⚠️ Holded auto-vincula por nombre exacto al catálogo aunque no se envíe
+        // productId, usando el precio del catálogo (0) e ignorando el `price`
+        // que enviamos. Fix: usar producto_normalizado como name (no coincide
+        // con nombres del catálogo Holded que van en MAYÚSCULAS + sufijo unidad).
+        // holded_product_name va en desc junto a trazabilidad para que sea legible.
+        const traDesc = l.trazabilidad ?? '⚠️ Lote pendiente — completar manualmente'
+        const desc = l.holded_product_name
+          ? `${l.holded_product_name} · ${traDesc}`
+          : traDesc
+        return {
+          name:  l.producto_normalizado,
           desc,
           units: Number(l.cantidad),
           price: Number(l.precio_resuelto ?? 0),
           tax:   Number(l.iva_pct),
         }
-        if (l.holded_product_id) item.productId = l.holded_product_id
-        return item
       }),
     _meta: {
       doc_type: p.cliente.holded_doc_type === 'waybill' ? 'albarán' : 'factura',
