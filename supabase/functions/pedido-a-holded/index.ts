@@ -198,11 +198,13 @@ function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
           ? `${l.holded_product_name} · ${traDesc}`
           : traDesc
         return {
-          name:  l.producto_normalizado,
+          name:     l.producto_normalizado,
           desc,
-          units: Number(l.cantidad),
-          price: Number(l.precio_resuelto ?? 0),
-          tax:   Number(l.iva_pct),
+          units:    Number(l.cantidad),
+          // ⚠️ invoice/waybill SIN productId: Holded ignora `price` igual que purchase.
+          // Usar `subtotal` como precio unitario (quirk verificado experimentalmente).
+          subtotal: Number(l.precio_resuelto ?? 0),
+          tax:      Number(l.iva_pct),
         }
       }),
     _meta: {
