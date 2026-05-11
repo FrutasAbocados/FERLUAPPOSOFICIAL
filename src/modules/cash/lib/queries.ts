@@ -84,3 +84,25 @@ export function useDeleteCierre() {
 
 export const shiftMonth = (anchor: Date, by: number): Date =>
   startOfMonth(addMonths(anchor, by))
+
+// ── Autorellenar cierre desde repartos + manager ──────────────────────────
+export type AutorrellenarDia = {
+  efectivo: number
+  tarjeta: number
+  compras: number
+  pedidos: number
+  deuda_generada: number
+}
+
+export async function fetchAutorrellenarDia(fecha: string): Promise<AutorrellenarDia> {
+  const { data, error } = await supabase.rpc('cash_autorellenar_dia', { p_fecha: fecha })
+  if (error) throw error
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null
+  return {
+    efectivo:       Number(row?.efectivo ?? 0),
+    tarjeta:        Number(row?.tarjeta ?? 0),
+    compras:        Number(row?.compras ?? 0),
+    pedidos:        Number(row?.pedidos ?? 0),
+    deuda_generada: Number(row?.deuda_generada ?? 0),
+  }
+}

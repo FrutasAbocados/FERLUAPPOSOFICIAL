@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Loader2, X } from 'lucide-react'
+import { Loader2, RefreshCw, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
-import { useUpsertCierre } from '../lib/queries'
+import { fetchAutorrellenarDia, useUpsertCierre } from '../lib/queries'
 import { emptyInput, fromCierre, type Cierre, type CierreInput } from '../lib/types'
 import { euros, fmtDate } from '../lib/format'
 
@@ -30,7 +30,29 @@ function CierreFormContent({ fecha, cierre, onClose, readOnly }: Props) {
   const [form, setForm] = useState<CierreInput>(() =>
     cierre ? fromCierre(cierre) : emptyInput(fecha),
   )
+  const [autorellenando, setAutorellenando] = useState(false)
+  const [autoError, setAutoError] = useState<string | null>(null)
   const upsert = useUpsertCierre()
+
+  const handleAutorellenar = async () => {
+    setAutorellenando(true)
+    setAutoError(null)
+    try {
+      const d = await fetchAutorrellenarDia(fecha)
+      setForm(f => ({
+        ...f,
+        efectivo:       d.efectivo,
+        tarjeta:        d.tarjeta,
+        compras:        d.compras,
+        pedidos:        d.pedidos,
+        deuda_generada: d.deuda_generada,
+      }))
+    } catch (err) {
+      setAutoError((err as Error).message ?? 'Error al autorellenar')
+    } finally {
+      setAutorellenando(false)
+    }
+  }
 
   const set = <K extends keyof CierreInput>(k: K, v: CierreInput[K]) =>
     setForm((f) => ({ ...f, [k]: v }))
@@ -66,9 +88,27 @@ function CierreFormContent({ fecha, cierre, onClose, readOnly }: Props) {
               {fmtDate(fecha, "EEEE d 'de' MMMM yyyy")}
             </h2>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Cerrar">
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {!readOnly && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAutorellenar}
+                disabled={autorellenando}
+                className="gap-1.5 text-xs"
+                title="Rellena efectivo, tarjeta, compras, pedidos y deuda desde Cierre día + Holded"
+              >
+                {autorellenando
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <RefreshCw className="h-3.5 w-3.5" />}
+                Autorellenar
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label="Cerrar">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </header>
 
         <form onSubmit={submit} className="flex flex-1 flex-col overflow-hidden">
@@ -133,6 +173,11 @@ function CierreFormContent({ fecha, cierre, onClose, readOnly }: Props) {
                 tone={deudaNeta > 0 ? 'warn' : 'neutral'}
               />
             </div>
+            {autoError && (
+              <p className="mb-2 text-xs text-[var(--color-danger)]">
+                Autorellenar: {autoError}
+              </p>
+            )}
             {upsert.error && (
               <p className="mb-2 text-xs text-[var(--color-danger)]">
                 {(upsert.error as Error).message}
