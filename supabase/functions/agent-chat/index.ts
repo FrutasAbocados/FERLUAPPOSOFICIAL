@@ -195,6 +195,65 @@ const tools = [
     description: 'Forecast próximos meses con tendencia mes-a-mes capeada y proyección del mes en curso.',
     input_schema: { type: 'object', properties: {} },
   },
+
+  // ── Caja ─────────────────────────────────────────────────────────────────
+  {
+    name: 'get_cierres_mes',
+    description: 'Cierres de caja de un mes: efectivo, tarjeta, compras, deuda generada/cobrada, resultado por día. Usa esto para el calendario o resumen mensual de Caja.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: 'Fecha inicio YYYY-MM-DD (normalmente primer día del mes)' },
+        to:   { type: 'string', description: 'Fecha fin YYYY-MM-DD (normalmente último día del mes)' },
+      },
+      required: ['from', 'to'],
+    },
+  },
+  {
+    name: 'get_cierre_dia',
+    description: 'Detalle completo del cierre de caja de un día: efectivo, tarjeta, compras, vehículos, deuda generada/cobrada, resultado, caja física, observaciones.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        fecha: { type: 'string', description: 'Fecha YYYY-MM-DD' },
+      },
+      required: ['fecha'],
+    },
+  },
+  {
+    name: 'get_deuda_acum',
+    description: 'Deuda acumulada hasta una fecha: suma histórica de (deuda_generada - deuda_cobrada) de todos los cierres hasta esa fecha.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        hasta: { type: 'string', description: 'Fecha límite YYYY-MM-DD (inclusive)' },
+      },
+      required: ['hasta'],
+    },
+  },
+  {
+    name: 'get_repartos_dia',
+    description: 'Jornadas de reparto de un día: qué empleado repartió, hora inicio/fin, y lista de clientes con importe y forma de pago (efectivo/tarjeta). Útil para ver quién cobró qué.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        fecha: { type: 'string', description: 'Fecha YYYY-MM-DD' },
+      },
+      required: ['fecha'],
+    },
+  },
+  {
+    name: 'get_cash_stats_semanas',
+    description: 'Estadísticas semanales de Caja por repartidor: horas trabajadas, total cobrado (efectivo + tarjeta), número de jornadas. Útil para comparar rendimiento por semana o por empleado.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: 'Fecha inicio YYYY-MM-DD' },
+        to:   { type: 'string', description: 'Fecha fin YYYY-MM-DD' },
+      },
+      required: ['from', 'to'],
+    },
+  },
 ]
 
 // ---------------------------------------------------------------------------
@@ -242,6 +301,64 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
       return await rpc('manager_patrones_dia_semana', { p_from: args.from, p_to: args.to })
     case 'get_forecast':
       return await rpc('manager_forecast_proximo_mes')
+
+    // ── Caja ───────────────────────────────────────────────────────────────
+    case 'get_cierres_mes': {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/cierres?fecha=gte.${args.from}&fecha=lte.${args.to}&order=fecha.asc`,
+        { headers: dbHeaders },
+      )
+      if (!res.ok) throw new Error(`cierres ${res.status}: ${(await res.text()).slice(0, 200)}`)
+      return await res.json()
+    }
+    case 'get_cierre_dia': {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/cierres?fecha=eq.${args.fecha}`,
+        { headers: dbHeaders },
+      )
+      if (!res.ok) throw new Error(`cierre_dia ${res.status}: ${(await res.text()).slice(0, 200)}`)
+      const rows = await res.json() as unknown[]
+      return rows[0] ?? null
+    }
+    case 'get_deuda_acum': {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/cierres?fecha=lte.${args.hasta}&select=deuda_generada,deuda_cobrada`,
+        { headers: dbHeaders },
+      )
+      if (!res.ok) throw new Error(`deuda_acum ${res.status}: ${(await res.text()).slice(0, 200)}`)
+      const rows = await res.json() as Array<{ deuda_generada: string; deuda_cobrada: string }>
+      const total = rows.reduce((acc, r) => acc + Number(r.deuda_generada) - Number(r.deuda_cobrada), 0)
+      return { deuda_acumulada: Math.round(total * 100) / 100, hasta: args.hasta, num_cierres: rows.length }
+    }
+    case 'get_repartos_dia': {
+      const jorRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/repartos_jornada?fecha=eq.${args.fecha}&select=*`,
+        { headers: dbHeaders },
+      )
+      if (!jorRes.ok) throw new Error(`repartos_jornada ${jorRes.status}`)
+      const jornadas = await jorRes.json() as Array<{ id: string; empleado_id: string; hora_inicio: string | null; hora_fin: string | null; notas: string | null }>
+      if (jornadas.length === 0) return []
+      const ids = jornadas.map(j => j.id).join(',')
+      const linRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/repartos_jornada_lineas?jornada_id=in.(${ids})&select=*&order=orden.asc`,
+        { headers: dbHeaders },
+      )
+      if (!linRes.ok) throw new Error(`repartos_lineas ${linRes.status}`)
+      const lineas = await linRes.json() as Array<{ jornada_id: string; contact_nombre: string; importe: string; forma_pago: string }>
+      return jornadas.map(j => {
+        const propias = lineas.filter(l => l.jornada_id === j.id)
+        return {
+          ...j,
+          lineas: propias.map(l => ({ contact_nombre: l.contact_nombre, importe: Number(l.importe), forma_pago: l.forma_pago })),
+          total: Math.round(propias.reduce((s, l) => s + Number(l.importe), 0) * 100) / 100,
+          efectivo: Math.round(propias.filter(l => l.forma_pago === 'efectivo').reduce((s, l) => s + Number(l.importe), 0) * 100) / 100,
+          tarjeta:  Math.round(propias.filter(l => l.forma_pago === 'tarjeta').reduce((s, l) => s + Number(l.importe), 0) * 100) / 100,
+        }
+      })
+    }
+    case 'get_cash_stats_semanas':
+      return await rpc('cash_stats_semanas', { p_from: args.from, p_to: args.to })
+
     default:
       throw new Error(`Tool desconocido: ${name}`)
   }
@@ -283,6 +400,8 @@ Hoy es ${today}.
 
 Tienes acceso a herramientas que consultan datos REALES desde Supabase (sincronizado con Holded ERP). Usa siempre las herramientas para datos concretos — NO inventes cifras.
 
+Tienes acceso a dos módulos: **Manager** (ventas/compras/clientes/productos desde Holded) y **Caja** (cobros diarios de repartidores, cierres físicos de caja, deuda acumulada).
+
 Reglas de negocio del Manager:
 - Las ventas se desglosan por subtipo: invoice (factura cobrada al momento), waybill (albarán cobrado a fin de mes), salesreceipt (TPV), creditnote (abono).
 - Para clientes con waybills en un mes, sus invoices ese mes se IGNORAN (la invoice agregada de fin de mes duplica los albaranes). Las herramientas ya aplican esta regla.
@@ -299,6 +418,14 @@ Cuando el usuario te pregunte por un periodo:
 - Si no especifica, usa "este mes".
 
 Responde en español, conciso y directo. Cuando muestres listas, usa Markdown (tablas o listas con guión). Pon cifras en formato europeo (ej. 1.234,56 €).
+
+Reglas de negocio de Caja:
+- Un "cierre" = registro diario con lo que entró en caja (efectivo + tarjeta + otros) y lo que salió (compras, vehículos, otras). El campo "resultado" = total_cobrado - total_gastos.
+- "Deuda generada" en un cierre = ventas fiadas ese día. "Deuda cobrada" = pagos de deuda recibidos ese día.
+- Los "repartos" son los cobros que hace cada repartidor en ruta: por cliente, con importe y forma de pago (efectivo/tarjeta). Pueden existir varias jornadas por día (uno por repartidor).
+- La deuda acumulada se calcula sumando toda la historia: Σ(deuda_generada - deuda_cobrada) hasta la fecha.
+- Para ver cuánto cobró un repartidor en una semana, usa get_cash_stats_semanas.
+- Para ver el detalle de un día concreto (quién cobró qué a quién), usa get_repartos_dia.
 
 Si una pregunta requiere varias herramientas, encadena llamadas. Si la pregunta no se puede responder con los datos disponibles, dilo claramente.${memoryBlock}`
 
