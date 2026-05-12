@@ -27,6 +27,7 @@ type Props = {
   fecha: string
   jornada: Jornada | null
   onClose: () => void
+  empleadoIdInicial?: string
 }
 
 const newKey = () =>
@@ -34,7 +35,7 @@ const newKey = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2)
 
-export function JornadaModal({ fecha, jornada, onClose }: Props) {
+export function JornadaModal({ fecha, jornada, onClose, empleadoIdInicial }: Props) {
   // Para edición, esperamos a tener las líneas antes de montar el form.
   // Así el form usa useState lazy y no necesita useEffect de hidratación.
   const lineasExistentes = useJornadaLineas(jornada?.id ?? null)
@@ -54,11 +55,12 @@ export function JornadaModal({ fecha, jornada, onClose }: Props) {
 
   return (
     <JornadaForm
-      key={jornada?.id ?? `nueva-${fecha}`}
+      key={jornada?.id ?? `nueva-${fecha}-${empleadoIdInicial ?? ''}`}
       fecha={fecha}
       jornada={jornada}
       initialLineas={initialLineas}
       onClose={onClose}
+      empleadoIdInicial={empleadoIdInicial}
     />
   )
 }
@@ -68,6 +70,7 @@ function JornadaForm({
   jornada,
   initialLineas,
   onClose,
+  empleadoIdInicial,
 }: Props & { initialLineas: JornadaLinea[] }) {
   const empleados = useEmpleadosActivos()
 
@@ -76,7 +79,7 @@ function JornadaForm({
   const borrar = useBorrarJornada()
   const guardarLineas = useGuardarLineas()
 
-  const [empleadoId, setEmpleadoId] = useState<string>(jornada?.empleado_id ?? '')
+  const [empleadoId, setEmpleadoId] = useState<string>(jornada?.empleado_id ?? empleadoIdInicial ?? '')
   const [horaInicio, setHoraInicio] = useState<string>(jornada?.hora_inicio?.slice(0, 5) ?? '')
   const [horaFin, setHoraFin] = useState<string>(jornada?.hora_fin?.slice(0, 5) ?? '')
   const [notas, setNotas] = useState<string>(jornada?.notas ?? '')

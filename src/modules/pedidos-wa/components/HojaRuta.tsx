@@ -45,7 +45,7 @@ import {
 } from '../lib/types'
 import { exportarHojaRuta } from '../lib/exportacion/excel'
 import { imprimirHojaRuta } from '../lib/exportacion/print'
-import { usePedidosDelDia, useReasignarPedido, useReordenarRuta } from '../lib/queries'
+import { useActualizarPedido, usePedidosDelDia, useReasignarPedido, useReordenarRuta } from '../lib/queries'
 
 const REPARTIDOR_ORDER: Repartidor[] = ['TORRES', 'GERMAN', 'RAUL', 'ALEX']
 
@@ -420,14 +420,31 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
   const movido = pedido.override_repartidor && pedido.override_repartidor !== cliente?.repartidor
   const ordenManual = pedido.override_orden != null
 
+  const actualizarPedido = useActualizarPedido()
+
   const [horarioEdit, setHorarioEdit] = useState(horarioActual)
   useEffect(() => { setHorarioEdit(horarioActual) }, [horarioActual])
+
+  const [obsEdit, setObsEdit] = useState(pedido.faltas ?? '')
+  useEffect(() => { setObsEdit(pedido.faltas ?? '') }, [pedido.faltas])
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: pedido.id })
   const dragStyle: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
+  }
+
+  const guardarObs = () => {
+    const valor = obsEdit.trim() || null
+    if (valor === (pedido.faltas ?? null)) return
+    actualizarPedido.mutate(
+      { id: pedido.id, fecha, patch: { faltas: valor } },
+      {
+        onSuccess: () => toast({ title: 'Observaciones guardadas', variant: 'success' }),
+        onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'error' }),
+      },
+    )
   }
 
   const guardarHorario = () => {
@@ -643,11 +660,21 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
             </details>
           )}
 
-          {pedido.faltas && (
-            <div className="mt-1 text-[11px] text-rose-700">
-              <strong>Faltas:</strong> {pedido.faltas}
-            </div>
-          )}
+          <input
+            type="text"
+            value={obsEdit}
+            onChange={(e) => setObsEdit(e.target.value)}
+            onBlur={guardarObs}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+            placeholder="Observaciones…"
+            className={cn(
+              'mt-1.5 w-full rounded-md border bg-transparent px-1.5 py-0.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]',
+              obsEdit
+                ? 'border-amber-300 bg-amber-50/60 text-amber-800 dark:bg-amber-950/30 dark:text-amber-200'
+                : 'border-[var(--color-border)] text-[var(--color-ink-3)]',
+            )}
+            title="Observaciones del pedido (solo hoy)"
+          />
         </div>
       </div>
     </article>

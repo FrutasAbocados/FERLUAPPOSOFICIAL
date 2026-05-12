@@ -103,7 +103,10 @@ function precioReparado(l: CompraLineaRow): number {
 function buildHoldedBody(c: CompraRow, lineas: CompraLineaRow[]) {
   return {
     contactId:   c.proveedor_holded_id,
-    contactName: c.proveedor_nombre,
+    // Si hay contactId, NO enviar contactName: Holded usa el nombre fiscal
+    // del contacto almacenado. Enviarlo con un nombre de display pisaría
+    // la razón social y haría la factura inválida fiscalmente.
+    ...(!c.proveedor_holded_id ? { contactName: c.proveedor_nombre } : {}),
     desc:        `Factura prov ${c.num_factura}`,
     date:        fechaToUnixMadrid(c.fecha),
     docNumber:   c.num_factura,

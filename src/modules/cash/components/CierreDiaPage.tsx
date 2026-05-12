@@ -7,6 +7,7 @@ import { Input } from '@/shared/components/ui/input'
 import { euros } from '../lib/format'
 import {
   useEmpleadosActivos,
+  useEmpleadosSiempreCierre,
   useJornadaLineas,
   useJornadasDia,
   useResumenDia,
@@ -18,8 +19,10 @@ export function CierreDiaPage() {
   const [fecha, setFecha] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'))
   const [editing, setEditing] = useState<Jornada | null>(null)
   const [creating, setCreating] = useState<boolean>(false)
+  const [creatingEmpleadoId, setCreatingEmpleadoId] = useState<string | undefined>(undefined)
 
   const empleados = useEmpleadosActivos()
+  const siempreCierre = useEmpleadosSiempreCierre()
   const jornadas = useJornadasDia(fecha)
 
   const empleadoNombre = (id: string) =>
@@ -46,7 +49,7 @@ export function CierreDiaPage() {
           />
           <p className="mt-1 text-xs capitalize text-[var(--color-ink-2)]">{fechaLabel}</p>
         </div>
-        <Button onClick={() => setCreating(true)}>
+        <Button onClick={() => { setCreating(true); setCreatingEmpleadoId(undefined) }}>
           <Plus className="mr-1 h-4 w-4" />
           Nueva jornada
         </Button>
@@ -57,29 +60,51 @@ export function CierreDiaPage() {
           <Loader2 className="h-4 w-4 animate-spin" />
           Cargando jornadas…
         </div>
-      ) : (jornadas.data ?? []).length === 0 ? (
-        <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-12 text-center text-sm text-[var(--color-ink-3)]">
-          Aún no hay jornadas registradas para este día.
-        </div>
       ) : (
-        <div className="space-y-3">
-          {(jornadas.data ?? []).map((j) => (
-            <JornadaCard
-              key={j.id}
-              jornada={j}
-              empleadoNombre={empleadoNombre(j.empleado_id)}
-              onClick={() => setEditing(j)}
-            />
-          ))}
-          <ResumenDia fecha={fecha} />
-        </div>
+        (() => {
+          const jornadasDelDia = jornadas.data ?? []
+          const idsConJornada = new Set(jornadasDelDia.map(j => j.empleado_id))
+          const sinJornada = (siempreCierre.data ?? []).filter(e => !idsConJornada.has(e.id))
+          const hayAlgo = jornadasDelDia.length > 0 || sinJornada.length > 0
+          if (!hayAlgo) {
+            return (
+              <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-12 text-center text-sm text-[var(--color-ink-3)]">
+                Aún no hay jornadas registradas para este día.
+              </div>
+            )
+          }
+          return (
+            <div className="space-y-3">
+              {jornadasDelDia.map((j) => (
+                <JornadaCard
+                  key={j.id}
+                  jornada={j}
+                  empleadoNombre={empleadoNombre(j.empleado_id)}
+                  onClick={() => setEditing(j)}
+                />
+              ))}
+              {sinJornada.map((e) => (
+                <button
+                  key={e.id}
+                  onClick={() => { setCreating(true); setCreatingEmpleadoId(e.id) }}
+                  className="block w-full rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left transition hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-2,#f8fafc)]"
+                >
+                  <p className="font-display text-base font-bold text-[var(--color-ink)]">{e.nombre}</p>
+                  <p className="text-xs text-[var(--color-ink-3)]">Sin jornada — pulsa para registrar horas</p>
+                </button>
+              ))}
+              <ResumenDia fecha={fecha} />
+            </div>
+          )
+        })()
       )}
 
       {creating && (
         <JornadaModal
           fecha={fecha}
           jornada={null}
-          onClose={() => setCreating(false)}
+          empleadoIdInicial={creatingEmpleadoId}
+          onClose={() => { setCreating(false); setCreatingEmpleadoId(undefined) }}
         />
       )}
       {editing && (

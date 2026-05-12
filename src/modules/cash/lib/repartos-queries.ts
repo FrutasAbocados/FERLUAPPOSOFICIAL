@@ -24,6 +24,23 @@ export function useEmpleadosActivos() {
   })
 }
 
+// ── Empleados que siempre deben aparecer en CierreDia (mostrar_cierre_dia=true) ──
+export function useEmpleadosSiempreCierre() {
+  return useQuery({
+    queryKey: ['repartos', 'empleados-siempre-cierre'] as const,
+    queryFn: async (): Promise<EmpleadoOpt[]> => {
+      const { data, error } = await supabase
+        .from('empleados_equipo')
+        .select('id, nombre')
+        .eq('activo', true)
+        .eq('mostrar_cierre_dia', true)
+        .order('nombre', { ascending: true })
+      if (error) throw error
+      return (data ?? []).map((r) => ({ id: String(r.id), nombre: String(r.nombre) }))
+    },
+  })
+}
+
 // ── Buscador de clientes (manager_contactos) ─────────────────────────────
 export function useBuscarContactos(query: string) {
   const q = query.trim()

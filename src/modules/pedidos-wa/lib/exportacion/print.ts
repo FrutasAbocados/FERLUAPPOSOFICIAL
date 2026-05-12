@@ -89,7 +89,7 @@ function buildRepSection(rep: Repartidor, pedidos: Pedido[]): string {
         <td class="col-cliente">${esc(c?.nombre ?? '—')}${notaCliente}</td>
         <td class="col-factura">${esc(c?.tipo_factura ?? '')}</td>
         <td class="col-pedido"><ul class="productos">${productosHtml}</ul></td>
-        <td class="col-faltas">${esc(p.faltas ?? '')}</td>
+        <td class="col-obs">${esc(p.faltas ?? '')}</td>
       </tr>`
 
     altBg = !altBg
@@ -109,7 +109,7 @@ function buildRepSection(rep: Repartidor, pedidos: Pedido[]): string {
             <th class="col-cliente">CLIENTE</th>
             <th class="col-factura">FACTURA</th>
             <th class="col-pedido">PEDIDO</th>
-            <th class="col-faltas">FALTAS</th>
+            <th class="col-obs">OBSERVACIONES</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -169,7 +169,7 @@ export function imprimirHojaRuta(pedidos: Pedido[], fechaIso: string) {
     .col-horario{width:48px;text-align:center;font-weight:bold;font-size:9.5pt;white-space:nowrap}
     .col-cliente{width:140px;font-weight:bold;font-size:9pt}
     .col-factura{width:55px;text-align:center;font-size:8pt}
-    .col-faltas{width:90px;font-size:8.5pt}
+    .col-obs{width:90px;font-size:8.5pt}
     .col-pedido{width:auto;min-width:120px}
     ul.productos{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:0;line-height:1.6}
     ul.productos li{display:inline;font-size:8.5pt;white-space:nowrap}

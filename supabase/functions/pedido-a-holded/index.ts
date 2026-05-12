@@ -29,6 +29,11 @@ function fechaToUnixMadrid(fechaIso: string): number {
   const d = new Date(fechaIso + 'T12:00:00Z')
   return Math.floor(d.getTime() / 1000)
 }
+function fechaSiguienteUnixMadrid(fechaIso: string): number {
+  const d = new Date(fechaIso + 'T12:00:00Z')
+  d.setUTCDate(d.getUTCDate() + 1)
+  return Math.floor(d.getTime() / 1000)
+}
 function decodeJwtPayload(token: string): Record<string, unknown> {
   const part = token.split('.')[1]
   if (!part) throw new Error('jwt sin payload')
@@ -164,13 +169,20 @@ async function writeLog(row: {
 function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
   const sinPrecio = lineas.filter(l => !l.es_gratis && l.precio_fuente === 'no_resuelto').length
   const sinTraza = lineas.filter(l => !l.es_gratis && !l.trazabilidad).length
-  const noteParts = [
+  const isInvoice = p.cliente.holded_doc_type === 'invoice'
+
+  // Notas solo para albaranes (internos). Las facturas las ven los clientes.
+  const noteParts = isInvoice ? [] : [
     p.texto_original ? `WhatsApp:\n${p.texto_original}` : null,
     p.notas_admin   ? `Notas: ${p.notas_admin}` : null,
     p.faltas        ? `Faltas: ${p.faltas}` : null,
     sinPrecio > 0   ? `⚠️ ${sinPrecio} línea(s) sin precio en histórico — quedan a 0€, revisar en Holded.` : null,
     sinTraza > 0    ? `⚠️ ${sinTraza} línea(s) sin trazabilidad — completar lote+proveedor antes de aprobar.` : null,
   ].filter(Boolean)
+
+  // Facturas: fecha = día siguiente (los pedidos de hoy son para entrega mañana).
+  // Albaranes: fecha = día del pedido (internos, sin restricción de fecha).
+  const fechaDoc = isInvoice ? fechaSiguienteUnixMadrid(p.fecha) : fechaToUnixMadrid(p.fecha)
 
   return {
     // approveDoc=0 → borrador (no aprobado, sin numeración oficial, no notifica al cliente)
@@ -181,8 +193,9 @@ function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
     // la razón social y la factura sería inválida fiscalmente.
     ...(!p.cliente.holded_contact_id ? { contactName: p.cliente.nombre } : {}),
     desc:        `Pedido WhatsApp ${p.fecha}`,
-    date:        fechaToUnixMadrid(p.fecha),
-    notes:       noteParts.join('\n\n') || undefined,
+    date:        fechaDoc,
+    ...(isInvoice ? { dueDate: fechaDoc } : {}),
+    ...(noteParts.length > 0 ? { notes: noteParts.join('\n\n') } : {}),
     language:    'es',
     currency:    'eur',
     items:       lineas

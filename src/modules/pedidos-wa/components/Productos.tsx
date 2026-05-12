@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Check, Loader2, Search, Trash2, X } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
+import { confirm } from '@/shared/lib/confirm'
 import { Input } from '@/shared/components/ui/input'
 import { Button } from '@/shared/components/ui/button'
 import { toast } from '@/shared/lib/toast'
@@ -131,9 +132,19 @@ function FilaProducto({
   const [busqueda, setBusqueda] = useState(producto.primer_uso)
   const { data: candidatos, isFetching } = useBuscarProductosHolded(editando ? busqueda : '')
 
-  const desvincular = async () => {
+  const eliminar = async () => {
+    const esMapeado = !!producto.holded_product_id
+    const ok = await confirm({
+      title: `¿Eliminar "${producto.primer_uso}"?`,
+      description: esMapeado
+        ? 'Se quitará el vínculo con Holded y desaparecerá de la lista.'
+        : 'Se eliminará de la lista de productos. No se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      variant: 'danger',
+    })
+    if (!ok) return
     del.mutate(producto.producto_normalizado, {
-      onSuccess: () => toast({ title: 'Desvinculado', variant: 'success' }),
+      onSuccess: () => toast({ title: esMapeado ? 'Desvinculado' : 'Eliminado', variant: 'success' }),
       onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'error' }),
     })
   }
@@ -186,14 +197,14 @@ function FilaProducto({
               {producto.holded_product_id ? 'Cambiar' : 'Vincular'}
             </Button>
           )}
-          {producto.holded_product_id && !editando && (
+          {!editando && (
             <Button
               size="sm"
               variant="ghost"
-              onClick={desvincular}
+              onClick={eliminar}
               disabled={del.isPending}
-              title="Desvincular"
-              className="text-red-600 hover:bg-red-50"
+              title={producto.holded_product_id ? 'Desvincular' : 'Eliminar producto'}
+              className="text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>

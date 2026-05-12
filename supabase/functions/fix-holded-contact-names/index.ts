@@ -1,14 +1,13 @@
 // Edge Function: fix-holded-contact-names
-// ONE-SHOT — restaura los nombres fiscales legales de 14 contactos Holded
-// que fueron sobreescritos por versiones anteriores de pedido-a-holded
-// que enviaban contactName junto con contactId.
+// ONE-SHOT — restaura los nombres fiscales de todos los contactos vinculados.
+// URL correcta: /api/invoicing/v1/contacts (verificado en holded-sync-contactos)
 //
 // Auth: service_role o admin_full
-// Body: {} (sin parámetros — actualiza los 14 contactos hardcodeados)
-// Responde: { results: [{id, name, ok, status, error?}] }
+// Body: {} — actualiza todos los contactos de la lista
+// Responde: { ok, total, fixed, results }
 
 const HOLDED_KEY = Deno.env.get('HOLDED_API_KEY') || ''
-const HOLDED_CONTACTS_URL = 'https://api.holded.com/api/contacts/v2/contacts'
+const HOLDED_CONTACTS_BASE = 'https://api.holded.com/api/invoicing/v1/contacts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -53,23 +52,39 @@ async function checkAuth(req: Request): Promise<{ ok: true } | { ok: false; stat
   return { ok: true }
 }
 
-// Mapa holded_contact_id → nombre fiscal legal correcto
-// Obtenido de manager_contactos (sincronizado desde Holded antes de la sobreescritura)
-const CONTACT_NAME_FIXES: { id: string; name: string }[] = [
-  { id: '69e522c3e40f926fd308978c', name: 'JEREMY MATTHEW ENCINA JONES (REST. AZURA)' },
-  { id: '68f149afe11b5b116f045f8e', name: 'JORGE MOYA RUEDA (REPIPI)' },
-  { id: '6924deadd3401aefc00c7999', name: 'LANTSOGHT SCHNABEL ROBERT JEAN PAUL (CASA ROBERTO)' },
-  { id: '68eff3c61f29bd7f9701b65c', name: 'María Teresa Gómez Donjo (Casi Casi Bar)' },
-  { id: '6984f12e9385e80fec068768', name: 'BODEGA RESTAURANTE CHAROLAIS SL' },
-  { id: '696d3191060a49f9480f174b', name: 'LA GALLETA ROSA S.L. (DAK BURGUER)' },
-  { id: '696aaf1fe80236498d07b875', name: 'COURTNEY JADE HALL (DON SANTIAGO)' },
-  { id: '69820ae316d96c91590a9ff1', name: 'GELAEL ARENAS S.L(BAR HOLLYWOOD)' },
-  { id: '69c0316f326503fc2c0b9ef6', name: 'SABORES DE MEXICO RESTAURANTE SL (ITACATE)' },
-  { id: '691240ef07f976d605091497', name: 'LA ROZUELA LOS PACOS SL' },
-  { id: '697683e40a5693afe8094e01', name: 'ALMA FUENGIROLA SL' },
-  { id: '695ff954b5a7c4a6a30d55b0', name: 'MARYAM RAHSHENAS (PIZZERIA SORRENTO)' },
-  { id: '68dda387da754ffebe0ec132', name: 'Victor Vinilo King SLU (Cocktail)' },
-  { id: '69768344564c7841bc04e386', name: 'YOLE EUROPE S.L' },
+// holded_contact_id → nombre fiscal legal correcto (de manager_contactos)
+// 30 clientes vinculados en pedidos_wa_clientes × manager_contactos
+const CONTACT_NAME_FIXES: { id: string; cliente: string; name: string }[] = [
+  { id: '69e522c3e40f926fd308978c', cliente: 'AZURA',               name: 'JEREMY MATTHEW ENCINA JONES (REST. AZURA)' },
+  { id: '69d694779b2ff2ab940a7b0b', cliente: 'BAR BETIS',           name: 'JUAN PEDRO MARTINEZ GARCIA (BAR BETIS)' },
+  { id: '68f149afe11b5b116f045f8e', cliente: 'BAR REPIPI',          name: 'JORGE MOYA RUEDA (REPIPI)' },
+  { id: '67b7478f421b38140f08bc94', cliente: 'BERIGÚ',              name: 'NICOLÁS SILVIO FERRARO CIOFFI' },
+  { id: '6721f22c51059510e50f0d59', cliente: 'BLACKBERRY',          name: 'Zumoart S.L' },
+  { id: '6707aa3807dd1a42350a4b9c', cliente: 'CASA DIEGO',          name: 'Freiduría Casa Diego SL' },
+  { id: '6914e98eb2125c4e6009fc7c', cliente: 'CASA PACO',           name: 'FRANCISCO CASCADO RAMOS E HIJOS SL (CASA PACO )' },
+  { id: '6924deadd3401aefc00c7999', cliente: 'CASA ROBERTO',        name: 'LANTSOGHT SCHNABEL ROBERT JEAN PAUL (CASA ROBERTO)' },
+  { id: '68eff3c61f29bd7f9701b65c', cliente: 'CASI CASI CAFETERÍA', name: 'María Teresa Gómez Donjo (Casi Casi Bar)' },
+  { id: '6984f12e9385e80fec068768', cliente: 'CHAROLAIS',           name: 'BODEGA RESTAURANTE CHAROLAIS SL' },
+  { id: '682ea919f9abfab372092d05', cliente: 'CHIRINGUITO LOS MORENOS', name: 'CHIRINGUITO LOS MORENOS S.L' },
+  { id: '69680a72b154a28b280a8ee5', cliente: 'CLUB NAUTICO',        name: 'JORGE LUIS GOMEZ TRUJILLO (Club Nautico)' },
+  { id: '69d81281a8e0de6820098b5c', cliente: 'COLINA DEL FARO',    name: 'GRUPO TIZISA SL (LAS COLINAS DEL FARO)' },
+  { id: '696d3191060a49f9480f174b', cliente: 'DAK BURGUER',         name: 'LA GALLETA ROSA S.L. (DAK BURGUER)' },
+  { id: '696aaf1fe80236498d07b875', cliente: 'DON SANTIAGO',        name: 'COURTNEY JADE HALL (DON SANTIAGO)' },
+  { id: '683d21caca00f2c4a7084a2b', cliente: 'EL ABUELO',          name: 'RESTAURANTE EL ABUELO' },
+  { id: '69820ae316d96c91590a9ff1', cliente: 'HOLLYWOOD',           name: 'GELAEL ARENAS S.L(BAR HOLLYWOOD)' },
+  { id: '69c0316f326503fc2c0b9ef6', cliente: 'ITACATE',             name: 'SABORES DE MEXICO RESTAURANTE SL (ITACATE)' },
+  { id: '690e792b4d0e5a0c830ec8e0', cliente: 'LA CATEDRAL',        name: 'CANTON RUBIO SALVIO (La catedral)' },
+  { id: '680a76e976789c9a99019ce5', cliente: 'LA PAERETA',          name: 'Hostelería Peinado SL (Pizzeria La Paereta)' },
+  { id: '691240ef07f976d605091497', cliente: 'LA ROZUELA',          name: 'LA ROZUELA LOS PACOS SL' },
+  { id: '697896bd79f670b6b80861ef', cliente: 'LOS BROCALES',        name: 'RESTAURANTE LOS BROCALES S.L.' },
+  { id: '697683e40a5693afe8094e01', cliente: 'RESTAURANTE ALMA',    name: 'ALMA FUENGIROLA SL' },
+  { id: '6962040f9706b6336309aa94', cliente: 'RESTAURANTE EL GOLF', name: 'Costa Social Wellness S.L (Restaurante El Golf)' },
+  { id: '68ba0058115fd3cd180db2cb', cliente: 'RICHYS FOOD',         name: 'Richy´s Food (RICHY´S FOOD)' },
+  { id: '695ff954b5a7c4a6a30d55b0', cliente: 'SORRENTO',            name: 'MARYAM RAHSHENAS (PIZZERIA SORRENTO)' },
+  { id: '6874bcf38f9a7104e1081b74', cliente: 'VERDIALES',           name: 'Restaurante Verdiales (Torres y Hevilla S.L)' },
+  { id: '6887e9431a61c4357503462f', cliente: 'VICTOR BEACH',        name: 'Victor Vinilo King SLU (Victor Beach)' },
+  { id: '68dda387da754ffebe0ec132', cliente: 'VICTOR COCKTAIL',     name: 'Victor Vinilo King SLU (Cocktail)' },
+  { id: '69768344564c7841bc04e386', cliente: 'YOLE HELADERIA',      name: 'YOLE EUROPE S.L' },
 ]
 
 Deno.serve(async (req) => {
@@ -78,15 +93,16 @@ Deno.serve(async (req) => {
   if (!auth.ok) return jsonRes({ error: auth.msg }, auth.status)
   if (!HOLDED_KEY) return jsonRes({ error: 'HOLDED_API_KEY no configurada' }, 500)
 
-  const results: { id: string; name: string; ok: boolean; status: number; error?: string }[] = []
+  const results: { id: string; cliente: string; name: string; ok: boolean; status: number; body?: unknown; error?: string }[] = []
 
   for (const contact of CONTACT_NAME_FIXES) {
     let status = 0
     let ok = false
     let error: string | undefined
+    let body: unknown
 
     try {
-      const res = await fetch(`${HOLDED_CONTACTS_URL}/${contact.id}`, {
+      const res = await fetch(`${HOLDED_CONTACTS_BASE}/${contact.id}`, {
         method: 'PUT',
         headers: {
           key: HOLDED_KEY,
@@ -97,17 +113,15 @@ Deno.serve(async (req) => {
       })
       status = res.status
       ok = res.ok
-      if (!res.ok) {
-        error = (await res.text()).slice(0, 200)
-      }
+      const txt = await res.text()
+      try { body = JSON.parse(txt) } catch { body = txt.slice(0, 300) }
+      if (!res.ok) error = typeof body === 'string' ? body : JSON.stringify(body).slice(0, 200)
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
     }
 
-    results.push({ id: contact.id, name: contact.name, ok, status, ...(error ? { error } : {}) })
-
-    // Rate limit: Holded permite 500 req/respuesta pero siendo conservadores
-    await new Promise(r => setTimeout(r, 200))
+    results.push({ id: contact.id, cliente: contact.cliente, name: contact.name, ok, status, body, ...(error ? { error } : {}) })
+    await new Promise(r => setTimeout(r, 150))
   }
 
   const allOk = results.every(r => r.ok)

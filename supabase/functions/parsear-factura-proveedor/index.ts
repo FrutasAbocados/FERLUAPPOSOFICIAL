@@ -44,7 +44,7 @@ const cors = {
 const SYSTEM = `Eres un parser de facturas de proveedores de fruta y verdura para Frutas Abocados (Ferlu Project S.L.). Recibes un PDF y devuelves JSON estructurado.
 
 REGLAS ABSOLUTAS:
-1. Devuelve SOLO JSON válido. Sin markdown, sin texto adicional, sin \`\`\`.
+1. Devuelve SOLO JSON válido. Tu respuesta debe empezar con `{` y terminar con `}`. Sin markdown, sin texto previo, sin análisis, sin \`\`\`. NADA antes del JSON.
 2. Detecta el proveedor:
    - Si pone "ABASTHOSUR" o NIF "A-29076759" → "abasthosur".
    - Si pone "FRUTAS PEREZ ALCALDE" o NIF "B-92.906.189" → "alcalde".
@@ -147,7 +147,7 @@ async function parsearConClaude(pdfB64: string): Promise<unknown> {
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 4000,
+      max_tokens: 16000,
       system: SYSTEM,
       messages: [
         {
@@ -170,14 +170,23 @@ async function parsearConClaude(pdfB64: string): Promise<unknown> {
   if (!res.ok) {
     throw new Error(`Claude ${res.status}: ${(await res.text()).slice(0, 300)}`)
   }
-  const data = await res.json() as { content: Array<{ type: string; text?: string }> }
+  const data = await res.json() as { content: Array<{ type: string; text?: string }>; stop_reason?: string }
+  if (data.stop_reason === 'max_tokens') {
+    throw new Error('Factura demasiado larga: Claude alcanzó el límite de tokens (aumentar max_tokens)')
+  }
   const text = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('').trim()
   const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
 
+  // Extraer JSON aunque Claude añada texto antes o después
+  const start = cleaned.indexOf('{')
+  const end   = cleaned.lastIndexOf('}')
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error(`Claude no devolvió JSON válido: ${cleaned.slice(0, 300)}`)
+  }
   try {
-    return JSON.parse(cleaned)
+    return JSON.parse(cleaned.slice(start, end + 1))
   } catch {
-    throw new Error(`Claude devolvió JSON inválido: ${cleaned.slice(0, 300)}`)
+    throw new Error(`Claude devolvió JSON inválido: ${cleaned.slice(start, start + 300)}`)
   }
 }
 
@@ -201,7 +210,8 @@ Deno.serve(async (req) => {
     return json(parsed)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    return json({ error: msg }, 500)
+    console.error('[parsear-factura] error:', msg)
+    return json({ error: msg })
   }
 })
 
