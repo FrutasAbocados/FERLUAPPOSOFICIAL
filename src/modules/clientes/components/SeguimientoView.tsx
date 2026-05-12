@@ -127,6 +127,7 @@ export function SeguimientoView({ onSelect }: Props) {
           icon={TrendingDown}
           tone="warn"
           rows={sinPedir}
+          umbralBase={umbral}
           umbralCritico={7}
           empty="Todos los clientes están pidiendo"
           isLoading={isLoading}
@@ -228,13 +229,14 @@ function FilaCliente({ r, tone, onSelect }: { r: FilaRow; tone: 'ok' | 'warn' | 
 }
 
 function Columna({
-  titulo, subtitulo, icon: Icon, tone, rows, umbralCritico, empty, isLoading, onSelect,
+  titulo, subtitulo, icon: Icon, tone, rows, umbralBase, umbralCritico, empty, isLoading, onSelect,
 }: {
   titulo: string
   subtitulo: string
   icon: React.ComponentType<{ className?: string }>
   tone: 'ok' | 'warn'
   rows: FilaRow[]
+  umbralBase?: number
   umbralCritico?: number
   empty: string
   isLoading: boolean
@@ -266,7 +268,7 @@ function Columna({
                   {criticos.length > 0 && (
                     <li className="flex items-center gap-2 bg-[var(--color-surface-2)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
                       <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                      Atención — entre umbral y {umbralCritico - 1}d
+                      Atención — {umbralBase != null ? `${umbralBase + 1}d` : ''}–{umbralCritico != null ? `${umbralCritico - 1}d` : ''}
                     </li>
                   )}
                   {atencion.map(r => <FilaCliente key={r.contact_name_canon} r={r} tone="amber" onSelect={onSelect} />)}
