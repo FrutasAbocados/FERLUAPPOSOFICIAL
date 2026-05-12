@@ -1,0 +1,398 @@
+/* LoginHero.css — Abocados OS login screen styles
+   All classes prefixed `ab-` to avoid clashes with the rest of the app.
+   Drop this anywhere (global stylesheet, or import next to the component). */
+
+/* fonts assumed loaded via <link> tag in <head> — see README */
+
+/* ─── Stage ──────────────────────────────────────────────── */
+.ab-stage {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #02050a;
+  color: #e6fff1;
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Atmospheric layers (the "green flames") ───────────── */
+.ab-base {
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(140% 80% at 50% 115%,
+      #6ee7a8 0%, #16a34a 12%, #066d35 26%,
+      #03361c 46%, #051411 65%, #02060a 88%),
+    radial-gradient(60% 50% at 50% 50%,
+      rgba(110, 231, 168, 0.22) 0%, transparent 60%);
+}
+.ab-bloom {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 1;
+  will-change: transform, opacity;
+}
+.ab-bloom--a {
+  width: 720px; height: 720px; left: 50%; top: 62%;
+  background: radial-gradient(circle, #6ee7a8 0%, #15a04a 40%, transparent 70%);
+  transform: translate(-50%, 0);
+  animation: ab-bloom-a 8s ease-in-out infinite;
+}
+.ab-bloom--b {
+  width: 520px; height: 520px; left: 28%; top: 75%;
+  background: radial-gradient(circle, #34d399 0%, #047857 50%, transparent 75%);
+  transform: translate(-50%, 0);
+  animation: ab-bloom-b 11s ease-in-out infinite;
+}
+.ab-bloom--c {
+  width: 620px; height: 620px; left: 74%; top: 70%;
+  background: radial-gradient(circle, #a7f3d0 0%, #10b981 45%, transparent 72%);
+  transform: translate(-50%, 0);
+  animation: ab-bloom-c 9s ease-in-out infinite;
+}
+.ab-bloom--d {
+  width: 900px; height: 480px; left: 50%; top: 8%;
+  background: radial-gradient(ellipse, rgba(45, 212, 191, 0.18) 0%, transparent 70%);
+  transform: translate(-50%, 0);
+  filter: blur(50px);
+  animation: ab-bloom-d 14s ease-in-out infinite;
+}
+@keyframes ab-bloom-a {
+  0%,100% { transform: translate(-50%, 0)  scale(1);    opacity: 0.95; }
+  50%     { transform: translate(-50%, -3%) scale(1.08); opacity: 0.75; }
+}
+@keyframes ab-bloom-b {
+  0%,100% { transform: translate(-50%, 0)  scale(1.05); opacity: 0.65; }
+  50%     { transform: translate(-50%, -4%) scale(0.95); opacity: 0.9; }
+}
+@keyframes ab-bloom-c {
+  0%,100% { transform: translate(-50%, 0)  scale(0.96); opacity: 0.85; }
+  50%     { transform: translate(-50%, -2%) scale(1.06); opacity: 0.6; }
+}
+@keyframes ab-bloom-d {
+  0%,100% { opacity: 0.6;  transform: translate(-50%, 0) scale(1); }
+  50%     { opacity: 0.95; transform: translate(-50%, 2%) scale(1.05); }
+}
+
+.ab-vignette {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background:
+    radial-gradient(80% 60% at 50% 30%, transparent 0%, rgba(0,0,0,0.45) 78%),
+    linear-gradient(180deg, rgba(0,10,5,0.6) 0%, transparent 22%, transparent 78%, rgba(0,5,3,0.75) 100%);
+}
+.ab-grain {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  opacity: 0.16; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+.ab-haze {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background: repeating-linear-gradient(0deg,
+    transparent 0px, transparent 3px,
+    rgba(110, 231, 168, 0.025) 3px, rgba(110, 231, 168, 0.025) 4px);
+  mix-blend-mode: overlay;
+}
+
+/* ─── Embers (rising mint particles) ────────────────────── */
+.ab-ember {
+  position: absolute; bottom: -20px;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #e8ffe8 0%, #4ade80 50%, transparent 75%);
+  box-shadow: 0 0 8px #4ade80;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 4;
+  animation: ab-rise linear infinite;
+}
+@keyframes ab-rise {
+  0%   { transform: translate(0, 0) scale(0.8); opacity: 0; }
+  10%  { opacity: 0.9; }
+  60%  { opacity: 0.7; }
+  100% { transform: translate(var(--ab-dx, 0), -110vh) scale(0.3); opacity: 0; }
+}
+
+/* ─── Floating avocados (ambient, "pro") ────────────────── */
+.ab-av-field {
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 2;
+  overflow: hidden;
+}
+.ab-av {
+  position: absolute;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: ab-av-drift linear infinite;
+}
+@keyframes ab-av-drift {
+  0%   { transform: translate3d(0, 0, 0) rotate(var(--ab-r0, 0deg)); opacity: 0; }
+  10%  { opacity: var(--ab-op, 0.1); }
+  90%  { opacity: var(--ab-op, 0.1); }
+  100% { transform: translate3d(var(--ab-dx, 60px), var(--ab-dy, -120px), 0)
+                    rotate(var(--ab-r1, 30deg));
+         opacity: 0; }
+}
+
+/* ─── Logo fusion ────────────────────────────────────────── */
+.ab-logo {
+  position: relative; z-index: 5;
+  display: grid; place-items: center;
+}
+.ab-logo__halo {
+  position: absolute;
+  width: clamp(380px, 58vh, 580px);
+  height: clamp(380px, 58vh, 580px);
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(190, 255, 215, 0.55) 0%,
+    rgba(74, 222, 128, 0.4) 22%,
+    rgba(16, 185, 129, 0.25) 42%,
+    transparent 66%);
+  filter: blur(22px);
+  mix-blend-mode: screen;
+  animation: ab-halo-pulse 6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes ab-halo-pulse {
+  0%,100% { transform: scale(1);    opacity: 0.95; }
+  50%     { transform: scale(1.06); opacity: 0.8; }
+}
+.ab-logo__wrap {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  isolation: isolate;
+  animation: ab-logo-breath 7s ease-in-out infinite;
+}
+@keyframes ab-logo-breath {
+  0%,100% { transform: scale(1)     translateY(0); }
+  50%     { transform: scale(1.015) translateY(-4px); }
+}
+.ab-logo__img {
+  display: block;
+  width: clamp(220px, 34vh, 340px);
+  height: auto;
+  filter:
+    saturate(1.05) contrast(1.03)
+    drop-shadow(0 0 28px rgba(110, 231, 168, 0.6))
+    drop-shadow(0 0 70px rgba(34, 197, 94, 0.45))
+    drop-shadow(0 14px 60px rgba(6, 95, 70, 0.55));
+}
+.ab-logo__ghost {
+  position: absolute;
+  width: clamp(220px, 34vh, 340px);
+  height: auto;
+  filter: blur(34px) saturate(1.4) brightness(1.2) hue-rotate(80deg);
+  opacity: 0.55;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: ab-logo-breath 7s ease-in-out infinite;
+}
+
+/* ─── Typography ─────────────────────────────────────────── */
+.ab-greet {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(28px, 5.4vh, 52px);
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+  color: #f0fff5;
+  text-shadow: 0 2px 18px rgba(110, 231, 168, 0.45),
+               0 0 60px rgba(34, 197, 94, 0.3);
+  white-space: nowrap;
+  margin: 0;
+}
+.ab-greet__accent { color: #6ee7a8; }
+.ab-motd {
+  font-family: 'Geist', system-ui, sans-serif;
+  font-weight: 400;
+  font-size: clamp(15px, 1.3vw, 19px);
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  color: #c7f5d6;
+  opacity: 0.92;
+  max-width: 580px;
+  margin: 14px auto 0;
+  text-wrap: balance;
+}
+.ab-motd__rule {
+  display: inline-block;
+  vertical-align: middle;
+  width: 22px; height: 1px;
+}
+.ab-motd__rule--left  { margin-right: 12px; background: linear-gradient(90deg, transparent, #6ee7a8); }
+.ab-motd__rule--right { margin-left:  12px; background: linear-gradient(90deg, #6ee7a8, transparent); }
+
+.ab-eyebrow {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.28em; text-transform: uppercase;
+  color: #6ee7a8;
+}
+
+/* ─── Login glass card ───────────────────────────────────── */
+.ab-glass {
+  position: relative;
+  background: linear-gradient(180deg, rgba(5, 18, 12, 0.55) 0%, rgba(2, 8, 6, 0.7) 100%);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid rgba(110, 231, 168, 0.18);
+  border-radius: 14px;
+  box-shadow:
+    0 30px 80px -20px rgba(0,0,0,0.7),
+    inset 0 0 0 1px rgba(110, 231, 168, 0.06),
+    inset 0 1px 0 rgba(190, 255, 215, 0.18);
+}
+.ab-field {
+  width: 100%;
+  background: rgba(200, 255, 220, 0.04);
+  border: 1px solid rgba(110, 231, 168, 0.18);
+  border-radius: 8px;
+  color: #f0fff5;
+  font: 500 14px/1 'Geist', system-ui, sans-serif;
+  padding: 13px 14px;
+  outline: none;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.ab-field::placeholder { color: rgba(200, 255, 220, 0.32); }
+.ab-field:focus {
+  border-color: #4ade80;
+  background: rgba(200, 255, 220, 0.07);
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.18);
+}
+.ab-label {
+  display: block;
+  font: 600 10px/1 'Geist Mono', ui-monospace, monospace;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: #6ee7a8;
+  margin: 0 0 7px 1px;
+  opacity: 0.9;
+}
+.ab-btn {
+  width: 100%;
+  background: linear-gradient(180deg, #86efac 0%, #4ade80 55%, #16a34a 100%);
+  color: #04140a;
+  border: 0;
+  border-radius: 8px;
+  padding: 14px 18px;
+  font: 700 15px 'Geist', system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow:
+    0 12px 30px -10px rgba(74, 222, 128, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -1px 0 rgba(0, 30, 15, 0.25);
+  transition: transform .12s, box-shadow .12s, filter .12s;
+}
+.ab-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow:
+    0 18px 40px -10px rgba(74, 222, 128, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+.ab-btn:active { transform: translateY(0); }
+.ab-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.ab-btn-ghost {
+  width: 100%;
+  background: transparent;
+  color: #c7f5d6;
+  border: 1px solid rgba(110, 231, 168, 0.25);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font: 500 13px 'Geist', sans-serif;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.ab-btn-ghost:hover {
+  border-color: rgba(110, 231, 168, 0.55);
+  background: rgba(110, 231, 168, 0.06);
+}
+
+/* ─── Top chrome chip ────────────────────────────────────── */
+.ab-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid rgba(110, 231, 168, 0.22);
+  border-radius: 999px;
+  background: rgba(5, 18, 12, 0.55);
+  backdrop-filter: blur(8px);
+  font: 500 11px/1 'Geist Mono', ui-monospace, monospace;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: #c7f5d6;
+  white-space: nowrap;
+}
+.ab-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 10px #4ade80, 0 0 20px rgba(34, 197, 94, 0.6);
+  animation: ab-dot-pulse 1.8s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes ab-dot-pulse {
+  0%,100% { opacity: 1;   transform: scale(1); }
+  50%     { opacity: 0.6; transform: scale(0.85); }
+}
+
+/* ─── Layout helpers ─────────────────────────────────────── */
+.ab-header {
+  position: relative; z-index: 10;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 16px;
+  padding: 28px 40px;
+}
+.ab-brand { display: flex; align-items: center; gap: 12px; }
+.ab-brand__mark {
+  width: 36px; height: 36px; border-radius: 9px;
+  background: linear-gradient(180deg, #86efac, #16a34a);
+  display: grid; place-items: center;
+  color: #04140a;
+  font: 800 17px 'Geist', sans-serif;
+  box-shadow: 0 8px 24px -8px rgba(74,222,128,0.6),
+              inset 0 1px 0 rgba(255,255,255,0.4);
+}
+.ab-brand__name  { font-size: 13.5px; font-weight: 700; letter-spacing: -0.01em; color: #f0fff5; }
+.ab-brand__sub   { font-size: 9.5px;  margin-top: 2px; }
+
+.ab-main {
+  position: relative; z-index: 10;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 8px 24px 40px;
+  gap: 20px;
+  flex: 1;
+  justify-content: center;
+}
+.ab-greet-block { text-align: center; max-width: 760px; margin-top: -8px; }
+.ab-form { width: min(420px, 92vw); padding: 22px 26px; display: flex; flex-direction: column; gap: 12px; }
+.ab-form__head { display: flex; justify-content: space-between; align-items: baseline; }
+.ab-form__meta { font: 500 11px 'Geist Mono', monospace; color: rgba(199,245,214,0.45); }
+.ab-form__row  { display: flex; justify-content: space-between; align-items: baseline; }
+.ab-form__forgot {
+  font-size: 11px; color: rgba(199,245,214,0.55);
+  font-family: 'Geist Mono', monospace; text-decoration: none;
+}
+.ab-form__forgot:hover { color: #6ee7a8; }
+.ab-form__footnote {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px; color: rgba(199,245,214,0.45);
+  text-align: center; letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+.ab-form__footnote a { color: #6ee7a8; text-decoration: none; }
+
+@media (max-width: 600px) {
+  .ab-header { padding: 16px 18px; }
+  .ab-brand__sub { display: none; }
+  .ab-greet { white-space: normal; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-bloom, .ab-logo__wrap, .ab-logo__ghost, .ab-logo__halo,
+  .ab-dot, .ab-ember, .ab-av { animation: none !important; }
+}
