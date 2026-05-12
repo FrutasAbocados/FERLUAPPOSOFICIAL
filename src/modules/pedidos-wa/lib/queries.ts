@@ -469,11 +469,18 @@ export function useDeleteProductoHolded() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (producto_normalizado: string) => {
-      const { error } = await supabase
+      const nom = producto_normalizado.toLowerCase()
+      // 1. Eliminar mapeo Holded si existe (noop si no tiene mapeo)
+      const { error: e1 } = await supabase
         .from('pedidos_wa_productos_holded')
         .delete()
-        .eq('producto_normalizado', producto_normalizado.toLowerCase())
-      if (error) throw error
+        .eq('producto_normalizado', nom)
+      if (e1) throw e1
+      // 2. Marcar como oculto para que no reaparezca en la RPC
+      const { error: e2 } = await supabase
+        .from('pedidos_wa_productos_ocultos')
+        .upsert({ producto_normalizado: nom }, { onConflict: 'producto_normalizado' })
+      if (e2) throw e2
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pedidos_wa', 'productos_wa'] }),
   })
