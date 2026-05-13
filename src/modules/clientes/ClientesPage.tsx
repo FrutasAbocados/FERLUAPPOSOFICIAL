@@ -54,9 +54,9 @@ export function ClientesPage() {
         title="Clientes"
         subtitle="BBDD completa con ficha 360° y seguimiento semanal de actividad"
       />
-      <div className="mx-auto w-full max-w-7xl space-y-4 p-4 md:p-6">
+      <div className="ao-page max-w-7xl space-y-4 py-6 md:py-8">
 
-      <nav className="flex gap-1 overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
+      <nav className="ao-tabbar flex w-full overflow-x-auto p-1 md:w-auto">
         {TABS.map((t) => {
           const active = tab === t.key
           return (
@@ -65,11 +65,12 @@ export function ClientesPage() {
               type="button"
               onClick={() => setTab(t.key)}
               className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                'ao-tab flex shrink-0 items-center gap-1.5',
                 active
-                  ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]'
+                  ? 'font-semibold'
                   : 'text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)]',
               )}
+              data-active={active}
             >
               <t.icon className="h-4 w-4" />
               {t.label}

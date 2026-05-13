@@ -132,7 +132,7 @@ export function CategoriasModal({ onClose }: { onClose: () => void }) {
                 />
                 Activa
               </label>
-              <Button size="sm" variant="ghost" onClick={() => handleDelete(c.id, c.nombre)} className="text-[#dc2626] hover:bg-[#fee2e2]">
+              <Button size="sm" variant="ghost" onClick={() => handleDelete(c.id, c.nombre)} className="text-[var(--coral)] hover:bg-[var(--color-danger-soft)]">
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>

@@ -80,7 +80,7 @@ function DeltaBadge({ delta }: { delta: number | null }) {
   return (
     <span className={cn(
       'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
-      positive ? 'bg-[#10b98122] text-[#047857]' : 'bg-[#ef444422] text-[#b91c1c]',
+      positive ? 'bg-[var(--mint-glow)] text-[var(--mint)]' : 'bg-[var(--color-danger-soft)] text-[var(--coral)]',
     )}>
       {positive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
       {positive ? '+' : ''}{delta.toFixed(1)}pp

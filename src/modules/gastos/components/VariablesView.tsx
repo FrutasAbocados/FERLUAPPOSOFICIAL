@@ -78,7 +78,7 @@ export function VariablesView({ anchor }: Props) {
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
+      <div className="ao-panel flex flex-wrap items-center gap-2 p-3">
         <div className="flex gap-1">
           {RANGOS.map((r) => (
             <button
@@ -132,11 +132,11 @@ export function VariablesView({ anchor }: Props) {
       </div>
 
       {/* Tabla */}
-      <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="ao-card overflow-hidden p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-2)]">
-              <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+            <thead className="border-b border-[var(--color-border)] bg-[rgba(255,255,255,.025)]">
+              <tr className="label-caps text-left">
                 <th className="px-3 py-2">Fecha</th>
                 <th className="px-3 py-2">Categoría</th>
                 <th className="px-3 py-2">Proveedor</th>
@@ -160,8 +160,8 @@ export function VariablesView({ anchor }: Props) {
                   v.proveedor_libre ??
                   '—'
                 return (
-                  <tr key={v.id} className="border-t border-[var(--color-border)] hover:bg-[var(--color-surface-2)]">
-                    <td className="px-3 py-2 tabular-nums">
+                  <tr key={v.id} className="border-t border-[var(--color-border)] hover:bg-[rgba(255,255,255,.025)]">
+                    <td className="mono px-3 py-2 tabular-nums">
                       {format(parseISO(v.fecha), 'd LLL', { locale: es })}
                     </td>
                     <td className="px-3 py-2">
@@ -169,9 +169,9 @@ export function VariablesView({ anchor }: Props) {
                     </td>
                     <td className="px-3 py-2 text-[var(--color-ink-2)]">{proveedorLabel}</td>
                     <td className="px-3 py-2 text-[var(--color-ink-2)]">{v.descripcion ?? '—'}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{euros(v.subtotal)}</td>
-                    <td className="px-3 py-2 text-right text-[var(--color-ink-3)] tabular-nums">{v.iva_pct}%</td>
-                    <td className="px-3 py-2 text-right font-semibold tabular-nums">{euros(v.total)}</td>
+                    <td className="mono px-3 py-2 text-right tabular-nums">{euros(v.subtotal)}</td>
+                    <td className="mono px-3 py-2 text-right text-[var(--color-ink-3)] tabular-nums">{v.iva_pct}%</td>
+                    <td className="mono px-3 py-2 text-right font-semibold tabular-nums">{euros(v.total)}</td>
                     <td className="px-3 py-2 text-right">
                       <Button size="sm" variant="ghost" onClick={() => setEditing(v)}>
                         <Pencil className="h-3.5 w-3.5" />
@@ -182,12 +182,12 @@ export function VariablesView({ anchor }: Props) {
               })}
             </tbody>
             {variables.length > 0 && (
-              <tfoot className="border-t border-[var(--color-border)] bg-[var(--color-surface-2)]">
+              <tfoot className="border-t border-[var(--color-border)] bg-[rgba(255,255,255,.025)]">
                 <tr>
                   <td colSpan={6} className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
                     Total
                   </td>
-                  <td className="px-3 py-2 text-right font-bold tabular-nums text-[var(--color-primary-2)]">{euros(total)}</td>
+                  <td className="mono px-3 py-2 text-right font-bold tabular-nums text-[var(--mint)]">{euros(total)}</td>
                   <td></td>
                 </tr>
               </tfoot>

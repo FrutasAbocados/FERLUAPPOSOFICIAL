@@ -82,11 +82,11 @@ export function FijosView({ anio, mes, CalendarioComp }: Props) {
       <CalendarioComp anio={anio} mes={mes} rows={cal} onTogglePagado={onTogglePagado} />
 
       {/* Tabla */}
-      <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="ao-card overflow-hidden p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-2)]">
-              <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+            <thead className="border-b border-[var(--color-border)] bg-[rgba(255,255,255,.025)]">
+              <tr className="label-caps text-left">
                 <th className="px-3 py-2">Nombre</th>
                 <th className="px-3 py-2">Día</th>
                 <th className="px-3 py-2 text-right">Importe</th>
@@ -117,9 +117,9 @@ export function FijosView({ anio, mes, CalendarioComp }: Props) {
                       <div className="font-medium text-[var(--color-ink)]">{f.nombre}</div>
                       {f.notas && <div className="text-[11px] text-[var(--color-ink-3)]">{f.notas}</div>}
                     </td>
-                    <td className="px-3 py-2 tabular-nums">{f.dia_cargo}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{euros(f.importe)}</td>
-                    <td className="px-3 py-2 text-right font-semibold tabular-nums">{euros(total)}</td>
+                    <td className="mono px-3 py-2 tabular-nums">{f.dia_cargo}</td>
+                    <td className="mono px-3 py-2 text-right tabular-nums">{euros(f.importe)}</td>
+                    <td className="mono px-3 py-2 text-right font-semibold tabular-nums">{euros(total)}</td>
                     <td className="px-3 py-2">
                       <CategoriaBadge id={c?.categoria_id ?? f.categoria_id} color={c?.categoria_color} nombre={c?.categoria_nombre} />
                     </td>
@@ -150,13 +150,13 @@ export function FijosView({ anio, mes, CalendarioComp }: Props) {
 
 function EstadoTag({ estado }: { estado: CalendarioRow['estado'] }) {
   const map: Record<CalendarioRow['estado'], string> = {
-    pagado:  'bg-[#10b98122] text-[#047857]',
-    vencido: 'bg-[#ef444422] text-[#b91c1c]',
-    proximo: 'bg-[#f59e0b22] text-[#92400e]',
+    pagado:  'ao-chip-mint',
+    vencido: 'ao-chip-coral',
+    proximo: 'ao-chip-amber',
     futuro:  'bg-[var(--color-surface-2)] text-[var(--color-ink-2)]',
   }
   const label: Record<CalendarioRow['estado'], string> = {
     pagado: 'Pagado', vencido: 'Vencido', proximo: '≤7d', futuro: 'Futuro',
   }
-  return <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', map[estado])}>{label[estado]}</span>
+  return <span className={cn('ao-chip', map[estado])}>{label[estado]}</span>
 }

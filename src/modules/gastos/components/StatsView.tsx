@@ -58,7 +58,7 @@ export function StatsView({ anchor }: Props) {
 
   const pivot = useMemo(() => buildPivot(gastos, dimRow, dimCol), [gastos, dimRow, dimCol])
   const porCategoria = useMemo(() => groupTotals(gastos, (g) => g.categoria_nombre ?? 'Sin categoría', (g) => g.categoria_color ?? '#64748b'), [gastos])
-  const porProveedor = useMemo(() => groupTotals(gastos, (g) => g.proveedor, () => '#10b981'), [gastos])
+  const porProveedor = useMemo(() => groupTotals(gastos, (g) => g.proveedor, () => 'var(--mint)'), [gastos])
   const topProv      = porProveedor.slice(0, 5)
 
   const stackedMensual = useMemo(() => buildStackedMensual(gastos), [gastos])
@@ -66,7 +66,7 @@ export function StatsView({ anchor }: Props) {
   return (
     <div className="space-y-4">
       {/* Toolbar rango */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
+      <div className="ao-panel flex flex-wrap items-center justify-between gap-2 p-3">
         <div className="flex gap-1">
           {RANGOS.map((r) => (
             <button
@@ -113,9 +113,9 @@ export function StatsView({ anchor }: Props) {
                 contentStyle={{ fontSize: 12 }}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} formatter={(v) => nameMap(v)} />
-              <Line type="monotone" dataKey="fijos_total"     stroke="#10b981" strokeWidth={2} dot={{ r: 2 }} />
-              <Line type="monotone" dataKey="variables_total" stroke="#f59e0b" strokeWidth={2} dot={{ r: 2 }} />
-              <Line type="monotone" dataKey="total"           stroke="#0ea5e9" strokeWidth={2} dot={{ r: 2 }} strokeDasharray="3 3" />
+              <Line type="monotone" dataKey="fijos_total"     stroke="var(--mint)" strokeWidth={2} dot={{ r: 2 }} />
+              <Line type="monotone" dataKey="variables_total" stroke="var(--amber)" strokeWidth={2} dot={{ r: 2 }} />
+              <Line type="monotone" dataKey="total"           stroke="var(--sky)" strokeWidth={2} dot={{ r: 2 }} strokeDasharray="3 3" />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -145,7 +145,7 @@ export function StatsView({ anchor }: Props) {
               <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(n: number) => eurosShort(n)} />
               <YAxis type="category" dataKey="key" tick={{ fontSize: 11 }} width={100} />
               <Tooltip formatter={((v: any) => euros(Number(v))) as any} contentStyle={{ fontSize: 12 }} />
-              <Bar dataKey="total" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="total" fill="var(--sky)" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -173,13 +173,13 @@ export function StatsView({ anchor }: Props) {
       </div>
 
       {/* Pivot dinámica */}
-      <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="ao-card p-0">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] px-3 py-2">
           <h3 className="text-sm font-semibold text-[var(--color-ink)]">Tabla dinámica</h3>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <label className="flex items-center gap-1 text-[var(--color-ink-3)]">
               Filas
-              <select value={dimRow} onChange={(e) => setDimRow(e.target.value as DimRow)} className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs">
+              <select value={dimRow} onChange={(e) => setDimRow(e.target.value as DimRow)} className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-ink)]">
                 <option value="mes">Mes</option>
                 <option value="categoria">Categoría</option>
                 <option value="proveedor">Proveedor</option>
@@ -187,7 +187,7 @@ export function StatsView({ anchor }: Props) {
             </label>
             <label className="flex items-center gap-1 text-[var(--color-ink-3)]">
               Columnas
-              <select value={dimCol} onChange={(e) => setDimCol(e.target.value as DimCol)} className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs">
+              <select value={dimCol} onChange={(e) => setDimCol(e.target.value as DimCol)} className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-ink)]">
                 <option value="none">— ninguna —</option>
                 <option value="categoria">Categoría</option>
                 <option value="proveedor">Proveedor</option>
@@ -204,8 +204,8 @@ export function StatsView({ anchor }: Props) {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-[var(--color-surface-2)]">
-                <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+              <thead className="bg-[rgba(255,255,255,.025)]">
+                <tr className="label-caps text-left">
                   <th className="px-3 py-2">{dimLabel(dimRow)}</th>
                   {pivot.cols.map((c) => (
                     <th key={c} className="px-3 py-2 text-right">{c}</th>
@@ -218,25 +218,25 @@ export function StatsView({ anchor }: Props) {
                   <tr key={r.key} className="border-t border-[var(--color-border)]">
                     <td className="px-3 py-2 text-[var(--color-ink)]">{r.label}</td>
                     {pivot.cols.map((c) => (
-                      <td key={c} className="px-3 py-2 text-right tabular-nums text-[var(--color-ink-2)]">
+                      <td key={c} className="mono px-3 py-2 text-right tabular-nums text-[var(--color-ink-2)]">
                         {r.cells[c] ? euros(r.cells[c]) : '—'}
                       </td>
                     ))}
-                    <td className="px-3 py-2 text-right font-semibold tabular-nums text-[var(--color-ink)]">
+                    <td className="mono px-3 py-2 text-right font-semibold tabular-nums text-[var(--color-ink)]">
                       {euros(r.total)}
                     </td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="border-t border-[var(--color-border)] bg-[var(--color-surface-2)]">
+              <tfoot className="border-t border-[var(--color-border)] bg-[rgba(255,255,255,.025)]">
                 <tr>
                   <td className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Total</td>
                   {pivot.cols.map((c) => (
-                    <td key={c} className="px-3 py-2 text-right tabular-nums text-[var(--color-ink-3)]">
+                    <td key={c} className="mono px-3 py-2 text-right tabular-nums text-[var(--color-ink-3)]">
                       {pivot.colTotals[c] ? euros(pivot.colTotals[c]) : '—'}
                     </td>
                   ))}
-                  <td className="px-3 py-2 text-right font-bold tabular-nums text-[var(--color-primary-2)]">{euros(total)}</td>
+                  <td className="mono px-3 py-2 text-right font-bold tabular-nums text-[var(--mint)]">{euros(total)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -251,8 +251,8 @@ export function StatsView({ anchor }: Props) {
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">{title}</div>
+    <div className="ao-card p-3">
+      <div className="label-caps mb-2">{title}</div>
       {children}
     </div>
   )

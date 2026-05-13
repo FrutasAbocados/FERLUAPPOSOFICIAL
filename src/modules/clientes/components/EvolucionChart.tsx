@@ -55,7 +55,7 @@ export function EvolucionChart({ name }: Props) {
                 formatter={((v: any, name: any) => [euros(Number(v)), labelMap(String(name))]) as any}
                 contentStyle={{ fontSize: 12 }}
               />
-              <Bar dataKey="ventas" fill="#10b98166" name="ventas" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="ventas" fill="var(--mint)" name="ventas" radius={[3, 3, 0, 0]} />
               <Line type="monotone" dataKey="margen" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 2 }} name="margen" />
             </ComposedChart>
           </ResponsiveContainer>

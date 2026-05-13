@@ -71,7 +71,7 @@ export function PreferenciasCard({ name }: { name: string }) {
     <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="flex items-center justify-between gap-2 border-b border-[var(--color-border)] px-3 py-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
-          Preferencias operativas {enPausa && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">EN PAUSA</span>}
+          Preferencias operativas {enPausa && <span className="ao-chip ao-chip-amber ml-2">EN PAUSA</span>}
         </h3>
         <Button size="sm" variant={dirty ? 'primary' : 'ghost'} disabled={!dirty || set.isPending} onClick={guardar}>
           <Save className="mr-1 h-3.5 w-3.5" />
