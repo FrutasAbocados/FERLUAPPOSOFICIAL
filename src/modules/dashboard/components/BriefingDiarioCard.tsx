@@ -3,9 +3,16 @@ import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ArrowRight, Loader2, RefreshCw, Sparkles } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
+import { Link } from 'react-router-dom'
 import { Button } from '@/shared/components/ui/button'
 import { toast } from '@/shared/lib/toast'
 import { useBriefingHoy, useGenerarBriefingAhora } from '../lib/queries'
+
+const briefingActions = [
+  { title: 'Revisar deudores', sub: 'Cobros y vencidos', to: '/cobros' },
+  { title: 'Ajustar PVP', sub: 'Productos con coste subiendo', to: '/manager' },
+  { title: 'Reactivar clientes', sub: 'Cadencia y riesgo de fuga', to: '/clientes' },
+]
 
 export function BriefingDiarioCard() {
   const briefing = useBriefingHoy()
@@ -89,12 +96,8 @@ export function BriefingDiarioCard() {
             </p>
           </div>
           <div className="grid gap-2.5 content-start">
-            {[
-              ['Revisar deudores', 'Cobros y vencidos'],
-              ['Ajustar PVP', 'Productos con coste subiendo'],
-              ['Reactivar clientes', 'Cadencia y riesgo de fuga'],
-            ].map(([title, sub]) => (
-              <div key={title} className="ao-panel ao-card-hover flex items-center gap-3 p-3">
+            {briefingActions.map(({ title, sub, to }) => (
+              <Link key={title} to={to} className="ao-panel ao-card-hover flex items-center gap-3 p-3">
                 <div className="ao-icon-tile h-8 w-8 shrink-0">
                   <Sparkles className="h-4 w-4" strokeWidth={1.7} />
                 </div>
@@ -103,7 +106,7 @@ export function BriefingDiarioCard() {
                   <div className="mono truncate text-[10px] uppercase tracking-[0.12em] text-[var(--ink-mute)]">{sub}</div>
                 </div>
                 <ArrowRight className="h-4 w-4 text-[var(--ink-mute)]" strokeWidth={1.6} />
-              </div>
+              </Link>
             ))}
           </div>
         </div>
