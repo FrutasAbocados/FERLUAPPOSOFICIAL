@@ -55,6 +55,7 @@ export function TrabajadoresOpPage() {
               key={t.k}
               type="button"
               onClick={() => setTab(t.k)}
+              data-active={tab === t.k}
               className={tab === t.k ? 'ao-tab ao-tab-active' : 'ao-tab'}
             >
               <t.Icon className="h-3.5 w-3.5" /> {t.l}
