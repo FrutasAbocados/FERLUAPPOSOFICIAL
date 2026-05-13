@@ -48,7 +48,7 @@ export function PageTopbar({ breadcrumb, title, subtitle, actions }: PageTopbarP
       </div>
 
       {/* Right cluster: module actions + bell + sync + ⌘K */}
-      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
         {actions}
 
         <button

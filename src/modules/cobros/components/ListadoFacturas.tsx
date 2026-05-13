@@ -44,11 +44,11 @@ type Props = {
 const fmt = (iso: string) => format(parseISO(iso), 'd LLL yyyy', { locale: es })
 
 const TONO_ESTADO: Record<Estado | 'Pizarra', string> = {
-  Cobrado:    'bg-slate-100 text-slate-700',
-  Pendiente:  'bg-emerald-100 text-emerald-800',
-  Próximo:    'bg-amber-100 text-amber-800',
-  Vencido:    'bg-red-100 text-red-700',
-  Pizarra:    'bg-purple-100 text-purple-800',
+  Cobrado:    'ao-chip',
+  Pendiente:  'ao-chip ao-chip-mint',
+  Próximo:    'ao-chip ao-chip-amber',
+  Vencido:    'ao-chip ao-chip-coral',
+  Pizarra:    'ao-chip ao-chip-sky',
 }
 
 export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
@@ -215,7 +215,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
   return (
     <div className="space-y-3">
       {/* Filtros */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <div className="ao-panel p-3">
         <div className="grid gap-2 md:grid-cols-[1fr_auto_auto_auto_auto]">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--color-ink-3)]" />
@@ -229,7 +229,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
           <select
             value={preset}
             onChange={(e) => setPreset(e.target.value as Preset)}
-            className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm"
+            className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-ink)]"
             title="Rango de fechas"
           >
             <option value="todo">📅 Todas las fechas</option>
@@ -245,7 +245,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
           <select
             value={fEstado}
             onChange={(e) => setFEstado(e.target.value as FiltroEstado)}
-            className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm"
+            className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-ink)]"
           >
             <option value="todos">Todos los estados</option>
             <option value="Pendiente">Pendiente</option>
@@ -257,7 +257,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
           <select
             value={fTipo}
             onChange={(e) => setFTipo(e.target.value as FiltroTipo)}
-            className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm"
+            className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-ink)]"
           >
             <option value="todos">Tipo: todos</option>
             <option value="Factura">Solo factura</option>
@@ -266,7 +266,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
           <select
             value={fSigno}
             onChange={(e) => setFSigno(e.target.value as FiltroSigno)}
-            className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm"
+            className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-ink)]"
           >
             <option value="todos">Cargos y abonos</option>
             <option value="cargos">Solo cargos</option>
@@ -318,13 +318,13 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
             </span>
           )}
           <span>· importe total <strong className="tabular-nums text-[var(--color-ink)]">{eur(totales.imp)}</strong></span>
-          <span>· pendiente <strong className={`tabular-nums ${totales.pend < 0 ? 'text-amber-700' : 'text-[var(--color-ink)]'}`}>{eur(totales.pend)}</strong></span>
+          <span>· pendiente <strong className={`mono tabular-nums ${totales.pend < 0 ? 'text-[var(--amber)]' : 'text-[var(--color-ink)]'}`}>{eur(totales.pend)}</strong></span>
         </div>
       </div>
 
       {/* Barra de selección */}
       {seleccion.num > 0 && (
-        <div className="sticky top-2 z-10 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-soft)] px-3 py-2 text-sm shadow-sm">
+        <div className="sticky top-2 z-10 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--mint)] bg-[var(--mint-glow)] px-3 py-2 text-sm shadow-sm">
           <span className="font-semibold text-[var(--color-primary-2)]">
             {seleccion.num} seleccionada{seleccion.num === 1 ? '' : 's'}
           </span>
@@ -332,7 +332,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
             · importe <strong className="tabular-nums text-[var(--color-ink)]">{eur(seleccion.imp)}</strong>
           </span>
           <span className="text-[var(--color-ink-2)]">
-            · pendiente <strong className={`tabular-nums ${seleccion.pend < 0 ? 'text-amber-700' : 'text-[var(--color-ink)]'}`}>{eur(seleccion.pend)}</strong>
+            · pendiente <strong className={`mono tabular-nums ${seleccion.pend < 0 ? 'text-[var(--amber)]' : 'text-[var(--color-ink)]'}`}>{eur(seleccion.pend)}</strong>
           </span>
           <Button
             size="sm"
@@ -346,9 +346,9 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
       )}
 
       {/* Tabla */}
-      <div className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="ao-card overflow-x-auto p-0">
         <table className="w-full min-w-[700px] border-collapse text-sm">
-          <thead className="bg-[var(--color-surface-2,#f8fafc)]">
+          <thead className="bg-[rgba(255,255,255,.025)]">
             <tr className="text-left">
               <th className="px-3 py-2 w-8">
                 <input
@@ -386,7 +386,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
               return (
                 <tr
                   key={m.id}
-                  className={`border-t border-[var(--color-border)] ${isSel ? 'bg-[var(--color-primary-soft)]/50' : 'hover:bg-[var(--color-surface-2,#f8fafc)]'}`}
+                  className={`border-t border-[var(--color-border)] ${isSel ? 'bg-[var(--mint-glow)]' : 'hover:bg-[rgba(255,255,255,.025)]'}`}
                 >
                   <td className="px-3 py-2 w-8">
                     <input
@@ -400,7 +400,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
                   <td className="px-3 py-2 whitespace-nowrap text-[var(--color-ink-2)]">{fmt(m.fecha_factura)}</td>
                   <td className="px-3 py-2 whitespace-nowrap font-medium text-[var(--color-ink)]">
                     {m.numero_factura ?? <span className="text-[var(--color-ink-3)]">—</span>}
-                    {esAbono && <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">A</span>}
+                    {esAbono && <span className="ao-chip ao-chip-amber ml-1 px-1.5 py-0.5 text-[9px]">A</span>}
                   </td>
                   <td className="px-3 py-2 max-w-[180px] truncate">
                     <button onClick={() => onVerCliente(m.cliente_id)} className="text-left text-[var(--color-ink)] hover:underline">
@@ -408,14 +408,14 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
                     </button>
                   </td>
                   <td className="px-3 py-2 max-w-[180px] truncate text-[var(--color-ink-3)]">{m.concepto ?? '—'}</td>
-                  <td className={`px-3 py-2 text-right tabular-nums font-medium ${Number(m.importe) < 0 ? 'text-amber-700' : 'text-[var(--color-ink)]'}`}>
+                  <td className={`mono px-3 py-2 text-right tabular-nums font-medium ${Number(m.importe) < 0 ? 'text-[var(--amber)]' : 'text-[var(--color-ink)]'}`}>
                     {eur(Number(m.importe))}
                   </td>
-                  <td className={`px-3 py-2 text-right tabular-nums ${pend === 0 ? 'text-[var(--color-ink-3)]' : pend < 0 ? 'text-amber-700' : 'text-[var(--color-ink)]'}`}>
+                  <td className={`mono px-3 py-2 text-right tabular-nums ${pend === 0 ? 'text-[var(--color-ink-3)]' : pend < 0 ? 'text-[var(--amber)]' : 'text-[var(--color-ink)]'}`}>
                     {eur(pend)}
                   </td>
                   <td className="px-3 py-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${TONO_ESTADO[est]}`}>{est}</span>
+                    <span className={TONO_ESTADO[est]}>{est}</span>
                   </td>
                   <td className="px-3 py-2 text-right">
                     <div className="inline-flex items-center justify-end gap-1">
@@ -430,7 +430,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
                         onClick={() => eliminar(m, nombrePorId.get(m.cliente_id) ?? '—')}
                         disabled={del.isPending}
                         title="Eliminar"
-                        className="text-red-600 hover:bg-red-50"
+                        className="text-[var(--coral)] hover:bg-[var(--color-danger-soft)]"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>

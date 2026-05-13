@@ -170,7 +170,10 @@ export function ExportPanel() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Exportar / backup</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-4 w-4 text-[var(--mint)]" />
+            Exportar / backup
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <p className="text-[var(--color-ink-2)]">
@@ -243,9 +246,12 @@ function BackupsAutomaticosPanel() {
   }
 
   return (
-    <Card>
+      <Card>
       <CardHeader>
-        <CardTitle>Backups automáticos diarios</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Cloud className="h-4 w-4 text-[var(--sky)]" />
+          Backups automáticos diarios
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <p className="text-[var(--color-ink-2)]">
@@ -263,7 +269,7 @@ function BackupsAutomaticosPanel() {
           </Button>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-[var(--color-border)]">
+        <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[rgba(255,255,255,.015)]">
           {list.isLoading && <p className="px-4 py-3 text-[var(--color-ink-3)]">Cargando…</p>}
           {!list.isLoading && (list.data ?? []).length === 0 && (
             <p className="px-4 py-3 text-[var(--color-ink-3)]">Sin backups todavía. Genera uno manual.</p>
@@ -278,12 +284,12 @@ function BackupsAutomaticosPanel() {
                       <span className={
                         'rounded-full px-1.5 py-0.5 text-[10px] uppercase tracking-wider ' +
                         (b.trigger_source === 'cron'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-slate-100 text-slate-700')
+                          ? 'ao-chip-mint'
+                          : '')
                       }>
                         {b.trigger_source}
                       </span>
-                      {!b.ok && <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-rose-700">error</span>}
+                      {!b.ok && <span className="ao-chip ao-chip-coral px-1.5 py-0.5 text-[10px]">error</span>}
                     </div>
                     <div className="text-xs text-[var(--color-ink-3)] tabular-nums">
                       {b.ok

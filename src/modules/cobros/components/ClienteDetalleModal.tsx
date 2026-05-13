@@ -84,12 +84,12 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between rounded-[var(--radius-md)] bg-[var(--color-surface-2)] p-3">
+      <div className="ao-panel flex items-center justify-between p-3">
         <div>
-          <div className="text-xs uppercase tracking-wider text-[var(--color-ink-3)]">
+          <div className="label-caps">
             Deuda total
           </div>
-          <div className="font-display text-2xl font-bold text-[var(--color-ink)]">
+          <div className="mono text-2xl font-semibold tabular-nums text-[var(--color-ink)]">
             {eur(totalPend)}
           </div>
           <div className="text-[11px] text-[var(--color-ink-3)]">
@@ -104,7 +104,7 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
       </div>
 
       {/* Datos editables */}
-      <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] p-4">
+      <div className="ao-panel p-4">
         <div className="mb-3 flex items-center justify-between">
           <h4 className="text-sm font-semibold">Datos del cliente</h4>
           {!editando ? (
@@ -130,7 +130,7 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
               <select
                 value={forma}
                 onChange={(e) => setForma(e.target.value as FormaPago)}
-                className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm"
+                className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-ink)]"
               >
                 {(Object.keys(FORMA_PAGO_LABEL) as FormaPago[]).map((k) => (
                   <option key={k} value={k}>
@@ -144,7 +144,7 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
               <select
                 value={metodo}
                 onChange={(e) => setMetodo(e.target.value as MetodoCobro | '')}
-                className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm"
+                className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-ink)]"
               >
                 <option value="">—</option>
                 {METODOS_COBRO.map((m) => (
@@ -179,9 +179,9 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
         <h4 className="mb-2 text-sm font-semibold">
           Histórico ({ordenados.length})
         </h4>
-        <div className="max-h-80 overflow-auto rounded-[var(--radius-md)] border border-[var(--color-border)]">
+        <div className="max-h-80 overflow-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[rgba(255,255,255,.015)]">
           <table className="w-full text-xs">
-            <thead className="bg-[var(--color-surface-2)] text-[var(--color-ink-2)]">
+            <thead className="bg-[rgba(255,255,255,.025)] text-[var(--color-ink-2)]">
               <tr>
                 <th className="px-2 py-1.5 text-left">Fecha</th>
                 <th className="px-2 py-1.5 text-left">Tipo</th>
@@ -198,10 +198,10 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
                 const tone = m.pagado
                   ? 'text-[var(--color-ink-3)]'
                   : e === 'Vencido'
-                    ? 'text-red-700'
+                    ? 'text-[var(--coral)]'
                     : e === 'Próximo'
-                      ? 'text-amber-700'
-                      : 'text-emerald-700'
+                      ? 'text-[var(--amber)]'
+                      : 'text-[var(--mint)]'
                 const cobrable = !m.pagado && Number(m.importe) >= 0
                 return (
                   <tr
@@ -215,8 +215,8 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
                     <td className="px-2 py-1.5">
                       {m.numero_factura ?? m.concepto ?? '—'}
                     </td>
-                    <td className="px-2 py-1.5 text-right">{eur(Number(m.importe))}</td>
-                    <td className="px-2 py-1.5 text-right">
+                    <td className="mono px-2 py-1.5 text-right tabular-nums">{eur(Number(m.importe))}</td>
+                    <td className="mono px-2 py-1.5 text-right tabular-nums">
                       {m.pagado ? '—' : eur(importePendiente(m))}
                     </td>
                     <td className={`px-2 py-1.5 ${tone}`}>
@@ -241,7 +241,7 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
                             })
                             if (ok) await del.mutateAsync(m.id)
                           }}
-                          className="ml-2 text-[var(--color-ink-3)] hover:text-red-600"
+                          className="ml-2 text-[var(--color-ink-3)] hover:text-[var(--coral)]"
                           aria-label="Borrar"
                         >
                           <Trash2 className="inline h-3 w-3" />

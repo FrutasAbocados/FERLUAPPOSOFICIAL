@@ -41,8 +41,8 @@ export function ClientesView({ onSelectCliente, onNuevaFactura, onNuevaPizarra }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
+      <div className="ao-panel flex flex-wrap items-center gap-2 p-3">
+        <div className="relative min-w-[220px] flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-ink-3)]" />
           <Input
             value={q}
@@ -54,7 +54,7 @@ export function ClientesView({ onSelectCliente, onNuevaFactura, onNuevaPizarra }
         <select
           value={estado}
           onChange={(e) => setEstado(e.target.value as Estado | 'Todos')}
-          className="h-10 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm"
+          className="h-10 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-ink)]"
         >
           <option value="Todos">Todos los estados</option>
           {ESTADOS.map((e) => (
@@ -66,7 +66,7 @@ export function ClientesView({ onSelectCliente, onNuevaFactura, onNuevaPizarra }
         <select
           value={forma}
           onChange={(e) => setForma(e.target.value as FormaPago | 'Todas')}
-          className="h-10 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm"
+          className="h-10 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-ink)]"
         >
           <option value="Todas">Todas las formas</option>
           {(Object.keys(FORMA_PAGO_LABEL) as FormaPago[]).map((k) => (
@@ -88,7 +88,7 @@ export function ClientesView({ onSelectCliente, onNuevaFactura, onNuevaPizarra }
           />
         ))}
         {filtrados.length === 0 && (
-          <div className="col-span-full p-8 text-center text-sm text-[var(--color-ink-3)]">
+          <div className="ao-card col-span-full p-8 text-center text-sm text-[var(--color-ink-3)]">
             No hay clientes que coincidan.
           </div>
         )}
@@ -127,21 +127,21 @@ function ClienteCard({
   }
 
   const estadoTone = {
-    Vencido: 'bg-red-100 text-red-700 ring-red-200',
-    Próximo: 'bg-amber-100 text-amber-700 ring-amber-200',
-    Pendiente: 'bg-emerald-100 text-emerald-700 ring-emerald-200',
-    Cobrado: 'bg-[var(--color-surface-2)] text-[var(--color-ink-2)] ring-[var(--color-border)]',
+    Vencido: 'ao-chip-coral',
+    Próximo: 'ao-chip-amber',
+    Pendiente: 'ao-chip-mint',
+    Cobrado: '',
   }[cliente.estado]
 
   const dot = {
-    Vencido: 'bg-red-500',
-    Próximo: 'bg-amber-500',
-    Pendiente: 'bg-emerald-500',
+    Vencido: 'bg-[var(--coral)]',
+    Próximo: 'bg-[var(--amber)]',
+    Pendiente: 'bg-[var(--mint)]',
     Cobrado: 'bg-[var(--color-ink-3)]',
   }[cliente.estado]
 
   return (
-    <Card className="flex flex-col gap-3 p-4">
+    <Card className="ao-card-hover flex flex-col gap-3 p-4">
       <div className="flex items-start justify-between gap-2">
         <button
           onClick={onOpen}
@@ -152,9 +152,7 @@ function ClienteCard({
           </span>
           {cliente.nombre}
         </button>
-        <span
-          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ring-1 ${estadoTone}`}
-        >
+        <span className={`ao-chip ${estadoTone}`}>
           {cliente.estado}
         </span>
       </div>
@@ -166,13 +164,13 @@ function ClienteCard({
         <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">
           Deuda total
         </div>
-        <div className="font-display text-2xl font-bold text-[var(--color-ink)]">
+        <div className="mono text-2xl font-semibold tabular-nums text-[var(--color-ink)]">
           {eur(cliente.total_pendiente)}
         </div>
       </div>
       <div className="grid grid-cols-3 gap-1 text-[11px]">
-        <Mini label="Vencido" v={cliente.total_vencido} tone="text-red-700" />
-        <Mini label="Próximo" v={cliente.total_proximo} tone="text-amber-700" />
+        <Mini label="Vencido" v={cliente.total_vencido} tone="text-[var(--coral)]" />
+        <Mini label="Próximo" v={cliente.total_proximo} tone="text-[var(--amber)]" />
         <Mini label="Pizarra" v={cliente.total_pizarra} tone="text-[var(--color-ink-2)]" />
       </div>
       <div className="mt-1 flex gap-2">
@@ -188,7 +186,7 @@ function ClienteCard({
           onClick={eliminar}
           disabled={del.isPending}
           title="Eliminar cliente"
-          className="text-red-600 hover:bg-red-50"
+          className="text-[var(--coral)] hover:bg-[var(--color-danger-soft)]"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -199,9 +197,9 @@ function ClienteCard({
 
 function Mini({ label, v, tone }: { label: string; v: number; tone: string }) {
   return (
-    <div className="rounded-[var(--radius-sm)] bg-[var(--color-surface-2)] px-2 py-1">
-      <div className="text-[9px] uppercase text-[var(--color-ink-3)]">{label}</div>
-      <div className={`font-medium ${tone}`}>{eur(v)}</div>
+    <div className="ao-panel px-2 py-1">
+      <div className="micro-caps text-[var(--color-ink-3)]">{label}</div>
+      <div className={`mono font-medium tabular-nums ${tone}`}>{eur(v)}</div>
     </div>
   )
 }

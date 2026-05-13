@@ -94,9 +94,9 @@ export function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="Total pendiente"
           value={eur(kpis.totalPendiente)}
@@ -129,26 +129,29 @@ export function Dashboard() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <Receipt className="h-4 w-4 text-[var(--color-ink-3)]" />
-            <h3 className="text-sm font-semibold">Top 10 clientes con deuda</h3>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Receipt className="h-4 w-4 text-[var(--mint)]" />
+              <h3 className="text-sm font-semibold text-[var(--color-ink)]">Top 10 clientes con deuda</h3>
+            </div>
+            <span className="ao-chip ao-chip-coral">riesgo</span>
           </div>
           {topClientes.length === 0 ? (
             <p className="text-sm text-[var(--color-ink-3)]">Sin deuda pendiente.</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-2.5">
               {topClientes.map((c) => {
                 const max = topClientes[0].total_pendiente
                 const pct = (c.total_pendiente / max) * 100
                 return (
                   <li key={c.id}>
                     <div className="mb-1 flex justify-between text-xs">
-                      <span className="font-medium text-[var(--color-ink)]">{c.nombre}</span>
-                      <span className="text-[var(--color-ink-2)]">{eur(c.total_pendiente)}</span>
+                      <span className="min-w-0 truncate pr-3 font-medium text-[var(--color-ink)]">{c.nombre}</span>
+                      <span className="mono shrink-0 text-[var(--color-ink-2)]">{eur(c.total_pendiente)}</span>
                     </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-surface-2)]">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-[rgba(255,255,255,.035)]">
                       <div
-                        className="h-full bg-[var(--color-primary)]"
+                        className="h-full rounded-full bg-[var(--coral)]"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -160,9 +163,12 @@ export function Dashboard() {
         </Card>
 
         <Card className="p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-[var(--color-ink-3)]" />
-            <h3 className="text-sm font-semibold">Antigüedad de la deuda</h3>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-[var(--amber)]" />
+              <h3 className="text-sm font-semibold text-[var(--color-ink)]">Antigüedad de la deuda</h3>
+            </div>
+            <span className="ao-chip ao-chip-amber">aging</span>
           </div>
           <ul className="space-y-3">
             {Object.entries(kpis.agingBuckets).map(([bucket, imp]) => {
@@ -170,22 +176,22 @@ export function Dashboard() {
               const pct = (imp / max) * 100
               const tone =
                 bucket === '0-7'
-                  ? 'bg-emerald-500'
+                  ? 'bg-[var(--mint)]'
                   : bucket === '8-30'
-                    ? 'bg-amber-500'
+                    ? 'bg-[var(--amber)]'
                     : bucket === '31-60'
-                      ? 'bg-orange-500'
-                      : 'bg-red-500'
+                      ? 'bg-[oklch(72%_.16_48)]'
+                      : 'bg-[var(--coral)]'
               return (
                 <li key={bucket}>
                   <div className="mb-1 flex justify-between text-xs">
                     <span className="font-medium text-[var(--color-ink)]">
                       {bucket} días
                     </span>
-                    <span className="text-[var(--color-ink-2)]">{eur(imp)}</span>
+                    <span className="mono text-[var(--color-ink-2)]">{eur(imp)}</span>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-surface-2)]">
-                    <div className={`h-full ${tone}`} style={{ width: `${pct}%` }} />
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-[rgba(255,255,255,.035)]">
+                    <div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} />
                   </div>
                 </li>
               )
@@ -194,9 +200,12 @@ export function Dashboard() {
         </Card>
 
         <Card className="p-5 lg:col-span-2">
-          <div className="mb-3 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-[var(--color-ink-3)]" />
-            <h3 className="text-sm font-semibold">Facturado vs cobrado · últimos 6 meses</h3>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-[var(--sky)]" />
+              <h3 className="text-sm font-semibold text-[var(--color-ink)]">Facturado vs cobrado · últimos 6 meses</h3>
+            </div>
+            <span className="ao-chip ao-chip-sky">cash-in</span>
           </div>
           <div className="grid grid-cols-6 items-end gap-3 pt-2">
             {ventas6m.map((m) => {
@@ -207,12 +216,12 @@ export function Dashboard() {
                 <div key={m.mes} className="flex flex-col items-center gap-1">
                   <div className="flex h-32 items-end gap-1">
                     <div
-                      className="w-4 rounded-t bg-[var(--color-primary)]"
+                      className="w-4 rounded-t bg-[var(--mint)]"
                       style={{ height: `${fH}%` }}
                       title={`Facturado ${eur(m.facturado)}`}
                     />
                     <div
-                      className="w-4 rounded-t bg-emerald-500"
+                      className="w-4 rounded-t bg-[var(--sky)]"
                       style={{ height: `${cH}%` }}
                       title={`Cobrado ${eur(m.cobrado)}`}
                     />
@@ -224,10 +233,10 @@ export function Dashboard() {
           </div>
           <div className="mt-3 flex justify-center gap-4 text-[10px] text-[var(--color-ink-3)]">
             <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-sm bg-[var(--color-primary)]" /> Facturado
+              <span className="h-2 w-2 rounded-sm bg-[var(--mint)]" /> Facturado
             </span>
             <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-sm bg-emerald-500" /> Cobrado
+              <span className="h-2 w-2 rounded-sm bg-[var(--sky)]" /> Cobrado
             </span>
           </div>
         </Card>
@@ -250,30 +259,29 @@ function KpiCard({
   tone: 'primary' | 'danger' | 'warn' | 'success'
 }) {
   const toneClass = {
-    primary: 'bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]',
-    danger: 'bg-red-50 text-red-700',
-    warn: 'bg-amber-50 text-amber-700',
-    success: 'bg-emerald-50 text-emerald-700',
+    primary: 'bg-[var(--mint-glow)] text-[var(--mint)]',
+    danger: 'bg-[var(--color-danger-soft)] text-[var(--coral)]',
+    warn: 'bg-[var(--color-warn-soft)] text-[var(--amber)]',
+    success: 'bg-[var(--mint-glow)] text-[var(--mint)]',
   }[tone]
   return (
     <Card className="p-4">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-xs uppercase tracking-wider text-[var(--color-ink-3)]">
+          <div className="label-caps">
             {label}
           </div>
-          <div className="mt-1 font-display text-2xl font-bold text-[var(--color-ink)]">
+          <div className="mono mt-1 text-xl font-semibold tabular-nums text-[var(--color-ink)] sm:text-2xl">
             {value}
           </div>
           {sub && (
             <div className="mt-1 text-[11px] text-[var(--color-ink-3)]">{sub}</div>
           )}
         </div>
-        <div className={`flex h-9 w-9 items-center justify-center rounded-md ${toneClass}`}>
+        <div className={`hidden h-9 w-9 items-center justify-center rounded-md sm:flex ${toneClass}`}>
           <Icon className="h-4 w-4" />
         </div>
       </div>
     </Card>
   )
 }
-
