@@ -24,32 +24,35 @@ export function PedidosWaPage() {
         subtitle="Automatización Holded completa · 8 tabs"
       />
 
-      <nav className="flex gap-1 overflow-x-auto border-b px-4 sm:px-6" style={{ borderColor: 'var(--line)', paddingTop: 8, paddingBottom: 8 }} role="tablist">
-        <TabBtn active={tab === 'captura'} onClick={() => setTab('captura')}>
-          <Zap className="h-3.5 w-3.5" /> Captura
-        </TabBtn>
-        <TabBtn active={tab === 'hoy'}   onClick={() => setTab('hoy')}>   Hoy </TabBtn>
-        <TabBtn active={tab === 'compra'} onClick={() => setTab('compra')}>
-          <ShoppingCart className="h-3.5 w-3.5" /> Compra
-        </TabBtn>
-        <TabBtn active={tab === 'compras-prov'} onClick={() => setTab('compras-prov')}>
-          <FileText className="h-3.5 w-3.5" /> Facturas prov
-        </TabBtn>
-        <TabBtn active={tab === 'ruta'}  onClick={() => setTab('ruta')}>
-          <Truck className="h-3.5 w-3.5" /> Hoja de ruta
-        </TabBtn>
-        <TabBtn active={tab === 'clientes'} onClick={() => setTab('clientes')}>
-          <Users className="h-3.5 w-3.5" /> Clientes
-        </TabBtn>
-        <TabBtn active={tab === 'productos'} onClick={() => setTab('productos')}>
-          <Package className="h-3.5 w-3.5" /> Productos
-        </TabBtn>
-        <TabBtn active={tab === 'recurrentes'} onClick={() => setTab('recurrentes')}>
-          <Repeat className="h-3.5 w-3.5" /> Recurrentes
-        </TabBtn>
+      <nav className="border-b border-[var(--line)] px-4 py-3 sm:px-9" role="tablist">
+        <div className="ao-tabbar max-w-full overflow-x-auto">
+          <TabBtn active={tab === 'captura'} onClick={() => setTab('captura')}>
+            <Zap className="h-3.5 w-3.5" /> Captura
+          </TabBtn>
+          <TabBtn active={tab === 'hoy'}   onClick={() => setTab('hoy')}>Hoy</TabBtn>
+          <TabBtn active={tab === 'compra'} onClick={() => setTab('compra')}>
+            <ShoppingCart className="h-3.5 w-3.5" /> Compra
+          </TabBtn>
+          <TabBtn active={tab === 'compras-prov'} onClick={() => setTab('compras-prov')}>
+            <FileText className="h-3.5 w-3.5" /> Facturas prov
+          </TabBtn>
+          <TabBtn active={tab === 'ruta'}  onClick={() => setTab('ruta')}>
+            <Truck className="h-3.5 w-3.5" /> Hoja de ruta
+          </TabBtn>
+          <TabBtn active={tab === 'clientes'} onClick={() => setTab('clientes')}>
+            <Users className="h-3.5 w-3.5" /> Clientes
+          </TabBtn>
+          <TabBtn active={tab === 'productos'} onClick={() => setTab('productos')}>
+            <Package className="h-3.5 w-3.5" /> Productos
+          </TabBtn>
+          <TabBtn active={tab === 'recurrentes'} onClick={() => setTab('recurrentes')}>
+            <Repeat className="h-3.5 w-3.5" /> Recurrentes
+          </TabBtn>
+        </div>
       </nav>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="ao-page max-w-none">
         {tab === 'captura'      && <CapturaRapida />}
         {tab === 'hoy'          && <ListaPedidosHoy />}
         {tab === 'compra'       && <Compra />}
@@ -58,6 +61,7 @@ export function PedidosWaPage() {
         {tab === 'clientes'     && <ListaClientes />}
         {tab === 'productos'    && <Productos />}
         {tab === 'recurrentes'  && <Recurrentes />}
+        </div>
       </div>
     </div>
   )
@@ -75,11 +79,9 @@ function TabBtn({ active, onClick, children }: {
       aria-selected={active}
       onClick={onClick}
       className={cn(
-        'flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-medium transition-colors',
-        active
-          ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]'
-          : 'text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]',
+        'ao-tab flex shrink-0 items-center gap-1.5 whitespace-nowrap',
       )}
+      data-active={active}
     >
       {children}
     </button>

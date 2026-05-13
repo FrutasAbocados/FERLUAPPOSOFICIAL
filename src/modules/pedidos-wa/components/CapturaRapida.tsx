@@ -226,36 +226,41 @@ export function CapturaRapida() {
   }
 
   return (
-    <div className="space-y-3">
-      <header className="flex items-baseline justify-between gap-2">
-        <div>
-          <h2 className="font-display text-base font-bold text-[var(--color-ink)]">Captura rápida</h2>
-          <p className="text-[11px] text-[var(--color-ink-3)]">
-            Formato: <code className="rounded bg-[var(--color-surface-2)] px-1">cliente: prod1 / prod2 / prod3</code> · ⌘/Ctrl+Enter guarda · {speech.available ? '🎙 disponible' : '🎙 no disponible en este navegador'}
-          </p>
-        </div>
-        <div className="text-xs text-[var(--color-ink-3)] tabular-nums">{guardados.length} esta sesión</div>
-      </header>
+    <div className="grid gap-4 xl:grid-cols-[1.35fr_0.85fr]">
+      <section className="ao-card">
+        <header className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-medium tracking-[-0.01em] text-[var(--ink)]">Captura rápida</h2>
+              <span className="ao-chip ao-chip-mint">⌘ Enter</span>
+            </div>
+            <p className="mt-1 text-[12px] text-[var(--ink-mute)]">
+              Formato: <code className="rounded bg-[rgba(255,255,255,.04)] px-1 text-[var(--ink-dim)]">cliente: prod1 / prod2 / prod3</code>
+            </p>
+          </div>
+          <div className="mono text-right text-[10px] uppercase tracking-[0.14em] text-[var(--ink-mute)]">
+            {guardados.length} esta sesión
+          </div>
+        </header>
 
-      {/* Bloque de captura */}
-      <div className={cn(
-        'rounded-[var(--radius-md)] border-2 bg-[var(--color-surface)] p-3 transition-colors',
-        speech.listening
-          ? 'border-[#dc2626] ring-4 ring-red-100'
-          : clienteMatch
-            ? 'border-[var(--color-primary)]'
-            : 'border-[var(--color-border)]',
-      )}>
-        <div className="flex items-start gap-2">
+        <div className={cn(
+          'relative rounded-[var(--radius-lg)] border p-4 transition-colors',
+          speech.listening
+            ? 'border-[var(--coral)] bg-[oklch(30%_.12_25_/_0.14)] shadow-[0_0_0_4px_oklch(70%_.18_25_/_0.14)]'
+            : clienteMatch
+              ? 'border-[var(--mint)] bg-[oklch(20%_.04_158_/_0.25)] shadow-[0_0_0_4px_var(--mint-glow),inset_0_0_30px_oklch(40%_.12_158_/_0.12)]'
+              : 'border-[var(--line)] bg-[rgba(255,255,255,.02)]',
+        )}>
+        <div className="flex items-start gap-3">
           <button
             type="button"
             onClick={() => (speech.listening ? speech.stop() : speech.start())}
             disabled={!speech.available}
             className={cn(
-              'flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white transition-colors disabled:opacity-30',
+              'flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-30',
               speech.listening
-                ? 'animate-pulse bg-[#dc2626]'
-                : 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-2)]',
+                ? 'animate-pulse bg-[var(--coral)] text-[#160b09]'
+                : 'bg-[var(--mint)] text-[#0a1310] hover:bg-[var(--mint-2)]',
             )}
             title={speech.listening ? 'Detener dictado' : 'Iniciar dictado'}
             aria-label="Dictar"
@@ -270,34 +275,34 @@ export function CapturaRapida() {
             placeholder="Bar Hollywood: lechuga 2 / tom 5 kg / pim 1 caja"
             rows={3}
             autoFocus
-            className="flex-1 resize-none rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-ink)] focus:border-[var(--color-primary)] focus:outline-none"
+            className="min-h-[132px] flex-1 resize-none rounded-[var(--radius)] border border-transparent bg-transparent px-2 py-1 text-base leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--ink-mute)] focus:border-transparent"
           />
         </div>
 
         {/* Estado cliente */}
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
           {clienteMatch ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 font-semibold text-[var(--color-primary-2)]">
+            <span className="ao-chip ao-chip-mint">
               <CheckCircle2 className="h-3.5 w-3.5" />
               {clienteMatch.nombre}
-              <span className="font-normal text-[var(--color-ink-3)]">
+              <span className="font-normal text-[var(--ink-mute)]">
                 · {clienteMatch.repartidor}{clienteMatch.horario ? ` · ${clienteMatch.horario}` : ''}
               </span>
             </span>
           ) : rawCliente.length >= 2 ? (
             <>
-              <span className="text-[var(--color-ink-3)]">Sin match para "<span className="font-semibold">{rawCliente}</span>"</span>
+              <span className="text-[var(--ink-mute)]">Sin match para "<span className="font-semibold text-[var(--ink-dim)]">{rawCliente}</span>"</span>
               <button
                 type="button"
                 onClick={() => setShowClienteNew(rawCliente)}
-                className="inline-flex items-center gap-1 rounded-full border border-[var(--color-primary)] px-2 py-0.5 font-semibold text-[var(--color-primary-2)] hover:bg-[var(--color-primary-soft)]"
+                className="ao-chip ao-chip-mint"
               >
                 <UserPlus className="h-3 w-3" />
                 Crear "{rawCliente}"
               </button>
             </>
           ) : (
-            <span className="text-[var(--color-ink-3)]">Empieza con el nombre del cliente</span>
+            <span className="text-[var(--ink-mute)]">Empieza con el nombre del cliente</span>
           )}
 
           {/* Sugerencias secundarias */}
@@ -310,7 +315,7 @@ export function CapturaRapida() {
                 setTexto(nuevo)
                 inputRef.current?.focus()
               }}
-              className="rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 text-[var(--color-ink-2)] hover:bg-[var(--color-surface-3,#e2e8f0)]"
+              className="ao-chip text-[var(--ink-dim)] hover:text-[var(--mint)]"
             >
               {m.cliente.nombre}
             </button>
@@ -318,7 +323,7 @@ export function CapturaRapida() {
         </div>
 
         {/* Acciones */}
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           {clienteMatch && ultimo?.lineas?.length ? (
             <Button size="sm" variant="outline" onClick={cargarUltimo}>
               <RotateCcw className="mr-1 h-3.5 w-3.5" />
@@ -338,26 +343,71 @@ export function CapturaRapida() {
             Guardar
           </Button>
         </div>
-      </div>
+        </div>
+      </section>
+
+      <aside className="ao-card">
+        <header className="mb-4">
+          <h3 className="text-base font-medium text-[var(--ink)]">Detección en vivo</h3>
+          <p className="mono mt-1 text-[10px] uppercase tracking-[0.14em] text-[var(--ink-mute)]">
+            {speech.available ? 'voz disponible' : 'voz no disponible'} · parser local
+          </p>
+        </header>
+
+        <div className="space-y-3">
+          <div className="ao-panel p-3">
+            <div className="label-caps mb-2">Cliente</div>
+            {clienteMatch ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium uppercase text-[var(--ink)]">{clienteMatch.nombre}</div>
+                  <div className="mono mt-1 text-[10px] uppercase tracking-[0.12em] text-[var(--ink-mute)]">
+                    {clienteMatch.repartidor}{clienteMatch.horario ? ` · ${clienteMatch.horario}` : ''}
+                  </div>
+                </div>
+                <span className="ao-chip ao-chip-mint">match</span>
+              </div>
+            ) : (
+              <div className="text-sm text-[var(--ink-mute)]">{rawCliente.length >= 2 ? `Sin match para ${rawCliente}` : 'Esperando cliente'}</div>
+            )}
+          </div>
+
+          <div className="ao-panel p-3">
+            <div className="label-caps mb-2">Lineas detectadas</div>
+            {rawProductos.trim() ? (
+              <div className="space-y-2">
+                {rawProductos.split('/').map((linea) => linea.trim()).filter(Boolean).slice(0, 6).map((linea, i) => (
+                  <div key={`${linea}-${i}`} className="rounded-[var(--radius)] border border-[var(--line)] bg-[rgba(255,255,255,.018)] px-3 py-2">
+                    <div className="mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-mute)]">linea {i + 1}</div>
+                    <div className="mt-1 text-sm text-[var(--ink)]">{linea}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-[var(--ink-mute)]">Escribe productos separados por / o por lineas.</div>
+            )}
+          </div>
+        </div>
+      </aside>
 
       {/* Lista sesión */}
       {guardados.length > 0 && (
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
-          <div className="border-b border-[var(--color-border)] px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+        <div className="ao-card p-0 xl:col-span-2">
+          <div className="border-b border-[var(--line)] px-3 py-2 label-caps">
             Guardados esta sesión
           </div>
-          <ul className="max-h-60 divide-y divide-[var(--color-border)] overflow-y-auto">
+          <ul className="max-h-60 divide-y divide-[var(--line)] overflow-y-auto">
             {guardados.map(g => (
               <li key={g.id} className="group flex items-center gap-2 px-3 py-1.5 text-sm">
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#10b981]" />
-                <span className="flex-1 truncate text-[var(--color-ink)]">{g.cliente}</span>
-                <span className="text-[10px] text-[var(--color-ink-3)] tabular-nums">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[var(--mint)]" />
+                <span className="flex-1 truncate text-[var(--ink)]">{g.cliente}</span>
+                <span className="mono text-[10px] text-[var(--ink-mute)]">
                   {g.lineas} líneas · {format(new Date(g.ts), 'HH:mm')}
                 </span>
                 <button
                   type="button"
                   onClick={() => deshacer(g)}
-                  className="rounded-sm p-0.5 text-[var(--color-ink-3)] opacity-0 hover:bg-[var(--color-surface-2)] hover:text-[#dc2626] group-hover:opacity-100"
+                  className="rounded-sm p-0.5 text-[var(--ink-mute)] opacity-0 hover:bg-[rgba(255,255,255,.04)] hover:text-[var(--coral)] group-hover:opacity-100"
                   title="Deshacer"
                 >
                   <Undo2 className="h-3.5 w-3.5" />

@@ -64,11 +64,11 @@ const ESTADO_LABEL: Record<EstadoPedido, string> = {
 }
 
 const ESTADO_STYLE: Record<EstadoPedido, string> = {
-  pendiente:  'bg-amber-50 text-amber-700 border-amber-200',
-  confirmado: 'bg-violet-50 text-violet-700 border-violet-200',
-  preparado:  'bg-sky-50 text-sky-700 border-sky-200',
-  entregado:  'bg-emerald-50 text-emerald-700 border-emerald-200',
-  cancelado:  'bg-zinc-100 text-zinc-600 border-zinc-200',
+  pendiente:  'bg-[oklch(30%_.10_70_/_0.25)] text-[var(--amber)] border-[oklch(78%_.16_70_/_0.25)]',
+  confirmado: 'bg-[oklch(30%_.10_295_/_0.22)] text-[var(--violet)] border-[oklch(72%_.16_295_/_0.25)]',
+  preparado:  'bg-[oklch(30%_.10_235_/_0.22)] text-[var(--sky)] border-[oklch(76%_.12_235_/_0.25)]',
+  entregado:  'bg-[var(--mint-glow)] text-[var(--mint)] border-[var(--mint-glow)]',
+  cancelado:  'bg-[rgba(255,255,255,.04)] text-[var(--ink-mute)] border-[var(--line-2)]',
 }
 
 const SIGUIENTE_ESTADO: Partial<Record<EstadoPedido, EstadoPedido>> = {
@@ -135,7 +135,7 @@ export function ListaPedidosHoy() {
   }
   if (error) {
     return (
-      <div className="rounded-[var(--radius-lg)] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <div className="rounded-[var(--radius-lg)] border border-[oklch(70%_.18_25_/_0.28)] bg-[oklch(30%_.12_25_/_0.18)] p-4 text-sm text-[var(--coral)]">
         Error cargando pedidos: {(error as Error).message}
       </div>
     )
@@ -144,7 +144,7 @@ export function ListaPedidosHoy() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-[var(--color-ink)] capitalize">
+        <h2 className="text-lg font-medium tracking-[-0.01em] text-[var(--ink)] capitalize">
           {titulo}
         </h2>
         <div className="flex items-center gap-2">
@@ -161,14 +161,14 @@ export function ListaPedidosHoy() {
               )}
             </Button>
           )}
-          <span className="text-xs text-[var(--color-ink-3)]">
+          <span className="mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-mute)]">
             {lista.length} {lista.length === 1 ? 'pedido' : 'pedidos'}
           </span>
         </div>
       </div>
 
       {lista.length === 0 ? (
-        <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-ink-3)]">
+        <div className="ao-card border-dashed p-8 text-center text-sm text-[var(--ink-mute)]">
           Hoy aún no hay pedidos. Crea el primero en la pestaña “Captura”.
         </div>
       ) : (
@@ -236,7 +236,7 @@ function PedidoCard({ pedido, log }: { pedido: Pedido; log: HoldedLastLog | null
 
   const repColor = cliente
     ? REPARTIDOR_COLOR[cliente.repartidor]
-    : 'bg-zinc-50 border-zinc-200'
+    : 'border-[var(--line)] bg-[rgba(255,255,255,.02)]'
 
   const cantidades = useMemo(() => {
     const totals = new Map<string, number>()
@@ -327,7 +327,7 @@ function PedidoCard({ pedido, log }: { pedido: Pedido; log: HoldedLastLog | null
   }
 
   return (
-    <li className={cn('rounded-[var(--radius-lg)] border p-3', repColor)}>
+    <li className={cn('ao-panel rounded-[var(--radius-lg)] border p-3', repColor)}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <button
           type="button"
@@ -393,7 +393,7 @@ function PedidoCard({ pedido, log }: { pedido: Pedido; log: HoldedLastLog | null
               type="button"
               onClick={onReemitir}
               disabled={reemitir.isPending}
-              className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--mint-glow)] bg-[var(--mint-glow)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--mint)] hover:border-[var(--mint)] disabled:opacity-50"
               title={`Holded ${pedido.holded_invoice_id ?? ''}\nClic para re-emitir borrador (borra y vuelve a pendiente)`}
             >
               <CheckCircle2 className="h-3 w-3" />
@@ -401,7 +401,7 @@ function PedidoCard({ pedido, log }: { pedido: Pedido; log: HoldedLastLog | null
             </button>
           ) : noEsHolded ? (
             <span
-              className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600"
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--line-2)] bg-[rgba(255,255,255,.04)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-mute)]"
               title={`tipo_factura=${pedido.cliente?.tipo_factura} — no se sube a Holded`}
             >
               {pedido.cliente?.tipo_factura ?? '—'}
@@ -411,7 +411,7 @@ function PedidoCard({ pedido, log }: { pedido: Pedido; log: HoldedLastLog | null
               type="button"
               onClick={abrirModalHolded}
               title={`Holded ${log?.status ?? ''}: ${log?.error_msg ?? 'error desconocido'}\n\nClic para reintentar`}
-              className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700 hover:bg-red-100"
+              className="inline-flex items-center gap-1 rounded-full border border-[oklch(70%_.18_25_/_0.28)] bg-[oklch(30%_.12_25_/_0.18)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--coral)] hover:border-[var(--coral)]"
               aria-label="Holded falló, reintentar"
             >
               ⚠ Holded {log?.status ?? '—'}
@@ -425,8 +425,8 @@ function PedidoCard({ pedido, log }: { pedido: Pedido; log: HoldedLastLog | null
               className={cn(
                 'rounded-md p-1.5 disabled:cursor-not-allowed disabled:opacity-40',
                 subirInfo.ok
-                  ? 'text-emerald-700 hover:bg-emerald-50'
-                  : 'text-[var(--color-ink-3)]',
+                  ? 'text-[var(--mint)] hover:bg-[var(--mint-glow)]'
+                  : 'text-[var(--ink-mute)]',
               )}
               aria-label="Subir a Holded"
             >
@@ -437,7 +437,7 @@ function PedidoCard({ pedido, log }: { pedido: Pedido; log: HoldedLastLog | null
             type="button"
             onClick={onEliminar}
             disabled={eliminar.isPending}
-            className="rounded-md p-1.5 text-[var(--color-ink-3)] hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+            className="rounded-md p-1.5 text-[var(--ink-mute)] hover:bg-[oklch(30%_.12_25_/_0.18)] hover:text-[var(--coral)] disabled:opacity-50"
             title="Eliminar pedido"
           >
             <Trash2 className="h-4 w-4" />
@@ -540,7 +540,7 @@ function NotaClienteEditable({ cliente }: { cliente: ClientePedido }) {
 
   if (editando) {
     return (
-      <div className="mt-2 flex items-start gap-1.5 rounded-md bg-red-50 px-2 py-1.5 text-xs text-red-700">
+      <div className="mt-2 flex items-start gap-1.5 rounded-md bg-[oklch(30%_.12_25_/_0.18)] px-2 py-1.5 text-xs text-[var(--coral)]">
         <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <textarea
           ref={inputRef}
@@ -553,7 +553,7 @@ function NotaClienteEditable({ cliente }: { cliente: ClientePedido }) {
           }}
           rows={1}
           placeholder="Escribe una nota (vaciar = eliminar)"
-          className="min-w-0 flex-1 resize-none border-0 bg-transparent text-xs text-red-700 placeholder:text-red-400 focus:outline-none focus:ring-0"
+          className="min-w-0 flex-1 resize-none border-0 bg-transparent text-xs text-[var(--coral)] placeholder:text-[oklch(70%_.18_25_/_0.55)] focus:outline-none focus:ring-0"
         />
         {actualizar.isPending && <Loader2 className="mt-0.5 h-3 w-3 shrink-0 animate-spin" />}
       </div>
@@ -573,7 +573,7 @@ function NotaClienteEditable({ cliente }: { cliente: ClientePedido }) {
   }
 
   return (
-    <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-red-50 px-2 py-1 text-xs text-red-700">
+    <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-[oklch(30%_.12_25_/_0.18)] px-2 py-1 text-xs text-[var(--coral)]">
       <AlertCircle className="h-3.5 w-3.5 shrink-0" />
       <button
         type="button"
@@ -587,7 +587,7 @@ function NotaClienteEditable({ cliente }: { cliente: ClientePedido }) {
         type="button"
         onClick={() => guardar(null)}
         disabled={actualizar.isPending}
-        className="rounded p-0.5 hover:bg-red-100 disabled:opacity-50"
+        className="rounded p-0.5 hover:bg-[oklch(30%_.12_25_/_0.18)] disabled:opacity-50"
         title="Eliminar nota"
       >
         <X className="h-3 w-3" />
@@ -603,8 +603,8 @@ function NotasAdminEditable({ pedido, fecha }: { pedido: Pedido; fecha: string }
     <CampoTextoEditable
       label="Notas del día"
       valor={pedido.notas_admin}
-      tonoBg="bg-amber-50"
-      tonoText="text-amber-800"
+      tonoBg="bg-[oklch(92%_.08_82_/_0.85)] dark:bg-[oklch(28%_.08_72_/_0.42)]"
+      tonoText="text-[oklch(39%_.11_72)] dark:text-[var(--color-primary)]"
       placeholderEmpty="Añadir notas del día"
       pending={actualizar.isPending}
       onSave={(nuevo) => actualizar.mutateAsync({
@@ -621,8 +621,8 @@ function FaltasEditable({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
     <CampoTextoEditable
       label="Faltas"
       valor={pedido.faltas}
-      tonoBg="bg-rose-50"
-      tonoText="text-rose-700"
+      tonoBg="bg-[oklch(30%_.12_25_/_0.12)]"
+      tonoText="text-[var(--coral)]"
       placeholderEmpty="Añadir faltas (lo que no se ha entregado)"
       pending={actualizar.isPending}
       onSave={(nuevo) => actualizar.mutateAsync({
@@ -720,7 +720,7 @@ function CampoTextoEditable({
         type="button"
         onClick={() => guardar(null)}
         disabled={pending}
-        className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-white/40 group-hover/cte:opacity-100 disabled:opacity-50"
+        className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-[rgba(255,255,255,.06)] group-hover/cte:opacity-100 disabled:opacity-50"
         title={`Borrar ${label.toLowerCase()}`}
       >
         <X className="h-3 w-3" />
@@ -840,7 +840,7 @@ function LineaRow({ linea, fecha }: { linea: LineaPedidoDB; fecha: string }) {
           <span className="text-xs italic text-[var(--color-ink-3)]">{linea.notas}</span>
         )}
         {linea.es_gratis && (
-          <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+          <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--mint-glow)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--mint)]">
             <Gift className="h-3 w-3" /> GRATIS
           </span>
         )}
@@ -850,7 +850,7 @@ function LineaRow({ linea, fecha }: { linea: LineaPedidoDB; fecha: string }) {
         type="button"
         onClick={onEliminar}
         disabled={eliminar.isPending}
-        className="rounded p-0.5 text-[var(--color-ink-3)] opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 disabled:opacity-50 group-hover/lin:opacity-100"
+        className="rounded p-0.5 text-[var(--ink-mute)] opacity-0 transition-opacity hover:bg-[oklch(30%_.12_25_/_0.18)] hover:text-[var(--coral)] disabled:opacity-50 group-hover/lin:opacity-100"
         title="Eliminar línea"
       >
         <Trash2 className="h-3.5 w-3.5" />
@@ -1036,8 +1036,8 @@ function ModalSubirPedidoHolded({
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-2 md:p-6"
       onClick={(e) => { if (e.target === e.currentTarget) onCancelar() }}
     >
-      <div className="w-full max-w-3xl rounded-[var(--radius-md)] bg-[var(--color-surface)] shadow-lg">
-        <div className="flex items-start justify-between gap-2 border-b border-[var(--color-border)] p-3">
+      <div className="ao-card w-full max-w-3xl overflow-hidden p-0">
+        <div className="flex items-start justify-between gap-2 border-b border-[var(--line)] p-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-[var(--color-ink-2)]">
               <CloudUpload className="h-3.5 w-3.5" /> Subir a Holded · {docTypeLabel.toLowerCase()} en borrador
@@ -1063,7 +1063,7 @@ function ModalSubirPedidoHolded({
           )}
 
           {error && (
-            <div className="flex items-start gap-2 rounded border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900">
+            <div className="flex items-start gap-2 rounded border border-[oklch(72%_.16_25_/_0.35)] bg-[oklch(30%_.12_25_/_0.12)] p-3 text-xs text-[var(--coral)]">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <div>
                 <div className="font-semibold">No se pudo construir el body</div>
@@ -1085,7 +1085,7 @@ function ModalSubirPedidoHolded({
               </div>
 
               {noResueltas > 0 && (
-                <div className="flex items-start gap-2 rounded border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900">
+                <div className="flex items-start gap-2 rounded border border-[oklch(78%_.12_72_/_0.35)] bg-[oklch(92%_.08_82_/_0.85)] p-2.5 text-xs text-[oklch(39%_.11_72)] dark:bg-[oklch(28%_.08_72_/_0.42)] dark:text-[var(--color-primary)]">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <div>
                     <div className="font-semibold">{noResueltas} línea(s) sin precio histórico</div>
@@ -1112,7 +1112,7 @@ function ModalSubirPedidoHolded({
                     {lineasResueltas.map((l) => (
                       <tr key={l.linea_id} className={cn(
                         'border-t border-[var(--color-border)]',
-                        l.precio_fuente === 'no_resuelto' && 'bg-rose-50',
+                        l.precio_fuente === 'no_resuelto' && 'bg-[oklch(30%_.12_25_/_0.12)]',
                         l.es_gratis && 'opacity-60',
                       )}>
                         <td className="px-2 py-1">
@@ -1133,7 +1133,7 @@ function ModalSubirPedidoHolded({
                           ) : l.precio_fuente === 'gratis' ? (
                             'gratis'
                           ) : (
-                            <span className="text-rose-600 font-semibold">sin precio</span>
+                            <span className="font-semibold text-[var(--coral)]">sin precio</span>
                           )}
                         </td>
                       </tr>

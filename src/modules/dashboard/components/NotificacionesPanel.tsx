@@ -6,18 +6,18 @@ import { useNotificaciones, useDescartarNotif, useDescartarTodas, type Notificac
 import { activarPush, desactivarPush, estadoPush, registrarSW, type PushEstado } from '@/shared/lib/push'
 
 const ICONOS: Record<string, { Icon: typeof Bell; color: string; bg: string }> = {
-  vacaciones_solicitada: { Icon: Calendar,      color: 'text-amber-700',   bg: 'bg-amber-100' },
-  vacaciones_aprobada:   { Icon: CheckCircle2,  color: 'text-emerald-700', bg: 'bg-emerald-100' },
-  vacaciones_denegada:   { Icon: XCircle,       color: 'text-red-700',     bg: 'bg-red-100' },
-  puntos_dia:            { Icon: Star,          color: 'text-yellow-700',  bg: 'bg-yellow-100' },
-  tarea_completada:      { Icon: CheckCircle2,  color: 'text-emerald-700', bg: 'bg-emerald-100' },
-  motivacion_ia:         { Icon: ThumbsUp,      color: 'text-blue-700',    bg: 'bg-blue-100' },
-  penalizacion_ia:       { Icon: MessageSquare, color: 'text-orange-700',  bg: 'bg-orange-100' },
-  neutral_ia:            { Icon: MessageSquare, color: 'text-slate-700',   bg: 'bg-slate-100' },
+  vacaciones_solicitada: { Icon: Calendar,      color: 'text-[var(--amber)]', bg: 'bg-[oklch(30%_.10_70_/_0.25)]' },
+  vacaciones_aprobada:   { Icon: CheckCircle2,  color: 'text-[var(--mint)]',  bg: 'bg-[var(--mint-glow)]' },
+  vacaciones_denegada:   { Icon: XCircle,       color: 'text-[var(--coral)]', bg: 'bg-[oklch(30%_.12_25_/_0.22)]' },
+  puntos_dia:            { Icon: Star,          color: 'text-[var(--amber)]', bg: 'bg-[oklch(30%_.10_70_/_0.25)]' },
+  tarea_completada:      { Icon: CheckCircle2,  color: 'text-[var(--mint)]',  bg: 'bg-[var(--mint-glow)]' },
+  motivacion_ia:         { Icon: ThumbsUp,      color: 'text-[var(--sky)]',   bg: 'bg-[oklch(30%_.10_235_/_0.22)]' },
+  penalizacion_ia:       { Icon: MessageSquare, color: 'text-[var(--coral)]', bg: 'bg-[oklch(30%_.12_25_/_0.22)]' },
+  neutral_ia:            { Icon: MessageSquare, color: 'text-[var(--ink-dim)]', bg: 'bg-[rgba(255,255,255,.04)]' },
 }
 
 function iconoPara(tipo: NotificacionTipo) {
-  return ICONOS[tipo] ?? { Icon: Bell, color: 'text-slate-700', bg: 'bg-slate-100' }
+  return ICONOS[tipo] ?? { Icon: Bell, color: 'text-[var(--ink-dim)]', bg: 'bg-[rgba(255,255,255,.04)]' }
 }
 
 export function NotificacionesPanel() {
@@ -31,22 +31,22 @@ export function NotificacionesPanel() {
 
   if (sinNotifs) {
     return (
-      <section className="rounded-xl border border-dashed border-[var(--color-border)] bg-transparent p-3">
+      <section className="rounded-[var(--radius-xl)] border border-dashed border-[var(--line)] bg-transparent p-3">
         <PushCTA inline />
       </section>
     )
   }
 
   return (
-    <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm">
+    <section className="ao-card">
       <header className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]">
+          <div className="ao-icon-tile h-8 w-8">
             <Bell className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-[var(--color-ink)]">Notificaciones</h2>
-            <p className="text-xs text-[var(--color-ink-3)]">{data.length} pendiente{data.length === 1 ? '' : 's'}</p>
+            <h2 className="text-sm font-medium text-[var(--ink)]">Notificaciones</h2>
+            <p className="text-xs text-[var(--ink-mute)]">{data.length} pendiente{data.length === 1 ? '' : 's'}</p>
           </div>
         </div>
         {data.length > 1 && (
@@ -54,7 +54,7 @@ export function NotificacionesPanel() {
             type="button"
             onClick={() => descartarTodas.mutate(data.map(n => n.id))}
             disabled={descartarTodas.isPending}
-            className="text-xs font-medium text-[var(--color-primary-2)] hover:underline disabled:opacity-50"
+            className="text-xs font-medium text-[var(--mint)] hover:underline disabled:opacity-50"
           >
             Descartar todas
           </button>
@@ -105,9 +105,9 @@ function PushCTA({ inline }: { inline?: boolean }) {
   }
   // pendiente
   return (
-    <div className={inline ? 'flex items-center justify-between gap-2' : 'mt-3 flex items-center justify-between gap-2 border-t border-[var(--color-border)] pt-2'}>
-      <p className="flex items-center gap-1.5 text-xs text-[var(--color-ink-2,#525252)]">
-        <Smartphone className="h-3.5 w-3.5 text-[var(--color-primary-2)]" />
+    <div className={inline ? 'flex items-center justify-between gap-2' : 'mt-3 flex items-center justify-between gap-2 border-t border-[var(--line)] pt-2'}>
+      <p className="flex items-center gap-1.5 text-xs text-[var(--ink-dim)]">
+        <Smartphone className="h-3.5 w-3.5 text-[var(--mint)]" />
         {inline ? 'Activa los avisos en tu móvil' : 'Recibe estas notificaciones en el móvil'}
       </p>
       <button
@@ -120,7 +120,7 @@ function PushCTA({ inline }: { inline?: boolean }) {
           else setEstado('activo')
         }}
         disabled={pending}
-        className="rounded-md bg-[var(--color-primary)] px-3 py-1 text-xs font-semibold text-white hover:bg-[var(--color-primary-2)] disabled:opacity-50"
+        className="rounded-md bg-[var(--mint)] px-3 py-1 text-xs font-semibold text-[#0a1310] hover:bg-[var(--mint-2)] disabled:opacity-50"
       >
         {pending ? '…' : 'Activar'}
       </button>
@@ -147,14 +147,14 @@ function NotifItem({ n, onClose }: { n: Notificacion; onClose: () => void }) {
           <span className="shrink-0 text-[10px] uppercase tracking-wide text-[var(--color-ink-3)]">{cuando}</span>
         </div>
         {n.cuerpo && (
-          <p className="mt-0.5 line-clamp-2 text-xs text-[var(--color-ink-2,_#525252)]">{n.cuerpo}</p>
+      <p className="mt-0.5 line-clamp-2 text-xs text-[var(--ink-dim)]">{n.cuerpo}</p>
         )}
       </div>
       <button
         type="button"
         onClick={onClose}
         aria-label="Marcar leída"
-        className="shrink-0 rounded p-1 text-[var(--color-ink-3)] opacity-0 transition hover:bg-slate-100 hover:text-[var(--color-ink)] group-hover:opacity-100"
+        className="shrink-0 rounded p-1 text-[var(--ink-mute)] opacity-0 transition hover:bg-[rgba(255,255,255,.04)] hover:text-[var(--ink)] group-hover:opacity-100"
       >
         <X className="h-3.5 w-3.5" />
       </button>
