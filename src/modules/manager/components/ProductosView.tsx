@@ -52,7 +52,7 @@ export function ProductosView({ period }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="ao-panel flex flex-wrap items-center gap-2 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-ink-3)]" />
           <Input
@@ -94,7 +94,7 @@ export function ProductosView({ period }: Props) {
         <span className="ml-auto text-xs text-[var(--color-ink-3)] tabular-nums">{filtered.length} productos</span>
       </div>
 
-      <div className="ao-card overflow-hidden p-0">
+      <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
         {isLoading && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
         {!isLoading && filtered.length === 0 && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Sin productos en este periodo</p>}
 
@@ -118,12 +118,12 @@ export function ProductosView({ period }: Props) {
                 <div className="min-w-0">
                   <div className="truncate text-[var(--color-ink)]">{p.nombre}</div>
                   {p.es_coste_manual && (
-                    <div className="text-xs text-[var(--color-primary)]">coste manual</div>
+                    <div className="text-xs text-amber-700">coste manual</div>
                   )}
                 </div>
                 <div className="hidden text-right tabular-nums text-[var(--color-ink)] md:block">{p.unidades.toFixed(0)}</div>
                 <div className="hidden text-right tabular-nums text-[var(--color-ink)] md:block">{eur0(p.ventas)}</div>
-                <div className="hidden text-right tabular-nums text-[var(--mint)] md:block">{eur0(p.margen)}</div>
+                <div className="hidden text-right tabular-nums text-emerald-700 md:block">{eur0(p.margen)}</div>
                 <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">{p.margen_pct == null ? '—' : `${p.margen_pct.toFixed(0)}%`}</div>
                 <div className="hidden text-right tabular-nums md:block">
                   {p.coste_unidad == null ? (
@@ -131,7 +131,7 @@ export function ProductosView({ period }: Props) {
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setQuickFix(p) }}
-                        className="inline-flex items-center gap-1 rounded-full bg-[oklch(30%_.12_25_/_0.12)] px-2 py-0.5 text-[10px] font-semibold text-[var(--coral)] hover:bg-[oklch(30%_.12_25_/_0.18)]"
+                        className="inline-flex items-center gap-1 rounded-full bg-[#fee2e2] px-2 py-0.5 text-[10px] font-semibold text-[#b91c1c] hover:bg-[#fecaca]"
                         title="Asignar coste manual"
                       >
                         <Wand2 className="h-3 w-3" />
@@ -149,7 +149,7 @@ export function ProductosView({ period }: Props) {
                 {/* Mobile compact */}
                 <div className="text-right tabular-nums md:hidden">
                   <div className="text-[var(--color-ink)]">{eur0(p.ventas)}</div>
-                  <div className="text-xs text-[var(--mint)]">{eur0(p.margen)} {p.margen_pct == null ? '' : `(${p.margen_pct.toFixed(0)}%)`}</div>
+                  <div className="text-xs text-emerald-700">{eur0(p.margen)} {p.margen_pct == null ? '' : `(${p.margen_pct.toFixed(0)}%)`}</div>
                   <div className="text-[10px] text-[var(--color-ink-3)]">{p.unidades.toFixed(0)} ud</div>
                 </div>
               </button>

@@ -112,20 +112,19 @@ export function AppShell() {
           style={{ textDecoration: 'none' }}
         >
           <div
-            className="serif"
             style={{
               width: 34, height: 34, borderRadius: 10, flexShrink: 0,
               background: 'linear-gradient(140deg, var(--mint), var(--mint-deep))',
               display: 'grid', placeItems: 'center',
-              fontSize: 24, fontWeight: 500, color: '#0a1310',
-              boxShadow: '0 0 24px var(--mint-glow), inset 0 0 0 1px rgba(255,255,255,.22)',
+              fontSize: 17, fontWeight: 700, color: '#0a1310',
+              fontFamily: 'var(--font-mono)',
             }}
           >
-            a
+            A
           </div>
           <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.2, letterSpacing: '-0.01em' }}>
-              Abocados <span style={{ color: 'var(--ink-dim)' }}>OS</span>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.2 }}>
+              Abocados OS
             </div>
             <div className="micro-caps" style={{ color: 'var(--ink-mute)', marginTop: 2 }}>
               Centro de control
@@ -149,7 +148,7 @@ export function AppShell() {
           }}
         >
           <Command className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
-            <span className="flex-1">Buscar o ejecutar...</span>
+          <span className="flex-1">Buscar...</span>
           <span
             className="mono"
             style={{
@@ -223,7 +222,7 @@ export function AppShell() {
 
         {/* User card footer */}
         <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginTop: 12 }}>
-          <div className="ao-panel flex items-center gap-2.5 px-2.5 py-2.5">
+          <div className="flex items-center gap-2.5 px-1">
             <SidebarAvatar name={profile?.display_name ?? 'U'} />
             <div className="flex-1 min-w-0">
               <div

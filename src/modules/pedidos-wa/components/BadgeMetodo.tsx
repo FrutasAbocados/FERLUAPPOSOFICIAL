@@ -5,17 +5,17 @@ import type { Metodo } from '../lib/types'
 const STYLE: Record<Metodo, { label: string; className: string; Icon: typeof Wand2 }> = {
   regex: {
     label: 'auto',
-    className: 'bg-[var(--mint-glow)] text-[var(--mint)] border-[var(--mint-glow)]',
+    className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     Icon: Wand2,
   },
   claude: {
     label: 'IA',
-    className: 'bg-[oklch(30%_.10_295_/_0.22)] text-[var(--violet)] border-[oklch(72%_.16_295_/_0.25)]',
+    className: 'bg-violet-50 text-violet-700 border-violet-200',
     Icon: Sparkles,
   },
   manual: {
     label: 'manual',
-    className: 'bg-[oklch(30%_.10_70_/_0.25)] text-[var(--amber)] border-[oklch(78%_.16_70_/_0.25)]',
+    className: 'bg-amber-50 text-amber-700 border-amber-200',
     Icon: Pencil,
   },
 }

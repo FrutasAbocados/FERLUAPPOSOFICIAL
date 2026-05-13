@@ -144,10 +144,10 @@ export function SabadosView() {
         </div>
       </header>
 
-      <div className="ao-panel mb-3 flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
         <div>
           <span className="text-sm text-[var(--color-ink-3)]">Total mensual a pagar</span>
-          <span className="ml-2 font-display text-xl font-bold tabular-nums text-[var(--mint)]">{eur(totalImporte)}</span>
+          <span className="ml-2 font-display text-xl font-bold tabular-nums text-emerald-700">{eur(totalImporte)}</span>
         </div>
         <Button size="sm" variant="outline" onClick={importarHandler} disabled={importar.isPending}>
           <Download className="mr-1 h-3 w-3" />
@@ -157,7 +157,7 @@ export function SabadosView() {
 
       {isLoading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
       {data?.length === 0 && (
-        <p className="ao-card px-4 py-6 text-sm text-[var(--color-ink-3)]">
+        <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-sm text-[var(--color-ink-3)]">
           No hay trabajadores activos en pack 2.
         </p>
       )}
@@ -167,10 +167,10 @@ export function SabadosView() {
           <li key={r.empleado_id}>
             <button
               onClick={() => setSelected(r)}
-              className="ao-card grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 p-4 text-left transition hover:border-[var(--color-primary)]"
+              className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left transition hover:border-[var(--color-primary)]"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[oklch(92%_.08_82_/_0.85)] dark:bg-[oklch(28%_.08_72_/_0.42)]">
-                <CalendarDays className="h-5 w-5 text-[var(--color-primary)]" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100">
+                <CalendarDays className="h-5 w-5 text-amber-700" />
               </div>
               <div className="min-w-0">
                 <div className="truncate font-semibold text-[var(--color-ink)]">{r.nombre}</div>
@@ -179,7 +179,7 @@ export function SabadosView() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-display text-lg font-bold tabular-nums text-[var(--mint)]">{eur(r.importe)}</div>
+                <div className="font-display text-lg font-bold tabular-nums text-emerald-700">{eur(r.importe)}</div>
                 <div className="text-xs text-[var(--color-ink-3)]">a pagar</div>
               </div>
             </button>

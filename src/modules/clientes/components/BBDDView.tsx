@@ -71,11 +71,11 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(320px,420px)_1fr]">
       {/* Lista */}
       <div className={cn(
-        'ao-card flex flex-col overflow-hidden p-0',
+        'flex flex-col rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]',
         selected ? 'hidden lg:flex' : 'flex',
       )}>
         {/* Toolbar */}
-        <div className="space-y-2 border-b border-[var(--color-border)] p-3">
+        <div className="space-y-2 border-b border-[var(--color-border)] p-2">
           <div className="relative">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-ink-3)]" />
             <Input
@@ -101,7 +101,7 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
                   'rounded-md px-2 py-0.5 font-semibold',
                   filtroABC === c
                     ? abcBadgeActive(c)
-                    : 'text-[var(--color-ink-2)] hover:bg-[rgba(255,255,255,.035)]',
+                    : 'text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)]',
                 )}
               >
                 {c}
@@ -152,7 +152,7 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
               onClick={() => setSelected(c.contact_name_canon)}
               className={cn(
                 'grid w-full grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-2 text-left text-sm transition',
-                selected === c.contact_name_canon ? 'bg-[var(--color-primary-soft)]' : 'hover:bg-[rgba(255,255,255,.035)]',
+                selected === c.contact_name_canon ? 'bg-[var(--color-primary-soft)]' : 'hover:bg-[var(--color-surface-2)]',
               )}
             >
               <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold', abcBadge(c.clase))}>
@@ -160,11 +160,11 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
               </span>
               <div className="min-w-0">
                 <div className="truncate text-[var(--color-ink)]">{c.contact_name_canon}</div>
-                <div className="mono text-[10px] text-[var(--color-ink-3)] tabular-nums">
+                <div className="text-[10px] text-[var(--color-ink-3)] tabular-nums">
                   {c.docs}p · {eur(c.margen)} margen{c.pendiente > 0 ? ` · ${eur(c.pendiente)} pdte` : ''}
                 </div>
               </div>
-              <span className="mono text-xs font-medium tabular-nums text-[var(--color-ink-2)]">{eur(c.ventas)}</span>
+              <span className="text-xs font-medium tabular-nums text-[var(--color-ink-2)]">{eur(c.ventas)}</span>
             </button>
           ))}
         </div>
@@ -175,7 +175,7 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
         {clienteSel
           ? <Ficha cliente={clienteSel} from={range.from} to={range.to} onClose={() => setSelected(null)} />
           : (
-            <div className="ao-card flex h-full min-h-[200px] items-center justify-center border-dashed p-8 text-center text-sm text-[var(--color-ink-3)]">
+            <div className="flex h-full min-h-[200px] items-center justify-center rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)] p-8 text-center text-sm text-[var(--color-ink-3)]">
               Selecciona un cliente a la izquierda para ver su ficha completa.
             </div>
           )}
@@ -193,7 +193,7 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
   return (
     <div className="space-y-3">
       {/* Cabecera */}
-      <div className="ao-card flex items-start gap-2 p-3">
+      <div className="flex items-start gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
         <button
           type="button"
           onClick={onClose}
@@ -207,7 +207,7 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
             <span className={cn('inline-flex h-6 w-6 items-center justify-center rounded text-xs font-bold', abcBadge(cliente.clase))}>
               {cliente.clase}
             </span>
-            <h2 className="text-lg font-semibold text-[var(--color-ink)] md:text-xl">{cliente.contact_name_canon}</h2>
+            <h2 className="font-display text-lg font-bold text-[var(--color-ink)] md:text-xl">{cliente.contact_name_canon}</h2>
           </div>
           {cliente.num_aliases > 0 && (
             <div className="mt-0.5 text-[11px] text-[var(--color-ink-3)]">{cliente.num_aliases} alias{cliente.num_aliases === 1 ? '' : 'es'} unificado{cliente.num_aliases === 1 ? '' : 's'}</div>
@@ -226,8 +226,8 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
 
       {/* Top productos + Facturas en grid */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <div className="ao-card overflow-hidden p-0">
-          <div className="label-caps border-b border-[var(--color-border)] px-3 py-2">
+        <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+          <div className="border-b border-[var(--color-border)] px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
             Top productos
           </div>
           <div className="max-h-[50vh] overflow-y-auto">
@@ -235,8 +235,8 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
               <div className="px-3 py-6 text-center text-sm text-[var(--color-ink-3)]">Sin productos en el rango</div>
             ) : (
               <table className="w-full text-sm">
-                <thead className="bg-[rgba(255,255,255,.025)]">
-                  <tr className="label-caps text-left">
+                <thead className="bg-[var(--color-surface-2)]">
+                  <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
                     <th className="px-3 py-1.5">Producto</th>
                     <th className="px-3 py-1.5 text-right">Veces</th>
                     <th className="px-3 py-1.5 text-right">Ventas</th>
@@ -248,8 +248,8 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
                     <tr key={p.product_id ?? p.nombre} className="border-t border-[var(--color-border)]">
                       <td className="px-3 py-1.5 truncate text-[var(--color-ink)]">{p.nombre}</td>
                       <td className="px-3 py-1.5 text-right tabular-nums">{p.veces}</td>
-                      <td className="mono px-3 py-1.5 text-right tabular-nums">{eur(p.ventas_subtotal)}</td>
-                      <td className="mono px-3 py-1.5 text-right tabular-nums text-[var(--color-ink-3)]">
+                      <td className="px-3 py-1.5 text-right tabular-nums">{eur(p.ventas_subtotal)}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums text-[var(--color-ink-3)]">
                         {p.margen_pct == null ? '—' : `${p.margen_pct.toFixed(0)}%`}
                       </td>
                     </tr>
@@ -260,8 +260,8 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
           </div>
         </div>
 
-        <div className="ao-card overflow-hidden p-0">
-          <div className="label-caps border-b border-[var(--color-border)] px-3 py-2">
+        <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+          <div className="border-b border-[var(--color-border)] px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
             Facturas / albaranes
           </div>
           <div className="max-h-[50vh] overflow-y-auto">
@@ -269,8 +269,8 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
               <div className="px-3 py-6 text-center text-sm text-[var(--color-ink-3)]">Sin facturas en el rango</div>
             ) : (
               <table className="w-full text-sm">
-                <thead className="bg-[rgba(255,255,255,.025)]">
-                  <tr className="label-caps text-left">
+                <thead className="bg-[var(--color-surface-2)]">
+                  <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
                     <th className="px-3 py-1.5">Fecha</th>
                     <th className="px-3 py-1.5">Doc</th>
                     <th className="px-3 py-1.5 text-right">Total</th>
@@ -280,10 +280,10 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
                 <tbody>
                   {facturas.map(f => (
                     <tr key={f.id} className="border-t border-[var(--color-border)]">
-                      <td className="mono px-3 py-1.5 text-[var(--color-ink-2)] tabular-nums">{format(parseISO(f.fecha), 'd LLL yy', { locale: es })}</td>
+                      <td className="px-3 py-1.5 text-[var(--color-ink-2)] tabular-nums">{format(parseISO(f.fecha), 'd LLL yy', { locale: es })}</td>
                       <td className="px-3 py-1.5 truncate text-[var(--color-ink-3)]">{f.doc_number ?? '—'}</td>
-                      <td className="mono px-3 py-1.5 text-right tabular-nums text-[var(--color-ink)]">{eur(f.total)}</td>
-                      <td className="mono px-3 py-1.5 text-right tabular-nums">{f.payments_pending > 0 ? <span className="text-[var(--coral)]">{eur(f.payments_pending)}</span> : <span className="text-[var(--color-ink-3)]">—</span>}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums text-[var(--color-ink)]">{eur(f.total)}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums">{f.payments_pending > 0 ? <span className="text-red-700">{eur(f.payments_pending)}</span> : <span className="text-[var(--color-ink-3)]">—</span>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -318,27 +318,27 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
 
 function Kpi({ label, value, hint, tone = 'default' }: { label: string; value: string; hint?: string; tone?: 'default' | 'primary' | 'ok' | 'warn' | 'muted' }) {
   const cls =
-    tone === 'primary' ? 'text-[var(--mint)]' :
-    tone === 'ok'      ? 'text-[var(--mint)]' :
-    tone === 'warn'    ? 'text-[var(--coral)]' :
+    tone === 'primary' ? 'text-[var(--color-primary-2)]' :
+    tone === 'ok'      ? 'text-[#047857]' :
+    tone === 'warn'    ? 'text-[#dc2626]' :
     tone === 'muted'   ? 'text-[var(--color-ink-3)]' :
                          'text-[var(--color-ink)]'
   return (
-    <div className="ao-card p-2.5">
-      <div className="label-caps">{label}</div>
-      <div className={cn('mono mt-0.5 text-base font-semibold tabular-nums md:text-lg', cls)}>{value}</div>
+    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">{label}</div>
+      <div className={cn('mt-0.5 font-display text-base font-bold tabular-nums md:text-lg', cls)}>{value}</div>
       {hint && <div className="text-[10px] text-[var(--color-ink-3)]">{hint}</div>}
     </div>
   )
 }
 
 function abcBadge(c: 'A' | 'B' | 'C'): string {
-  if (c === 'A') return 'bg-[var(--mint-glow)] text-[var(--mint)]'
-  if (c === 'B') return 'bg-[var(--color-warn-soft)] text-[var(--amber)]'
+  if (c === 'A') return 'bg-[#10b98122] text-[#047857]'
+  if (c === 'B') return 'bg-[#f59e0b22] text-[#92400e]'
   return 'bg-[var(--color-surface-2)] text-[var(--color-ink-3)]'
 }
 function abcBadgeActive(c: 'A' | 'B' | 'C'): string {
-  if (c === 'A') return 'bg-[var(--mint)] text-[#06100d]'
-  if (c === 'B') return 'bg-[var(--amber)] text-[#120d05]'
-  return 'bg-[var(--color-ink-2)] text-[#06100d]'
+  if (c === 'A') return 'bg-[#10b981] text-white'
+  if (c === 'B') return 'bg-[#f59e0b] text-white'
+  return 'bg-[var(--color-ink-2)] text-white'
 }

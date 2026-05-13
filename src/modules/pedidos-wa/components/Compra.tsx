@@ -155,21 +155,21 @@ export function Compra() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h2 className="inline-flex items-center gap-2 text-lg font-medium tracking-[-0.01em] text-[var(--ink)] capitalize">
+          <h2 className="inline-flex items-center gap-2 text-base font-semibold text-[var(--color-ink)] capitalize">
             <ShoppingCart className="h-4 w-4" />
             Compra · {titulo}
           </h2>
-          <p className="mono mt-1 text-[10px] uppercase tracking-[0.14em] text-[var(--ink-mute)]">
+          <p className="text-xs text-[var(--color-ink-3)]">
             {totalPedidos} {totalPedidos === 1 ? 'pedido' : 'pedidos'} · {tieneInventario ? 'inventario cargado' : 'sin inventario aún'}
           </p>
         </div>
       </div>
 
       {/* Sección 1: Inventario */}
-      <section className="ao-card">
+      <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
         <header className="mb-2 flex items-center justify-between gap-2">
-          <h3 className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--ink)]">
-            <Boxes className="h-4 w-4 text-[var(--mint)]" />
+          <h3 className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-ink)]">
+            <Boxes className="h-4 w-4 text-[var(--color-primary)]" />
             Inventario del día
           </h3>
           {tieneInventario && (
@@ -177,7 +177,7 @@ export function Compra() {
               type="button"
               onClick={onEliminar}
               disabled={eliminar.isPending}
-              className="inline-flex items-center gap-1 rounded-md p-1 text-xs text-[var(--ink-mute)] hover:bg-[oklch(30%_.12_25_/_0.18)] hover:text-[var(--coral)] disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-md p-1 text-xs text-[var(--color-ink-3)] hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
               title="Eliminar inventario de hoy"
             >
               <Trash2 className="h-3 w-3" /> Borrar
@@ -190,10 +190,10 @@ export function Compra() {
           onChange={(e) => setTexto(e.target.value)}
           rows={6}
           placeholder={'Pega tu inventario. Una línea por producto, ejemplo:\n10 cajas tomate daniela\n5 kg perejil\n3 sacos patata'}
-          className="block w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-[rgba(255,255,255,.02)] p-2 font-mono text-sm text-[var(--ink)] placeholder:text-[var(--ink-mute)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mint)]"
+          className="block w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-2 font-mono text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
         />
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[11px] text-[var(--ink-mute)]">
+          <span className="text-[11px] text-[var(--color-ink-3)]">
             {tieneInventario && inv.data && `Última carga: ${format(new Date(inv.data.updated_at), "HH:mm 'h'")} · ${inv.data.lineas?.length ?? 0} líneas`}
           </span>
           <Button
@@ -211,7 +211,7 @@ export function Compra() {
 
       {/* Sección 2: Cotejo */}
       {totalPedidos === 0 ? (
-        <div className="ao-card border-dashed p-8 text-center text-sm text-[var(--ink-mute)]">
+        <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-ink-3)]">
           No hay pedidos para hoy todavía. Pasa por la pestaña Captura para añadirlos.
         </div>
       ) : cotejo.isLoading ? (
@@ -219,7 +219,7 @@ export function Compra() {
           <Loader2 className="h-4 w-4 animate-spin" /> Cotejando…
         </div>
       ) : cotejo.error ? (
-        <div className="rounded-md border border-[oklch(70%_.18_25_/_0.28)] bg-[oklch(30%_.12_25_/_0.18)] p-3 text-sm text-[var(--coral)]">
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           Error: {(cotejo.error as Error).message}
         </div>
       ) : (
@@ -275,7 +275,7 @@ export function Compra() {
             <Bloque
               titulo="Cubiertos exactos"
               icon={<CheckCircle2 className="h-4 w-4" />}
-              accent="bg-[var(--mint)]"
+              accent="bg-emerald-500"
               count={justas.length}
               colapsadoInicial
             >
@@ -297,7 +297,7 @@ export function Compra() {
           )}
 
           {!tieneInventario && totalPedidos > 0 && (
-            <div className="rounded-md border border-[oklch(78%_.16_70_/_0.28)] bg-[oklch(30%_.10_70_/_0.18)] p-3 text-xs text-[var(--amber)]">
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
               <AlertTriangle className="mr-1 inline h-3.5 w-3.5" />
               Sin inventario, todo lo que pidan es lo que hay que comprar.
               Pega tu inventario arriba para ajustar la lista.
@@ -321,9 +321,9 @@ function KpiBlock({
   tone: 'ok' | 'warning' | 'info'
 }) {
   const styles = {
-    ok:      'border-[var(--mint-glow)] bg-[var(--mint-glow)] text-[var(--mint)]',
-    warning: 'border-[oklch(78%_.16_70_/_0.25)] bg-[oklch(30%_.10_70_/_0.18)] text-[var(--amber)]',
-    info:    'border-[oklch(76%_.12_235_/_0.25)] bg-[oklch(30%_.10_235_/_0.18)] text-[var(--sky)]',
+    ok:      'border-emerald-200 bg-emerald-50 text-emerald-700',
+    warning: 'border-amber-200   bg-amber-50   text-amber-700',
+    info:    'border-sky-200     bg-sky-50     text-sky-700',
   }[tone]
   return (
     <div className={cn('flex items-center justify-between rounded-[var(--radius-lg)] border p-2.5', styles)}>
@@ -349,8 +349,8 @@ function Bloque({
 }) {
   const [open, setOpen] = useState(!colapsadoInicial)
   return (
-    <section className="ao-card overflow-hidden p-0">
-      <header className="flex items-center justify-between gap-2 border-b border-[var(--line)] px-3 py-2">
+    <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <header className="flex items-center justify-between gap-2 border-b border-[var(--color-border)] px-3 py-2">
         <button
           type="button"
           onClick={() => setOpen(o => !o)}
@@ -379,7 +379,7 @@ function Tabla({
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-[rgba(255,255,255,.025)] text-[10px] uppercase tracking-wide text-[var(--ink-mute)]">
+        <thead className="bg-[var(--color-surface-2)] text-[10px] uppercase tracking-wide text-[var(--color-ink-3)]">
           <tr>
             <th className="px-3 py-2 text-left font-medium">Producto</th>
             <th className="px-3 py-2 text-right font-medium">Pedido</th>
@@ -412,7 +412,7 @@ function FilaRow({ fila, columna }: { fila: CotejoFila; columna: 'a_comprar' | '
     : fila.pedido_cajas
 
   return (
-    <tr className="hover:bg-[rgba(255,255,255,.025)]">
+    <tr className="hover:bg-[var(--color-surface-2)]">
       <td className="px-3 py-2">
         <div className="font-medium text-[var(--color-ink)]">{fila.producto}</div>
         {fila.kg_por_caja != null && fila.kg_por_caja !== 10 && (
@@ -429,9 +429,9 @@ function FilaRow({ fila, columna }: { fila: CotejoFila; columna: 'a_comprar' | '
       </td>
       <td className={cn(
         'px-3 py-2 text-right font-bold tabular-nums',
-        columna === 'a_comprar' && 'text-[var(--amber)]',
-        columna === 'sobra'     && 'text-[var(--sky)]',
-        columna === 'pedido'    && 'text-[var(--mint)]',
+        columna === 'a_comprar' && 'text-amber-700',
+        columna === 'sobra'     && 'text-sky-700',
+        columna === 'pedido'    && 'text-emerald-700',
       )}>
         {formatCantidad(valorPrincipal, fila.unidad, cajasPrincipal)}
       </td>
@@ -709,7 +709,7 @@ function FactorRow({
             type="button"
             onClick={guardar}
             disabled={pending}
-            className="rounded p-1 text-[var(--mint)] hover:bg-[var(--mint-glow)] disabled:opacity-50"
+            className="rounded p-1 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 disabled:opacity-50"
             title="Guardar"
           >
             {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
@@ -750,7 +750,7 @@ function FactorRow({
           <button
             type="button"
             onClick={onDelete}
-            className="rounded p-1 text-[var(--color-ink-3)] opacity-0 transition-opacity hover:bg-[oklch(30%_.12_25_/_0.18)] hover:text-[var(--coral)] group-hover/row:opacity-100"
+            className="rounded p-1 text-[var(--color-ink-3)] opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 group-hover/row:opacity-100"
             title="Eliminar"
           >
             <Trash2 className="h-3 w-3" />

@@ -17,12 +17,10 @@ export function PageTopbar({ breadcrumb, title, subtitle, actions }: PageTopbarP
         alignItems: 'flex-end',
         justifyContent: 'space-between',
         gap: 16,
-        minWidth: 0,
-        flexWrap: 'wrap',
       }}
     >
       {/* Left: breadcrumb + title + subtitle */}
-      <div style={{ minWidth: 0 }}>
+      <div>
         {breadcrumb && (
           <div className="micro-caps" style={{ color: 'var(--ink-mute)', marginBottom: 6 }}>
             {breadcrumb}
@@ -31,7 +29,7 @@ export function PageTopbar({ breadcrumb, title, subtitle, actions }: PageTopbarP
         <h1
           style={{
             margin: 0,
-            fontSize: 32,
+            fontSize: 28,
             fontWeight: 500,
             letterSpacing: '-0.025em',
             color: 'var(--ink)',
@@ -48,7 +46,7 @@ export function PageTopbar({ breadcrumb, title, subtitle, actions }: PageTopbarP
       </div>
 
       {/* Right cluster: module actions + bell + sync + ⌘K */}
-      <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         {actions}
 
         <button

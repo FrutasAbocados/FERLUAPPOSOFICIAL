@@ -63,7 +63,7 @@ export function CobrosPage() {
       <PageTopbar
         breadcrumb="OPERACIONES · COBROS"
         title="Cobros"
-        subtitle="Control de deuda, vencidos y pizarra diaria."
+        subtitle="Control de deuda · Pizarra + Facturas"
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => abrirNuevo('Pizarra')}>
@@ -75,10 +75,10 @@ export function CobrosPage() {
           </>
         }
       />
-      <div className="ao-page max-w-7xl py-6 md:py-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 md:py-8">
 
       {kpi && (
-        <section className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-4">
           <KpiTile
             Icon={Wallet}
             label="Deuda pendiente"
@@ -107,22 +107,21 @@ export function CobrosPage() {
             sub="≤ 7 días"
             tone="warning"
           />
-        </section>
+        </div>
       )}
 
-      <nav className="ao-tabbar mb-5 flex w-full overflow-x-auto p-1 md:w-auto">
+      <nav className="mb-5 flex gap-1 overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
         {TABS.map(({ key, label, Icon }) => (
           <button
             key={key}
             type="button"
             onClick={() => setTab(key)}
             className={cn(
-              'ao-tab flex flex-1 items-center justify-center gap-2 whitespace-nowrap md:flex-none',
+              'flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-sm)] px-3 py-1.5 text-sm transition-colors',
               tab === key
-                ? 'font-semibold'
-                : 'hover:bg-[var(--color-surface-2)]',
+                ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-2)] font-semibold'
+                : 'text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)]',
             )}
-            data-active={tab === key}
           >
             <Icon className="h-4 w-4" />
             {label}
@@ -171,11 +170,11 @@ export function CobrosPage() {
 type Tone = 'primary' | 'danger' | 'warning' | 'info' | 'muted'
 
 const TONE_STYLE: Record<Tone, { card: string; icon: string; value: string }> = {
-  primary: { card: 'border-l-[var(--mint)]', icon: 'text-[var(--mint)]', value: 'text-[var(--mint)]' },
-  danger:  { card: 'border-l-[var(--coral)]', icon: 'text-[var(--coral)]', value: 'text-[var(--coral)]' },
-  warning: { card: 'border-l-[var(--amber)]', icon: 'text-[var(--amber)]', value: 'text-[var(--amber)]' },
-  info:    { card: 'border-l-[var(--sky)]', icon: 'text-[var(--sky)]', value: 'text-[var(--sky)]' },
-  muted:   { card: 'border-l-[var(--line-2)]', icon: 'text-[var(--color-ink-3)]', value: 'text-[var(--color-ink)]' },
+  primary: { card: 'border-l-4 border-l-[var(--color-primary)] border-y border-r border-[var(--color-border)] bg-[var(--color-surface)]', icon: 'text-[var(--color-primary-2)]', value: 'text-[var(--color-primary-2)]' },
+  danger:  { card: 'border-l-4 border-l-red-500 border-y border-r border-[var(--color-border)] bg-[var(--color-surface)]',                icon: 'text-red-600 dark:text-red-400',     value: 'text-red-700 dark:text-red-300' },
+  warning: { card: 'border-l-4 border-l-amber-500 border-y border-r border-[var(--color-border)] bg-[var(--color-surface)]',              icon: 'text-amber-600 dark:text-amber-400', value: 'text-amber-700 dark:text-amber-300' },
+  info:    { card: 'border-l-4 border-l-sky-500 border-y border-r border-[var(--color-border)] bg-[var(--color-surface)]',                icon: 'text-sky-600 dark:text-sky-400',     value: 'text-sky-700 dark:text-sky-300' },
+  muted:   { card: 'border border-[var(--color-border)] bg-[var(--color-surface)]',                                                       icon: 'text-[var(--color-ink-3)]',          value: 'text-[var(--color-ink)]' },
 }
 
 function KpiTile({
@@ -189,14 +188,14 @@ function KpiTile({
 }) {
   const s = TONE_STYLE[tone]
   return (
-    <div className={cn('ao-card border-l-4 p-3', s.card)}>
+    <div className={cn('rounded-[var(--radius-md)] border p-3', s.card)}>
       <div className="flex items-center gap-2">
         <Icon className={cn('h-4 w-4 shrink-0', s.icon)} />
-        <span className="label-caps truncate">
+        <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
           {label}
         </span>
       </div>
-      <div className={cn('mono mt-1 text-xl font-semibold tabular-nums md:text-2xl', s.value)}>
+      <div className={cn('mt-1 font-display text-xl font-bold tabular-nums md:text-2xl', s.value)}>
         {value}
       </div>
       <div className="text-[11px] text-[var(--color-ink-3)]">{sub}</div>

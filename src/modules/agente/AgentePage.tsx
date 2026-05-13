@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Bot, Send, Sparkles, User, Wrench } from 'lucide-react'
-import { PageTopbar } from '@/shared/components/PageTopbar'
 import { Button } from '@/shared/components/ui/button'
 import { useAgentChat, type AgentMessage, type AgentToolCall } from './lib/queries'
 
@@ -46,18 +45,21 @@ export function AgentePage() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] flex-col md:h-dvh">
-      <PageTopbar
-        breadcrumb="IA · AGENTE"
-        title="Agente IA"
-        subtitle="Asistente experto en tus datos del Manager."
-      />
-      <div className="ao-page flex max-w-5xl flex-1 flex-col overflow-hidden py-4 md:py-5">
+    <div className="mx-auto flex h-[calc(100dvh-3.5rem-4rem-env(safe-area-inset-bottom))] max-w-4xl flex-col px-4 py-4 md:h-[calc(100dvh-3rem)] md:px-6 md:py-6">
+      <header style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--line)' }}>
+        <div className="micro-caps" style={{ color: 'var(--ink-mute)', marginBottom: 4 }}>IA · AGENTE</div>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+          Agente IA
+        </h1>
+        <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--ink-dim)' }}>
+          Asistente experto en tus datos del Manager. Pregúntale en lenguaje natural.
+        </p>
+      </header>
 
       {/* Mensajes */}
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto pr-1">
         {turns.length === 0 && (
-          <div className="ao-card space-y-3 p-4">
+          <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-ink)]">
               <Sparkles className="h-4 w-4 text-[var(--color-primary)]" />
               Prueba con
@@ -67,7 +69,7 @@ export function AgentePage() {
                 <button
                   key={s}
                   onClick={() => enviar(s)}
-                  className="ao-card-hover rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-left text-sm text-[var(--color-ink-2)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-ink)]"
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-left text-sm text-[var(--color-ink-2)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-ink)]"
                 >
                   {s}
                 </button>
@@ -85,7 +87,7 @@ export function AgentePage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary-soft)]">
               <Bot className="h-4 w-4 text-[var(--color-primary-2)]" />
             </div>
-            <div className="ao-card rounded-2xl rounded-tl-sm px-3 py-2">
+            <div className="rounded-2xl rounded-tl-sm border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--color-primary)]" />
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--color-primary)]" style={{ animationDelay: '150ms' }} />
@@ -123,7 +125,6 @@ export function AgentePage() {
           </button>
         )}
       </div>
-      </div>
     </div>
   )
 }
@@ -140,13 +141,13 @@ function Mensaje({ turn }: { turn: ChatTurn }) {
       <div className={`max-w-[88%] space-y-1 ${isUser ? 'items-end' : ''}`}>
         <div className={`rounded-2xl px-3 py-2 text-sm ${
           isUser
-            ? 'rounded-tr-sm bg-[var(--color-primary)] text-[#06100d]'
-            : 'ao-card rounded-tl-sm text-[var(--color-ink)]'
+            ? 'rounded-tr-sm bg-[var(--color-primary)] text-white'
+            : 'rounded-tl-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-ink)]'
         }`}>
           {isUser ? (
             <p>{turn.content}</p>
           ) : (
-            <div className="prose prose-sm max-w-none prose-invert prose-headings:font-sans prose-table:text-xs prose-th:bg-[rgba(255,255,255,.025)]">
+            <div className="prose prose-sm max-w-none prose-headings:font-display prose-table:text-xs prose-th:bg-[var(--color-surface-2,#f8fafc)]">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{turn.content || '(sin respuesta)'}</ReactMarkdown>
             </div>
           )}
@@ -158,7 +159,7 @@ function Mensaje({ turn }: { turn: ChatTurn }) {
             </summary>
             <ul className="mt-1 space-y-0.5 pl-4">
               {turn.toolCalls.map((tc, i) => (
-                <li key={i}><code className="rounded bg-[rgba(255,255,255,.05)] px-1 text-[10px] text-[var(--mint)]">{tc.name}</code> {tc.summary}</li>
+                <li key={i}><code className="rounded bg-slate-100 px-1 text-[10px]">{tc.name}</code> {tc.summary}</li>
               ))}
             </ul>
           </details>

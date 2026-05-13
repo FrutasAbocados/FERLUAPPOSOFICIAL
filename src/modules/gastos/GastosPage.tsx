@@ -109,7 +109,7 @@ export function GastosPage() {
           </div>
         }
       />
-      <div className="ao-page max-w-7xl space-y-4 py-6 md:py-8">
+      <div className="mx-auto w-full max-w-7xl space-y-4 p-4 md:p-6">
 
       {/* KPIs hero row */}
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -139,7 +139,7 @@ export function GastosPage() {
       </section>
 
       {/* Sub-nav */}
-      <nav className="ao-tabbar flex w-full overflow-x-auto p-1 md:w-auto">
+      <nav className="flex gap-1 overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
         {TABS.map((t) => {
           const active = tab === t.key
           return (
@@ -148,12 +148,11 @@ export function GastosPage() {
               type="button"
               onClick={() => setTab(t.key)}
               className={cn(
-                'ao-tab flex shrink-0 items-center gap-1.5',
+                'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                 active
-                  ? 'font-semibold'
+                  ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]'
                   : 'text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)]',
               )}
-              data-active={active}
             >
               <t.icon className="h-4 w-4" />
               {t.label}
@@ -184,20 +183,21 @@ function KpiTile(props: {
 }) {
   const { label, value, hint, tone = 'default', icon: Icon } = props
   const valueColor =
-    tone === 'primary' ? 'text-[var(--mint)]' :
-    tone === 'warn'    ? 'text-[var(--coral)]' :
+    tone === 'primary' ? 'text-[var(--color-primary-2)]' :
+    tone === 'warn'    ? 'text-[#dc2626]' :
     tone === 'muted'   ? 'text-[var(--color-ink-3)]' :
                          'text-[var(--color-ink)]'
   return (
-    <div className="ao-card p-3">
-      <div className="label-caps flex items-center gap-1.5">
+    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
         {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
         {label}
       </div>
-      <div className={cn('mono mt-1 text-xl font-semibold tabular-nums md:text-2xl', valueColor)}>
+      <div className={cn('mt-1 font-display text-xl font-bold tabular-nums md:text-2xl', valueColor)}>
         {value}
       </div>
       {hint ? <div className="text-[11px] text-[var(--color-ink-3)]">{hint}</div> : null}
     </div>
   )
 }
+

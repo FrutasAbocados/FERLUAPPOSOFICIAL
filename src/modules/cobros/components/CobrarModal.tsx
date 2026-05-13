@@ -87,12 +87,12 @@ function CobrarForm({ movimiento: m, onClose }: FormProps) {
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <div className="ao-panel p-3 text-sm">
+      <div className="rounded-[var(--radius-md)] bg-[var(--color-surface-2)] p-3 text-sm">
         <div className="text-xs text-[var(--color-ink-3)]">
           {m.numero_factura ?? (m.tipo === 'Pizarra' ? 'Deuda de pizarra' : 'Sin nº')}
-          {esAbono && <span className="ao-chip ao-chip-amber ml-1 px-1.5 py-0.5 text-[10px]">ABONO</span>}
+          {esAbono && <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">ABONO</span>}
         </div>
-        <div className={`mono text-lg font-semibold tabular-nums ${esAbono ? 'text-[var(--amber)]' : 'text-[var(--color-ink)]'}`}>{eur(pend)}</div>
+        <div className={`font-display text-lg font-bold ${esAbono ? 'text-amber-700' : ''}`}>{eur(pend)}</div>
         <div className="text-[11px] text-[var(--color-ink-3)]">pendiente de {eur(Number(m.importe))}</div>
       </div>
 
@@ -127,7 +127,7 @@ function CobrarForm({ movimiento: m, onClose }: FormProps) {
           id="met"
           value={metodo}
           onChange={(e) => setMetodo(e.target.value as MetodoCobro)}
-          className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-ink)]"
+          className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm"
         >
           {METODOS_COBRO.map((opt) => (
             <option key={opt} value={opt}>

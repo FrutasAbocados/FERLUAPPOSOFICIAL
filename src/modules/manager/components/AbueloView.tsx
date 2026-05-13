@@ -128,7 +128,7 @@ export function AbueloView({ period }: Props) {
           <div className="flex items-baseline gap-3 text-sm tabular-nums">
             <span className="text-[var(--color-ink-3)]">Subtotal {eur(subtotalForm)}</span>
             <span className="text-[var(--color-ink-3)]">IVA {eur(ivaForm)}</span>
-            <span className="text-base font-bold text-[var(--mint)]">Total {eur(totalForm)}</span>
+            <span className="text-base font-bold text-emerald-700">Total {eur(totalForm)}</span>
           </div>
         </div>
 
@@ -195,7 +195,7 @@ export function AbueloView({ period }: Props) {
                       <span className="block text-[10px] text-[var(--color-ink-3)]">{eur(lineaSubtotal(l))} + {eur(lineaIva(l))}</span>
                     </span>
                     <Button size="sm" variant="ghost" onClick={() => removeLinea(i)} title="Eliminar línea">
-                      <Trash2 className="h-4 w-4 text-[var(--coral)]" />
+                      <Trash2 className="h-4 w-4 text-red-600" />
                     </Button>
                   </div>
                 </div>
@@ -209,7 +209,7 @@ export function AbueloView({ period }: Props) {
           <div className="flex items-baseline gap-3 text-sm tabular-nums">
             <span className="text-[var(--color-ink-3)]">Subtotal {eur(subtotalForm)}</span>
             <span className="text-[var(--color-ink-3)]">IVA {eur(ivaForm)}</span>
-            <span className="text-base font-bold text-[var(--mint)]">Total {eur(totalForm)}</span>
+            <span className="text-base font-bold text-emerald-700">Total {eur(totalForm)}</span>
             <Button onClick={guardar} disabled={totalForm <= 0 || add.isPending}>
               {add.isPending ? 'Guardando…' : 'Guardar factura'}
             </Button>
@@ -223,7 +223,7 @@ export function AbueloView({ period }: Props) {
           <h3 className="text-sm font-semibold text-[var(--color-ink)]">Facturas del periodo</h3>
           <div className="flex items-baseline gap-3 text-sm tabular-nums">
             <span className="text-[var(--color-ink-3)]">Subtotal {eur(subtotalPeriodo)}</span>
-            <span className="font-medium text-[var(--mint)]">Total {eur(totalPeriodo)}</span>
+            <span className="font-medium text-emerald-700">Total {eur(totalPeriodo)}</span>
           </div>
         </div>
         {isLoading && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
@@ -250,7 +250,7 @@ export function AbueloView({ period }: Props) {
                     {expandedId === f.id ? 'Ocultar' : 'Ver'}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => onBorrar(f.id)} disabled={del.isPending}>
-                    <Trash2 className="h-4 w-4 text-[var(--coral)]" />
+                    <Trash2 className="h-4 w-4 text-red-600" />
                   </Button>
                 </div>
                 </div>

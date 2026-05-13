@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { PageTopbar } from '@/shared/components/PageTopbar'
-import { BarChart3, CalendarDays, FileText, MapPinned, Package, ReceiptText, Sparkles, TrendingUp, Users } from 'lucide-react'
+import { Button } from '@/shared/components/ui/button'
 import { SyncBar } from './components/SyncBar'
 import { PeriodPicker } from './components/PeriodPicker'
 import { ResumenView } from './components/ResumenView'
@@ -27,33 +27,31 @@ export function ManagerPage() {
         title="Manager"
         subtitle="Análisis de ventas y compras en directo desde Holded · margen real con coste por línea."
       />
-      <div className="ao-page py-5 md:py-7">
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8">
 
       <div className="space-y-4">
         <SyncBar />
         <PeriodPicker value={period} onChange={setPeriod} />
 
-        <div className="ao-tabbar max-w-full overflow-x-auto no-scrollbar">
+        <div className="-mx-4 flex items-center gap-1 overflow-x-auto border-b border-[var(--color-border)] px-4 no-scrollbar md:mx-0 md:px-0">
           {([
-            { k: 'resumen',    l: 'Resumen', Icon: BarChart3 },
-            { k: 'clientes',   l: 'Clientes', Icon: Users },
-            { k: 'productos',  l: 'Productos', Icon: Package },
-            { k: 'facturas',   l: 'Facturas', Icon: FileText },
-            { k: 'calendario', l: 'Calendario', Icon: CalendarDays },
-            { k: 'patrones',   l: 'Patrones', Icon: Sparkles },
-            { k: 'abuelo',     l: 'Abuelo', Icon: ReceiptText },
-            { k: 'estacionalidad', l: 'Estacionalidad coste', Icon: TrendingUp },
+            { k: 'resumen',    l: 'Resumen' },
+            { k: 'clientes',   l: 'Clientes' },
+            { k: 'productos',  l: 'Productos' },
+            { k: 'facturas',   l: 'Facturas' },
+            { k: 'calendario', l: 'Calendario' },
+            { k: 'patrones',   l: 'Patrones' },
+            { k: 'abuelo',     l: 'Abuelo' },
+            { k: 'estacionalidad', l: 'Estacionalidad coste' },
             // { k: 'mapa', l: 'Mapa' },  // oculto — geocoding poco preciso, retomar
-          ] as Array<{ k: Tab; l: string; Icon: typeof MapPinned }>).map(({ Icon, ...t }) => (
-            <button
+          ] as Array<{ k: Tab; l: string }>).map(t => (
+            <Button
               key={t.k}
-              type="button"
+              size="sm"
+              variant={tab === t.k ? 'primary' : 'ghost'}
               onClick={() => setTab(t.k)}
-              className={tab === t.k ? 'ao-tab ao-tab-active' : 'ao-tab'}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t.l}
-            </button>
+              className="shrink-0"
+            >{t.l}</Button>
           ))}
         </div>
 

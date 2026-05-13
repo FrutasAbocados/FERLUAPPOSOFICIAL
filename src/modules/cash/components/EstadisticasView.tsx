@@ -102,7 +102,7 @@ export function EstadisticasView() {
   return (
     <div>
       {/* Filtros */}
-      <div className="ao-panel mb-4 flex flex-wrap items-center gap-2 p-3">
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
         <div className="flex flex-wrap items-center gap-1">
           {PRESETS.map((p) => (
             <button
@@ -127,7 +127,7 @@ export function EstadisticasView() {
               type="date"
               value={from}
               onChange={(e) => handleFromChange(e.target.value)}
-            className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-ink)]"
+              className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs"
             />
           </label>
           <label className="flex items-center gap-1.5">
@@ -136,7 +136,7 @@ export function EstadisticasView() {
               type="date"
               value={to}
               onChange={(e) => handleToChange(e.target.value)}
-              className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-ink)]"
+              className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs"
             />
           </label>
         </div>
@@ -163,7 +163,7 @@ export function EstadisticasView() {
           Cargando estadísticas…
         </div>
       ) : semanas.length === 0 ? (
-        <div className="ao-card border-dashed p-10 text-center">
+        <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-strong)] bg-[var(--color-surface)] p-10 text-center">
           <h2 className="font-display text-base font-semibold text-[var(--color-ink)]">
             Sin datos en este rango
           </h2>
@@ -180,7 +180,7 @@ export function EstadisticasView() {
             return (
               <div
                 key={semana}
-                className="ao-card overflow-hidden p-0"
+                className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)]"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] px-4 py-2.5">
                   <div className="text-sm font-semibold text-[var(--color-ink)]">
@@ -253,12 +253,12 @@ const TONE: Record<KpiProps['tone'], string> = {
 
 function Kpi({ label, value, icon, tone }: KpiProps) {
   return (
-    <div className="ao-card p-3">
-      <div className="label-caps flex items-center gap-1.5">
+    <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
         <span className={cn(TONE[tone])}>{icon}</span>
         {label}
       </div>
-      <div className={cn('mono mt-1 text-xl font-semibold tabular-nums md:text-2xl', TONE[tone])}>
+      <div className={cn('mt-1 font-display text-xl font-bold tabular-nums md:text-2xl', TONE[tone])}>
         {value}
       </div>
     </div>

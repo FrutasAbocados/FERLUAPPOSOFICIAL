@@ -38,9 +38,9 @@ export function CashPage() {
         title="Caja"
         subtitle={`Cierre diario y por repartidor${!puedeEditarCalendario && view === 'calendario' ? ' · Solo lectura' : ''}`}
       />
-      <div className="ao-page max-w-5xl py-6 md:py-8">
+      <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
 
-      <div className="ao-tabbar mb-5 flex w-full overflow-x-auto p-1 md:w-auto">
+      <div className="mb-5 flex gap-1 border-b border-[var(--color-border)]">
         <TabButton active={view === 'calendario'} onClick={() => setView('calendario')}>
           Calendario
         </TabButton>
@@ -76,12 +76,11 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`ao-tab relative px-4 py-2 text-sm font-medium transition ${
+      className={`relative -mb-px px-4 py-2 text-sm font-medium transition ${
         active
-          ? 'text-[var(--mint)]'
+          ? 'border-b-2 border-[var(--color-primary)] text-[var(--color-ink)]'
           : 'text-[var(--color-ink-3)] hover:text-[var(--color-ink-2)]'
       }`}
-      data-active={active}
     >
       {children}
     </button>
@@ -149,9 +148,9 @@ function CalendarioView({ puedeEditar }: { puedeEditar: boolean }) {
           Cargando cierres del mes…
         </div>
       ) : (
-        <div className="ao-card overflow-hidden p-0">
+        <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
           {/* Cabecera días semana */}
-          <div className="grid grid-cols-7 border-b border-[var(--color-border)] bg-[rgba(255,255,255,.025)]">
+          <div className="grid grid-cols-7 border-b border-[var(--color-border)] bg-[var(--color-surface-2,#f3f4ee)]">
             {DOW_LABELS.map(d => (
               <div key={d} className="px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
                 {d}
@@ -165,7 +164,7 @@ function CalendarioView({ puedeEditar }: { puedeEditar: boolean }) {
               // Padding al inicio (lun=0, dom=6)
               const firstDay = days[0]
               const dow = (getDay(firstDay) + 6) % 7  // 0=lun
-              const padStart = Array.from({ length: dow }, (_, i) => <div key={`pad-${i}`} className="border-b border-r border-[var(--color-border)]/40 bg-[rgba(255,255,255,.015)]" />)
+              const padStart = Array.from({ length: dow }, (_, i) => <div key={`pad-${i}`} className="border-b border-r border-[var(--color-border)]/40 bg-[var(--color-surface-2,#f8fafc)]" />)
               return padStart
             })()}
             {days.map((d) => {
@@ -182,8 +181,8 @@ function CalendarioView({ puedeEditar }: { puedeEditar: boolean }) {
                   onClick={() => setEditing(iso)}
                   className={`relative flex min-h-[84px] flex-col gap-1 border-b border-r border-[var(--color-border)]/40 p-2 text-left transition ${
                     futuro
-                      ? 'cursor-not-allowed bg-[rgba(255,255,255,.015)] opacity-60'
-                      : 'hover:bg-[rgba(255,255,255,.035)]'
+                      ? 'cursor-not-allowed bg-[var(--color-surface-2,#f8fafc)] opacity-60'
+                      : 'hover:bg-[var(--color-surface-2,#f8fafc)]'
                   } ${isHoy ? 'ring-2 ring-inset ring-[var(--color-primary)]' : ''}`}
                 >
                   <div className="flex items-baseline justify-between">
@@ -191,16 +190,16 @@ function CalendarioView({ puedeEditar }: { puedeEditar: boolean }) {
                       {format(d, 'd')}
                     </span>
                     {tieneCierre && (
-                      <span className={`h-1.5 w-1.5 rounded-full ${Number(cierre.resultado) >= 0 ? 'bg-[var(--mint)]' : 'bg-[var(--coral)]'}`} />
+                      <span className={`h-1.5 w-1.5 rounded-full ${Number(cierre.resultado) >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
                     )}
                   </div>
                   {tieneCierre && (
                     <div className="space-y-0.5 text-[10px] leading-tight">
-                      <div className="mono font-medium tabular-nums text-[var(--color-ink)]">{eur(Number(cierre.total_cobrado))}</div>
+                      <div className="font-medium tabular-nums text-[var(--color-ink)]">{eur(Number(cierre.total_cobrado))}</div>
                       {Number(cierre.total_gastos) > 0 && (
-                        <div className="mono tabular-nums text-[var(--coral)]">-{eur(Number(cierre.total_gastos))}</div>
+                        <div className="tabular-nums text-red-600">-{eur(Number(cierre.total_gastos))}</div>
                       )}
-                      <div className={`mono tabular-nums font-medium ${Number(cierre.resultado) >= 0 ? 'text-[var(--mint)]' : 'text-[var(--coral)]'}`}>
+                      <div className={`tabular-nums font-medium ${Number(cierre.resultado) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                         {eur(Number(cierre.resultado))}
                       </div>
                     </div>
@@ -216,10 +215,10 @@ function CalendarioView({ puedeEditar }: { puedeEditar: boolean }) {
           {/* Leyenda */}
           <div className="flex items-center gap-4 border-t border-[var(--color-border)] px-3 py-2 text-[10px] text-[var(--color-ink-3)]">
             <span className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--mint)]" /> resultado positivo
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> resultado positivo
             </span>
             <span className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--coral)]" /> resultado negativo
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" /> resultado negativo
             </span>
             <span className="ml-auto">{format(anchor, "LLLL yyyy", { locale: es })}</span>
           </div>

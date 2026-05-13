@@ -318,20 +318,20 @@ export function Compras() {
               <div className="font-semibold">{euros(Number(c.total))}</div>
               {c.holded_purchase_id ? (
                 <div
-                  className="flex items-center justify-end gap-1 text-[10px] uppercase text-[var(--mint)]"
+                  className="flex items-center justify-end gap-1 text-[10px] uppercase text-emerald-600"
                   title={c.holded_purchase_num ?? c.holded_purchase_id}
                 >
                   <CheckCircle2 className="h-3 w-3" /> Holded {c.holded_purchase_num ?? '✓'}
                 </div>
               ) : (
-                <div className="text-[10px] uppercase text-[var(--color-primary)]">Sin Holded</div>
+                <div className="text-[10px] uppercase text-amber-600">Sin Holded</div>
               )}
             </div>
             {!c.holded_purchase_id && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-[var(--mint)] hover:bg-[var(--mint-glow)]"
+                className="text-emerald-700 hover:bg-emerald-50"
                 onClick={() => abrirModalSubir(c)}
                 aria-label="Subir a Holded"
                 title="Subir a Holded"
@@ -342,7 +342,7 @@ export function Compras() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-[var(--coral)] hover:bg-[oklch(30%_.12_25_/_0.18)]"
+              className="text-rose-600 hover:bg-rose-50"
               onClick={async () => {
                 const ok = await confirm({
                   title: '¿Eliminar compra?',
@@ -413,7 +413,7 @@ function BorradorCard({
             className="w-full bg-transparent font-display text-base font-semibold focus:outline-none"
           />
           {!borrador.proveedor_holded_id && (
-            <div className="mt-1 flex items-center gap-1 text-xs text-[var(--coral)]">
+            <div className="mt-1 flex items-center gap-1 text-xs text-rose-600">
               <AlertCircle className="h-3 w-3" /> Proveedor no reconocido — no se podrá enlazar a Holded
             </div>
           )}
@@ -537,7 +537,7 @@ function BorradorCard({
                 <td className="px-2 py-1">
                   <button
                     onClick={() => onEliminarLinea(idx)}
-                    className="text-[var(--coral)] hover:text-[var(--coral-strong)]"
+                    className="text-rose-600 hover:text-rose-700"
                     aria-label="Eliminar línea"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -553,7 +553,7 @@ function BorradorCard({
               </td>
               <td className={cn(
                 'px-2 py-1.5 text-right font-semibold',
-                desviacion > 0.05 && 'text-[var(--coral)]',
+                desviacion > 0.05 && 'text-rose-600',
               )}>
                 {euros(totalLineas)}
               </td>
@@ -564,7 +564,7 @@ function BorradorCard({
       </div>
 
       {desviacion > 0.05 && (
-        <div className="flex items-center gap-2 border-t border-[oklch(78%_.12_72_/_0.35)] bg-[oklch(92%_.08_82_/_0.85)] px-3 py-2 text-xs text-[oklch(39%_.11_72)] dark:bg-[oklch(28%_.08_72_/_0.42)] dark:text-[var(--color-primary)]">
+        <div className="flex items-center gap-2 border-t border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           <AlertCircle className="h-4 w-4 shrink-0" />
           La suma de líneas no cuadra con el total bruto. Diferencia: {euros(desviacion)}. Revisa antes de guardar.
         </div>
@@ -633,7 +633,7 @@ function ModalSubirHolded({
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-2 md:p-6"
       onClick={(e) => { if (e.target === e.currentTarget) onCancelar() }}
     >
-      <div className="ao-card w-full max-w-3xl rounded-[var(--radius-md)] p-0">
+      <div className="w-full max-w-3xl rounded-[var(--radius-md)] bg-[var(--color-surface)] shadow-lg">
         <div className="flex items-start justify-between gap-2 border-b border-[var(--color-border)] p-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-[var(--color-ink-2)]">
@@ -659,7 +659,7 @@ function ModalSubirHolded({
           )}
 
           {error && (
-            <div className="flex items-start gap-2 rounded border border-[oklch(72%_.16_25_/_0.35)] bg-[oklch(30%_.12_25_/_0.12)] p-3 text-xs text-[var(--coral)]">
+            <div className="flex items-start gap-2 rounded border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <div>
                 <div className="font-semibold">No se pudo construir el body</div>

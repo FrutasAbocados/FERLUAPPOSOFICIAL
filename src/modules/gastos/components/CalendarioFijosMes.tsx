@@ -29,8 +29,8 @@ export function CalendarioFijosMes({ anio, mes, rows, onTogglePagado }: Props) {
   const byDate = useMemo(() => groupByDate(rows), [rows])
 
   return (
-    <div className="ao-card p-3">
-      <div className="label-caps mb-2 grid grid-cols-7 gap-1 text-center">
+    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
         {DOW.map((d) => <div key={d}>{d}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -44,7 +44,7 @@ export function CalendarioFijosMes({ anio, mes, rows, onTogglePagado }: Props) {
               key={i}
               className={cn(
                 'flex min-h-[68px] flex-col gap-1 rounded-md border p-1 text-xs md:min-h-[88px]',
-                inMonth ? 'border-[var(--color-border)] bg-[var(--color-surface)]' : 'border-transparent bg-[rgba(255,255,255,.015)] opacity-60',
+                inMonth ? 'border-[var(--color-border)] bg-[var(--color-surface)]' : 'border-transparent bg-[var(--color-surface-2)] opacity-60',
                 today && 'ring-2 ring-[var(--color-primary)]',
               )}
             >
@@ -103,10 +103,10 @@ function groupByDate(rows: CalendarioRow[]): Map<string, CalendarioRow[]> {
 
 function estadoClass(estado: CalendarioRow['estado']): string {
   switch (estado) {
-    case 'pagado':  return 'bg-[var(--mint-glow)] text-[var(--mint)] hover:bg-[oklch(78%_.14_158_/_0.26)]'
-    case 'vencido': return 'bg-[var(--color-danger-soft)] text-[var(--coral)] hover:bg-[oklch(30%_.12_25_/_0.32)]'
-    case 'proximo': return 'bg-[var(--color-warn-soft)] text-[var(--amber)] hover:bg-[oklch(30%_.10_70_/_0.32)]'
-    case 'futuro':  return 'bg-[rgba(255,255,255,.025)] text-[var(--color-ink-2)] hover:bg-[rgba(255,255,255,.04)]'
+    case 'pagado':  return 'bg-[#10b98122] text-[#047857] hover:bg-[#10b98144]'
+    case 'vencido': return 'bg-[#ef444422] text-[#b91c1c] hover:bg-[#ef444444]'
+    case 'proximo': return 'bg-[#f59e0b22] text-[#92400e] hover:bg-[#f59e0b44]'
+    case 'futuro':  return 'bg-[var(--color-surface-2)] text-[var(--color-ink-2)] hover:bg-[var(--color-surface-3,#e2e8f0)]'
   }
 }
 
@@ -120,9 +120,9 @@ function estadoIcon(estado: CalendarioRow['estado']) {
 function Leyenda() {
   return (
     <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-[var(--color-ink-3)]">
-      <Pill label="Pagado"  cls="bg-[var(--mint-glow)] text-[var(--mint)]" />
-      <Pill label="Vencido" cls="bg-[var(--color-danger-soft)] text-[var(--coral)]" />
-      <Pill label="≤7 días" cls="bg-[var(--color-warn-soft)] text-[var(--amber)]" />
+      <Pill label="Pagado"  cls="bg-[#10b98122] text-[#047857]" />
+      <Pill label="Vencido" cls="bg-[#ef444422] text-[#b91c1c]" />
+      <Pill label="≤7 días" cls="bg-[#f59e0b22] text-[#92400e]" />
       <Pill label="Futuro"  cls="bg-[var(--color-surface-2)] text-[var(--color-ink-2)]" />
       <span className="ml-auto">Click en una burbuja para alternar pagado</span>
     </div>

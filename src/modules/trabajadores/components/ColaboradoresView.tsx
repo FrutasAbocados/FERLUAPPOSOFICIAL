@@ -131,7 +131,7 @@ export function ColaboradoresView() {
   )
 
   return (
-    <section className="ao-card mb-5 p-4">
+    <section className="mb-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-[var(--color-primary-2)]" />
@@ -139,7 +139,7 @@ export function ColaboradoresView() {
         </div>
         <div className="text-right">
           <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">Total mes</div>
-          <div className="font-display text-base font-bold tabular-nums text-[var(--mint)]">{eur(totalComision)}</div>
+          <div className="font-display text-base font-bold tabular-nums text-emerald-700">{eur(totalComision)}</div>
         </div>
       </div>
 
@@ -154,7 +154,7 @@ export function ColaboradoresView() {
           <li key={r.empleado_id}>
             <button
               onClick={() => setSelected(r)}
-              className="grid w-full grid-cols-[1fr_auto] items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3 text-left transition hover:border-[var(--color-primary)]"
+              className="grid w-full grid-cols-[1fr_auto] items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition hover:border-[var(--color-primary)]"
             >
               <div className="min-w-0">
                 <div className="truncate font-semibold text-[var(--color-ink)]">{r.nombre}</div>
@@ -163,7 +163,7 @@ export function ColaboradoresView() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-display text-base font-bold tabular-nums text-[var(--mint)]">{eur(r.comision)}</div>
+                <div className="font-display text-base font-bold tabular-nums text-emerald-700">{eur(r.comision)}</div>
                 <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">5%</div>
               </div>
             </button>

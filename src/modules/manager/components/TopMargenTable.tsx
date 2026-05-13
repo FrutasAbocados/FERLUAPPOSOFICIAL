@@ -22,7 +22,7 @@ interface Props {
 
 export function TopMargenTable({ title, subtitle, rows, loading, emptyText = 'Sin datos en este periodo' }: Props) {
   return (
-    <div className="ao-card p-0">
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="border-b border-[var(--color-border)] px-4 py-2">
         <div className="text-sm font-semibold text-[var(--color-ink)]">{title}</div>
         {subtitle && <div className="text-xs text-[var(--color-ink-3)]">{subtitle}</div>}
@@ -40,7 +40,7 @@ export function TopMargenTable({ title, subtitle, rows, loading, emptyText = 'Si
             <span className="min-w-0 truncate text-[var(--color-ink)]">{r.nombre}</span>
             <span className="flex shrink-0 items-baseline gap-3 tabular-nums">
               <span className="text-xs text-[var(--color-ink-3)]">{eur(r.ventas)}</span>
-              <span className="font-medium text-[var(--mint)]">{eur(r.margen)}</span>
+              <span className="font-medium text-emerald-700">{eur(r.margen)}</span>
               <span className="w-12 text-right text-xs text-[var(--color-ink-3)]">
                 {r.margen_pct == null ? '—' : `${r.margen_pct.toFixed(0)}%`}
               </span>

@@ -41,20 +41,20 @@ export function PlusSelfCard() {
   const tieneClientes = data.num_clientes > 0
 
   return (
-    <section className="ao-card mb-3 bg-[var(--mint-glow)] p-4">
+    <section className="mb-3 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--mint)] text-black">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500 text-white">
             <Percent className="h-4 w-4" />
           </div>
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--mint)]">Tu plus 5%</div>
-            <div className="text-xs text-[var(--color-ink-2)]">{format(new Date(mesISO), "LLLL yyyy", { locale: es })}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-800">Tu plus 5%</div>
+            <div className="text-xs text-emerald-700">{format(new Date(mesISO), "LLLL yyyy", { locale: es })}</div>
           </div>
         </div>
         <div className="text-right">
-          <div className="font-display text-2xl font-bold tabular-nums text-[var(--mint)]">{euros(data.comision)}</div>
-          <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-2)]">
+          <div className="font-display text-2xl font-bold tabular-nums text-emerald-700">{euros(data.comision)}</div>
+          <div className="text-[10px] uppercase tracking-wider text-emerald-700/70">
             {tieneClientes
               ? `${data.num_clientes} cliente(s) · ${euros(data.facturacion_mes)}`
               : 'sin clientes asignados'}

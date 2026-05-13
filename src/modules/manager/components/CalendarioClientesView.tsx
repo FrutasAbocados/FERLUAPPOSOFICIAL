@@ -154,13 +154,13 @@ function ModalDia({ dia, onClose }: { dia: DiaCliente; onClose: () => void }) {
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 md:p-8"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="ao-card w-full max-w-2xl p-0">
+      <div className="w-full max-w-2xl rounded-2xl bg-[var(--color-surface)] shadow-xl">
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Clientes que pidieron</p>
             <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">{format(parseISO(dia.fecha), "EEEE d 'de' LLLL", { locale: es })}</h2>
             <p className="mt-0.5 text-xs text-[var(--color-ink-3)]">
-              {dia.num_clientes} clientes · {dia.num_docs} docs · <span className="font-medium text-[var(--mint)]">{eur2(dia.total)}</span>
+              {dia.num_clientes} clientes · {dia.num_docs} docs · <span className="font-medium text-emerald-700">{eur2(dia.total)}</span>
             </p>
           </div>
           <Button size="sm" variant="ghost" onClick={onClose}><X className="h-4 w-4" /></Button>
@@ -182,9 +182,9 @@ function ModalDia({ dia, onClose }: { dia: DiaCliente; onClose: () => void }) {
 
 function Tile({ label, value, sub, tone = 'neutral' }: { label: string; value: string; sub?: string; tone?: 'positive' | 'neutral' }) {
   return (
-    <div className="ao-card px-4 py-3">
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
       <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">{label}</div>
-      <div className={`mt-1 font-display text-xl font-bold ${tone === 'positive' ? 'text-[var(--mint)]' : 'text-[var(--color-ink)]'}`}>
+      <div className={`mt-1 font-display text-xl font-bold ${tone === 'positive' ? 'text-emerald-700' : 'text-[var(--color-ink)]'}`}>
         {value}
       </div>
       {sub && <div className="text-xs text-[var(--color-ink-3)]">{sub}</div>}

@@ -156,9 +156,9 @@ export function TrabajadoresPage() {
         title="Trabajadores"
         subtitle="Plantilla, condiciones y pluses individualizados."
       />
-      <div className="ao-page max-w-5xl py-6 md:py-8">
+      <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
 
-      <section className="ao-card mb-4 p-4">
+      <section className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-[var(--color-ink-3)]" />
           <span className="text-sm text-[var(--color-ink-3)]">Coste mensual nómina (activos)</span>
@@ -166,7 +166,7 @@ export function TrabajadoresPage() {
         </div>
       </section>
 
-      <div className="ao-card overflow-hidden p-0">
+      <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
         {isLoading && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
         {data?.length === 0 && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Sin trabajadores</p>}
         <ul className="divide-y divide-[var(--color-border)]">
@@ -180,13 +180,13 @@ export function TrabajadoresPage() {
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-[var(--color-ink)]">{t.nombre}</span>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-                      t.pack === 1 ? 'bg-[var(--mint-glow)] text-[var(--mint)]' :
-                      t.pack === 2 ? 'bg-[oklch(92%_.08_82_/_0.85)] text-[var(--color-primary)] dark:bg-[oklch(28%_.08_72_/_0.42)]' :
-                      'bg-[oklch(93%_.06_295_/_0.75)] text-[oklch(40%_.12_295)] dark:bg-[oklch(30%_.08_295_/_0.42)] dark:text-[oklch(78%_.11_295)]'
+                      t.pack === 1 ? 'bg-emerald-100 text-emerald-800' :
+                      t.pack === 2 ? 'bg-amber-100 text-amber-800' :
+                      'bg-violet-100 text-violet-800'
                     }`}>
                       {t.pack === 3 ? 'Prácticas' : `Pack ${t.pack}`}
                     </span>
-                    {!t.activo && <span className="rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">baja</span>}
+                    {!t.activo && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wider text-slate-600">baja</span>}
                   </div>
                   <div className="text-xs text-[var(--color-ink-3)]">{t.puesto ?? 'sin puesto'} {t.fecha_alta ? `· desde ${t.fecha_alta}` : ''}</div>
                 </div>

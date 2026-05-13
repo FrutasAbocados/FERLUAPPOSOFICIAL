@@ -4,20 +4,20 @@ import * as React from 'react'
 import { cn } from '@/shared/lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mint)] disabled:pointer-events-none disabled:opacity-50 select-none',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-md)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] disabled:pointer-events-none disabled:opacity-50 select-none',
   {
     variants: {
       variant: {
         primary:
-          'border border-transparent bg-[var(--mint)] text-[#0a1310] shadow-[0_4px_18px_var(--mint-glow)] hover:bg-[var(--mint-2)]',
+          'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-2)]',
         secondary:
-          'border border-[var(--line)] bg-[rgba(255,255,255,.025)] text-[var(--ink)] hover:border-[var(--line-2)] hover:bg-[rgba(255,255,255,.04)]',
+          'bg-[var(--color-surface-2)] text-[var(--color-ink)] hover:bg-[var(--color-surface-3)]',
         outline:
-          'border border-[var(--line-2)] bg-[rgba(255,255,255,.015)] text-[var(--ink-dim)] hover:border-[var(--mint-glow)] hover:bg-[var(--mint-glow)] hover:text-[var(--mint)]',
+          'border border-[var(--color-border-strong)] bg-transparent text-[var(--color-ink)] hover:bg-[var(--color-surface-2)]',
         ghost:
-          'text-[var(--ink-dim)] hover:bg-[rgba(255,255,255,.04)] hover:text-[var(--ink)]',
+          'text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]',
         danger:
-          'border border-transparent bg-[var(--coral)] text-[#160b09] hover:opacity-90',
+          'bg-[var(--color-danger)] text-white hover:opacity-90',
       },
       size: {
         sm: 'h-8 px-3 text-xs',

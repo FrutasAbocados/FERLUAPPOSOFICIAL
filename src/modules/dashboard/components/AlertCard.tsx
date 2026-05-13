@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, CheckCircle2, X, type LucideIcon } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
@@ -20,11 +19,11 @@ interface Props {
   full?: React.ReactNode         // lista completa para modal "Ver todos"
 }
 
-const TONOS: Record<Severidad, { icon: string; iconStyle: string; countStyle: string; ring: string }> = {
-  critica: { icon: 'text-[var(--coral)]', iconStyle: 'background:oklch(30% .12 25 / .22);border-color:oklch(70% .18 25 / .22)', countStyle: 'text-[var(--coral)]', ring: 'hover:border-[oklch(70%_.18_25_/_0.35)]' },
-  aviso:   { icon: 'text-[var(--amber)]', iconStyle: 'background:oklch(30% .10 70 / .25);border-color:oklch(78% .16 70 / .22)', countStyle: 'text-[var(--amber)]', ring: 'hover:border-[oklch(78%_.16_70_/_0.35)]' },
-  info:    { icon: 'text-[var(--sky)]',   iconStyle: 'background:oklch(30% .10 235 / .22);border-color:oklch(76% .12 235 / .22)', countStyle: 'text-[var(--sky)]', ring: 'hover:border-[oklch(76%_.12_235_/_0.35)]' },
-  ok:      { icon: 'text-[var(--mint)]',  iconStyle: 'background:var(--mint-glow);border-color:var(--mint-glow)', countStyle: 'text-[var(--mint)]', ring: 'hover:border-[var(--line-2)]' },
+const TONOS: Record<Severidad, { iconBg: string; iconText: string; countText: string; ring: string }> = {
+  critica: { iconBg: 'bg-red-100',     iconText: 'text-red-700',     countText: 'text-red-700',     ring: 'hover:border-red-300' },
+  aviso:   { iconBg: 'bg-amber-100',   iconText: 'text-amber-700',   countText: 'text-amber-700',   ring: 'hover:border-amber-300' },
+  info:    { iconBg: 'bg-blue-100',    iconText: 'text-blue-700',    countText: 'text-blue-700',    ring: 'hover:border-blue-300' },
+  ok:      { iconBg: 'bg-emerald-100', iconText: 'text-emerald-700', countText: 'text-emerald-700', ring: 'hover:border-emerald-300' },
 }
 
 export function AlertCard({ titulo, subtitulo, Icon, severidad, count, total, to, loading, empty, preview, full }: Props) {
@@ -44,52 +43,52 @@ export function AlertCard({ titulo, subtitulo, Icon, severidad, count, total, to
   return (
     <>
       <section
-        className={`ao-card-hover flex flex-col rounded-[var(--radius-xl)] border border-[var(--line)] bg-[linear-gradient(180deg,rgba(18,26,24,.48),rgba(14,20,19,.34))] transition ${
-          isInteractive ? t.ring : ''
+        className={`flex flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] transition ${
+          isInteractive ? `${t.ring} hover:shadow-sm` : ''
         }`}
       >
-        <header className="flex items-start gap-3 px-4 pb-2 pt-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border" style={styleToObj(t.iconStyle)}>
-            <Icon className={`h-5 w-5 ${t.icon}`} />
+        <header className="flex items-start gap-3 px-4 pt-4 pb-2">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${t.iconBg}`}>
+            <Icon className={`h-5 w-5 ${t.iconText}`} />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-sm font-medium leading-tight text-[var(--ink)]">{titulo}</h3>
-            {subtitulo && <p className="mt-0.5 text-xs leading-snug text-[var(--ink-mute)]">{subtitulo}</p>}
+            <h3 className="font-display text-sm font-bold leading-tight text-[var(--color-ink)]">{titulo}</h3>
+            {subtitulo && <p className="mt-0.5 text-xs leading-snug text-[var(--color-ink-3)]">{subtitulo}</p>}
           </div>
           {hasCount && (
-            <span className={`mono shrink-0 text-3xl font-medium tabular-nums leading-none ${t.countStyle}`}>
+            <span className={`shrink-0 font-display text-3xl font-bold tabular-nums leading-none ${t.countText}`}>
               {count}
             </span>
           )}
           {!hasCount && total && (
-            <span className="mono shrink-0 text-base font-medium tabular-nums text-[var(--ink)]">
+            <span className="shrink-0 font-display text-base font-bold tabular-nums text-[var(--color-ink)]">
               {total}
             </span>
           )}
         </header>
         {hasCount && total && (
-          <p className="mono px-4 pb-1 text-right text-[10px] uppercase tracking-[0.12em] text-[var(--ink-mute)]">
+          <p className="px-4 pb-1 text-right text-[11px] font-semibold tabular-nums text-[var(--color-ink-2)]">
             total {total}
           </p>
         )}
         <div className="flex-1 px-4 pb-3">
           {loading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
           {!loading && !hasCount && (
-            <p className="flex items-center gap-1.5 text-sm text-[var(--ink-mute)]">
-              <CheckCircle2 className="h-3.5 w-3.5 text-[var(--mint)]" />
+            <p className="flex items-center gap-1.5 text-sm text-[var(--color-ink-3)]">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600/80" />
               {empty ?? 'Todo OK'}
             </p>
           )}
           {!loading && hasCount && preview}
         </div>
-        <footer className="flex items-center justify-end gap-2 border-t border-[var(--line)] px-4 py-2 text-xs">
+        <footer className="flex items-center justify-end gap-2 border-t border-[var(--color-border)]/60 px-4 py-2 text-xs">
           {tieneFull && (
-            <button onClick={() => setExpanded(true)} className="font-medium text-[var(--mint)] hover:underline">
+            <button onClick={() => setExpanded(true)} className="font-medium text-[var(--color-primary)] hover:underline">
               Ver todos ({count})
             </button>
           )}
           {to && (
-            <Link to={to} className="flex items-center gap-1 font-medium text-[var(--ink-dim)] hover:text-[var(--mint)]">
+            <Link to={to} className="flex items-center gap-1 font-medium text-[var(--color-ink-2)] hover:text-[var(--color-primary)]">
               Abrir <ArrowRight className="h-3 w-3" />
             </Link>
           )}
@@ -98,18 +97,18 @@ export function AlertCard({ titulo, subtitulo, Icon, severidad, count, total, to
 
       {expanded && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm md:p-8"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 md:p-8"
           onClick={(e) => { if (e.target === e.currentTarget) setExpanded(false) }}
         >
-          <div className="ao-card w-full max-w-3xl overflow-hidden p-0">
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-5 py-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-[var(--color-surface)] shadow-xl">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
               <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border" style={styleToObj(t.iconStyle)}>
-                  <Icon className={`h-5 w-5 ${t.icon}`} />
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${t.iconBg}`}>
+                  <Icon className={`h-5 w-5 ${t.iconText}`} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-medium text-[var(--ink)]">{titulo}</h2>
-                  {subtitulo && <p className="mt-0.5 text-xs text-[var(--ink-mute)]">{subtitulo}</p>}
+                  <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">{titulo}</h2>
+                  {subtitulo && <p className="mt-0.5 text-xs text-[var(--color-ink-3)]">{subtitulo}</p>}
                 </div>
               </div>
               <Button size="sm" variant="ghost" onClick={() => setExpanded(false)}><X className="h-4 w-4" /></Button>
@@ -122,14 +121,4 @@ export function AlertCard({ titulo, subtitulo, Icon, severidad, count, total, to
       )}
     </>
   )
-}
-
-function styleToObj(style: string): CSSProperties {
-  return style.split(';').filter(Boolean).reduce<CSSProperties>((acc, part) => {
-    const [rawKey, rawValue] = part.split(':')
-    if (!rawKey || !rawValue) return acc
-    const key = rawKey.trim().replace(/-([a-z])/g, (_, c) => c.toUpperCase()) as keyof React.CSSProperties
-    ;(acc as Record<string, string>)[key] = rawValue.trim()
-    return acc
-  }, {})
 }

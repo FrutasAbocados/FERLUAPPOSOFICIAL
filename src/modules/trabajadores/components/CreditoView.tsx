@@ -214,7 +214,7 @@ export function CreditoView() {
 
       {isLoading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
       {data?.length === 0 && (
-        <p className="ao-card px-4 py-6 text-sm text-[var(--color-ink-3)]">
+        <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-sm text-[var(--color-ink-3)]">
           No hay trabajadores activos en pack 1.
         </p>
       )}
@@ -226,7 +226,7 @@ export function CreditoView() {
             <li key={t.empleado_id}>
               <button
                 onClick={() => setSelected(t)}
-                className="ao-card grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 p-4 text-left transition hover:border-[var(--color-primary)]"
+                className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left transition hover:border-[var(--color-primary)] hover:shadow-sm"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-primary-soft)]">
                   <ShoppingBasket className="h-5 w-5 text-[var(--color-primary-2)]" />
@@ -236,12 +236,12 @@ export function CreditoView() {
                   <div className="text-xs text-[var(--color-ink-3)]">
                     Límite {eur(t.limite_base)}
                     {t.exceso_arrastrado > 0 && (
-                      <span className="ml-1 text-[var(--color-primary)]">· arrastre −{eur(t.exceso_arrastrado)}</span>
+                      <span className="ml-1 text-amber-700">· arrastre −{eur(t.exceso_arrastrado)}</span>
                     )}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className={`font-display text-lg font-bold tabular-nums ${sobregiro ? 'text-[var(--coral)]' : 'text-[var(--mint)]'}`}>
+                  <div className={`font-display text-lg font-bold tabular-nums ${sobregiro ? 'text-red-600' : 'text-emerald-700'}`}>
                     {eur(t.disponible)}
                   </div>
                   <div className="text-xs text-[var(--color-ink-3)]">disponible</div>

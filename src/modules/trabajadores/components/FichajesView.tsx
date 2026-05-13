@@ -95,7 +95,7 @@ export function FichajesView() {
   const [creating, setCreating] = useState<{ empleado_id: string; nombre: string } | null>(null)
 
   return (
-    <div className="ao-page space-y-4 py-5 md:py-6">
+    <div className="space-y-4 px-4 py-4 md:px-6 md:py-5">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">Fichajes</h2>
@@ -117,7 +117,7 @@ export function FichajesView() {
         </div>
       </header>
 
-      <div className="ao-card overflow-hidden p-0">
+      <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -157,7 +157,7 @@ export function FichajesView() {
                     return (
                       <td key={d} className="px-2 py-2 text-center tabular-nums">
                         {cell?.abierto && (
-                          <span className="rounded-full bg-[var(--mint-glow)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--mint)]">EN</span>
+                          <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">EN</span>
                         )}
                         <span className={horas > 0 ? 'text-[var(--color-ink)]' : 'text-[var(--color-ink-3)]'}>
                           {fmtHoras(horas)}

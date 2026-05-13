@@ -25,12 +25,12 @@ export function UnificacionProductos() {
           <Link2 className="h-4 w-4" />
           Unificación de productos
           {total > 0 && (
-            <span className="rounded-full bg-[oklch(92%_.08_82_/_0.85)] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-[oklch(39%_.11_72)] dark:bg-[oklch(28%_.08_72_/_0.42)] dark:text-[var(--color-primary)]">
+            <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
               {total} sin mapear
             </span>
           )}
           {total === 0 && sugerencias.isFetching === false && (
-            <span className="rounded-full bg-[var(--mint-glow)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--mint)]">
+            <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
               ✓ Todo unificado
             </span>
           )}
@@ -50,7 +50,7 @@ export function UnificacionProductos() {
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Buscando…
             </div>
           ) : sugerencias.error ? (
-            <div className="rounded-md border border-[oklch(72%_.16_25_/_0.35)] bg-[oklch(30%_.12_25_/_0.12)] p-2 text-xs text-[var(--coral)]">
+            <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700 dark:bg-red-950/30">
               Error: {(sugerencias.error as Error).message}
             </div>
           ) : total === 0 ? (
@@ -92,9 +92,9 @@ function FilaMapeo({ sugerencia: s }: { sugerencia: SugerenciaMapeo }) {
 
   const confianzaColor =
     s.confianza == null      ? 'text-[var(--color-ink-3)]'
-    : s.confianza >= 0.6     ? 'text-[var(--mint)]'
-    : s.confianza >= 0.35    ? 'text-[var(--color-primary)]'
-    : 'text-[var(--coral)]'
+    : s.confianza >= 0.6     ? 'text-emerald-600 dark:text-emerald-400'
+    : s.confianza >= 0.35    ? 'text-amber-600 dark:text-amber-400'
+    : 'text-red-500'
 
   return (
     <li className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-2)] p-2.5 space-y-2">
@@ -105,8 +105,8 @@ function FilaMapeo({ sugerencia: s }: { sugerencia: SugerenciaMapeo }) {
           <span className={cn(
             'ml-2 rounded-full px-1.5 py-0.5 text-[10px]',
             s.fuente === 'pedido'
-              ? 'bg-[oklch(93%_.06_220_/_0.75)] text-[oklch(39%_.11_224)] dark:bg-[oklch(30%_.08_224_/_0.42)] dark:text-[oklch(76%_.12_224)]'
-              : 'bg-[oklch(93%_.06_295_/_0.75)] text-[oklch(40%_.12_295)] dark:bg-[oklch(30%_.08_295_/_0.42)] dark:text-[oklch(78%_.11_295)]',
+              ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400'
+              : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400',
           )}>
             {s.fuente} · {s.veces}×
           </span>

@@ -104,8 +104,8 @@ export function FichajeCard() {
 
   if (actual.isLoading) {
     return (
-      <section className="ao-card">
-        <div className="flex items-center gap-2 text-sm text-[var(--ink-mute)]">
+      <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 md:p-5">
+        <div className="flex items-center gap-2 text-sm text-[var(--color-ink-3)]">
           <Loader2 className="h-4 w-4 animate-spin" />
           Cargando fichaje…
         </div>
@@ -124,30 +124,30 @@ export function FichajeCard() {
   const segs = abierto ? abierto.segundos_dentro + Math.max(0, tick) * 30 : 0
 
   return (
-    <section className="ao-card">
+    <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 md:p-5">
       <header className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-[var(--mint)]" />
-          <h2 className="text-base font-medium text-[var(--ink)]">
+          <Clock className="h-4 w-4 text-[var(--color-primary-2)]" />
+          <h2 className="font-display text-base font-bold text-[var(--color-ink)]">
             Fichaje horario
           </h2>
         </div>
-        <span className="hidden text-xs text-[var(--ink-mute)] sm:inline">
+        <span className="hidden text-xs text-[var(--color-ink-3)] sm:inline">
           <MapPin className="mr-0.5 inline h-3 w-3" /> ubicación opcional
         </span>
       </header>
 
       {abierto ? (
         <div className="space-y-3">
-          <div className="ao-panel px-4 py-3 ring-1 ring-[var(--mint-glow)]">
-            <div className="text-xs text-[var(--mint)]">Dentro desde</div>
-            <div className="mono text-2xl font-medium tabular-nums text-[var(--ink)]">
+          <div className="rounded-xl bg-[var(--color-success-soft,rgba(16,185,129,0.12))] px-4 py-3 ring-1 ring-[var(--color-success,rgb(16,185,129))]/30">
+            <div className="text-xs text-[var(--color-success,rgb(16,185,129))]">Dentro desde</div>
+            <div className="font-display text-2xl font-bold tabular-nums text-[var(--color-ink)]">
               {new Date(abierto.ts_in).toLocaleTimeString('es-ES', {
                 hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid',
               })}
             </div>
-            <div className="text-sm text-[var(--ink-dim)] tabular-nums">
-              llevas <strong className="text-[var(--ink)]">{fmtDuracion(segs)}</strong>
+            <div className="text-sm text-[var(--color-ink-2)] tabular-nums">
+              llevas <strong className="text-[var(--color-ink)]">{fmtDuracion(segs)}</strong>
             </div>
           </div>
           <Button
@@ -162,12 +162,12 @@ export function FichajeCard() {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="ao-panel px-4 py-3">
-            <div className="text-xs text-[var(--ink-mute)]">Estado</div>
-            <div className="text-lg font-medium text-[var(--ink)]">
+          <div className="rounded-xl bg-[var(--color-surface-2)] px-4 py-3 ring-1 ring-[var(--color-border)]">
+            <div className="text-xs text-[var(--color-ink-3)]">Estado</div>
+            <div className="font-display text-lg font-semibold text-[var(--color-ink)]">
               Fuera de turno
             </div>
-            <div className="text-xs text-[var(--ink-mute)]">
+            <div className="text-xs text-[var(--color-ink-3)]">
               Pulsa para registrar la entrada de hoy.
             </div>
           </div>

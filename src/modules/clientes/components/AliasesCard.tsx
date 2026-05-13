@@ -59,7 +59,7 @@ export function AliasesCard({ canon }: { canon: string }) {
               <button
                 type="button"
                 onClick={() => onDelete(a.id, a.alias_from)}
-                className="rounded-sm p-0.5 text-[var(--color-ink-3)] opacity-0 hover:bg-[var(--color-danger-soft)] hover:text-[var(--coral)] group-hover:opacity-100"
+                className="rounded-sm p-0.5 text-[var(--color-ink-3)] opacity-0 hover:bg-[var(--color-surface-2)] hover:text-[#dc2626] group-hover:opacity-100"
                 title="Quitar alias"
               >
                 <Trash2 className="h-3.5 w-3.5" />

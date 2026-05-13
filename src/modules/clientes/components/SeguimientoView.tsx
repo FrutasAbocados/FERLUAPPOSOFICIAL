@@ -46,7 +46,7 @@ export function SeguimientoView({ onSelect }: Props) {
       </div>
 
       {/* Toolbar umbral */}
-      <div className="ao-panel flex flex-wrap items-center gap-2 p-3">
+      <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
         <span className="text-xs text-[var(--color-ink-3)]">Umbral alerta:</span>
         <div className="flex rounded-[var(--radius-sm)] border border-[var(--color-border)]">
           {UMBRALES.map(u => (
@@ -88,23 +88,23 @@ export function SeguimientoView({ onSelect }: Props) {
 
       {/* Banner alerta activa */}
       {sinPedir.length > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[oklch(70%_.18_25_/_0.28)] bg-[var(--color-danger-soft)] px-4 py-3">
+        <div className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-red-900/40 bg-red-950/30 px-4 py-3">
           <div className="flex items-start gap-2.5">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--coral)]" />
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
             <div>
-              <p className="text-sm font-semibold text-[var(--coral)]">
+              <p className="text-sm font-semibold text-red-300">
                 {sinPedir.length} cliente{sinPedir.length !== 1 ? 's' : ''} llevan más de {umbral} días sin pedir
               </p>
               {criticos.length > 0 && (
-                <p className="text-xs text-[var(--coral)]/80">
+                <p className="text-xs text-red-400/80">
                   {criticos.length} de ellos superan 7 días — riesgo de fuga elevado
                 </p>
               )}
             </div>
           </div>
           <div className="shrink-0 text-right">
-            <div className="mono tabular-nums text-2xl font-semibold text-[var(--coral)]">{sinPedir.length}</div>
-            <div className="text-[10px] text-[var(--coral)]">sin pedir &gt;{umbral}d</div>
+            <div className="tabular-nums text-2xl font-bold text-red-400">{sinPedir.length}</div>
+            <div className="text-[10px] text-red-500">sin pedir &gt;{umbral}d</div>
           </div>
         </div>
       )}
@@ -136,7 +136,7 @@ export function SeguimientoView({ onSelect }: Props) {
       </div>
 
       {pausa.length > 0 && (
-        <details className="ao-card p-3">
+        <details className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
           <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[var(--color-ink-2)]">
             <Pause className="h-4 w-4" />
             {pausa.length} cliente{pausa.length === 1 ? '' : 's'} en pausa (vacaciones)
@@ -171,17 +171,17 @@ function Kpi({
   icon?: React.ComponentType<{ className?: string }>
 }) {
   const valueColor =
-    tone === 'ok'    ? 'text-[var(--mint)]' :
-    tone === 'warn'  ? 'text-[var(--coral)]' :
+    tone === 'ok'    ? 'text-[#047857]' :
+    tone === 'warn'  ? 'text-[#dc2626]' :
     tone === 'muted' ? 'text-[var(--color-ink-3)]' :
                        'text-[var(--color-ink)]'
   return (
-    <div className="ao-card p-3">
-      <div className="label-caps flex items-center gap-1.5">
+    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
         {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
         {label}
       </div>
-      <div className={cn('mono mt-1 text-xl font-semibold tabular-nums md:text-2xl', valueColor)}>{value}</div>
+      <div className={cn('mt-1 font-display text-xl font-bold tabular-nums md:text-2xl', valueColor)}>{value}</div>
       {hint && <div className="text-[11px] text-[var(--color-ink-3)]">{hint}</div>}
     </div>
   )
@@ -198,15 +198,15 @@ type FilaRow = {
 
 function FilaCliente({ r, tone, onSelect }: { r: FilaRow; tone: 'ok' | 'warn' | 'amber' | 'crit'; onSelect?: (n: string) => void }) {
   const dayColor =
-    tone === 'ok'    ? 'text-[var(--mint)]' :
-    tone === 'amber' ? 'text-[var(--amber)]' :
-                       'text-[var(--coral)]'
+    tone === 'ok'    ? 'text-[#047857]' :
+    tone === 'amber' ? 'text-[#b45309]' :
+                       'text-[#b91c1c]'
   return (
     <li>
       <button
         type="button"
         onClick={() => onSelect?.(r.contact_name_canon)}
-        className="grid w-full grid-cols-[1fr_auto] gap-2 px-3 py-2 text-left text-sm transition hover:bg-[rgba(255,255,255,.035)]"
+        className="grid w-full grid-cols-[1fr_auto] gap-2 px-3 py-2 text-left text-sm transition hover:bg-[var(--color-surface-2)]"
       >
         <div className="min-w-0">
           <div className="truncate text-[var(--color-ink)]">{r.contact_name_canon}</div>
@@ -215,7 +215,7 @@ function FilaCliente({ r, tone, onSelect }: { r: FilaRow; tone: 'ok' | 'warn' | 
             {' '}{r.pedidos_activo}p · {euros(r.ventas_activo)}
           </div>
         </div>
-        <div className="mono text-right text-[11px] tabular-nums">
+        <div className="text-right text-[11px] tabular-nums">
           <div className={cn('font-semibold', dayColor)}>
             {r.dias_sin_pedir === 0 ? 'hoy' : `${r.dias_sin_pedir}d`}
           </div>
@@ -242,13 +242,13 @@ function Columna({
   isLoading: boolean
   onSelect?: (name: string) => void
 }) {
-  const headerCls = tone === 'ok' ? 'text-[var(--mint)] bg-[var(--mint-glow)]' : 'text-[var(--coral)] bg-[var(--color-danger-soft)]'
+  const headerCls = tone === 'ok' ? 'text-[#047857] bg-[#10b98111]' : 'text-[#b91c1c] bg-[#ef444411]'
 
   const atencion = umbralCritico ? rows.filter(r => r.dias_sin_pedir < umbralCritico) : rows
   const criticos = umbralCritico ? rows.filter(r => r.dias_sin_pedir >= umbralCritico) : []
 
   return (
-    <div className="ao-card overflow-hidden p-0">
+    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className={cn('flex items-center gap-2 border-b border-[var(--color-border)] px-3 py-2', headerCls)}>
         <Icon className="h-4 w-4" />
         <h3 className="text-sm font-bold">{titulo}</h3>
@@ -266,8 +266,8 @@ function Columna({
               {atencion.length > 0 && (
                 <>
                   {criticos.length > 0 && (
-                    <li className="flex items-center gap-2 bg-[rgba(255,255,255,.025)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--amber)]">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--amber)]" />
+                    <li className="flex items-center gap-2 bg-[var(--color-surface-2)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                       Atención — {umbralBase != null ? `${umbralBase + 1}d` : ''}–{umbralCritico != null ? `${umbralCritico - 1}d` : ''}
                     </li>
                   )}
@@ -276,8 +276,8 @@ function Columna({
               )}
               {criticos.length > 0 && (
                 <>
-                  <li className="flex items-center gap-2 bg-[rgba(255,255,255,.025)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--coral)]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--coral)]" />
+                  <li className="flex items-center gap-2 bg-[var(--color-surface-2)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-red-500">
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
                     Crítico — más de {umbralCritico} días sin pedir
                   </li>
                   {criticos.map(r => <FilaCliente key={r.contact_name_canon} r={r} tone="crit" onSelect={onSelect} />)}

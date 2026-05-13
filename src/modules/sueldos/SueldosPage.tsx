@@ -112,19 +112,19 @@ export function SueldosPage() {
           </div>
         }
       />
-      <div className="ao-page max-w-4xl py-6 md:py-8">
+      <div className="mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-8">
 
       {/* KPIs por socio */}
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
         {SOCIOS.map(s => (
-          <div key={s} className="ao-card p-4">
-            <div className="label-caps">{s}</div>
-            <div className="mono mt-1 text-2xl font-semibold text-[var(--mint)] tabular-nums">{eur(totales[s])}</div>
+          <div key={s} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+            <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">{s}</div>
+            <div className="mt-1 font-display text-2xl font-bold text-emerald-700 tabular-nums">{eur(totales[s])}</div>
           </div>
         ))}
-        <div className="ao-card col-span-2 border-2 border-[var(--mint)] bg-[var(--mint-glow)] p-4 md:col-span-1">
-          <div className="label-caps text-[var(--mint)]">Total mes</div>
-          <div className="mono mt-1 text-2xl font-semibold text-[var(--mint)] tabular-nums">{eur(totalMes)}</div>
+        <div className="rounded-xl border-2 border-[var(--color-primary)] bg-[var(--color-primary-soft)] p-4 col-span-2 md:col-span-1">
+          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary-2)]">Total mes</div>
+          <div className="mt-1 font-display text-2xl font-bold text-[var(--color-primary-2)] tabular-nums">{eur(totalMes)}</div>
           {totales.Luis > 0 && totales['Álvaro'] > 0 && (
             <div className="mt-1 text-xs text-[var(--color-ink-3)]">
               Luis {(totales.Luis / totalMes * 100).toFixed(0)}% · Álvaro {(totales['Álvaro'] / totalMes * 100).toFixed(0)}%
@@ -134,25 +134,25 @@ export function SueldosPage() {
       </div>
 
       {/* Form añadir */}
-      <section className="ao-card mb-4 p-4">
+      <section className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <h2 className="mb-2 text-sm font-semibold text-[var(--color-ink)]">Añadir retiro</h2>
         <div className="grid gap-2 md:grid-cols-[120px_140px_140px_1fr_auto]">
           <div>
-            <label className="label-caps block">Socio</label>
-            <select value={socio} onChange={(e) => setSocio(e.target.value as Socio)} className="h-9 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-sm text-[var(--color-ink)]">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Socio</label>
+            <select value={socio} onChange={(e) => setSocio(e.target.value as Socio)} className="h-9 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-sm">
               {SOCIOS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
-            <label className="label-caps block">Fecha</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Fecha</label>
             <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="h-9" />
           </div>
           <div>
-            <label className="label-caps block">Importe €</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Importe €</label>
             <Input type="number" step="0.01" placeholder="0.00" value={importe} onChange={(e) => setImporte(e.target.value)} className="h-9 tabular-nums text-right" />
           </div>
           <div>
-            <label className="label-caps block">Concepto (opc)</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Concepto (opc)</label>
             <Input value={concepto} onChange={(e) => setConcepto(e.target.value)} placeholder="ej. nómina abril" className="h-9" />
           </div>
           <div className="flex items-end">
@@ -164,7 +164,7 @@ export function SueldosPage() {
       </section>
 
       {/* Lista del mes */}
-      <section className="ao-card overflow-hidden p-0">
+      <section className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-2">
           <Wallet className="h-4 w-4 text-[var(--color-ink-3)]" />
           <h3 className="text-sm font-semibold text-[var(--color-ink)]">Retiros del mes</h3>
@@ -175,14 +175,14 @@ export function SueldosPage() {
         <ul className="divide-y divide-[var(--color-border)]">
           {data?.map(r => (
             <li key={r.id} className="grid grid-cols-[80px_80px_1fr_auto_auto] items-center gap-3 px-4 py-2 text-sm">
-              <span className={`ao-chip ${r.socio === 'Luis' ? 'ao-chip-sky' : 'ao-chip-mint'}`}>
+              <span className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${r.socio === 'Luis' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
                 {r.socio}
               </span>
               <span className="text-xs text-[var(--color-ink-3)]">{fmt(r.fecha)}</span>
               <span className="truncate text-[var(--color-ink)]">{r.concepto ?? '—'}</span>
-              <span className="mono font-medium tabular-nums text-[var(--color-ink)]">{eur(r.importe)}</span>
+              <span className="font-medium tabular-nums text-[var(--color-ink)]">{eur(r.importe)}</span>
               <Button size="sm" variant="ghost" onClick={() => del.mutate(r.id)} disabled={del.isPending} title="Eliminar">
-                <Trash2 className="h-4 w-4 text-[var(--coral)]" />
+                <Trash2 className="h-4 w-4 text-red-600" />
               </Button>
             </li>
           ))}

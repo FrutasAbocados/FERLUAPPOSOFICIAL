@@ -202,7 +202,7 @@ export function VariableModal({ variable, onClose }: Props) {
         <footer className="flex items-center justify-between gap-2 border-t border-[var(--color-border)] px-5 py-3">
           <div>
             {isEdit && (
-              <Button type="button" variant="ghost" onClick={onDelete} disabled={del.isPending} className="text-[var(--coral)] hover:bg-[var(--color-danger-soft)]">
+              <Button type="button" variant="ghost" onClick={onDelete} disabled={del.isPending} className="text-[#dc2626] hover:bg-[#fee2e2]">
                 <Trash2 className="mr-1 h-4 w-4" />
                 Eliminar
               </Button>

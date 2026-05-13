@@ -40,18 +40,18 @@ const PALETA: Record<Repartidor, {
   accent:  string
 }> = {
   TORRES: {
-    text:   'text-[oklch(42%_.12_224)] dark:text-[oklch(76%_.12_224)]',
-    bgSoft: 'bg-[oklch(93%_.06_220_/_0.75)] dark:bg-[oklch(30%_.08_224_/_0.42)]',
-    ring:   'ring-[oklch(78%_.11_224_/_0.45)]',
-    border: 'border-[oklch(78%_.11_224_/_0.45)]',
-    accent: 'bg-[oklch(61%_.15_224)]',
+    text:   'text-blue-700 dark:text-blue-300',
+    bgSoft: 'bg-blue-50 dark:bg-blue-950/40',
+    ring:   'ring-blue-200 dark:ring-blue-900/60',
+    border: 'border-blue-200 dark:border-blue-900/60',
+    accent: 'bg-blue-500',
   },
   GERMAN: {
-    text:   'text-[var(--mint)]',
-    bgSoft: 'bg-[var(--mint-glow)]',
-    ring:   'ring-[oklch(72%_.14_156_/_0.35)]',
-    border: 'border-[oklch(72%_.14_156_/_0.35)]',
-    accent: 'bg-[var(--mint)]',
+    text:   'text-emerald-700 dark:text-emerald-300',
+    bgSoft: 'bg-emerald-50 dark:bg-emerald-950/40',
+    ring:   'ring-emerald-200 dark:ring-emerald-900/60',
+    border: 'border-emerald-200 dark:border-emerald-900/60',
+    accent: 'bg-emerald-500',
   },
   RAUL: {
     text:   'text-orange-700 dark:text-orange-300',
@@ -61,11 +61,11 @@ const PALETA: Record<Repartidor, {
     accent: 'bg-orange-500',
   },
   ALEX: {
-    text:   'text-[oklch(42%_.12_295)] dark:text-[oklch(78%_.11_295)]',
-    bgSoft: 'bg-[oklch(93%_.06_295_/_0.75)] dark:bg-[oklch(30%_.08_295_/_0.42)]',
-    ring:   'ring-[oklch(78%_.11_295_/_0.45)]',
-    border: 'border-[oklch(78%_.11_295_/_0.45)]',
-    accent: 'bg-[oklch(62%_.16_295)]',
+    text:   'text-violet-700 dark:text-violet-300',
+    bgSoft: 'bg-violet-50 dark:bg-violet-950/40',
+    ring:   'ring-violet-200 dark:ring-violet-900/60',
+    border: 'border-violet-200 dark:border-violet-900/60',
+    accent: 'bg-violet-500',
   },
 }
 
@@ -119,7 +119,7 @@ export function ListaClientes() {
   }
   if (error) {
     return (
-      <div className="rounded-[var(--radius-lg)] border border-[oklch(72%_.16_25_/_0.35)] bg-[oklch(30%_.12_25_/_0.12)] p-4 text-sm text-[var(--coral)]">
+      <div className="rounded-[var(--radius-lg)] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
         Error: {(error as Error).message}
       </div>
     )
@@ -386,8 +386,8 @@ function ClienteCard({
             className={cn(
               'rounded-md p-1 opacity-0 transition-opacity disabled:opacity-50 group-hover:opacity-100',
               cliente.activo
-                ? 'text-[var(--color-ink-3)] hover:bg-[oklch(92%_.08_82_/_0.85)] hover:text-[oklch(39%_.11_72)] dark:hover:bg-[oklch(28%_.08_72_/_0.42)]'
-                : 'text-[var(--mint)] hover:bg-[var(--mint-glow)]',
+                ? 'text-[var(--color-ink-3)] hover:bg-amber-50 hover:text-amber-700'
+                : 'text-emerald-700 hover:bg-emerald-50',
             )}
             title={cliente.activo ? 'Desactivar' : 'Reactivar'}
             aria-label={cliente.activo ? 'Desactivar' : 'Reactivar'}
@@ -408,14 +408,14 @@ function ClienteCard({
           </Badge>
         )}
         {cliente.subseccion_default && (
-          <Badge color="bg-[oklch(93%_.06_220_/_0.75)] text-[oklch(39%_.11_224)] dark:bg-[oklch(30%_.08_224_/_0.42)] dark:text-[oklch(76%_.12_224)]">
+          <Badge color="bg-sky-50 text-sky-700">
             sub: {cliente.subseccion_default}
           </Badge>
         )}
       </div>
 
       {cliente.notas && (
-        <div className="rounded-md bg-[oklch(30%_.12_25_/_0.12)] px-2 py-1 text-[11px] leading-snug text-[var(--coral)]">
+        <div className="rounded-md bg-red-50 px-2 py-1 text-[11px] leading-snug text-red-700">
           ⚠ {cliente.notas}
         </div>
       )}
@@ -477,7 +477,7 @@ function ClienteRowCompacta({
             <span>sub: {cliente.subseccion_default}</span>
           )}
           {cliente.notas && (
-            <span className="text-[var(--coral)]">⚠ {cliente.notas}</span>
+            <span className="text-red-700">⚠ {cliente.notas}</span>
           )}
         </div>
       </div>
@@ -485,7 +485,7 @@ function ClienteRowCompacta({
         <button
           type="button"
           onClick={onEdit}
-          className="rounded-md p-1.5 text-[var(--color-ink-3)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]"
+          className="rounded-md p-1.5 text-[var(--color-ink-3)] hover:bg-white hover:text-[var(--color-ink)]"
           title="Editar"
           aria-label="Editar"
         >
@@ -498,8 +498,8 @@ function ClienteRowCompacta({
           className={cn(
             'rounded-md p-1.5 disabled:opacity-50',
             cliente.activo
-              ? 'text-[var(--color-ink-3)] hover:bg-[oklch(92%_.08_82_/_0.85)] hover:text-[oklch(39%_.11_72)] dark:hover:bg-[oklch(28%_.08_72_/_0.42)]'
-              : 'text-[var(--mint)] hover:bg-[var(--mint-glow)]',
+              ? 'text-[var(--color-ink-3)] hover:bg-amber-50 hover:text-amber-700'
+              : 'text-emerald-700 hover:bg-emerald-50',
           )}
           title={cliente.activo ? 'Desactivar' : 'Reactivar'}
           aria-label={cliente.activo ? 'Desactivar' : 'Reactivar'}

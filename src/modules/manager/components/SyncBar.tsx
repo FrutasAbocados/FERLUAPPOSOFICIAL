@@ -28,11 +28,11 @@ export function SyncBar() {
     : 'sin syncs aún'
 
   return (
-    <div className="ao-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
       <div className="text-sm text-[var(--color-ink-2)]">
         <span className="font-medium text-[var(--color-ink)]">Holded → Supabase:</span>{' '}
         {lastTxt}
-        {last && !last.ok && <span className="ml-2 text-[var(--coral)]">⚠ {last.error?.slice(0, 80)}</span>}
+        {last && !last.ok && <span className="ml-2 text-red-600">⚠ {last.error?.slice(0, 80)}</span>}
       </div>
       <Button onClick={onSync} disabled={sync.isPending} size="sm">
         {sync.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}

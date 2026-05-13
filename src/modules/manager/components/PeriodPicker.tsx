@@ -26,7 +26,7 @@ export function PeriodPicker({ value, onChange }: Props) {
   }
 
   return (
-    <div className="ao-card p-3">
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
       <div className="-mx-3 flex items-center gap-1.5 overflow-x-auto px-3 no-scrollbar">
         {PRESET_OPTIONS.map(opt => {
           const active = value.preset === opt.value

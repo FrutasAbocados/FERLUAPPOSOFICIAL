@@ -31,16 +31,16 @@ export function RuletaSelfCard() {
   return (
     <>
       {saldo && saldo > 0 && (
-        <section className="ao-card mb-3 overflow-hidden border-[oklch(78%_.12_72_/_0.35)] bg-[oklch(92%_.08_82_/_0.85)] p-4 dark:bg-[oklch(28%_.08_72_/_0.42)]">
+        <section className="mb-3 overflow-hidden rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 via-amber-100/70 to-rose-100/50 p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 animate-pulse items-center justify-center rounded-lg bg-[var(--color-primary)] text-black shadow-md">
+              <div className="flex h-10 w-10 animate-pulse items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-rose-400 text-white shadow-md">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-primary)]">¡Ruleta de la suerte!</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-800">¡Ruleta de la suerte!</div>
                 <div className="font-display text-base font-bold text-[var(--color-ink)]">
-                  Tienes <span className="text-[var(--color-primary)]">{saldo}</span> tirada{saldo === 1 ? '' : 's'}
+                  Tienes <span className="text-amber-700">{saldo}</span> tirada{saldo === 1 ? '' : 's'}
                 </div>
               </div>
             </div>

@@ -51,7 +51,6 @@ const REPARTIDOR_ORDER: Repartidor[] = ['TORRES', 'GERMAN', 'RAUL', 'ALEX']
 
 // Paletas por repartidor: header saturado + fondo de columna sutil + acentos.
 const PALETA: Record<Repartidor, {
-  hue: string
   bgCol: string
   border: string
   headerBg: string
@@ -59,36 +58,32 @@ const PALETA: Record<Repartidor, {
   dot: string
 }> = {
   TORRES: {
-    hue:        '235',
-    bgCol:      'bg-[oklch(24%_.08_235_/_0.18)]',
-    border:     'border-[oklch(76%_.12_235_/_0.22)]',
-    headerBg:   'bg-[linear-gradient(90deg,oklch(28%_.12_235_/_0.55),oklch(20%_.08_235_/_0.15))]',
-    headerText: 'text-[var(--sky)]',
-    dot:        'bg-[var(--sky)]',
+    bgCol:      'bg-blue-50/50 dark:bg-blue-950/20',
+    border:     'border-blue-200 dark:border-blue-900/60',
+    headerBg:   'bg-blue-500',
+    headerText: 'text-white',
+    dot:        'bg-blue-500',
   },
   GERMAN: {
-    hue:        '158',
-    bgCol:      'bg-[oklch(24%_.08_158_/_0.18)]',
-    border:     'border-[var(--mint-glow)]',
-    headerBg:   'bg-[linear-gradient(90deg,oklch(28%_.12_158_/_0.55),oklch(20%_.08_158_/_0.15))]',
-    headerText: 'text-[var(--mint)]',
-    dot:        'bg-[var(--mint)]',
+    bgCol:      'bg-emerald-50/50 dark:bg-emerald-950/20',
+    border:     'border-emerald-200 dark:border-emerald-900/60',
+    headerBg:   'bg-emerald-500',
+    headerText: 'text-white',
+    dot:        'bg-emerald-500',
   },
   RAUL: {
-    hue:        '25',
-    bgCol:      'bg-[oklch(24%_.08_25_/_0.18)]',
-    border:     'border-[oklch(70%_.18_25_/_0.22)]',
-    headerBg:   'bg-[linear-gradient(90deg,oklch(28%_.12_25_/_0.55),oklch(20%_.08_25_/_0.15))]',
-    headerText: 'text-[var(--coral)]',
-    dot:        'bg-[var(--coral)]',
+    bgCol:      'bg-orange-50/50 dark:bg-orange-950/20',
+    border:     'border-orange-200 dark:border-orange-900/60',
+    headerBg:   'bg-orange-500',
+    headerText: 'text-white',
+    dot:        'bg-orange-500',
   },
   ALEX: {
-    hue:        '295',
-    bgCol:      'bg-[oklch(24%_.08_295_/_0.18)]',
-    border:     'border-[oklch(72%_.16_295_/_0.22)]',
-    headerBg:   'bg-[linear-gradient(90deg,oklch(28%_.12_295_/_0.55),oklch(20%_.08_295_/_0.15))]',
-    headerText: 'text-[var(--violet)]',
-    dot:        'bg-[var(--violet)]',
+    bgCol:      'bg-violet-50/50 dark:bg-violet-950/20',
+    border:     'border-violet-200 dark:border-violet-900/60',
+    headerBg:   'bg-violet-500',
+    headerText: 'text-white',
+    dot:        'bg-violet-500',
   },
 }
 
@@ -251,7 +246,7 @@ export function HojaRuta() {
   }
   if (error) {
     return (
-      <div className="rounded-[var(--radius-lg)] border border-[oklch(70%_.18_25_/_0.28)] bg-[oklch(30%_.12_25_/_0.18)] p-4 text-sm text-[var(--coral)]">
+      <div className="rounded-[var(--radius-lg)] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
         Error: {(error as Error).message}
       </div>
     )
@@ -261,10 +256,10 @@ export function HojaRuta() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h2 className="text-lg font-medium tracking-[-0.01em] text-[var(--ink)] capitalize">
+          <h2 className="text-base font-semibold text-[var(--color-ink)] capitalize">
             Hoja de ruta · {titulo}
           </h2>
-          <p className="mono mt-1 text-[10px] uppercase tracking-[0.14em] text-[var(--ink-mute)]">
+          <p className="text-xs text-[var(--color-ink-3)]">
             {total} {total === 1 ? 'pedido' : 'pedidos'} · {repartidoresActivos} {repartidoresActivos === 1 ? 'repartidor activo' : 'repartidores activos'}
           </p>
         </div>
@@ -295,7 +290,7 @@ export function HojaRuta() {
       </div>
 
       {total === 0 ? (
-        <div className="ao-card border-dashed p-8 text-center text-sm text-[var(--ink-mute)]">
+        <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-ink-3)]">
           No hay pedidos para hoy todavía.
         </div>
       ) : (
@@ -342,7 +337,7 @@ function ColumnaRepartidor({
       className={cn(
         'flex flex-col overflow-hidden rounded-[var(--radius-lg)] border transition-colors',
         p.border, p.bgCol,
-        isOver && 'ring-2 ring-[var(--mint)]',
+        isOver && 'ring-2 ring-[var(--color-primary)] ring-offset-1',
       )}
     >
       <button
@@ -359,7 +354,7 @@ function ColumnaRepartidor({
           <span>{REPARTIDOR_LABEL[repartidor]}</span>
         </div>
         <div className="inline-flex items-center gap-2 text-xs font-medium opacity-90">
-          <span className="rounded-full border border-current/20 bg-[rgba(255,255,255,.05)] px-2 py-0.5 tabular-nums">
+          <span className="rounded-full bg-white/25 px-2 py-0.5 tabular-nums">
             {pedidos.length} {pedidos.length === 1 ? 'parada' : 'paradas'}
           </span>
           {totalLineas > 0 && (
@@ -372,7 +367,7 @@ function ColumnaRepartidor({
       {!colapsada && (
         <div className="space-y-2 p-2 min-h-[60px]">
           {pedidos.length === 0 ? (
-            <div className="rounded-md border border-dashed border-[var(--line)] bg-[rgba(255,255,255,.02)] p-4 text-center text-xs text-[var(--ink-mute)]">
+            <div className="rounded-md border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-center text-xs text-[var(--color-ink-3)]">
               Sin pedidos para {REPARTIDOR_LABEL[repartidor]}.
             </div>
           ) : (
@@ -400,11 +395,11 @@ function renderConSeparadores(pedidos: Pedido[], repartidor: Repartidor, fecha: 
       out.push(
         <div
           key={`sep-${p.id}`}
-          className="mono flex items-center gap-2 px-1 py-1 text-[10px] uppercase tracking-[0.14em] text-[var(--ink-mute)]"
+          className="flex items-center gap-2 px-1 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--color-ink-3)]"
         >
-          <span className="h-px flex-1 bg-[var(--line)]" />
+          <span className="h-px flex-1 bg-[var(--color-border)]" />
           2ª salida
-          <span className="h-px flex-1 bg-[var(--line)]" />
+          <span className="h-px flex-1 bg-[var(--color-border)]" />
         </div>,
       )
     }
@@ -546,9 +541,9 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
       ref={setNodeRef}
       style={dragStyle}
       className={cn(
-        'ao-panel group rounded-[var(--radius-md)] border p-3 transition-colors',
-        movido ? 'border-[oklch(78%_.16_70_/_0.35)] ring-1 ring-[oklch(78%_.16_70_/_0.22)]' : 'border-[var(--line)]',
-        isDragging && 'ring-2 ring-[var(--mint)]',
+        'group rounded-[var(--radius-md)] border bg-[var(--color-surface)] p-3 shadow-sm transition-shadow hover:shadow-md',
+        movido ? 'border-amber-300 ring-1 ring-amber-200' : 'border-[var(--color-border)]',
+        isDragging && 'shadow-lg ring-2 ring-[var(--color-primary)]',
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -574,12 +569,12 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
               className={cn(
                 'w-14 shrink-0 rounded-md border bg-transparent px-1.5 py-0.5 text-xs font-bold tabular-nums focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]',
                 pedido.override_horario
-                  ? 'border-[oklch(78%_.16_70_/_0.35)] bg-[oklch(30%_.10_70_/_0.18)] text-[var(--amber)]'
-                  : 'border-[var(--line)] text-[var(--ink)]',
+                  ? 'border-amber-300 bg-amber-50 text-amber-800'
+                  : 'border-[var(--color-border)] text-[var(--color-ink)]',
               )}
               title="Editar horario solo para hoy"
             />
-            <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--ink)]">
+            <h3 className="min-w-0 flex-1 truncate text-sm font-bold text-[var(--color-ink)]">
               {cliente?.nombre ?? '—'}
             </h3>
             <MenuPedido
@@ -595,14 +590,14 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
             />
           </div>
 
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--ink-mute)]">
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--color-ink-3)]">
             {cliente?.subseccion_default && (
               <span>sub: <strong>{cliente.subseccion_default}</strong></span>
             )}
             {salidaActual && (repActual === 'GERMAN' || repActual === 'RAUL') && (
               <span className={cn(
                 'rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase',
-                pedido.override_salida ? 'bg-[oklch(30%_.10_70_/_0.25)] text-[var(--amber)]' : 'bg-[rgba(255,255,255,.04)] text-[var(--ink-dim)]',
+                pedido.override_salida ? 'bg-amber-100 text-amber-800' : 'bg-[var(--color-surface-2)] text-[var(--color-ink-2)]',
               )}>
                 {salidaActual === 'PRIMERA' ? '1ª' : '2ª'}
               </span>
@@ -619,26 +614,26 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
               </span>
             )}
             {movido && (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-[oklch(30%_.10_70_/_0.25)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[var(--amber)]">
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-800">
                 <Undo2 className="h-2.5 w-2.5" /> movido (era {REPARTIDOR_LABEL[cliente?.repartidor ?? 'TORRES']})
               </span>
             )}
             {ordenManual && (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--mint-glow)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[var(--mint)]">
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--color-primary-soft)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[var(--color-primary-2)]">
                 #{pedido.override_orden}
               </span>
             )}
           </div>
 
           {cliente?.notas && (
-            <div className="mt-1.5 inline-flex items-start gap-1 rounded-md bg-[oklch(30%_.12_25_/_0.18)] px-1.5 py-0.5 text-[11px] text-[var(--coral)]">
+            <div className="mt-1.5 inline-flex items-start gap-1 rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700">
               <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
               <span>{cliente.notas}</span>
             </div>
           )}
 
           {pedido.notas_admin && (
-            <div className="mt-1 text-[11px] italic text-[var(--amber)]">
+            <div className="mt-1 text-[11px] italic text-amber-700">
               {pedido.notas_admin}
             </div>
           )}
@@ -657,8 +652,8 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
                     <span className="font-semibold tabular-nums">{formatN(Number(l.cantidad))} {UNIDAD_LABEL[l.unidad]}</span>
                     {' · '}
                     <span>{l.producto_normalizado}</span>
-                    {l.subseccion && <span className="text-[var(--ink-mute)]"> ({l.subseccion})</span>}
-                    {l.es_gratis && <span className="text-[var(--mint)]"> · GRATIS</span>}
+                    {l.subseccion && <span className="text-[var(--color-ink-3)]"> ({l.subseccion})</span>}
+                    {l.es_gratis && <span className="text-emerald-700"> · GRATIS</span>}
                   </li>
                 ))}
               </ul>
@@ -675,8 +670,8 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
             className={cn(
               'mt-1.5 w-full rounded-md border bg-transparent px-1.5 py-0.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]',
               obsEdit
-                ? 'border-[oklch(78%_.16_70_/_0.35)] bg-[oklch(30%_.10_70_/_0.18)] text-[var(--amber)]'
-                : 'border-[var(--line)] text-[var(--ink-mute)]',
+                ? 'border-amber-300 bg-amber-50/60 text-amber-800 dark:bg-amber-950/30 dark:text-amber-200'
+                : 'border-[var(--color-border)] text-[var(--color-ink-3)]',
             )}
             title="Observaciones del pedido (solo hoy)"
           />
@@ -729,7 +724,7 @@ function MenuPedido({
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
       </button>
       {open && (
-        <div className="ao-card absolute right-0 top-7 z-20 w-52 overflow-hidden p-0">
+        <div className="absolute right-0 top-7 z-20 w-52 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg">
           <div className="px-2 pt-2 text-[10px] font-bold uppercase tracking-wider text-[var(--color-ink-3)]">
             Mover a
           </div>

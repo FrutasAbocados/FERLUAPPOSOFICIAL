@@ -177,8 +177,8 @@ function FilaProducto({
               <span className={cn(
                 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
                 producto.source === 'auto_match'
-                  ? 'bg-[oklch(93%_.06_220_/_0.75)] text-[oklch(39%_.11_224)] ring-1 ring-[oklch(78%_.11_224_/_0.45)] dark:bg-[oklch(30%_.08_224_/_0.42)] dark:text-[oklch(76%_.12_224)]'
-                  : 'bg-[var(--mint-glow)] text-[var(--mint)] ring-1 ring-[oklch(72%_.14_156_/_0.35)]',
+                  ? 'bg-sky-50 text-sky-700 ring-1 ring-sky-200'
+                  : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
               )}>
                 <Check className="h-3 w-3" />
                 {producto.source === 'auto_match' ? 'auto' : 'manual'}
@@ -186,7 +186,7 @@ function FilaProducto({
               <span className="text-sm text-[var(--color-ink)]">{producto.holded_product_name}</span>
             </div>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[oklch(92%_.08_82_/_0.85)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[oklch(39%_.11_72)] ring-1 ring-[oklch(78%_.12_72_/_0.35)] dark:bg-[oklch(28%_.08_72_/_0.42)] dark:text-[var(--color-primary)]">
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 ring-1 ring-amber-200">
               <X className="h-3 w-3" /> sin vincular
             </span>
           )}
@@ -204,7 +204,7 @@ function FilaProducto({
               onClick={eliminar}
               disabled={del.isPending}
               title={producto.holded_product_id ? 'Desvincular' : 'Eliminar producto'}
-              className="text-[var(--coral)] hover:bg-[oklch(30%_.12_25_/_0.18)]"
+              className="text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>

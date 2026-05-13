@@ -95,7 +95,7 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 md:p-8"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="ao-card w-full max-w-4xl p-0">
+      <div className="w-full max-w-4xl rounded-2xl bg-[var(--color-surface)] shadow-xl">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div className="min-w-0">
@@ -119,7 +119,7 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
         {/* Override coste manual */}
         <section className="border-b border-[var(--color-border)] bg-[color:rgba(245,158,11,0.06)] px-5 py-4">
           <h3 className="text-sm font-semibold text-[var(--color-ink)]">
-            Coste manual (override) {costeManual.data && <span className="ml-2 rounded-full bg-[oklch(92%_.08_82_/_0.85)] px-2 py-0.5 text-xs text-[var(--color-primary)] dark:bg-[oklch(28%_.08_72_/_0.42)]">Activo</span>}
+            Coste manual (override) {costeManual.data && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">Activo</span>}
           </h3>
           <p className="mt-0.5 text-xs text-[var(--color-ink-3)]">
             Si pones un coste aquí, sobrescribe la media de las 4 últimas compras para este producto en TODO el Manager.
@@ -160,7 +160,7 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
             <div className="mb-2 flex items-baseline justify-between">
               <h3 className="text-sm font-semibold text-[var(--color-ink)]">Histórico mensual (12 meses)</h3>
               {analisis?.esOportunidadCompra && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--mint-glow)] px-2 py-0.5 text-xs font-semibold text-[var(--mint)]">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
                   <TrendingDown className="h-3 w-3" />
                   Oportunidad de compra: precio {Math.abs(analisis.desviacionPct).toFixed(0)}% bajo media
                 </span>
@@ -201,7 +201,7 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
                 </div>
                 <div>
                   <div className="text-[var(--color-ink-3)]">Coste último mes</div>
-                  <div className={`font-medium tabular-nums ${analisis.desviacionPct >= 0 ? 'text-[var(--color-primary)]' : 'text-[var(--mint)]'}`}>
+                  <div className={`font-medium tabular-nums ${analisis.desviacionPct >= 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
                     {eur(analisis.ultimoPrecio)} ({analisis.desviacionPct >= 0 ? '+' : ''}{analisis.desviacionPct.toFixed(0)}%)
                   </div>
                 </div>
@@ -232,7 +232,7 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
                     </div>
                     <div className="text-right tabular-nums">
                       <div className="text-[var(--color-ink)]">{eur(c.ventas_subtotal)}</div>
-                      <div className="text-xs text-[var(--mint)]">{eur(c.margen)} {c.margen_pct == null ? '' : `(${c.margen_pct.toFixed(0)}%)`}</div>
+                      <div className="text-xs text-emerald-700">{eur(c.margen)} {c.margen_pct == null ? '' : `(${c.margen_pct.toFixed(0)}%)`}</div>
                     </div>
                   </li>
                 ))}
@@ -289,7 +289,7 @@ function Tile({ label, value, sub, tone = 'neutral' }: { label: string; value: s
   return (
     <div className="rounded-lg border border-[var(--color-border)] px-3 py-2">
       <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">{label}</div>
-      <div className={`font-display text-base font-bold ${tone === 'positive' ? 'text-[var(--mint)]' : tone === 'warning' ? 'text-[var(--color-primary)]' : 'text-[var(--color-ink)]'}`}>{value}</div>
+      <div className={`font-display text-base font-bold ${tone === 'positive' ? 'text-emerald-700' : tone === 'warning' ? 'text-amber-700' : 'text-[var(--color-ink)]'}`}>{value}</div>
       {sub && <div className="text-xs text-[var(--color-ink-3)]">{sub}</div>}
     </div>
   )

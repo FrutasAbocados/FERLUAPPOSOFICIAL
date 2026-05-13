@@ -57,12 +57,12 @@ const TONE: Record<KpiProps['tone'], string> = {
 
 function Kpi({ label, value, icon, tone }: KpiProps) {
   return (
-    <div className="ao-card p-3">
-      <div className="label-caps flex items-center gap-1.5">
+    <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
         <span className={cn(TONE[tone])}>{icon}</span>
         {label}
       </div>
-      <div className={cn('mono mt-1 text-xl font-semibold tabular-nums md:text-2xl', TONE[tone])}>
+      <div className={cn('mt-1 font-display text-xl font-bold tabular-nums md:text-2xl', TONE[tone])}>
         {value}
       </div>
     </div>

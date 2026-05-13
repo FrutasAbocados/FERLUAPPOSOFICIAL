@@ -36,7 +36,7 @@ export function CierreDiaPage() {
 
   return (
     <div>
-      <div className="ao-card mb-4 flex flex-wrap items-end justify-between gap-3 p-4">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <div>
           <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
             Fecha del cierre
@@ -87,9 +87,9 @@ export function CierreDiaPage() {
                 <button
                   key={e.id}
                   onClick={() => { setCreating(true); setCreatingEmpleadoId(e.id) }}
-                  className="ao-card-hover block w-full rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left transition hover:border-[var(--color-primary)]"
+                  className="block w-full rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left transition hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-2,#f8fafc)]"
                 >
-                  <p className="text-base font-semibold text-[var(--color-ink)]">{e.nombre}</p>
+                  <p className="font-display text-base font-bold text-[var(--color-ink)]">{e.nombre}</p>
                   <p className="text-xs text-[var(--color-ink-3)]">Sin jornada — pulsa para registrar horas</p>
                 </button>
               ))}
@@ -145,11 +145,11 @@ function JornadaCard({
   return (
     <button
       onClick={onClick}
-      className="ao-card-hover block w-full rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left transition hover:border-[var(--color-primary)]"
+      className="block w-full rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left transition hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-2,#f8fafc)]"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <p className="text-base font-semibold text-[var(--color-ink)]">
+          <p className="font-display text-base font-bold text-[var(--color-ink)]">
             {empleadoNombre}
           </p>
           <p className="text-xs text-[var(--color-ink-3)]">
@@ -181,8 +181,8 @@ function Mini({
         {label}
       </p>
       <p
-        className={`mono text-sm font-semibold ${
-          tone === 'success' ? 'text-[var(--mint)]' : 'text-[var(--color-ink)]'
+        className={`text-sm font-semibold ${
+          tone === 'success' ? 'text-emerald-700' : 'text-[var(--color-ink)]'
         }`}
       >
         {value}
@@ -197,8 +197,8 @@ function ResumenDia({ fecha }: { fecha: string }) {
   const { total, efectivo, tarjeta, count } = resumen.data
   if (count === 0) return null
   return (
-    <div className="ao-card p-4">
-      <p className="label-caps mb-2">
+    <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-2,#f3f4ee)] p-4">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
         Total del día
       </p>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

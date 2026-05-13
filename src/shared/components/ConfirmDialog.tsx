@@ -14,15 +14,15 @@ export function ConfirmDialog() {
       onOpenChange={(o) => { if (!o) resolveConfirm(false) }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=open]:fade-in" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=open]:fade-in" />
         <Dialog.Content
-          className="ao-card fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 p-5 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=open]:fade-in data-[state=open]:zoom-in-95"
+          className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=open]:fade-in data-[state=open]:zoom-in-95"
         >
-          <Dialog.Title className="text-lg font-medium tracking-[-0.01em] text-[var(--ink)]">
+          <Dialog.Title className="font-display text-lg font-bold text-[var(--color-ink)]">
             {pending?.title ?? ''}
           </Dialog.Title>
           {pending?.description && (
-            <Dialog.Description className="mt-2 text-sm text-[var(--ink-dim)]">
+            <Dialog.Description className="mt-2 text-sm text-[var(--color-ink-2)]">
               {pending.description}
             </Dialog.Description>
           )}
