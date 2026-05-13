@@ -177,7 +177,7 @@ export function GenerarDeudaModal({ facturas, onClose, onSuccess }: Props) {
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 md:p-8"
       onClick={(e) => { if (e.target === e.currentTarget && !generar.isPending) onClose() }}
     >
-      <div className="w-full max-w-4xl rounded-2xl bg-[var(--color-surface)] shadow-xl">
+      <div className="ao-card w-full max-w-4xl p-0">
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div className="flex items-start gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary-soft)]">
@@ -212,7 +212,7 @@ export function GenerarDeudaModal({ facturas, onClose, onSuccess }: Props) {
                         <div className="min-w-0 text-sm">
                           <div className="truncate text-[var(--color-ink)]">{f.doc_number ?? '—'} · {fmt(f.fecha)}</div>
                           <div className="truncate text-xs text-[var(--color-ink-3)]">{f.contact_name_canon}</div>
-                          {yaExiste && <div className="text-xs text-amber-700">⚠️ ya existe en Cobros</div>}
+                          {yaExiste && <div className="text-xs text-[var(--color-primary)]">⚠️ ya existe en Cobros</div>}
                         </div>
                         <div className="min-w-0">
                           <select
@@ -252,7 +252,7 @@ export function GenerarDeudaModal({ facturas, onClose, onSuccess }: Props) {
               <div className="text-xs text-[var(--color-ink-3)]">
                 <span className="font-medium text-[var(--color-ink)]">{numIncluidas} factura(s)</span>
                 {numNuevos > 0 && <span> · {numNuevos} cliente(s) nuevo(s)</span>}
-                <span className="ml-2 font-medium tabular-nums text-emerald-700">{eur(totalIncluido)}</span>
+                <span className="ml-2 font-medium tabular-nums text-[var(--mint)]">{eur(totalIncluido)}</span>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={onClose} disabled={generar.isPending}>Cancelar</Button>
@@ -266,8 +266,8 @@ export function GenerarDeudaModal({ facturas, onClose, onSuccess }: Props) {
 
         {generar.data && (
           <div className="px-5 py-6 text-center">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
-              <Check className="h-7 w-7 text-emerald-700" />
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--mint-glow)]">
+              <Check className="h-7 w-7 text-[var(--mint)]" />
             </div>
             <h3 className="font-display text-xl font-bold text-[var(--color-ink)]">¡Hecho!</h3>
             <p className="mt-1 text-sm text-[var(--color-ink-2)]">
@@ -275,9 +275,9 @@ export function GenerarDeudaModal({ facturas, onClose, onSuccess }: Props) {
               {generar.data.nuevos > 0 && <> · {generar.data.nuevos} cliente(s) nuevo(s).</>}
             </p>
             {generar.data.errores.length > 0 && (
-              <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-left text-xs">
-                <div className="mb-1 font-semibold text-amber-800">{generar.data.errores.length} error(es):</div>
-                <ul className="space-y-0.5 text-amber-900">
+              <div className="mt-3 rounded-lg border border-[oklch(78%_.12_72_/_0.35)] bg-[oklch(92%_.08_82_/_0.85)] p-3 text-left text-xs dark:bg-[oklch(28%_.08_72_/_0.42)]">
+                <div className="mb-1 font-semibold text-[var(--color-primary)]">{generar.data.errores.length} error(es):</div>
+                <ul className="space-y-0.5 text-[oklch(39%_.11_72)] dark:text-[var(--color-primary)]">
                   {generar.data.errores.map((e, i) => (
                     <li key={i}>· <strong>{e.doc}</strong>: {e.msg}</li>
                   ))}

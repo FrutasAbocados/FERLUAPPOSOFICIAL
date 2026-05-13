@@ -75,7 +75,7 @@ export function FacturasView({ period }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="space-y-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+      <div className="ao-panel space-y-2 px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1">
             <span className="text-xs text-[var(--color-ink-3)]">Tipo:</span>
@@ -110,7 +110,7 @@ export function FacturasView({ period }: Props) {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="ao-card overflow-hidden p-0">
         {isLoading && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
         {!isLoading && data?.length === 0 && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Sin facturas con esos filtros</p>}
 
@@ -157,7 +157,7 @@ export function FacturasView({ period }: Props) {
                   <div className="text-right tabular-nums md:hidden">
                     <div className="text-[var(--color-ink)]">{eur(f.total)}</div>
                     {f.tipo === 'VENTA' && f.margen != null && (
-                      <div className="text-xs text-emerald-700">{eur(f.margen)} {f.margen_pct == null ? '' : `(${f.margen_pct.toFixed(0)}%)`}</div>
+                      <div className="text-xs text-[var(--mint)]">{eur(f.margen)} {f.margen_pct == null ? '' : `(${f.margen_pct.toFixed(0)}%)`}</div>
                     )}
                   </div>
 
@@ -168,7 +168,7 @@ export function FacturasView({ period }: Props) {
                   <div className="hidden text-[var(--color-ink-3)] md:block">{f.doc_number ?? '—'}</div>
                   <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">{eur(f.subtotal)}</div>
                   <div className="hidden text-right tabular-nums font-medium text-[var(--color-ink)] md:block">{eur(f.total)}</div>
-                  <div className="hidden text-right tabular-nums text-emerald-700 md:block">
+                  <div className="hidden text-right tabular-nums text-[var(--mint)] md:block">
                     {f.tipo === 'VENTA' ? eur(f.margen) : '—'}
                   </div>
                   <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">
@@ -183,7 +183,7 @@ export function FacturasView({ period }: Props) {
 
       {/* Paginación */}
       {totalCount > PAGE_SIZE && (
-        <div className="flex items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+        <div className="ao-panel flex items-center justify-between gap-2 px-3 py-2">
           <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
             <ChevronLeft className="mr-1 h-4 w-4" /> Anterior
           </Button>
@@ -198,10 +198,10 @@ export function FacturasView({ period }: Props) {
 
       {/* Bottom bar selección */}
       {marcadas.size > 0 && (
-        <div className="sticky bottom-2 z-30 mx-auto flex max-w-2xl items-center justify-between gap-3 rounded-xl border-2 border-[var(--color-primary)] bg-[var(--color-surface)] px-4 py-3 shadow-lg">
+        <div className="ao-card sticky bottom-2 z-30 mx-auto flex max-w-2xl items-center justify-between gap-3 border-2 border-[var(--color-primary)] px-4 py-3">
           <div className="text-sm">
             <span className="font-semibold text-[var(--color-ink)]">{marcadas.size} factura(s) seleccionada(s)</span>
-            <span className="ml-2 font-medium tabular-nums text-emerald-700">{eur(totalMarcado)}</span>
+            <span className="ml-2 font-medium tabular-nums text-[var(--mint)]">{eur(totalMarcado)}</span>
           </div>
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={() => setMarcadas(new Set())}>Limpiar</Button>

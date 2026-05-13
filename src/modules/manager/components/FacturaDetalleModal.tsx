@@ -34,7 +34,7 @@ export function FacturaDetalleModal({ factura, onClose }: Props) {
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 md:p-8"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-5xl rounded-2xl bg-[var(--color-surface)] shadow-xl">
+      <div className="ao-card w-full max-w-5xl p-0">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div className="min-w-0">
@@ -95,7 +95,7 @@ export function FacturaDetalleModal({ factura, onClose }: Props) {
                       {factura.tipo === 'VENTA' && (
                         <>
                           <td className="px-3 py-1.5 text-right tabular-nums text-[var(--color-ink-3)]">{l.coste_unidad == null ? '—' : eur(l.coste_unidad)}</td>
-                          <td className={`px-3 py-1.5 text-right tabular-nums ${Number(l.margen_linea ?? 0) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                          <td className={`px-3 py-1.5 text-right tabular-nums ${Number(l.margen_linea ?? 0) >= 0 ? 'text-[var(--mint)]' : 'text-[var(--coral)]'}`}>
                             {eur(l.margen_linea)}
                           </td>
                         </>
@@ -117,9 +117,9 @@ function Tile({ label, value, sub, tone = 'neutral' }: { label: string; value: s
     <div className="rounded-lg border border-[var(--color-border)] px-3 py-2">
       <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">{label}</div>
       <div className={`font-display text-base font-bold ${
-        tone === 'positive' ? 'text-emerald-700'
-        : tone === 'negative' ? 'text-red-700'
-        : tone === 'warning' ? 'text-amber-700'
+        tone === 'positive' ? 'text-[var(--mint)]'
+        : tone === 'negative' ? 'text-[var(--coral)]'
+        : tone === 'warning' ? 'text-[var(--color-primary)]'
         : 'text-[var(--color-ink)]'
       }`}>{value}</div>
       {sub && <div className="text-xs text-[var(--color-ink-3)]">{sub}</div>}

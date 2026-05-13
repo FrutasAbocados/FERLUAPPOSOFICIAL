@@ -13,7 +13,7 @@ interface Props {
 
 export function SerieDiariaChart({ data, loading }: Props) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+    <div className="ao-card p-4">
       <div className="mb-3 flex items-baseline justify-between">
         <div className="text-sm font-semibold text-[var(--color-ink)]">Ventas vs compras vs margen — diario</div>
         {loading && <span className="text-xs text-[var(--color-ink-3)]">cargando…</span>}
@@ -48,9 +48,9 @@ export function SerieDiariaChart({ data, loading }: Props) {
                 }}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="ventas" name="Ventas" fill="#059669" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="compras" name="Compras" fill="#94a3b8" radius={[3, 3, 0, 0]} />
-              <Line dataKey="margen" name="Margen" type="monotone" stroke="#2563eb" strokeWidth={2} dot={false} />
+              <Bar dataKey="ventas" name="Ventas" fill="#34d399" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="compras" name="Compras" fill="#64748b" radius={[3, 3, 0, 0]} />
+              <Line dataKey="margen" name="Margen" type="monotone" stroke="#f0b84b" strokeWidth={2} dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
         ) : (
