@@ -220,7 +220,7 @@ export function VacacionesView() {
           className="flex w-full items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-semibold text-[var(--color-ink)] transition hover:border-[var(--color-primary)]"
         >
           <span className="flex items-center gap-2">
-            <CalendarX className="h-4 w-4 text-amber-600" />
+            <CalendarX className="h-4 w-4 text-[var(--color-primary)]" />
             Calendario de festivos {anio}
           </span>
           {festivosOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -230,7 +230,7 @@ export function VacacionesView() {
 
       {isLoading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
       {data?.length === 0 && (
-        <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-sm text-[var(--color-ink-3)]">
+        <p className="ao-card px-4 py-6 text-sm text-[var(--color-ink-3)]">
           No hay trabajadores activos.
         </p>
       )}
@@ -246,7 +246,7 @@ export function VacacionesView() {
             <li key={t.empleado_id}>
               <button
                 onClick={() => setSelected(t)}
-                className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left transition hover:border-[var(--color-primary)]"
+                className="ao-card grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 p-4 text-left transition hover:border-[var(--color-primary)]"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-primary-soft)]">
                   <CalendarOff className="h-5 w-5 text-[var(--color-primary-2)]" />
@@ -254,11 +254,11 @@ export function VacacionesView() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="truncate font-semibold text-[var(--color-ink)]">{t.nombre}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${t.pack === 1 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${t.pack === 1 ? 'bg-[var(--mint-glow)] text-[var(--mint)]' : 'bg-[oklch(92%_.08_82_/_0.85)] text-[var(--color-primary)] dark:bg-[oklch(28%_.08_72_/_0.42)]'}`}>
                       Pack {t.pack}
                     </span>
                   </div>
-                  <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[var(--color-surface-2)]">
                     <div className="flex h-full">
                       <div className="bg-emerald-500" style={{ width: `${(disf / total) * 100}%` }} title={`Disfrutados: ${t.disfrutados}`} />
                       <div className="bg-blue-400" style={{ width: `${(apr / total) * 100}%` }} title={`Aprobados: ${t.aprobados}`} />
@@ -271,12 +271,12 @@ export function VacacionesView() {
                     <span><span className="inline-block h-2 w-2 rounded-full bg-blue-400 align-middle" /> {t.aprobados} aprob.</span>
                     <span><span className="inline-block h-2 w-2 rounded-full bg-amber-300 align-middle" /> {t.pendientes} pend.</span>
                     {t.festivos_no_trabajados > 0 && (
-                      <span className="text-red-600">−{t.dias_descontados_festivos} festivos ({t.festivos_no_trabajados})</span>
+                      <span className="text-[var(--coral)]">−{t.dias_descontados_festivos} festivos ({t.festivos_no_trabajados})</span>
                     )}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className={`font-display text-2xl font-bold tabular-nums ${t.restantes < 0 ? 'text-red-600' : 'text-[var(--color-ink)]'}`}>
+                  <div className={`font-display text-2xl font-bold tabular-nums ${t.restantes < 0 ? 'text-[var(--coral)]' : 'text-[var(--color-ink)]'}`}>
                     {t.restantes}
                   </div>
                   <div className="text-xs text-[var(--color-ink-3)]">

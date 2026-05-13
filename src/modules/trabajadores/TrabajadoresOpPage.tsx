@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Award, BarChart3, BookCheck, CalendarClock, CalendarDays, CalendarOff, Clock4, Construction, Fingerprint, ShoppingBasket, Sparkles } from 'lucide-react'
-import { Button } from '@/shared/components/ui/button'
 import { useAuth } from '@/shared/auth/useAuth'
 import { TareasPage } from '@/modules/tareas/TareasPage'
 import { TurnosPage } from '@/modules/turnos/TurnosPage'
@@ -49,18 +48,17 @@ export function TrabajadoresOpPage() {
   return (
     <div>
       {/* Tabs */}
-      <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 md:px-6">
-        <div className="-mx-4 flex items-center gap-1 overflow-x-auto px-4 no-scrollbar md:mx-0 md:px-0">
+      <div className="border-b border-[var(--line)] bg-[var(--surface)] px-4 py-3 md:px-6">
+        <div className="ao-tabbar max-w-full overflow-x-auto no-scrollbar">
           {tabsVisibles.map(t => (
-            <Button
+            <button
               key={t.k}
-              size="sm"
-              variant={tab === t.k ? 'primary' : 'ghost'}
+              type="button"
               onClick={() => setTab(t.k)}
-              className="shrink-0"
+              className={tab === t.k ? 'ao-tab ao-tab-active' : 'ao-tab'}
             >
-              <t.Icon className="mr-1 h-4 w-4" /> {t.l}
-            </Button>
+              <t.Icon className="h-3.5 w-3.5" /> {t.l}
+            </button>
           ))}
         </div>
       </div>
@@ -89,7 +87,7 @@ function Placeholder({ titulo, descripcion, comingSoon }: { titulo: string; desc
       <h2 className="font-display text-2xl font-bold text-[var(--color-ink)]">{titulo}</h2>
       <p className="mt-2 text-sm text-[var(--color-ink-2)]">{descripcion}</p>
       {comingSoon && (
-        <span className="mt-3 inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">Coming soon</span>
+        <span className="mt-3 inline-block rounded-full bg-[oklch(92%_.08_82_/_0.85)] px-3 py-1 text-xs font-semibold text-[var(--color-primary)] dark:bg-[oklch(28%_.08_72_/_0.42)]">Coming soon</span>
       )}
     </div>
   )

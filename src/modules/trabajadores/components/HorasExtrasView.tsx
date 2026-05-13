@@ -214,16 +214,16 @@ export function HorasExtrasView() {
       </header>
 
       {/* KPIs por trabajador */}
-      <div className="mb-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+      <div className="ao-card mb-5 p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-[var(--color-ink)]">Resumen del mes</h2>
           <span className="text-xs text-[var(--color-ink-3)]">
-            Total a pagar pendiente: <strong className="text-emerald-700">{eur(totalImportePend)}</strong>
+            Total a pagar pendiente: <strong className="text-[var(--mint)]">{eur(totalImportePend)}</strong>
           </span>
         </div>
         <ul className="grid gap-2 md:grid-cols-2">
           {resumen?.map((r) => (
-            <li key={r.empleado_id} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+            <li key={r.empleado_id} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3">
               <div className="mb-1 font-semibold text-[var(--color-ink)]">{r.nombre}</div>
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <KpiMini icon={<Banknote className="h-3.5 w-3.5" />} label="Pago" main={eur(r.importe_pago_pendiente)} sub={`${r.horas_pago_pendientes} h pend`} />
