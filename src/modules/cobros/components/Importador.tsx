@@ -61,7 +61,10 @@ export function Importador() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Importar Excel</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Upload className="h-4 w-4 text-[var(--mint)]" />
+            Importar Excel
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-[var(--color-ink-2)]">
@@ -79,7 +82,7 @@ export function Importador() {
             <span
               role="button"
               tabIndex={0}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[#06100d] hover:opacity-90"
             >
               {busy ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -110,7 +113,7 @@ export function Importador() {
               />
             </ul>
             {parsed.errores.length > 0 && (
-              <div className="rounded-[var(--radius-md)] border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+              <div className="rounded-[var(--radius-md)] border border-[oklch(78%_.16_70_/_0.28)] bg-[var(--color-warn-soft)] p-3 text-xs text-[var(--amber)]">
                 <div className="mb-1 flex items-center gap-2 font-semibold">
                   <AlertCircle className="h-4 w-4" />
                   {parsed.errores.length} avisos al parsear
@@ -147,7 +150,7 @@ export function Importador() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <CheckCircle2 className="h-5 w-5 text-[var(--mint)]" />
               Importación completada
             </CardTitle>
           </CardHeader>
@@ -158,7 +161,7 @@ export function Importador() {
               <Stat label="Duplicados ignorados" value={result.movimientosDuplicados} />
             </ul>
             {result.errores.length > 0 && (
-              <div className="rounded-[var(--radius-md)] border border-red-300 bg-red-50 p-3 text-xs text-red-900">
+              <div className="rounded-[var(--radius-md)] border border-[oklch(70%_.18_25_/_0.28)] bg-[var(--color-danger-soft)] p-3 text-xs text-[var(--coral)]">
                 <div className="mb-1 font-semibold">Errores</div>
                 <ul className="max-h-40 list-disc overflow-auto pl-5">
                   {result.errores.map((e, i) => (
@@ -184,11 +187,11 @@ export function Importador() {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <li className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-      <div className="text-xs uppercase tracking-wider text-[var(--color-ink-3)]">
+    <li className="ao-panel p-3">
+      <div className="label-caps">
         {label}
       </div>
-      <div className="mt-1 text-2xl font-bold text-[var(--color-ink)]">{value}</div>
+      <div className="mono mt-1 text-2xl font-semibold tabular-nums text-[var(--color-ink)]">{value}</div>
     </li>
   )
 }

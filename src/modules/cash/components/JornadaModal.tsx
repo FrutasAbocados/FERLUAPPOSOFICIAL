@@ -242,7 +242,7 @@ function JornadaForm({
             <ClienteBuscador onSelect={addLinea} />
 
             {lineas.length === 0 ? (
-              <p className="mt-3 rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2,#f8fafc)] p-4 text-center text-xs text-[var(--color-ink-3)]">
+              <p className="mt-3 rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] bg-[rgba(255,255,255,.025)] p-4 text-center text-xs text-[var(--color-ink-3)]">
                 Busca un cliente arriba para añadir el primer reparto.
               </p>
             ) : (
@@ -427,7 +427,7 @@ function ClienteBuscador({ onSelect }: { onSelect: (c: ContactoOpt) => void }) {
                       setQ('')
                       setOpen(false)
                     }}
-                    className="block w-full px-3 py-2 text-left text-sm text-[var(--color-ink)] hover:bg-[var(--color-surface-2,#f3f4ee)]"
+                    className="block w-full px-3 py-2 text-left text-sm text-[var(--color-ink)] hover:bg-[rgba(255,255,255,.035)]"
                   >
                     {c.nombre}
                   </button>
@@ -452,16 +452,16 @@ function Total({
 }) {
   const toneCls =
     tone === 'success'
-      ? 'text-emerald-700'
+      ? 'text-[var(--mint)]'
       : tone === 'danger'
-        ? 'text-red-700'
+        ? 'text-[var(--coral)]'
         : 'text-[var(--color-ink)]'
   return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[rgba(255,255,255,.02)] px-3 py-2">
+      <p className="label-caps">
         {label}
       </p>
-      <p className={`mt-0.5 text-sm font-semibold tabular-nums ${toneCls}`}>{value}</p>
+      <p className={`mono mt-0.5 text-sm font-semibold tabular-nums ${toneCls}`}>{value}</p>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
+import { PageTopbar } from '@/shared/components/PageTopbar'
 import { useAuth } from '@/shared/auth/useAuth'
 import { WeekHeader } from './components/WeekHeader'
 import { WeekGrid } from './components/WeekGrid'
@@ -46,28 +47,21 @@ export function TurnosPage() {
   const error = empleados.error || turnos.error
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-[var(--color-border)] pb-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
-            Módulo
-          </p>
-          <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">
-            Turnos
-          </h1>
-          <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
-            {isAdmin
-              ? 'Toca una celda para asignar turno. Cicla: ·  → Compra → Mañana → Libre → Power.'
-              : 'Tu planning semanal. Solo lectura.'}
-          </p>
-        </div>
-        <WeekHeader
-          anchor={anchor}
-          onPrev={() => setAnchor((a) => shiftWeek(a, -1))}
-          onNext={() => setAnchor((a) => shiftWeek(a, 1))}
-          onToday={() => setAnchor(weekStart(new Date()))}
-        />
-      </header>
+    <div>
+      <PageTopbar
+        breadcrumb="EQUIPO · TURNOS"
+        title="Turnos"
+        subtitle={isAdmin ? 'Planning semanal editable por celda.' : 'Planning semanal en solo lectura.'}
+        actions={
+          <WeekHeader
+            anchor={anchor}
+            onPrev={() => setAnchor((a) => shiftWeek(a, -1))}
+            onNext={() => setAnchor((a) => shiftWeek(a, 1))}
+            onToday={() => setAnchor(weekStart(new Date()))}
+          />
+        }
+      />
+      <div className="ao-page max-w-6xl py-6 md:py-8">
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Legend />
@@ -86,8 +80,8 @@ export function TurnosPage() {
           Cargando turnos…
         </div>
       ) : visibleEmpleados.length === 0 ? (
-        <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-strong)] bg-[var(--color-surface)] p-10 text-center">
-          <h2 className="font-display text-base font-semibold text-[var(--color-ink)]">
+        <div className="ao-card border-dashed p-10 text-center">
+          <h2 className="text-base font-semibold text-[var(--color-ink)]">
             Aún no hay empleados
           </h2>
           <p className="mx-auto mt-1 max-w-prose text-sm text-[var(--color-ink-2)]">
@@ -107,6 +101,7 @@ export function TurnosPage() {
           onSet={handleSet}
         />
       )}
+      </div>
     </div>
   )
 }

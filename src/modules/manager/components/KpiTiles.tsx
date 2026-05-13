@@ -27,9 +27,9 @@ function DeltaPill({ delta, inverso }: { delta: number | null | undefined; inver
   const positivo = inverso ? delta < 0 : delta > 0
   const neutral  = Math.abs(delta) < 0.5
   const Icon = neutral ? Minus : delta > 0 ? ArrowUp : ArrowDown
-  const color = neutral ? 'text-[var(--color-ink-3)] bg-slate-100'
-              : positivo ? 'text-emerald-700 bg-emerald-100'
-              : 'text-red-700 bg-red-100'
+  const color = neutral ? 'bg-[var(--color-surface-2)] text-[var(--color-ink-3)]'
+              : positivo ? 'bg-[var(--mint-glow)] text-[var(--mint)]'
+              : 'bg-[oklch(30%_.12_25_/_0.12)] text-[var(--coral)]'
   return (
     <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${color}`}>
       <Icon className="h-3 w-3" />
@@ -50,15 +50,15 @@ export function KpiTiles({ k, loading }: Props) {
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
       {tiles.map(t => (
-        <div key={t.label} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
+        <div key={t.label} className="ao-card px-4 py-3">
           <div className="flex items-center justify-between gap-2">
             <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">{t.label}</div>
             <DeltaPill delta={t.delta} inverso={t.deltaInverso} />
           </div>
           <div className={`mt-1 font-display text-xl font-bold lg:text-2xl ${
-            t.tone === 'positive' ? 'text-emerald-700'
-            : t.tone === 'negative' ? 'text-red-700'
-            : t.tone === 'warning'  ? 'text-amber-700'
+            t.tone === 'positive' ? 'text-[var(--mint)]'
+            : t.tone === 'negative' ? 'text-[var(--coral)]'
+            : t.tone === 'warning'  ? 'text-[var(--color-primary)]'
             : 'text-[var(--color-ink)]'
           }`}>
             {loading && !k ? '…' : t.value}

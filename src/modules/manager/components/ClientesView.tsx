@@ -19,9 +19,9 @@ interface ClienteConClase extends ClienteListItem {
 }
 
 const CLASE_BADGE: Record<Clase, string> = {
-  A: 'bg-emerald-100 text-emerald-800',
-  B: 'bg-blue-100 text-blue-800',
-  C: 'bg-slate-100 text-slate-700',
+  A: 'bg-[var(--mint-glow)] text-[var(--mint)] ring-1 ring-[oklch(72%_.14_156_/_0.35)]',
+  B: 'bg-[oklch(93%_.06_220_/_0.75)] text-[oklch(39%_.11_224)] ring-1 ring-[oklch(78%_.11_224_/_0.45)] dark:bg-[oklch(30%_.08_224_/_0.42)] dark:text-[oklch(76%_.12_224)]',
+  C: 'bg-[var(--color-surface-2)] text-[var(--color-ink-2)] ring-1 ring-[var(--color-border)]',
 }
 
 const eur0 = eurosShort
@@ -82,7 +82,7 @@ export function ClientesView({ period }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+      <div className="ao-panel flex flex-wrap items-center gap-2 px-3 py-2">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-ink-3)]" />
           <Input
@@ -112,7 +112,7 @@ export function ClientesView({ period }: Props) {
         <span className="ml-auto text-xs text-[var(--color-ink-3)] tabular-nums">{filtered.length} clientes</span>
       </div>
 
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+      <div className="ao-card px-3 py-2">
         <div className="mb-1 text-xs text-[var(--color-ink-3)]">Clase ABC (Pareto sobre margen)</div>
         <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 no-scrollbar">
           <Button size="sm" variant={claseFilter === 'all' ? 'primary' : 'outline'} onClick={() => setClaseFilter('all')} className="shrink-0">Todos</Button>
@@ -128,7 +128,7 @@ export function ClientesView({ period }: Props) {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="ao-card overflow-hidden p-0">
         {isLoading && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
         {!isLoading && filtered.length === 0 && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Sin clientes en este periodo</p>}
 
@@ -166,15 +166,15 @@ export function ClientesView({ period }: Props) {
                 </div>
                 <div className="hidden text-right text-sm tabular-nums text-[var(--color-ink)] md:block">{c.docs}</div>
                 <div className="hidden text-right tabular-nums text-[var(--color-ink)] md:block">{eur0(c.ventas)}</div>
-                <div className="hidden text-right tabular-nums text-emerald-700 md:block">{eur0(c.margen)}</div>
+                <div className="hidden text-right tabular-nums text-[var(--mint)] md:block">{eur0(c.margen)}</div>
                 <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">{c.margen_pct == null ? '—' : `${c.margen_pct.toFixed(0)}%`}</div>
-                <div className="hidden text-right tabular-nums text-amber-700 md:block">{c.pendiente_cobro > 0 ? eur0(c.pendiente_cobro) : '—'}</div>
+                <div className="hidden text-right tabular-nums text-[var(--color-primary)] md:block">{c.pendiente_cobro > 0 ? eur0(c.pendiente_cobro) : '—'}</div>
                 <div className="hidden text-right text-xs text-[var(--color-ink-3)] md:block">{fmt(c.ultima_compra)}</div>
 
                 {/* Mobile compact view */}
                 <div className="text-right tabular-nums md:hidden">
                   <div className="text-[var(--color-ink)]">{eur0(c.ventas)}</div>
-                  <div className="text-xs text-emerald-700">{eur0(c.margen)} {c.margen_pct == null ? '' : `(${c.margen_pct.toFixed(0)}%)`}</div>
+                  <div className="text-xs text-[var(--mint)]">{eur0(c.margen)} {c.margen_pct == null ? '' : `(${c.margen_pct.toFixed(0)}%)`}</div>
                   <div className="text-[10px] text-[var(--color-ink-3)]">{c.docs} docs · {fmt(c.ultima_compra)}</div>
                 </div>
               </button>

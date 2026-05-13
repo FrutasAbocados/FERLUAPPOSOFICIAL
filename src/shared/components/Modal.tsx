@@ -26,7 +26,7 @@ type Props = {
  *
  * - Centrado con scroll en mobile (`items-start`) y desktop.
  * - Click fuera cierra (`closeOnOverlay`), Escape cierra (`closeOnEscape`).
- * - El contenedor interno es `bg-[var(--color-surface)] rounded-2xl shadow-xl`.
+ * - El contenedor interno usa la superficie visual `ao-card`.
  *   El consumidor decide qué meter dentro: header sticky, secciones, footer…
  *
  * Patrón establecido en CLAUDE.md. Reemplaza el boilerplate
@@ -55,12 +55,12 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-2 md:p-6"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-2 backdrop-blur-sm md:p-6"
       onClick={handleOverlay}
       role="dialog"
       aria-modal="true"
     >
-      <div className={`w-full ${SIZE[size]} rounded-2xl bg-[var(--color-surface)] shadow-xl ${className}`}>
+      <div className={`ao-card w-full ${SIZE[size]} overflow-hidden p-0 ${className}`}>
         {children}
       </div>
     </div>

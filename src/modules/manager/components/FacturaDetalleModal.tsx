@@ -31,10 +31,10 @@ export function FacturaDetalleModal({ factura, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 md:p-8"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 md:p-8"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-5xl rounded-2xl bg-[var(--color-surface)] shadow-xl">
+      <div className="ao-modal-card w-full max-w-5xl p-0">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div className="min-w-0">
@@ -63,12 +63,12 @@ export function FacturaDetalleModal({ factura, onClose }: Props) {
         {/* Líneas */}
         <section className="px-5 py-4">
           <h3 className="mb-2 text-sm font-semibold text-[var(--color-ink)]">Líneas ({detalle.data?.length ?? 0})</h3>
-          <div className="overflow-x-auto rounded-lg border border-[var(--color-border)]">
+          <div className="ao-data-surface overflow-x-auto rounded-lg">
             {detalle.isLoading && <p className="px-3 py-2 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
             {detalle.data?.length === 0 && <p className="px-3 py-2 text-sm text-[var(--color-ink-3)]">Sin líneas</p>}
             {detalle.data && detalle.data.length > 0 && (
               <table className="w-full text-sm">
-                <thead className="border-b border-[var(--color-border)] text-xs uppercase tracking-wider text-[var(--color-ink-3)]">
+                <thead className="border-b border-[var(--color-border)] bg-[var(--panel)] text-xs uppercase tracking-wider text-[var(--color-ink-2)]">
                   <tr>
                     <th className="px-3 py-2 text-left">Producto</th>
                     <th className="px-3 py-2 text-right">Ud</th>
@@ -84,7 +84,7 @@ export function FacturaDetalleModal({ factura, onClose }: Props) {
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border)]">
                   {detalle.data.map(l => (
-                    <tr key={l.id}>
+                    <tr key={l.id} className="bg-[var(--panel-2)]">
                       <td className="px-3 py-1.5">
                         <div className="text-[var(--color-ink)]">{l.nombre}</div>
                         {l.sku && <div className="text-xs text-[var(--color-ink-3)]">SKU {l.sku}</div>}
@@ -94,8 +94,8 @@ export function FacturaDetalleModal({ factura, onClose }: Props) {
                       <td className="px-3 py-1.5 text-right tabular-nums font-medium text-[var(--color-ink)]">{eur(l.subtotal)}</td>
                       {factura.tipo === 'VENTA' && (
                         <>
-                          <td className="px-3 py-1.5 text-right tabular-nums text-[var(--color-ink-3)]">{l.coste_unidad == null ? '—' : eur(l.coste_unidad)}</td>
-                          <td className={`px-3 py-1.5 text-right tabular-nums ${Number(l.margen_linea ?? 0) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-[var(--color-ink-2)]">{l.coste_unidad == null ? '—' : eur(l.coste_unidad)}</td>
+                          <td className={`px-3 py-1.5 text-right tabular-nums ${Number(l.margen_linea ?? 0) >= 0 ? 'text-[var(--mint)]' : 'text-[var(--coral)]'}`}>
                             {eur(l.margen_linea)}
                           </td>
                         </>
@@ -117,9 +117,9 @@ function Tile({ label, value, sub, tone = 'neutral' }: { label: string; value: s
     <div className="rounded-lg border border-[var(--color-border)] px-3 py-2">
       <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">{label}</div>
       <div className={`font-display text-base font-bold ${
-        tone === 'positive' ? 'text-emerald-700'
-        : tone === 'negative' ? 'text-red-700'
-        : tone === 'warning' ? 'text-amber-700'
+        tone === 'positive' ? 'text-[var(--mint)]'
+        : tone === 'negative' ? 'text-[var(--coral)]'
+        : tone === 'warning' ? 'text-[var(--color-primary)]'
         : 'text-[var(--color-ink)]'
       }`}>{value}</div>
       {sub && <div className="text-xs text-[var(--color-ink-3)]">{sub}</div>}

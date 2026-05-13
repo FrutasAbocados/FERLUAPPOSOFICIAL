@@ -152,8 +152,8 @@ export function DashboardView() {
   }, [puntos])
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
-      <header className="mb-5 border-b border-[var(--color-border)] pb-4">
+    <div className="ao-page py-5 md:py-7">
+      <header className="mb-5 border-b border-[var(--line)] pb-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Trabajadores</p>
         <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">Dashboard</h1>
         <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
@@ -165,9 +165,9 @@ export function DashboardView() {
 
       {/* Ranking puntos (solo si hay datos del mes) */}
       {isAdmin && ranking.length > 0 && ranking.some(r => r.total_puntos > 0) && (
-        <section className="mb-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+        <section className="ao-card mb-5 p-4">
           <div className="mb-3 flex items-center gap-2">
-            <Award className="h-4 w-4 text-amber-600" />
+            <Award className="h-4 w-4 text-[var(--color-primary)]" />
             <h2 className="text-sm font-semibold text-[var(--color-ink)]">Ranking de puntos del mes</h2>
           </div>
           <ol className="space-y-1">
@@ -177,14 +177,14 @@ export function DashboardView() {
               return (
                 <li key={r.id} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-[var(--color-surface-2,#f8fafc)]">
                   <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                    r.posicion === 1 ? 'bg-amber-200 text-amber-900' :
-                    r.posicion === 2 ? 'bg-slate-200 text-slate-700' :
-                    r.posicion === 3 ? 'bg-orange-200 text-orange-900' :
-                    'bg-slate-100 text-slate-600'
+                    r.posicion === 1 ? 'bg-[oklch(88%_.11_82_/_0.9)] text-[oklch(34%_.1_72)] dark:bg-[oklch(28%_.08_72_/_0.55)] dark:text-[var(--color-primary)]' :
+                    r.posicion === 2 ? 'bg-[var(--color-surface-2)] text-[var(--color-ink-2)]' :
+                    r.posicion === 3 ? 'bg-[oklch(89%_.1_45_/_0.8)] text-[oklch(36%_.11_45)] dark:bg-[oklch(28%_.08_45_/_0.45)] dark:text-[oklch(78%_.12_45)]' :
+                    'bg-[var(--color-surface-2)] text-[var(--color-ink-3)]'
                   }`}>{r.posicion}</span>
                   <span className="text-[var(--color-ink)]">{e.nombre}</span>
                   <span className="tabular-nums text-[var(--color-ink-3)]">{r.total_puntos} pts</span>
-                  <span className="tabular-nums font-semibold text-emerald-700">{eur(r.euros)}</span>
+                  <span className="tabular-nums font-semibold text-[var(--mint)]">{eur(r.euros)}</span>
                 </li>
               )
             })}
@@ -212,7 +212,7 @@ export function DashboardView() {
           const vc = vacByEmp.get(e.id)
           const sb = sabByEmp.get(e.id)
           return (
-            <li key={e.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+            <li key={e.id} className="ao-card p-4">
               <div className="mb-3 flex items-center gap-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary-soft)]">
                   <Users className="h-4 w-4 text-[var(--color-primary-2)]" />

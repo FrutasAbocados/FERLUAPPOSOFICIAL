@@ -38,19 +38,19 @@ export function BriefingDiarioCard() {
   const data = briefing.data
 
   return (
-    <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 md:p-5">
-      <header className="mb-3 flex items-center justify-between gap-2">
+    <section className="ao-card">
+      <header className="mb-5 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-[var(--color-primary-2)]" />
-          <h2 className="font-display text-base font-bold text-[var(--color-ink)]">
+          <Sparkles className="h-4 w-4 text-[var(--mint)]" />
+          <h2 className="text-lg font-medium tracking-[-0.01em] text-[var(--ink)]">
             Briefing del día
           </h2>
           {data?.fuente && (
             <span className={
-              'rounded-full px-1.5 py-0.5 text-[10px] uppercase tracking-wider ' +
+              'ao-chip ' +
               (data.fuente === 'cron'
-                ? 'bg-emerald-500/15 text-emerald-700'
-                : 'bg-sky-500/15 text-sky-700')
+                ? 'ao-chip-mint'
+                : 'ao-chip-sky')
             }>
               {data.fuente}
             </span>
@@ -85,28 +85,27 @@ export function BriefingDiarioCard() {
       )}
 
       {data && (
-        <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <div className="grid gap-6 lg:grid-cols-[1.45fr_1fr]">
           <div>
-            <div className="prose prose-sm max-w-none text-[var(--color-ink)] [&_p]:mb-2 [&_p:last-child]:mb-0 [&_strong]:text-[var(--color-ink)] [&_strong]:font-semibold [&_em]:text-[var(--color-ink-2)] [&_ul]:my-2 [&_ul]:pl-5 [&_li]:my-0.5">
+            <div className="prose prose-sm max-w-none text-[var(--ink)] [&_p]:mb-3 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_strong]:text-[var(--mint)] [&_em]:font-serif [&_em]:text-lg [&_em]:leading-snug [&_em]:text-[var(--ink-dim)] [&_ul]:my-2 [&_ul]:pl-5 [&_li]:my-0.5">
               <ReactMarkdown>{data.contenido_md}</ReactMarkdown>
             </div>
-            <p className="mt-3 text-[10px] text-[var(--color-ink-3)] tabular-nums">
-              Generado {format(parseISO(data.generated_at), "d LLL 'a las' HH:mm", { locale: es })}
+            <p className="mono mt-5 text-[10px] uppercase tracking-[0.14em] text-[var(--ink-mute)]">
+              Generado {format(parseISO(data.generated_at), "d LLL HH:mm", { locale: es })}
               {data.modelo ? ` · ${data.modelo.replace('claude-', '')}` : ''}
             </p>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="grid gap-2.5 content-start">
             {briefingActions.map(({ title, sub, to }) => (
-              <Link
-                key={title}
-                to={to}
-                className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2.5 transition hover:border-[var(--color-primary)] hover:bg-[var(--color-surface)]"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="truncate text-sm font-medium text-[var(--color-ink)]">{title}</div>
-                  <div className="truncate text-xs text-[var(--color-ink-3)]">{sub}</div>
+              <Link key={title} to={to} className="ao-panel ao-card-hover flex items-center gap-3 p-3">
+                <div className="ao-icon-tile h-8 w-8 shrink-0">
+                  <Sparkles className="h-4 w-4" strokeWidth={1.7} />
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-ink-3)]" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-[var(--ink)]">{title}</div>
+                  <div className="mono truncate text-[10px] uppercase tracking-[0.12em] text-[var(--ink-mute)]">{sub}</div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-[var(--ink-mute)]" strokeWidth={1.6} />
               </Link>
             ))}
           </div>

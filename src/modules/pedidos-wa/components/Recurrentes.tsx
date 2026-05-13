@@ -63,8 +63,8 @@ export function Recurrentes() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-base font-semibold text-[var(--color-ink)]">Pedidos recurrentes</h2>
-          <p className="text-xs text-[var(--color-ink-3)]">
+          <h2 className="text-lg font-medium tracking-[-0.01em] text-[var(--ink)]">Pedidos recurrentes</h2>
+          <p className="mono mt-1 text-[10px] uppercase tracking-[0.14em] text-[var(--ink-mute)]">
             Cron diario 06:30 UTC genera los pedidos del día. Puedes adelantarlo manualmente.
           </p>
         </div>
@@ -80,7 +80,7 @@ export function Recurrentes() {
       </div>
 
       {lista.length === 0 && !creando ? (
-        <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-ink-3)]">
+        <div className="ao-card border-dashed p-8 text-center text-sm text-[var(--ink-mute)]">
           Aún no hay recurrentes. Crea uno y se generará solo en los días marcados.
         </div>
       ) : (
@@ -134,17 +134,17 @@ function RecurrenteCard({ rec, onEdit }: { rec: Recurrente; onEdit: () => void }
       <div className="mb-2 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <Repeat className="h-4 w-4 shrink-0 text-[var(--color-ink-3)]" />
-            <h3 className="truncate font-display font-bold text-[var(--color-ink)]">
+            <Repeat className="h-4 w-4 shrink-0 text-[var(--mint)]" />
+            <h3 className="truncate font-medium text-[var(--ink)]">
               {rec.nombre}
             </h3>
             {!rec.activo && (
-              <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-zinc-600">
+              <span className="rounded-full bg-[rgba(255,255,255,.04)] px-1.5 py-0.5 text-[9px] font-bold uppercase text-[var(--ink-mute)]">
                 pausado
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-xs text-[var(--color-ink-2)]">
+          <p className="mt-0.5 text-xs text-[var(--ink-dim)]">
             {rec.cliente?.nombre ?? '—'}
           </p>
         </div>
@@ -155,8 +155,8 @@ function RecurrenteCard({ rec, onEdit }: { rec: Recurrente; onEdit: () => void }
             className={cn(
               'rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
               rec.activo
-                ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200',
+                ? 'bg-[var(--mint-glow)] text-[var(--mint)] hover:border hover:border-[var(--mint-glow)]'
+                : 'bg-[rgba(255,255,255,.04)] text-[var(--ink-mute)] hover:bg-[rgba(255,255,255,.06)]',
             )}
           >
             {rec.activo ? 'activo' : 'inactivo'}
@@ -168,7 +168,7 @@ function RecurrenteCard({ rec, onEdit }: { rec: Recurrente; onEdit: () => void }
             size="sm" variant="ghost"
             onClick={eliminar}
             disabled={del.isPending}
-            className="text-red-600 hover:bg-red-50"
+            className="text-[var(--coral)] hover:bg-[oklch(30%_.12_25_/_0.18)]"
             title="Eliminar"
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -183,8 +183,8 @@ function RecurrenteCard({ rec, onEdit }: { rec: Recurrente; onEdit: () => void }
             className={cn(
               'flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold',
               rec.dias_semana.includes(d.iso)
-                ? 'bg-[var(--color-primary)] text-white'
-                : 'bg-[var(--color-surface-2)] text-[var(--color-ink-3)]',
+                ? 'bg-[var(--mint)] text-[#0a1310]'
+                : 'bg-[rgba(255,255,255,.04)] text-[var(--ink-mute)]',
             )}
             title={['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'][d.iso - 1]}
           >
@@ -193,7 +193,7 @@ function RecurrenteCard({ rec, onEdit }: { rec: Recurrente; onEdit: () => void }
         ))}
       </div>
 
-      <div className="text-xs text-[var(--color-ink-3)]">
+      <div className="text-xs text-[var(--ink-mute)]">
         {(rec.lineas ?? []).length} línea{(rec.lineas ?? []).length === 1 ? '' : 's'}
         {rec.ultima_generacion && (
           <span className="ml-2 inline-flex items-center gap-1">
@@ -204,13 +204,13 @@ function RecurrenteCard({ rec, onEdit }: { rec: Recurrente; onEdit: () => void }
       </div>
 
       {(rec.lineas ?? []).length > 0 && (
-        <ul className="mt-2 space-y-0.5 border-t border-[var(--color-border)] pt-2 text-[11px] text-[var(--color-ink-2)]">
+        <ul className="mt-2 space-y-0.5 border-t border-[var(--line)] pt-2 text-[11px] text-[var(--ink-dim)]">
           {rec.lineas!.map(l => (
             <li key={l.id}>
               <span className="font-semibold tabular-nums">{Number(l.cantidad)} {UNIDAD_LABEL[l.unidad as Unidad] ?? l.unidad}</span>
               {' · '}
               {l.producto_normalizado}
-              {l.es_gratis && <span className="text-emerald-700"> · GRATIS</span>}
+              {l.es_gratis && <span className="text-[var(--mint)]"> · GRATIS</span>}
             </li>
           ))}
         </ul>
@@ -345,7 +345,7 @@ function FormularioRecurrente({ inicial, onClose }: { inicial?: Recurrente; onCl
                   placeholder="Producto"
                   className="h-8 flex-1 text-sm"
                 />
-                <Button size="sm" variant="ghost" onClick={() => removeLinea(i)} className="text-red-600">
+                <Button size="sm" variant="ghost" onClick={() => removeLinea(i)} className="text-[var(--coral)]">
                   <Trash2 className="h-3 w-3" />
                 </Button>
               </div>

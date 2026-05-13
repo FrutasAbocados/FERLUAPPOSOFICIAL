@@ -130,9 +130,9 @@ function HomeAdmin() {
         title="Centro de control"
         subtitle={`Hola, ${profile?.display_name ?? '—'}`}
       />
-      <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
+      <div className="ao-page">
 
-      <div className="space-y-5">
+      <div className="space-y-[22px]">
         <EstadoDelDia />
         {isAdmin && <BriefingDiarioCard />}
         {isAdmin && <PvpSugeridoCard />}
@@ -141,7 +141,7 @@ function HomeAdmin() {
 
         {isAdmin && (
         <section>
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Alertas</h2>
+          <h2 className="label-caps mb-3">Alertas</h2>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {/* Top deudores Cobros */}
           <AlertCard
@@ -231,14 +231,14 @@ function HomeAdmin() {
           </div>
 
           {dismissed.list.length > 0 && (
-            <div className="mt-3 flex items-center justify-end gap-2 text-xs text-[var(--color-ink-3)]">
+            <div className="mt-3 flex items-center justify-end gap-2 text-xs text-[var(--ink-mute)]">
               <EyeOff className="h-3.5 w-3.5" />
               <span>{dismissed.list.length} alerta{dismissed.list.length === 1 ? '' : 's'} descartada{dismissed.list.length === 1 ? '' : 's'}</span>
               <button
                 type="button"
                 onClick={handleRestaurarTodas}
                 disabled={restaurarTodas.isPending}
-                className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] hover:bg-[var(--color-surface-2)]"
+                className="ao-pill px-2 py-1 text-[11px] hover:text-[var(--mint)]"
               >
                 <RotateCcw className="h-3 w-3" />
                 Restaurar todas
@@ -250,18 +250,18 @@ function HomeAdmin() {
 
         {/* Atajos */}
         <section>
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Módulos</h2>
+          <h2 className="label-caps mb-3">Módulos</h2>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             {moduleEntries.map(({ key, title, to, Icon }) => (
               <Link
                 key={key}
                 to={to}
-                className="group flex flex-col items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-4 transition hover:border-[var(--color-primary)] hover:shadow-sm"
+                className="ao-panel ao-card-hover group flex flex-col items-center gap-2 px-3 py-4"
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]">
+                <div className="ao-icon-tile h-9 w-9">
                   <Icon className="h-5 w-5" />
                 </div>
-                <span className="truncate text-sm font-medium text-[var(--color-ink)]">{title}</span>
+                <span className="truncate text-sm font-medium text-[var(--ink)]">{title}</span>
               </Link>
             ))}
           </div>
@@ -280,25 +280,25 @@ function HomeEmpleado() {
   return (
     <div>
       <PageTopbar title="Tu panel" subtitle={`Hola, ${profile?.display_name ?? '—'}`} />
-      <div className="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8">
+      <div className="ao-page max-w-3xl">
 
-      <div className="space-y-4">
+      <div className="space-y-[22px]">
         <NotificacionesPanel />
         <FichajeCard />
 
         <section>
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Tus módulos</h2>
+          <h2 className="label-caps mb-3">Tus módulos</h2>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {moduleEntries.map(({ key, title, to, Icon }) => (
               <Link
                 key={key}
                 to={to}
-                className="group flex flex-col items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-4 transition hover:border-[var(--color-primary)] hover:shadow-sm"
+                className="ao-panel ao-card-hover group flex flex-col items-center gap-2 px-3 py-4"
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]">
+                <div className="ao-icon-tile h-9 w-9">
                   <Icon className="h-5 w-5" />
                 </div>
-                <span className="text-sm font-medium text-[var(--color-ink)]">{title}</span>
+                <span className="text-sm font-medium text-[var(--ink)]">{title}</span>
               </Link>
             ))}
           </div>
@@ -328,10 +328,10 @@ function DeudoresList({ rows, onDismiss }: { rows?: DeudorCobros[]; onDismiss?: 
       {rows?.map(d => (
         <li key={d.cliente_id} className="group grid grid-cols-[1fr_auto_auto] items-start gap-2 text-sm">
           <div className="min-w-0">
-            <div className="truncate text-[var(--color-ink)]">{d.nombre}</div>
-            <div className="text-xs text-[var(--color-ink-3)]">{d.movimientos} mov · {d.vencido > 0 ? `${eur(d.vencido)} vencido` : 'al día'}</div>
+            <div className="truncate text-[var(--ink)]">{d.nombre}</div>
+            <div className="text-xs text-[var(--ink-mute)]">{d.movimientos} mov · {d.vencido > 0 ? `${eur(d.vencido)} vencido` : 'al día'}</div>
           </div>
-          <span className={`text-sm font-medium tabular-nums ${d.vencido > 0 ? 'text-red-700' : 'text-amber-700'}`}>{eur(d.pendiente)}</span>
+          <span className={`text-sm font-medium tabular-nums ${d.vencido > 0 ? 'text-[var(--coral)]' : 'text-[var(--amber)]'}`}>{eur(d.pendiente)}</span>
           {onDismiss && <DismissBtn onClick={() => onDismiss(d.cliente_id, d.nombre)} />}
         </li>
       ))}
@@ -341,14 +341,14 @@ function DeudoresList({ rows, onDismiss }: { rows?: DeudorCobros[]; onDismiss?: 
 
 function EsperadosList({ rows, mostrarTodos, onDismiss }: { rows?: PedidoEsperado[]; mostrarTodos?: boolean; onDismiss?: (entity_id: string, label: string) => void }) {
   const colorPrioridad = (p: PedidoEsperado['prioridad']) =>
-    p === 'urgente' ? 'text-red-700' : p === 'pronto' ? 'text-amber-700' : 'text-blue-700'
+    p === 'urgente' ? 'text-[var(--coral)]' : p === 'pronto' ? 'text-[var(--amber)]' : 'text-[var(--sky)]'
   return (
     <ul className="space-y-1.5">
       {rows?.map(p => (
         <li key={p.contact_name_canon} className="group grid grid-cols-[1fr_auto_auto] items-start gap-2 text-sm">
           <div className="min-w-0">
-            <div className="truncate text-[var(--color-ink)]">{p.contact_name_canon}</div>
-            <div className="text-xs text-[var(--color-ink-3)]">cad. {p.cadencia_dias.toFixed(0)}d · ~{eur(p.ventas_medias)}</div>
+            <div className="truncate text-[var(--ink)]">{p.contact_name_canon}</div>
+            <div className="text-xs text-[var(--ink-mute)]">cad. {p.cadencia_dias.toFixed(0)}d · ~{eur(p.ventas_medias)}</div>
           </div>
           <span className={`text-xs font-medium tabular-nums ${colorPrioridad(p.prioridad)}`}>
             {p.dias_para === 0 ? 'hoy' : p.dias_para < 0 ? `${Math.abs(p.dias_para)}d tarde` : `en ${p.dias_para}d`}
@@ -369,12 +369,12 @@ function ProductosList({ rows, onDismiss }: { rows?: ProductoAnomalo[]; onDismis
         return (
           <li key={id} className="group grid grid-cols-[1fr_auto_auto] items-start gap-2 text-sm">
             <div className="min-w-0">
-              <div className="truncate text-[var(--color-ink)]">{p.nombre}</div>
-              <div className="text-xs text-amber-700">
+              <div className="truncate text-[var(--ink)]">{p.nombre}</div>
+              <div className="text-xs text-[var(--amber)]">
                 {p.motivo === 'sin_coste' ? 'sin coste registrado' : p.motivo === 'margen_bajo' ? 'margen bajo' : 'margen excesivo'}
               </div>
             </div>
-            <span className="text-xs tabular-nums text-[var(--color-ink-3)]">
+            <span className="text-xs tabular-nums text-[var(--ink-mute)]">
               {p.margen_pct == null ? '—' : `${p.margen_pct.toFixed(0)}%`} · {eur(p.ventas)}
             </span>
             {onDismiss && <DismissBtn onClick={() => onDismiss(id, p.nombre)} />}
@@ -394,8 +394,8 @@ const MOTIVO_LABEL: Record<'inactivo' | 'ralentiza' | 'ticket_cae', string> = {
 function MotivoChip({ motivo }: { motivo: 'inactivo' | 'ralentiza' | 'ticket_cae' }) {
   const cls =
     motivo === 'inactivo'
-      ? 'bg-red-100 text-red-700'
-      : 'bg-amber-100 text-amber-800'
+      ? 'bg-[oklch(30%_.12_25_/_0.22)] text-[var(--coral)]'
+      : 'bg-[oklch(30%_.10_70_/_0.25)] text-[var(--amber)]'
   return (
     <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${cls}`}>
       {MOTIVO_LABEL[motivo]}
@@ -415,18 +415,18 @@ function RiesgoFugaList({ rows, onDismiss }: { rows?: ClienteRiesgoFuga[]; onDis
         return (
           <li key={c.contact_name_canon} className="group grid grid-cols-[1fr_auto_auto] items-start gap-2 text-sm">
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-[var(--color-ink)]">
+              <div className="flex items-center gap-1.5 text-[var(--ink)]">
                 <span className="truncate">{c.contact_name_canon}</span>
                 <span className="flex shrink-0 gap-1">
                   {c.motivos.map(m => <MotivoChip key={m} motivo={m} />)}
                 </span>
               </div>
-              <div className="text-xs text-[var(--color-ink-3)]">
+              <div className="text-xs text-[var(--ink-mute)]">
                 cad. {c.cadencia_dias.toFixed(0)}d · {fmt(c.ultima_compra)}
                 {showTicket ? ` · ticket ${c.ticket_medio_30_90?.toFixed(0)}€→${c.ticket_medio_30d?.toFixed(0)}€` : ''}
               </div>
             </div>
-            <span className={`text-xs tabular-nums ${c.severidad === 'critica' ? 'text-red-700' : 'text-amber-700'}`}>
+            <span className={`text-xs tabular-nums ${c.severidad === 'critica' ? 'text-[var(--coral)]' : 'text-[var(--amber)]'}`}>
               {c.motivos.includes('inactivo') || c.motivos.includes('ralentiza')
                 ? `${c.dias_sin_pedir}d sin pedir`
                 : showTicket ? `-${dropPct}%` : ''}
@@ -445,10 +445,10 @@ function CostesList({ rows, onDismiss }: { rows?: CosteSubiendo[]; onDismiss?: (
       {rows?.map(p => (
         <li key={p.product_id} className="group grid grid-cols-[1fr_auto_auto] items-start gap-2 text-sm">
           <div className="min-w-0">
-            <div className="truncate text-[var(--color-ink)]">{p.nombre}</div>
-            <div className="text-xs text-[var(--color-ink-3)]">{p.coste_anterior.toFixed(2)}€ → {p.coste_actual.toFixed(2)}€</div>
+            <div className="truncate text-[var(--ink)]">{p.nombre}</div>
+            <div className="text-xs text-[var(--ink-mute)]">{p.coste_anterior.toFixed(2)}€ → {p.coste_actual.toFixed(2)}€</div>
           </div>
-          <span className="text-xs font-medium tabular-nums text-amber-700">+{p.variacion_pct.toFixed(0)}%</span>
+          <span className="text-xs font-medium tabular-nums text-[var(--amber)]">+{p.variacion_pct.toFixed(0)}%</span>
           {onDismiss && <DismissBtn onClick={() => onDismiss(p.product_id, p.nombre)} />}
         </li>
       ))}

@@ -311,20 +311,20 @@ function ModoDia() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
+      <div className="ao-panel flex flex-wrap items-end justify-between gap-3 px-4 py-3">
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Fecha</label>
           <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="h-9 w-44" />
         </div>
         <div className="text-right">
           <div className="text-xs text-[var(--color-ink-3)]">Total puntos del día</div>
-          <div className="font-display text-xl font-bold tabular-nums text-emerald-700">{totalDia}</div>
+          <div className="font-display text-xl font-bold tabular-nums text-[var(--mint)]">{totalDia}</div>
         </div>
       </div>
 
       {isLoading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
       {data?.length === 0 && (
-        <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-sm text-[var(--color-ink-3)]">
+        <p className="ao-card px-4 py-6 text-sm text-[var(--color-ink-3)]">
           No hay trabajadores activos en pack 1.
         </p>
       )}
@@ -333,7 +333,7 @@ function ModoDia() {
         {data?.map(f => {
           const algunaNota = !!(f.nota_puntualidad || f.nota_reparto || f.nota_responsabilidad)
           return (
-            <li key={f.empleado_id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+            <li key={f.empleado_id} className="ao-card p-3">
               <div className="grid gap-2 md:grid-cols-[1fr_auto_auto_auto_auto_auto] md:items-center">
                 <div className="font-semibold text-[var(--color-ink)]">{f.nombre}</div>
                 <CategoriaSelector label="Puntualidad" value={f.puntualidad} onChange={(v) => cambiar(f, 'puntualidad', v)} />
@@ -352,7 +352,7 @@ function ModoDia() {
                 <div className="flex items-center justify-end gap-2 md:flex-col md:items-end md:gap-0">
                   <span className="text-xs text-[var(--color-ink-3)]">Total</span>
                   <div className="flex items-center gap-1">
-                    <span className={`font-display text-lg font-bold tabular-nums ${f.total >= 5 ? 'text-emerald-700' : f.total >= 3 ? 'text-[var(--color-ink)]' : 'text-amber-700'}`}>
+                    <span className={`font-display text-lg font-bold tabular-nums ${f.total >= 5 ? 'text-[var(--mint)]' : f.total >= 3 ? 'text-[var(--color-ink)]' : 'text-[var(--color-primary)]'}`}>
                       {f.total}
                     </span>
                     {f.total > 0 && (
@@ -362,7 +362,7 @@ function ModoDia() {
                         onClick={() => eliminar(f)}
                         disabled={del.isPending}
                         title="Borrar puntos del día"
-                        className="ml-1 h-7 w-7 p-0 text-red-600 hover:bg-red-50"
+                        className="ml-1 h-7 w-7 p-0 text-[var(--coral)] hover:bg-[oklch(30%_.12_25_/_0.18)]"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -743,4 +743,3 @@ function DetalleEmpleadoMes({
     </div>
   )
 }
-

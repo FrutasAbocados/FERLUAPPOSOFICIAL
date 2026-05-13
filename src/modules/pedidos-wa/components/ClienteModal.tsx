@@ -117,7 +117,7 @@ export function ClienteModal({ cliente, onClose, onSaved, nombreInicial }: Props
       onClick={() => { if (!pending) onClose() }}
     >
       <div
-        className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[var(--radius-lg)] bg-[var(--color-surface)] shadow-xl md:max-w-xl md:rounded-[var(--radius-lg)]"
+        className="ao-card flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[var(--radius-lg)] p-0 md:max-w-xl md:rounded-[var(--radius-lg)]"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
@@ -324,19 +324,19 @@ function HoldedContactPicker({
   if (value) {
     return (
       <div className="space-y-1">
-        <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-sm">
-          <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+        <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[oklch(72%_.14_156_/_0.35)] bg-[var(--mint-glow)] px-2 py-1.5 text-sm">
+          <Check className="h-4 w-4 shrink-0 text-[var(--mint)]" />
           <div className="min-w-0 flex-1">
             {vinculado.isFetching ? (
               <span className="text-[var(--color-ink-3)]">Resolviendo…</span>
             ) : vinculado.data ? (
               <>
-                <div className="truncate font-medium text-emerald-900">{vinculado.data.nombre}</div>
-                <div className="truncate font-mono text-[10px] text-emerald-700/70">{value}</div>
+                <div className="truncate font-medium text-[var(--color-ink)]">{vinculado.data.nombre}</div>
+                <div className="truncate font-mono text-[10px] text-[var(--mint)]/80">{value}</div>
               </>
             ) : (
               <>
-                <div className="text-amber-700">⚠ ID no encontrado en manager_contactos</div>
+                <div className="text-[var(--color-primary)]">⚠ ID no encontrado en manager_contactos</div>
                 <div className="truncate font-mono text-[10px] text-[var(--color-ink-3)]">{value}</div>
               </>
             )}
@@ -344,7 +344,7 @@ function HoldedContactPicker({
           <button
             type="button"
             onClick={() => { onChange(null); setQ(''); setOpen(true) }}
-            className="rounded-md p-1 text-[var(--color-ink-3)] hover:bg-white hover:text-rose-600"
+            className="rounded-md p-1 text-[var(--color-ink-3)] hover:bg-[oklch(30%_.12_25_/_0.18)] hover:text-[var(--coral)]"
             title="Desvincular"
             aria-label="Desvincular"
           >
@@ -368,7 +368,7 @@ function HoldedContactPicker({
           {sugerencias.isFetching ? (
             <div className="px-2 py-1.5 text-xs text-[var(--color-ink-3)]">Buscando…</div>
           ) : (sugerencias.data ?? []).length === 0 ? (
-            <div className="px-2 py-1.5 text-xs text-amber-700">
+            <div className="px-2 py-1.5 text-xs text-[var(--color-primary)]">
               Sin coincidencias en Holded. Crea primero el contacto en Holded o cambia el nombre del cliente WA.
             </div>
           ) : (

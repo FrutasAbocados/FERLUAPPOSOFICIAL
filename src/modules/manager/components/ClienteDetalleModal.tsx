@@ -56,10 +56,10 @@ export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 md:p-8"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 md:p-8"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-4xl rounded-2xl bg-[var(--color-surface)] shadow-xl">
+      <div className="ao-modal-card w-full max-w-4xl p-0">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div className="min-w-0">
@@ -107,7 +107,7 @@ export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
             </Button>
           </div>
           {nuevoAlias.trim().length >= 3 && (
-            <div className="mt-2 rounded-md border border-blue-200 bg-blue-50/60 px-3 py-1.5 text-xs text-blue-900">
+            <div className="mt-2 rounded-md border border-[oklch(78%_.11_224_/_0.45)] bg-[oklch(93%_.06_220_/_0.75)] px-3 py-1.5 text-xs text-[oklch(39%_.11_224)] dark:bg-[oklch(30%_.08_224_/_0.42)] dark:text-[oklch(76%_.12_224)]">
               {preview.isLoading && 'Buscando…'}
               {preview.data && preview.data.docs === 0 && (
                 <span>⚠️ No hay facturas con ese nombre exacto. Verifica que coincide con Holded.</span>
@@ -125,7 +125,7 @@ export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
           {/* Productos favoritos */}
           <section>
             <h3 className="mb-2 text-sm font-semibold text-[var(--color-ink)]">Productos favoritos</h3>
-            <div className="rounded-lg border border-[var(--color-border)]">
+            <div className="ao-data-surface rounded-lg">
               {productos.isLoading && <p className="px-3 py-2 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
               {productos.data?.length === 0 && <p className="px-3 py-2 text-sm text-[var(--color-ink-3)]">Sin productos</p>}
               <ul className="max-h-96 divide-y divide-[var(--color-border)] overflow-y-auto">
@@ -137,7 +137,7 @@ export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
                     </div>
                     <div className="text-right tabular-nums">
                       <div className="text-[var(--color-ink)]">{eur(p.ventas_subtotal)}</div>
-                      <div className="text-xs text-emerald-700">{eur(p.margen)} {p.margen_pct == null ? '' : `(${p.margen_pct.toFixed(0)}%)`}</div>
+                      <div className="text-xs text-[var(--mint)]">{eur(p.margen)} {p.margen_pct == null ? '' : `(${p.margen_pct.toFixed(0)}%)`}</div>
                     </div>
                   </li>
                 ))}
@@ -148,7 +148,7 @@ export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
           {/* Facturas */}
           <section>
             <h3 className="mb-2 text-sm font-semibold text-[var(--color-ink)]">Facturas / albaranes</h3>
-            <div className="rounded-lg border border-[var(--color-border)]">
+            <div className="ao-data-surface rounded-lg">
               {facturas.isLoading && <p className="px-3 py-2 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
               {facturas.data?.length === 0 && <p className="px-3 py-2 text-sm text-[var(--color-ink-3)]">Sin facturas</p>}
               <ul className="max-h-96 divide-y divide-[var(--color-border)] overflow-y-auto">
@@ -172,7 +172,7 @@ function Tile({ label, value, sub, tone = 'neutral' }: { label: string; value: s
   return (
     <div className="rounded-lg border border-[var(--color-border)] px-3 py-2">
       <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">{label}</div>
-      <div className={`font-display text-lg font-bold ${tone === 'positive' ? 'text-emerald-700' : tone === 'warning' ? 'text-amber-700' : 'text-[var(--color-ink)]'}`}>{value}</div>
+      <div className={`font-display text-lg font-bold ${tone === 'positive' ? 'text-[var(--mint)]' : tone === 'warning' ? 'text-[var(--color-primary)]' : 'text-[var(--color-ink)]'}`}>{value}</div>
       {sub && <div className="text-xs text-[var(--color-ink-3)]">{sub}</div>}
     </div>
   )

@@ -1,4 +1,3 @@
-import { Activity, Banknote, Package, ShoppingCart, type LucideIcon } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Area, AreaChart, ResponsiveContainer } from 'recharts'
@@ -7,28 +6,14 @@ import { useKpisHoy, useKpisSerie, type KpiPunto } from '../lib/queries'
 
 const eur = eurosShort
 
-type Tone = 'positive' | 'warning' | 'neutral'
+type Tone = 'mint' | 'amber' | 'ink' | 'sky'
 type SerieKey = 'ventas' | 'compras' | 'docs' | 'pendiente'
 
-const TONE_STYLES: Record<Tone, { value: string; iconBg: string; iconText: string; sparkColor: string }> = {
-  positive: {
-    value: 'text-emerald-700',
-    iconBg: 'bg-emerald-100',
-    iconText: 'text-emerald-700',
-    sparkColor: '#047857',
-  },
-  warning: {
-    value: 'text-amber-700',
-    iconBg: 'bg-amber-100',
-    iconText: 'text-amber-700',
-    sparkColor: '#b45309',
-  },
-  neutral: {
-    value: 'text-[var(--color-ink)]',
-    iconBg: 'bg-[var(--color-primary-soft)]',
-    iconText: 'text-[var(--color-primary-2)]',
-    sparkColor: '#3b6944',
-  },
+const TONE_STYLES: Record<Tone, { value: string; sparkColor: string; hint: string }> = {
+  mint:  { value: 'var(--mint)',  sparkColor: 'oklch(78% 0.14 158)', hint: 'sin operaciones' },
+  amber: { value: 'var(--amber)', sparkColor: 'oklch(78% 0.16 70)',  hint: 'facturas abiertas' },
+  ink:   { value: 'var(--ink)',   sparkColor: '#a4b3ad',             hint: 'cero documentos' },
+  sky:   { value: 'var(--sky)',   sparkColor: 'oklch(76% 0.12 235)', hint: 'sin operaciones' },
 }
 
 export function EstadoDelDia() {
@@ -38,16 +23,22 @@ export function EstadoDelDia() {
   const syncOk = data?.ultimo_sync_ok && data.minutos_desde_sync != null && data.minutos_desde_sync < 70
 
   return (
-    <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-      <header className="mb-4 flex items-baseline justify-between gap-3">
-        <div>
-          <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">Estado del día</h2>
-          <p className="text-xs capitalize text-[var(--color-ink-3)]">{today} · últimos 7 días</p>
+    <section className="ao-card overflow-hidden p-0">
+      <header className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-6 py-5">
+        <div className="flex flex-wrap items-baseline gap-3">
+          <h2 className="text-lg font-medium tracking-[-0.01em] text-[var(--ink)]">Estado del día</h2>
+          <p className="mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-mute)]">{format(new Date(), "d LLL", { locale: es })} · 7D</p>
         </div>
         {data && (
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className={`inline-block h-2 w-2 rounded-full ${syncOk ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-            <span className="text-[var(--color-ink-3)]">
+          <div className="ao-pill py-1.5 text-[11px]">
+            <span
+              className="inline-block h-1.5 w-1.5 rounded-full"
+              style={{
+                background: syncOk ? 'var(--mint)' : 'var(--amber)',
+                boxShadow: `0 0 8px ${syncOk ? 'var(--mint)' : 'var(--amber)'}`,
+              }}
+            />
+            <span className="text-[var(--ink-dim)]">
               {data.ultimo_sync_at
                 ? (data.ultimo_sync_ok ? `sync hace ${data.minutos_desde_sync}m` : `sync falló · ${data.minutos_desde_sync}m`)
                 : 'sin sync'}
@@ -56,56 +47,56 @@ export function EstadoDelDia() {
         )}
       </header>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-1 md:grid-cols-4">
         <Tile
-          Icon={Banknote}
           label="Ventas hoy"
           value={data ? eur(data.ventas_hoy) : '—'}
           loading={isLoading}
-          tone="positive"
+          tone="mint"
           serie={serie}
           serieKey="ventas"
+          hint={today}
         />
         <Tile
-          Icon={ShoppingCart}
           label="Compras hoy"
           value={data ? eur(data.compras_hoy) : '—'}
           loading={isLoading}
-          tone="neutral"
+          tone="mint"
           serie={serie}
           serieKey="compras"
+          hint="compras del día"
         />
         <Tile
-          Icon={Package}
           label="Docs hoy"
           value={data ? String(data.docs_hoy) : '—'}
           loading={isLoading}
-          tone="neutral"
+          tone="ink"
           serie={serie}
           serieKey="docs"
+          hint="documentos sincronizados"
         />
         <Tile
-          Icon={Activity}
           label="Pendiente albaranes"
           value={data ? eur(data.pendiente_mes) : '—'}
           loading={isLoading}
-          tone="warning"
+          tone="amber"
           serie={serie}
           serieKey="pendiente"
+          hint="albaranes abiertos"
         />
       </div>
     </section>
   )
 }
 
-function Tile({ Icon, label, value, loading, tone, serie, serieKey }: {
-  Icon: LucideIcon
+function Tile({ label, value, loading, tone, serie, serieKey, hint }: {
   label: string
   value: string
   loading?: boolean
   tone: Tone
   serie?: KpiPunto[]
   serieKey: SerieKey
+  hint: string
 }) {
   const t = TONE_STYLES[tone]
   const datos = (serie ?? []).map(p => ({ v: p[serieKey] }))
@@ -113,19 +104,20 @@ function Tile({ Icon, label, value, loading, tone, serie, serieKey }: {
   const gradId = `spark-${tone}-${serieKey}`
 
   return (
-    <div className="flex flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2,_#fafaf7)]/40 p-4 transition hover:border-[var(--color-primary)]/30">
+    <div className="min-h-[196px] border-b border-[var(--line)] p-6 md:border-b-0 md:border-r last:border-r-0">
       <div className="flex items-start justify-between gap-2">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+        <span className="mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-mute)]">
           {label}
         </span>
-        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${t.iconBg}`}>
-          <Icon className={`h-4 w-4 ${t.iconText}`} />
-        </div>
       </div>
-      <div className={`mt-3 font-display text-3xl font-bold tabular-nums leading-none md:text-4xl ${t.value}`}>
+      <div
+        className="mono mt-6 text-[38px] font-medium leading-none tracking-[-0.04em]"
+        style={{ color: t.value }}
+      >
         {loading ? '…' : value}
       </div>
-      <div className="mt-3 h-9">
+      <div className="mt-3 text-[11.5px] text-[var(--ink-mute)]">{hint || t.hint}</div>
+      <div className="mt-4 h-9 max-w-[150px]">
         {hayDatos && (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={datos} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>

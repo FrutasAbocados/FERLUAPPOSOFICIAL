@@ -6,11 +6,11 @@ import { dismissToast, getSnapshot, subscribe } from '@/shared/lib/toast'
 
 const VARIANT_STYLES = {
   default:
-    'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-ink)]',
+    'border-[var(--line)] bg-[var(--panel)] text-[var(--ink)]',
   success:
-    'border-[var(--color-success)] bg-[var(--color-success-soft)] text-[var(--color-success)]',
+    'border-[var(--mint-glow)] bg-[var(--mint-glow)] text-[var(--mint)]',
   error:
-    'border-[var(--color-danger)] bg-[var(--color-danger-soft)] text-[var(--color-danger)]',
+    'border-[oklch(70%_.18_25_/_0.24)] bg-[oklch(30%_.12_25_/_0.22)] text-[var(--coral)]',
 } as const
 
 export function Toaster() {
@@ -25,7 +25,7 @@ export function Toaster() {
             if (!open) dismissToast(t.id)
           }}
           className={cn(
-            'flex items-start gap-3 rounded-[var(--radius-md)] border p-3 shadow-md',
+            'flex items-start gap-3 rounded-[var(--radius-lg)] border p-3 backdrop-blur-md',
             VARIANT_STYLES[t.variant ?? 'default'],
             'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out',
           )}
