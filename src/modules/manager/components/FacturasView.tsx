@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, HandCoins, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, HandCoins, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { eurosOrDash } from '@/shared/lib/format'
+import { confirm } from '@/shared/lib/confirm'
+import { toast } from '@/shared/lib/toast'
 import type { Period } from '../lib/period'
 import type { FacturaListItem } from '../lib/types'
-import { useFacturasLista, type FacturaFiltros } from '../lib/queries'
+import { useEliminarFacturas, useFacturasLista, type FacturaFiltros } from '../lib/queries'
 import { FacturaDetalleModal } from './FacturaDetalleModal'
 import { GenerarDeudaModal } from './GenerarDeudaModal'
 
@@ -38,6 +40,7 @@ export function FacturasView({ period }: Props) {
 
   const filtros: FacturaFiltros = { tipo, subtipo, q: q.trim() || null, page, pageSize: PAGE_SIZE }
   const { data, isLoading } = useFacturasLista(period, filtros)
+  const eliminar = useEliminarFacturas()
 
   const subtipos = tipo === 'COMPRA' ? SUBTIPOS_COMPRA : SUBTIPOS_VENTA
   const totalCount = data?.[0]?.total_count ?? 0
@@ -60,6 +63,24 @@ export function FacturasView({ period }: Props) {
       return next
     })
   }
+  const handleEliminar = async () => {
+    const ids = facturasMarcadas.map(f => f.id)
+    const ok = await confirm({
+      title: `¿Eliminar ${ids.length} factura${ids.length > 1 ? 's' : ''}?`,
+      description: 'Se eliminarán de AbocadosOS de forma permanente (líneas incluidas). Si existen en Holded, volverán en el próximo sync horario.',
+      confirmLabel: 'Eliminar',
+      variant: 'danger',
+    })
+    if (!ok) return
+    try {
+      const n = await eliminar.mutateAsync(ids)
+      toast({ title: `${n} factura${n !== 1 ? 's' : ''} eliminada${n !== 1 ? 's' : ''}`, variant: 'success' })
+      setMarcadas(new Set())
+    } catch (e) {
+      toast({ title: 'Error al eliminar', description: (e as Error).message, variant: 'error' })
+    }
+  }
+
   const toggleAllOnPage = () => {
     setMarcadas(prev => {
       if (allOnPage) {
@@ -207,6 +228,9 @@ export function FacturasView({ period }: Props) {
             <Button size="sm" variant="ghost" onClick={() => setMarcadas(new Set())}>Limpiar</Button>
             <Button size="sm" onClick={() => setGenerarOpen(true)}>
               <HandCoins className="mr-1 h-4 w-4" /> Generar deuda
+            </Button>
+            <Button size="sm" variant="danger" onClick={handleEliminar} disabled={eliminar.isPending}>
+              <Trash2 className="mr-1 h-4 w-4" /> Eliminar
             </Button>
           </div>
         </div>

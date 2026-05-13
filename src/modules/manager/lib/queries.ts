@@ -520,6 +520,18 @@ export function useFacturasLista(period: Period, f: FacturaFiltros) {
   })
 }
 
+export function useEliminarFacturas() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { data, error } = await supabase.rpc('manager_facturas_delete', { p_ids: ids })
+      if (error) throw error
+      return data as number
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manager'] }) },
+  })
+}
+
 export function useFacturaDetalle(facturaId: string | null) {
   return useQuery({
     queryKey: ['manager', 'factura', facturaId, 'detalle'] as const,
