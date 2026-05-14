@@ -1,18 +1,30 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { PageTopbar } from '@/shared/components/PageTopbar'
 import { BarChart3, CalendarDays, FileText, MapPinned, Package, ReceiptText, Sparkles, TrendingUp, Users } from 'lucide-react'
 import { SyncBar } from './components/SyncBar'
 import { PeriodPicker } from './components/PeriodPicker'
-import { ResumenView } from './components/ResumenView'
-import { ClientesView } from './components/ClientesView'
-import { ProductosView } from './components/ProductosView'
-import { FacturasView } from './components/FacturasView'
-import { AbueloView } from './components/AbueloView'
-import { PatronesView } from './components/PatronesView'
-import { CalendarioClientesView } from './components/CalendarioClientesView'
-import { EstacionalidadCosteView } from './components/EstacionalidadCosteView'
-import { MapaClientesView } from './components/MapaClientesView'
 import { periodFromPreset, type Period } from './lib/period'
+
+const ResumenView            = lazy(() => import('./components/ResumenView').then(m => ({ default: m.ResumenView })))
+const ClientesView           = lazy(() => import('./components/ClientesView').then(m => ({ default: m.ClientesView })))
+const ProductosView          = lazy(() => import('./components/ProductosView').then(m => ({ default: m.ProductosView })))
+const FacturasView           = lazy(() => import('./components/FacturasView').then(m => ({ default: m.FacturasView })))
+const AbueloView             = lazy(() => import('./components/AbueloView').then(m => ({ default: m.AbueloView })))
+const PatronesView           = lazy(() => import('./components/PatronesView').then(m => ({ default: m.PatronesView })))
+const CalendarioClientesView = lazy(() => import('./components/CalendarioClientesView').then(m => ({ default: m.CalendarioClientesView })))
+const EstacionalidadCosteView = lazy(() => import('./components/EstacionalidadCosteView').then(m => ({ default: m.EstacionalidadCosteView })))
+const MapaClientesView       = lazy(() => import('./components/MapaClientesView').then(m => ({ default: m.MapaClientesView })))
+
+function TabFallback() {
+  return (
+    <div
+      className="flex items-center justify-center min-h-40 text-sm"
+      style={{ color: 'var(--color-muted, #6b7280)' }}
+    >
+      Cargando…
+    </div>
+  )
+}
 
 type Tab = 'resumen' | 'clientes' | 'productos' | 'facturas' | 'calendario' | 'patrones' | 'abuelo' | 'estacionalidad' | 'mapa'
 
@@ -58,15 +70,17 @@ export function ManagerPage() {
           ))}
         </div>
 
-        {tab === 'resumen'    && <ResumenView   period={period} />}
-        {tab === 'clientes'   && <ClientesView  period={period} />}
-        {tab === 'productos'  && <ProductosView period={period} />}
-        {tab === 'facturas'   && <FacturasView  period={period} />}
-        {tab === 'calendario' && <CalendarioClientesView period={period} />}
-        {tab === 'patrones'   && <PatronesView  period={period} />}
-        {tab === 'abuelo'     && <AbueloView    period={period} />}
-        {tab === 'estacionalidad' && <EstacionalidadCosteView />}
-        {tab === 'mapa'       && <MapaClientesView period={period} />}
+        <Suspense fallback={<TabFallback />}>
+          {tab === 'resumen'    && <ResumenView   period={period} />}
+          {tab === 'clientes'   && <ClientesView  period={period} />}
+          {tab === 'productos'  && <ProductosView period={period} />}
+          {tab === 'facturas'   && <FacturasView  period={period} />}
+          {tab === 'calendario' && <CalendarioClientesView period={period} />}
+          {tab === 'patrones'   && <PatronesView  period={period} />}
+          {tab === 'abuelo'     && <AbueloView    period={period} />}
+          {tab === 'estacionalidad' && <EstacionalidadCosteView />}
+          {tab === 'mapa'       && <MapaClientesView period={period} />}
+        </Suspense>
       </div>
       </div>
     </div>

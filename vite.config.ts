@@ -39,6 +39,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/recharts')) return 'vendor-recharts'
+          if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet') || id.includes('node_modules/@react-leaflet')) return 'vendor-leaflet'
+          if (id.includes('node_modules/exceljs') || id.includes('node_modules/xlsx')) return 'vendor-excel'
+        },
+      },
+    },
+  },
   server: {
     host: true,
     port: 5174,

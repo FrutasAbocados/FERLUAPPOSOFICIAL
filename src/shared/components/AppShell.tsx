@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   BarChart3,
@@ -48,6 +48,20 @@ const SOCIOS: ModuleNav[] = [
   { key: 'sueldos', label: 'Sueldos', to: '/sueldos', icon: Wallet },
 ]
 
+const PRELOADERS: Record<string, () => void> = {
+  '/':                 () => { void import('@/pages/HomePage') },
+  '/manager':          () => { void import('@/modules/manager/ManagerPage') },
+  '/agente':           () => { void import('@/modules/agente/AgentePage') },
+  '/pedidos-wa':       () => { void import('@/modules/pedidos-wa/PedidosWaPage') },
+  '/cash':             () => { void import('@/modules/cash/CashPage') },
+  '/clientes':         () => { void import('@/modules/clientes/ClientesPage') },
+  '/cobros':           () => { void import('@/modules/cobros/CobrosPage') },
+  '/gastos':           () => { void import('@/modules/gastos/GastosPage') },
+  '/trabajadores':     () => { void import('@/modules/trabajadores/TrabajadoresOpPage') },
+  '/bbdd-trabajadores':() => { void import('@/modules/trabajadores/TrabajadoresPage') },
+  '/sueldos':          () => { void import('@/modules/sueldos/SueldosPage') },
+}
+
 function getInitials(name: string) {
   return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 }
@@ -72,6 +86,7 @@ export function AppShell() {
   const { profile, signOut } = useAuth()
   const location = useLocation()
   const role = profile?.role
+  const preload = useCallback((to: string) => { PRELOADERS[to]?.() }, [])
   const visible = MODULES.filter((m) => role && canAccess(m.key, role))
   const equipo  = EQUIPO.filter((m) => role && canAccess(m.key, role))
   const socios  = SOCIOS.filter((m) => role && canAccess(m.key, role))
@@ -167,6 +182,7 @@ export function AppShell() {
           <NavLink
             to="/"
             end
+            onMouseEnter={() => preload('/')}
             className={({ isActive }) => cn('sidebar-nav-item', isActive && 'sidebar-nav-active')}
           >
             <Home className="h-4 w-4 shrink-0" strokeWidth={1.6} />
@@ -177,6 +193,7 @@ export function AppShell() {
             <NavLink
               key={m.key}
               to={m.to}
+              onMouseEnter={() => preload(m.to)}
               className={({ isActive }) => cn('sidebar-nav-item', isActive && 'sidebar-nav-active')}
             >
               <m.icon className="h-4 w-4 shrink-0" strokeWidth={1.6} />
@@ -193,6 +210,7 @@ export function AppShell() {
                 <NavLink
                   key={m.key}
                   to={m.to}
+                  onMouseEnter={() => preload(m.to)}
                   className={({ isActive }) => cn('sidebar-nav-item', isActive && 'sidebar-nav-active')}
                 >
                   <m.icon className="h-4 w-4 shrink-0" strokeWidth={1.6} />
@@ -211,6 +229,7 @@ export function AppShell() {
                 <NavLink
                   key={m.key}
                   to={m.to}
+                  onMouseEnter={() => preload(m.to)}
                   className={({ isActive }) => cn('sidebar-nav-item', isActive && 'sidebar-nav-active')}
                 >
                   <m.icon className="h-4 w-4 shrink-0" strokeWidth={1.6} />
@@ -326,6 +345,7 @@ export function AppShell() {
             <NavLink
               to="/"
               end
+              onTouchStart={() => preload('/')}
               className={({ isActive }) =>
                 cn(
                   'flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] uppercase tracking-wider transition-colors',
@@ -340,6 +360,7 @@ export function AppShell() {
               <NavLink
                 key={m.key}
                 to={m.to}
+                onTouchStart={() => preload(m.to)}
                 className={({ isActive }) =>
                   cn(
                     'flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] uppercase tracking-wider transition-colors',
