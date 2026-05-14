@@ -370,7 +370,7 @@ function HojaRutaTabla({
 
   return (
     <div className="overflow-x-auto rounded-lg border border-[var(--line)] bg-[var(--surface)]">
-      <table className="min-w-[1120px] w-full border-collapse text-sm">
+      <table className="min-w-[1220px] w-full border-collapse text-sm">
         <thead className="sticky top-0 z-10">
           <tr className="bg-[var(--brand-green,#1d4e2a)] text-white">
             <th className="w-[170px] border border-black/40 px-2 py-2 text-left text-xs font-bold uppercase tracking-wide">Cliente</th>
@@ -378,6 +378,7 @@ function HojaRutaTabla({
             <th className="w-[94px] border border-black/40 px-2 py-2 text-center text-xs font-bold uppercase tracking-wide">Factura</th>
             <th className="border border-black/40 px-2 py-2 text-center text-xs font-bold uppercase tracking-wide">Pedido</th>
             <th className="w-[300px] border border-black/40 px-2 py-2 text-center text-xs font-bold uppercase tracking-wide">Faltas</th>
+            <th className="w-[130px] border border-black/40 px-2 py-2 text-center text-xs font-bold uppercase tracking-wide">Vehículo</th>
             <th className="w-[130px] border border-black/40 px-2 py-2 text-center text-xs font-bold uppercase tracking-wide">Reparto</th>
           </tr>
         </thead>
@@ -398,6 +399,22 @@ function TableSection({
   section: { label: string; repartidor: Repartidor; pedidos: Pedido[] }
   fecha: string
 }) {
+  const storageKey = `abocados:hoja-ruta:vehiculo:${fecha}:${section.repartidor}`
+  const [vehiculo, setVehiculo] = useState('')
+
+  useEffect(() => {
+    setVehiculo(window.localStorage.getItem(storageKey) ?? '')
+  }, [storageKey])
+
+  const guardarVehiculo = (valor: string) => {
+    setVehiculo(valor)
+    if (valor.trim()) {
+      window.localStorage.setItem(storageKey, valor)
+    } else {
+      window.localStorage.removeItem(storageKey)
+    }
+  }
+
   return (
     <>
       <tr>
@@ -407,8 +424,14 @@ function TableSection({
         <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5 text-center font-display text-lg font-bold text-black dark:text-[var(--color-ink)]">
           {section.label}
         </td>
-        <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5 text-center font-display text-lg font-bold text-black dark:text-[var(--color-ink)]">
-          Faltas / master
+        <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5" />
+        <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5 text-center">
+          <input
+            value={vehiculo}
+            onChange={(e) => guardarVehiculo(e.target.value)}
+            className="w-full rounded border border-black/20 bg-white/80 px-2 py-1 text-center font-display text-sm font-bold uppercase text-black outline-none focus:border-[var(--mint)] dark:bg-black/20 dark:text-[var(--color-ink)]"
+            placeholder="Vehículo"
+          />
         </td>
         <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5" />
       </tr>
