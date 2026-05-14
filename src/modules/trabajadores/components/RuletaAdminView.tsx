@@ -586,10 +586,19 @@ function CatalogoSection() {
     borrar.mutate(p.id)
   }
 
+  const totalProbActiva = (data ?? []).filter((p) => p.activo).reduce((sum, p) => sum + p.peso, 0)
+
   return (
     <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-[var(--color-ink)]">Catálogo de premios</h2>
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--color-ink)]">Catálogo de premios</h2>
+          {data && data.length > 0 && (
+            <p className="mt-0.5 text-[11px] text-[var(--color-ink-3)]">
+              Probabilidades activas: {totalProbActiva}/100
+            </p>
+          )}
+        </div>
         <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}>
           <Plus className="mr-1 h-3.5 w-3.5" /> Nuevo premio
         </Button>
@@ -616,7 +625,7 @@ function CatalogoSection() {
                     {p.tipo === 'euros' && p.valor ? ` · ${euros(p.valor)}` : ''}
                   </span>
                   <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
-                    peso {p.peso}
+                    prob. {p.peso}/100
                   </span>
                 </div>
                 {p.descripcion && (
@@ -684,7 +693,7 @@ function PremioFormModal({ premio, onClose }: { premio: Premio | null; onClose: 
         color,
       }
       if (!payload.nombre) throw new Error('El nombre es obligatorio')
-      if (payload.peso < 1 || payload.peso > 100) throw new Error('Peso debe estar entre 1 y 100')
+      if (payload.peso < 1 || payload.peso > 100) throw new Error('Probabilidad debe estar entre 1 y 100')
 
       if (premio) {
         const { error } = await supabase.from('trabajadores_ruleta_premios').update(payload).eq('id', premio.id)
@@ -746,7 +755,7 @@ function PremioFormModal({ premio, onClose }: { premio: Premio | null; onClose: 
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="mb-1 block text-[11px] uppercase tracking-wider text-[var(--color-ink-3)]">
-              Peso (1-100)
+              Probabilidad (1-100)
             </label>
             <Input
               type="number"
@@ -755,7 +764,7 @@ function PremioFormModal({ premio, onClose }: { premio: Premio | null; onClose: 
               value={peso}
               onChange={(e) => setPeso(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
             />
-            <p className="mt-1 text-[10px] text-[var(--color-ink-3)]">Mayor peso = más probable</p>
+            <p className="mt-1 text-[10px] text-[var(--color-ink-3)]">Más alto = sale más veces. Ideal: activos suman 100.</p>
           </div>
           <div>
             <label className="mb-1 block text-[11px] uppercase tracking-wider text-[var(--color-ink-3)]">Emoji</label>
