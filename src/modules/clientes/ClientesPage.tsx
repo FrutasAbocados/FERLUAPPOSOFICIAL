@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react'
 import { PageTopbar } from '@/shared/components/PageTopbar'
 import { useQueryClient } from '@tanstack/react-query'
-import { Activity, Database } from 'lucide-react'
+import { Activity, Database, HeartHandshake } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { BBDDView } from './components/BBDDView'
+import { ProgramaFidelizacionView } from './components/ProgramaFidelizacionView'
 import { SeguimientoView } from './components/SeguimientoView'
 import {
   clientesSeguimientoQueryKey,
   fetchClientesSeguimiento,
 } from './lib/hooks'
 
-type SubTab = 'bbdd' | 'seguimiento'
+type SubTab = 'bbdd' | 'seguimiento' | 'programa'
 
 const TABS: { key: SubTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: 'bbdd',        label: 'BBDD Clientes',     icon: Database },
   { key: 'seguimiento', label: 'Seguimiento activo', icon: Activity },
+  { key: 'programa',    label: 'Programa fidelización', icon: HeartHandshake },
 ]
 
 export function ClientesPage() {
@@ -72,6 +74,7 @@ export function ClientesPage() {
       <section>
         {tab === 'bbdd'        && <BBDDView selected={selected} onSelectChange={setSelected} />}
         {tab === 'seguimiento' && <SeguimientoView onSelect={goToBBDD} />}
+        {tab === 'programa'    && <ProgramaFidelizacionView />}
       </section>
       </div>
     </div>

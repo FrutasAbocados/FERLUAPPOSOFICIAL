@@ -35,6 +35,7 @@ const PERIODOS = [
 ] as const
 
 type Periodo = typeof PERIODOS[number]['key']
+type PeriodoState = Periodo | 'custom'
 type ProgramaFilter = ClientePrograma | null
 
 function rangoFor(p: Periodo): { from: string; to: string } {
@@ -56,7 +57,8 @@ const PROGRAMAS: Array<{ key: ProgramaFilter; label: string }> = [
 ]
 
 export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
-  const [periodo, setPeriodo] = useState<Periodo>('3m')
+  const [periodo, setPeriodo] = useState<PeriodoState>('3m')
+  const [range, setRange] = useState(() => rangoFor('3m'))
   const [q, setQ] = useState('')
   const [filtroABC, setFiltroABC] = useState<'A' | 'B' | 'C' | null>(null)
   const [filtroPrograma, setFiltroPrograma] = useState<ProgramaFilter>(null)
@@ -68,7 +70,6 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
     onSelectChange?.(n)
   }
 
-  const range = rangoFor(periodo)
   const { data: clientesBase = [], isLoading, error } = useClientesBBDD(range.from, range.to)
   const { data: seguimiento = [] } = useClientesSeguimiento(7, 90)
 
@@ -99,6 +100,16 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
   }, [clientes])
 
   const clienteSel = selected ? clientes.find(c => c.contact_name_canon === selected) : null
+
+  const setPreset = (p: Periodo) => {
+    setPeriodo(p)
+    setRange(rangoFor(p))
+  }
+
+  const setCustomRange = (patch: Partial<typeof range>) => {
+    setPeriodo('custom')
+    setRange((prev) => ({ ...prev, ...patch }))
+  }
 
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(320px,420px)_1fr]">
@@ -165,7 +176,7 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
               <button
                 key={p.key}
                 type="button"
-                onClick={() => setPeriodo(p.key)}
+                onClick={() => setPreset(p.key)}
                 className={cn(
                   'rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors',
                   periodo === p.key
@@ -176,6 +187,28 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
                 {p.label}
               </button>
             ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="space-y-1">
+              <span className="label-caps block">Desde</span>
+              <Input
+                type="date"
+                value={range.from}
+                max={range.to}
+                onChange={(e) => setCustomRange({ from: e.target.value })}
+                className="h-8 text-xs"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="label-caps block">Hasta</span>
+              <Input
+                type="date"
+                value={range.to}
+                min={range.from}
+                onChange={(e) => setCustomRange({ to: e.target.value })}
+                className="h-8 text-xs"
+              />
+            </label>
           </div>
         </div>
 
