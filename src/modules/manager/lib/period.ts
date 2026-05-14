@@ -23,8 +23,12 @@ const fmt = (d: Date) => format(d, 'yyyy-MM-dd')
 
 export function periodFromPreset(preset: Exclude<PeriodPreset, 'custom'>, anchor: Date = new Date()): Period {
   switch (preset) {
-    case 'hoy':
-      return { preset, from: fmt(anchor), to: fmt(anchor), label: 'Hoy' }
+    case 'hoy': {
+      // Usar fecha UTC para coincidir con current_date del DB (Postgres corre en UTC).
+      // Sin esto, entre 00:00-02:00 Madrid el browser da el día siguiente y no hay datos.
+      const utc = anchor.toISOString().slice(0, 10)
+      return { preset, from: utc, to: utc, label: 'Hoy' }
+    }
     case '7d':
       return { preset, from: fmt(subDays(anchor, 6)), to: fmt(anchor), label: 'Últimos 7 días' }
     case '30d':
