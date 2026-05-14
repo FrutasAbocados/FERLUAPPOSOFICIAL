@@ -3,8 +3,8 @@ import type { Abreviatura } from '../types'
 
 export const ABREVIATURAS_FALLBACK: Record<string, string> = {
   'pim':              'Pimiento',
-  'pim rojo':         'Pimiento rojo california',
-  'pim verde':        'Pimiento verde california',
+  'pim rojo':         'Pimiento rojo asar kg',
+  'pim verde':        'Pimiento verde asar kg',
   'pim italiano':     'Pimiento italiano',
   'pim padron':       'Pimiento de padrón',
   'tom':              'Tomate',

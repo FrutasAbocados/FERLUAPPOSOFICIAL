@@ -52,7 +52,7 @@ REGLAS ABSOLUTAS:
 8. Si no hay unidad explícita → unidad="unidad".
 
 DICCIONARIO BASE:
-- pim = pimiento | pim rojo = pimiento rojo california | pim verde = pimiento verde california
+- pim = pimiento | pim rojo = pimiento rojo asar kg | pim verde = pimiento verde asar kg
 - pim italiano = pimiento italiano | pim padron = pimiento de padrón
 - tom = tomate | daniela = tomate daniela | cherry = tomate cherry
 - tom pera / tomate pera = tomate pera | huevo toro = tomate huevo de toro | rosa = tomate rosa

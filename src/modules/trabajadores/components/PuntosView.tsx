@@ -32,6 +32,7 @@ interface ResumenMes {
   dias_puntuados: number
   pts_base: number
   pts_ajustes: number
+  pts_canjeados: number
   total_puntos: number
   pts_puntualidad: number
   pts_reparto: number
@@ -91,6 +92,7 @@ function useResumenMes(mesISO: string) {
         dias_puntuados: Number(r.dias_puntuados),
         pts_base: Number(r.pts_base),
         pts_ajustes: Number(r.pts_ajustes),
+        pts_canjeados: Number(r.pts_canjeados ?? 0),
         total_puntos: Number(r.total_puntos),
         pts_puntualidad: Number(r.pts_puntualidad),
         pts_reparto: Number(r.pts_reparto),
@@ -520,9 +522,9 @@ function ModoMes() {
                 <div className="truncate font-semibold text-[var(--color-ink)]">{r.nombre}</div>
                 <div className="text-xs text-[var(--color-ink-3)]">
                   {r.total_puntos} pts · {r.dias_puntuados} día(s) puntuados
-                  {r.pts_ajustes !== 0 && (
-                    <span className={r.pts_ajustes > 0 ? ' text-emerald-700' : ' text-red-700'}>
-                      {' '}({r.pts_base} base {r.pts_ajustes >= 0 ? '+' : ''}{r.pts_ajustes} ajuste)
+                  {(r.pts_ajustes !== 0 || r.pts_canjeados !== 0) && (
+                    <span className={r.pts_ajustes - r.pts_canjeados >= 0 ? ' text-emerald-700' : ' text-red-700'}>
+                      {' '}({r.pts_base} base {r.pts_ajustes >= 0 ? '+' : ''}{r.pts_ajustes} ajuste{r.pts_canjeados ? ` -${r.pts_canjeados} canje` : ''})
                     </span>
                   )}
                 </div>
@@ -616,9 +618,9 @@ function DetalleEmpleadoMes({
             <p className="text-xs capitalize text-[var(--color-ink-3)]">
               {format(mes, 'LLLL yyyy', { locale: es })} · {empleado.total_puntos} pts → {eur(empleado.euros)}
             </p>
-            {empleado.pts_ajustes !== 0 && (
+            {(empleado.pts_ajustes !== 0 || empleado.pts_canjeados !== 0) && (
               <p className="text-[11px] text-[var(--color-ink-3)]">
-                {empleado.pts_base} base {empleado.pts_ajustes >= 0 ? '+' : ''}{empleado.pts_ajustes} ajuste = {empleado.total_puntos}
+                {empleado.pts_base} base {empleado.pts_ajustes >= 0 ? '+' : ''}{empleado.pts_ajustes} ajuste{empleado.pts_canjeados ? ` - ${empleado.pts_canjeados} canje ruleta` : ''} = {empleado.total_puntos}
               </p>
             )}
           </div>
