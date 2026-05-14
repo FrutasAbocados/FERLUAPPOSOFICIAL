@@ -96,6 +96,7 @@ export function HojaRuta() {
   const fechaIso = format(getBusinessDate(), 'yyyy-MM-dd')
   const titulo = format(getBusinessDate(), "EEEE d 'de' MMMM", { locale: es })
   const { data: pedidos, isLoading, error } = usePedidosDelDia(fechaIso)
+  const [vista, setVista] = useState<'tabla' | 'tarjetas'>('tabla')
 
   const [colapsadas, setColapsadas] = useState<Record<Repartidor, boolean>>({
     TORRES: false, GERMAN: false, RAUL: false, ALEX: false,
@@ -269,22 +270,34 @@ export function HojaRuta() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setColapsadas({ TORRES: false, GERMAN: false, RAUL: false, ALEX: false })}
-            className="text-xs"
-          >
-            <ChevronDown className="h-3.5 w-3.5" /> Expandir todo
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setColapsadas({ TORRES: true, GERMAN: true, RAUL: true, ALEX: true })}
-            className="text-xs"
-          >
-            <ChevronUp className="h-3.5 w-3.5" /> Plegar todo
-          </Button>
+          <div className="inline-flex rounded-lg border border-[var(--line)] bg-[var(--surface-2)] p-0.5">
+            <Button size="sm" variant={vista === 'tabla' ? 'secondary' : 'ghost'} onClick={() => setVista('tabla')} className="h-8 text-xs">
+              Montaje
+            </Button>
+            <Button size="sm" variant={vista === 'tarjetas' ? 'secondary' : 'ghost'} onClick={() => setVista('tarjetas')} className="h-8 text-xs">
+              Tarjetas
+            </Button>
+          </div>
+          {vista === 'tarjetas' && (
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setColapsadas({ TORRES: false, GERMAN: false, RAUL: false, ALEX: false })}
+                className="text-xs"
+              >
+                <ChevronDown className="h-3.5 w-3.5" /> Expandir todo
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setColapsadas({ TORRES: true, GERMAN: true, RAUL: true, ALEX: true })}
+                className="text-xs"
+              >
+                <ChevronUp className="h-3.5 w-3.5" /> Plegar todo
+              </Button>
+            </>
+          )}
           <Button size="sm" variant="secondary" onClick={onPrint} disabled={total === 0}>
             <Printer className="h-3.5 w-3.5" /> Imprimir
           </Button>
@@ -299,22 +312,204 @@ export function HojaRuta() {
           No hay pedidos para hoy todavía.
         </div>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={onDragEnd}>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
-            {grupos.map(g => (
-              <ColumnaRepartidor
-                key={g.repartidor}
-                repartidor={g.repartidor}
-                pedidos={g.pedidos}
-                colapsada={colapsadas[g.repartidor]}
-                onToggle={() => setColapsadas(c => ({ ...c, [g.repartidor]: !c[g.repartidor] }))}
-                fecha={fechaIso}
-              />
-            ))}
-          </div>
-        </DndContext>
+        vista === 'tabla' ? (
+          <HojaRutaTabla grupos={grupos} fecha={fechaIso} />
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={onDragEnd}>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
+              {grupos.map(g => (
+                <ColumnaRepartidor
+                  key={g.repartidor}
+                  repartidor={g.repartidor}
+                  pedidos={g.pedidos}
+                  colapsada={colapsadas[g.repartidor]}
+                  onToggle={() => setColapsadas(c => ({ ...c, [g.repartidor]: !c[g.repartidor] }))}
+                  fecha={fechaIso}
+                />
+              ))}
+            </div>
+          </DndContext>
+        )
       )}
     </div>
+  )
+}
+
+function HojaRutaTabla({
+  grupos,
+  fecha,
+}: {
+  grupos: Array<{ repartidor: Repartidor; pedidos: Pedido[] }>
+  fecha: string
+}) {
+  const sections = useMemo(() => {
+    const out: Array<{ key: string; label: string; repartidor: Repartidor; pedidos: Pedido[] }> = []
+    for (const g of grupos) {
+      if (g.pedidos.length === 0) continue
+      const primera = g.pedidos.filter((p) => (p.override_salida ?? p.cliente?.salida ?? 'PRIMERA') !== 'SEGUNDA')
+      const segunda = g.pedidos.filter((p) => (p.override_salida ?? p.cliente?.salida ?? null) === 'SEGUNDA')
+      if (primera.length > 0) {
+        out.push({
+          key: `${g.repartidor}-primera`,
+          label: `Salida del campo · ${REPARTIDOR_LABEL[g.repartidor]}`,
+          repartidor: g.repartidor,
+          pedidos: primera,
+        })
+      }
+      if (segunda.length > 0) {
+        out.push({
+          key: `${g.repartidor}-segunda`,
+          label: `Segunda salida · ${REPARTIDOR_LABEL[g.repartidor]}`,
+          repartidor: g.repartidor,
+          pedidos: segunda,
+        })
+      }
+    }
+    return out
+  }, [grupos])
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-[var(--line)] bg-[var(--surface)]">
+      <table className="min-w-[1120px] w-full border-collapse text-sm">
+        <thead className="sticky top-0 z-10">
+          <tr className="bg-[var(--brand-green,#1d4e2a)] text-white">
+            <th className="w-[170px] border border-black/40 px-2 py-2 text-left text-xs font-bold uppercase tracking-wide">Cliente</th>
+            <th className="w-[92px] border border-black/40 px-2 py-2 text-center text-xs font-bold uppercase tracking-wide">Horario</th>
+            <th className="w-[94px] border border-black/40 px-2 py-2 text-center text-xs font-bold uppercase tracking-wide">Factura</th>
+            <th className="border border-black/40 px-2 py-2 text-center text-xs font-bold uppercase tracking-wide">Pedido</th>
+            <th className="w-[300px] border border-black/40 px-2 py-2 text-center text-xs font-bold uppercase tracking-wide">Faltas</th>
+            <th className="w-[130px] border border-black/40 px-2 py-2 text-center text-xs font-bold uppercase tracking-wide">Reparto</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sections.map((s) => (
+            <TableSection key={s.key} section={s} fecha={fecha} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function TableSection({
+  section,
+  fecha,
+}: {
+  section: { label: string; repartidor: Repartidor; pedidos: Pedido[] }
+  fecha: string
+}) {
+  return (
+    <>
+      <tr>
+        <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5" />
+        <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5" />
+        <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5" />
+        <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5 text-center font-display text-lg font-bold text-black dark:text-[var(--color-ink)]">
+          {section.label}
+        </td>
+        <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5 text-center font-display text-lg font-bold text-black dark:text-[var(--color-ink)]">
+          Faltas / master
+        </td>
+        <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5" />
+      </tr>
+      {section.pedidos.map((pedido) => (
+        <HojaRutaTableRow key={pedido.id} pedido={pedido} fecha={fecha} repartidor={section.repartidor} />
+      ))}
+    </>
+  )
+}
+
+function HojaRutaTableRow({
+  pedido,
+  fecha,
+  repartidor,
+}: {
+  pedido: Pedido
+  fecha: string
+  repartidor: Repartidor
+}) {
+  const cliente = pedido.cliente
+  const horarioActual = pedido.override_horario ?? cliente?.horario ?? ''
+  const [horarioEdit, setHorarioEdit] = useState(horarioActual)
+  const [faltasEdit, setFaltasEdit] = useState(pedido.faltas ?? '')
+  const reasignar = useReasignarPedido()
+  const actualizarPedido = useActualizarPedido()
+
+  useEffect(() => { setHorarioEdit(horarioActual) }, [horarioActual])
+  useEffect(() => { setFaltasEdit(pedido.faltas ?? '') }, [pedido.faltas])
+
+  const guardarHorario = () => {
+    const raw = horarioEdit.trim()
+    const normalizado = raw ? normalizarHorario(raw) : ''
+    if (raw && normalizado === null) {
+      toast({ title: 'Horario inválido', description: 'Usa HH:MM, por ejemplo 08:30.', variant: 'error' })
+      setHorarioEdit(horarioActual)
+      return
+    }
+    const valor = normalizado || ''
+    if (valor === (cliente?.horario ?? '')) {
+      if (pedido.override_horario !== null) {
+        reasignar.mutate({ id: pedido.id, fecha, patch: { override_horario: null } })
+      } else {
+        setHorarioEdit(valor)
+      }
+      return
+    }
+    if (valor === (pedido.override_horario ?? '')) return
+    reasignar.mutate(
+      { id: pedido.id, fecha, patch: { override_horario: valor || null } },
+      { onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'error' }) },
+    )
+  }
+
+  const guardarFaltas = () => {
+    const valor = faltasEdit.trim() || null
+    if (valor === (pedido.faltas ?? null)) return
+    actualizarPedido.mutate(
+      { id: pedido.id, fecha, patch: { faltas: valor } },
+      { onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'error' }) },
+    )
+  }
+
+  return (
+    <tr className="align-middle odd:bg-[var(--surface)] even:bg-[var(--surface-2)]">
+      <td className="border border-black/50 px-2 py-2 text-center font-display text-base font-bold uppercase text-[var(--ink)]">
+        {cliente?.nombre ?? '—'}
+        {cliente?.notas && (
+          <div className="mt-1 text-[10px] font-semibold normal-case text-[var(--coral)]">{cliente.notas}</div>
+        )}
+      </td>
+      <td className="border border-black/50 px-2 py-2 text-center">
+        <input
+          value={horarioEdit}
+          onChange={(e) => setHorarioEdit(e.target.value)}
+          onBlur={guardarHorario}
+          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+          className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-center font-display text-base font-bold tabular-nums text-[var(--ink)] focus:border-[var(--mint)] focus:outline-none"
+          placeholder="—:—"
+          inputMode="numeric"
+        />
+      </td>
+      <td className="border border-black/50 px-2 py-2 text-center font-display text-base font-bold text-[var(--ink)]">
+        {cliente?.tipo_factura ?? ''}
+      </td>
+      <td className="border border-black/50 px-2 py-2 text-center text-[15px] font-semibold leading-snug text-[var(--ink)]">
+        {resumenPedidoPlano(pedido)}
+      </td>
+      <td className="border border-black/50 px-2 py-2">
+        <textarea
+          value={faltasEdit}
+          onChange={(e) => setFaltasEdit(e.target.value)}
+          onBlur={guardarFaltas}
+          rows={2}
+          className="min-h-[42px] w-full resize-y rounded border border-transparent bg-transparent px-1 py-1 text-center text-sm leading-snug text-[var(--ink)] focus:border-[var(--mint)] focus:outline-none"
+          placeholder="Faltas…"
+        />
+      </td>
+      <td className="border border-black/50 px-2 py-2 text-center font-display text-base font-bold uppercase leading-tight text-[var(--ink)]">
+        {REPARTIDOR_LABEL[repartidor]}
+      </td>
+    </tr>
   )
 }
 
@@ -808,6 +1003,20 @@ function formatN(n: number | null | undefined): string {
   if (n == null) return '—'
   if (Number.isInteger(n)) return String(n)
   return n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+}
+
+function resumenPedidoPlano(p: Pedido): string {
+  const partes: string[] = []
+  if (p.notas_admin) partes.push(p.notas_admin)
+  for (const l of p.lineas ?? []) {
+    const qty = formatN(Number(l.cantidad))
+    const unit = UNIDAD_LABEL[l.unidad]
+    const nota = l.notas ? ` (${l.notas})` : ''
+    const gratis = l.es_gratis ? ' GRATIS' : ''
+    const sec = l.subseccion ? `${l.subseccion}: ` : ''
+    partes.push(`${sec}${qty} ${unit} ${l.producto_normalizado}${nota}${gratis}`)
+  }
+  return partes.join(' / ')
 }
 
 // Acepta '8', '8:30', '08:30', '8.30', '0830', '830' → 'HH:MM'. null si no parsea.
