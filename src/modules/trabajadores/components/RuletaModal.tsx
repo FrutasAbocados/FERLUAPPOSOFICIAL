@@ -64,7 +64,7 @@ function arcPath(startA: number, endA: number) {
 
 type Phase = 'idle' | 'spinning' | 'done' | 'error'
 
-export function RuletaModal({ onClose }: { onClose: () => void }) {
+export function RuletaModal({ onClose, modoTest = false }: { onClose: () => void; modoTest?: boolean }) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [rotation, setRotation] = useState(0)
   const [resultado, setResultado] = useState<Resultado | null>(null)
@@ -102,10 +102,7 @@ export function RuletaModal({ onClose }: { onClose: () => void }) {
     setPhase('spinning')
     setError(null)
     try {
-      const { data, error: rpcError } = await supabase.rpc('ruleta_tirar')
-      if (rpcError) throw rpcError
-      const rows = (data ?? []) as Resultado[]
-      const res = rows[0]
+      const res = modoTest ? premioDemo(premios) : await tirarReal()
       if (!res) throw new Error('La tirada no devolvió premio')
       const idx = premios.findIndex((p) => p.id === res.premio_id)
       if (idx < 0) {
@@ -131,7 +128,12 @@ export function RuletaModal({ onClose }: { onClose: () => void }) {
     <Modal onClose={onClose} size="lg" closeOnOverlay={phase !== 'spinning'}>
       <div className="relative">
         <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
-          <h2 className="font-display text-xl font-bold text-[var(--color-ink)]">Ruleta de la suerte</h2>
+          <div>
+            <h2 className="font-display text-xl font-bold text-[var(--color-ink)]">Ruleta de la suerte</h2>
+            {modoTest && (
+              <p className="mt-0.5 text-xs font-semibold uppercase tracking-wider text-amber-700">Modo test · no gasta puntos</p>
+            )}
+          </div>
           <Button
             size="sm"
             variant="ghost"
@@ -170,7 +172,7 @@ export function RuletaModal({ onClose }: { onClose: () => void }) {
                   onClick={handleTirar}
                   className="bg-gradient-to-r from-amber-500 via-rose-500 to-pink-500 px-8 text-base font-bold text-white shadow-lg hover:from-amber-600 hover:via-rose-600 hover:to-pink-600"
                 >
-                  ¡GIRAR LA RULETA!
+                  {modoTest ? 'PROBAR RULETA' : '¡GIRAR LA RULETA!'}
                 </Button>
               )}
 
@@ -201,6 +203,28 @@ export function RuletaModal({ onClose }: { onClose: () => void }) {
       </div>
     </Modal>
   )
+}
+
+async function tirarReal(): Promise<Resultado | null> {
+  const { data, error: rpcError } = await supabase.rpc('ruleta_tirar')
+  if (rpcError) throw rpcError
+  const rows = (data ?? []) as Resultado[]
+  return rows[0] ?? null
+}
+
+function premioDemo(premios: Premio[]): Resultado | null {
+  if (premios.length === 0) return null
+  const premio = premios[Math.floor(Math.random() * premios.length)]
+  return {
+    tirada_id: 'demo',
+    premio_id: premio.id,
+    premio_nombre: premio.nombre,
+    premio_tipo: premio.tipo,
+    premio_valor: premio.valor,
+    premio_icono: premio.icono,
+    premio_color: premio.color,
+    motivo: 'Vista de prueba para Luis',
+  }
 }
 
 function Wheel({

@@ -10,6 +10,7 @@ import { supabase } from '@/shared/lib/supabase'
 import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
+import { RuletaModal } from './RuletaModal'
 
 type Tipo = 'puntos' | 'euros' | 'fisico' | 'comodin'
 
@@ -66,20 +67,35 @@ const TIPO_COLOR: Record<Tipo, string> = {
 const COLOR_OPTS = ['amber', 'emerald', 'rose', 'sky', 'indigo', 'lime', 'violet', 'pink', 'orange', 'teal']
 
 export function RuletaAdminView() {
+  const [testOpen, setTestOpen] = useState(false)
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
       <header className="mb-5 border-b border-[var(--color-border)] pb-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Trabajadores</p>
-        <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">Ruleta de la suerte</h1>
-        <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
-          Otorga tiradas a tu equipo (por logros: 3 días sin retraso, mes con 100+ pts, tareas extras…). El empleado tira desde su Dashboard.
-        </p>
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Trabajadores</p>
+            <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">Ruleta de la suerte</h1>
+            <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
+              Otorga tiradas a tu equipo (por logros: 3 días sin retraso, mes con 100+ pts, tareas extras…). El empleado tira desde su Dashboard.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setTestOpen(true)}
+            className="w-fit border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+          >
+            <Sparkles className="mr-1 h-4 w-4" /> Ver test
+          </Button>
+        </div>
       </header>
 
       <ActivaToggle />
       <DarTiradaSection />
       <ResumenSection />
       <CatalogoSection />
+      {testOpen && <RuletaModal modoTest onClose={() => setTestOpen(false)} />}
     </div>
   )
 }
