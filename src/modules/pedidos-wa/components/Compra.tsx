@@ -37,6 +37,21 @@ import {
   type KgPorCajaRow,
 } from '../lib/queries'
 
+// Convierte líneas de formato "* Producto: N unidad" al formato estándar del
+// parser "N unidad Producto" que el regex puede manejar directamente.
+function normalizarInventario(texto: string): string {
+  return texto
+    .split('\n')
+    .map(linea => {
+      const m = linea.trim().match(/^\*\s+(.+?):\s*(.*?)$/)
+      if (!m) return linea
+      const [, producto, resto] = m
+      const restoTrimmed = resto.trim()
+      return restoTrimmed ? `${restoTrimmed} ${producto}` : producto
+    })
+    .join('\n')
+}
+
 export function Compra() {
   const fechaIso = format(getBusinessDate(), 'yyyy-MM-dd')
   const titulo = format(getBusinessDate(), "EEEE d 'de' MMMM", { locale: es })
@@ -71,7 +86,7 @@ export function Compra() {
     }
     setParseando(true)
     try {
-      const r = await parsearPedido(t, 'INVENTARIO')
+      const r = await parsearPedido(normalizarInventario(t), 'INVENTARIO')
       if (r.lineas.length === 0) {
         toast({ title: 'No se detectó nada', description: 'Revisa el formato del texto.', variant: 'error' })
         return

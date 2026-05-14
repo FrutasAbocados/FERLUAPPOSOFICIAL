@@ -3,7 +3,7 @@ import type { Unidad } from '../types'
 // La unidad solo se reconoce cuando va seguida de espacio o fin de línea — así
 // "8 cebollas" no matchea "c" como unidad caja y deja el producto intacto.
 export const PATRON_LINEA =
-  /^(\d+(?:[,.]\d+)?(?:\/\d+)?)\s*((?:c|caja|cajas|peti|petis|kg|saco|sacos|bolsa|bolsas|manojo|manojos|bandeja|bandejas|lecho|lechos|carton|cartones|cart[oó]n|unidad|unidades|u)(?=\s|$))?\s*(.+)$/i
+  /^(\d+(?:[,.]\d+)?(?:\/\d+)?)\s*((?:c|caja|cajas|peti|petis|kg|saco|sacos|bolsa|bolsas|manojo|manojos|bandeja|bandejas|lecho|lechos|carton|cartones|cart[oó]n|unidad|unidades|u|und)(?=\s|$))?\s*(.+)$/i
 
 export const PATRON_SUBSECCION = /^([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]+?):\s*(.*)$/
 
@@ -38,6 +38,7 @@ const UNIDAD_NORMALIZACION: Record<string, Unidad> = {
   unidad:    'unidad',
   unidades:  'unidad',
   u:         'unidad',
+  und:       'unidad',
 }
 
 export function normalizarUnidad(raw: string | null | undefined): Unidad {
