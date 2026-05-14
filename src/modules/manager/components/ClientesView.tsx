@@ -29,20 +29,20 @@ const CLASE_BADGE: Record<ClienteABCClase, string> = {
 }
 
 const PROGRAMA_BADGE: Record<ClientePrograma, string> = {
-  vip: 'bg-[var(--mint-glow)] text-[var(--mint)] ring-1 ring-[oklch(72%_.14_156_/_0.35)]',
-  riesgo: 'bg-[var(--color-warn-soft)] text-[var(--amber)] ring-1 ring-[oklch(80%_.15_75_/_0.45)]',
-  deuda: 'bg-[var(--coral-glow)] text-[var(--coral)] ring-1 ring-[oklch(70%_.18_28_/_0.45)]',
-  potencial: 'bg-[oklch(93%_.06_220_/_0.75)] text-[oklch(39%_.11_224)] ring-1 ring-[oklch(78%_.11_224_/_0.45)] dark:bg-[oklch(30%_.08_224_/_0.42)] dark:text-[oklch(76%_.12_224)]',
-  rentable: 'bg-[var(--color-surface-2)] text-[var(--mint)] ring-1 ring-[var(--color-border)]',
-  estandar: 'bg-[var(--color-surface-2)] text-[var(--color-ink-2)] ring-1 ring-[var(--color-border)]',
+  vip:      'bg-[var(--mint-glow)] text-[var(--mint)] ring-1 ring-[oklch(72%_.14_156_/_0.35)]',
+  a:        'bg-[oklch(28%_.12_235_/_0.22)] text-[oklch(76%_.12_235)] ring-1 ring-[oklch(76%_.12_235_/_0.35)]',
+  b:        'bg-[var(--color-warn-soft)] text-[var(--amber)] ring-1 ring-[oklch(80%_.15_75_/_0.45)]',
+  c:        'bg-[var(--color-surface-2)] text-[var(--color-ink-2)] ring-1 ring-[var(--color-border)]',
+  atencion: 'bg-[var(--coral-glow)] text-[var(--coral)] ring-1 ring-[oklch(70%_.18_28_/_0.45)]',
 }
 
 const PROGRAMAS: Array<{ key: ProgramaFilter; label: string }> = [
   { key: 'all', label: 'Todos' },
+  { key: 'atencion', label: 'Atención' },
   { key: 'vip', label: 'VIP' },
-  { key: 'riesgo', label: 'Riesgo' },
-  { key: 'deuda', label: 'Deuda' },
-  { key: 'potencial', label: 'Potencial' },
+  { key: 'a', label: 'Clase A' },
+  { key: 'b', label: 'Clase B' },
+  { key: 'c', label: 'Clase C' },
 ]
 
 const eur0 = eurosShort
@@ -89,7 +89,7 @@ export function ClientesView({ period }: Props) {
   }, [conSegmento])
 
   const programaCounts = useMemo(() => {
-    const c: Record<ClientePrograma, number> = { vip: 0, riesgo: 0, deuda: 0, potencial: 0, rentable: 0, estandar: 0 }
+    const c: Record<ClientePrograma, number> = { vip: 0, a: 0, b: 0, c: 0, atencion: 0 }
     for (const r of conSegmento) c[r.programa]++
     return c
   }, [conSegmento])

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
-import { type ClientePrograma, type ClienteSegmentacion, segmentarClientes } from '@/shared/lib/clientes-segmentacion'
+import { type ClienteSegmentacion, segmentarClientes } from '@/shared/lib/clientes-segmentacion'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -52,7 +52,7 @@ export type Preferencias = {
 
 export type ClienteProgramaRow = {
   contact_name_canon: string
-  programa_manual: ClientePrograma | null
+  programa_manual: string | null
   estado: 'activo' | 'seguimiento' | 'pausado' | 'cerrado'
   prioridad: 'baja' | 'media' | 'alta'
   proxima_accion: string | null

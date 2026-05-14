@@ -2,11 +2,24 @@ export type ClienteABCClase = 'A' | 'B' | 'C'
 
 export type ClientePrograma =
   | 'vip'
-  | 'riesgo'
-  | 'deuda'
-  | 'potencial'
-  | 'rentable'
-  | 'estandar'
+  | 'a'
+  | 'b'
+  | 'c'
+  | 'atencion'
+
+export type ScoreFactor = {
+  nombre: string
+  descripcion: string
+  puntos: number
+  max: number
+}
+
+export type ScoreBreakdown = {
+  factores: ScoreFactor[]
+  total: number
+  claseRazon: string
+  programaRazon: string
+}
 
 export type ClienteSegmentacion = {
   clase: ClienteABCClase
@@ -14,6 +27,7 @@ export type ClienteSegmentacion = {
   programaLabel: string
   accionSugerida: string
   loyaltyScore: number
+  scoreBreakdown: ScoreBreakdown
 }
 
 export type ClienteSegmentable = {
@@ -33,99 +47,137 @@ type SegmentInput = ClienteSegmentable & {
 }
 
 const PROGRAMA_META: Record<ClientePrograma, Pick<ClienteSegmentacion, 'programaLabel' | 'accionSugerida'>> = {
-  vip: {
-    programaLabel: 'VIP Oro',
-    accionSugerida: 'Mantener trato preferente',
-  },
-  riesgo: {
-    programaLabel: 'A Riesgo',
-    accionSugerida: 'Llamar y revisar ultimo pedido',
-  },
-  deuda: {
-    programaLabel: 'A Deuda',
-    accionSugerida: 'Cuidar relacion y controlar credito',
-  },
-  potencial: {
-    programaLabel: 'B Potencial',
-    accionSugerida: 'Subir ticket con recomendacion',
-  },
-  rentable: {
-    programaLabel: 'C Rentable',
-    accionSugerida: 'Mantener servicio eficiente',
-  },
-  estandar: {
-    programaLabel: 'Estandar',
-    accionSugerida: 'Servicio normal',
-  },
+  vip:      { programaLabel: 'VIP',      accionSugerida: 'Mantener trato preferente y exclusividad' },
+  a:        { programaLabel: 'Clase A',  accionSugerida: 'Fidelizar y aumentar pedido medio' },
+  b:        { programaLabel: 'Clase B',  accionSugerida: 'Subir ticket y frecuencia — llevar a Clase A' },
+  c:        { programaLabel: 'Clase C',  accionSugerida: 'Revisar precios — subir margen o dejar ir' },
+  atencion: { programaLabel: 'Atención', accionSugerida: 'Contactar — lleva tiempo sin pedir' },
 }
 
+// ── Scoring ───────────────────────────────────────────────────────────────────
+// Pesos: margen absoluto 35 · margen% 20 · frecuencia 15 · ticket medio 20 · recencia 10
+// Ticket medio pesa más que frecuencia: muchos pedidos pequeños no deben inflar el score.
+// SIN penalización por pendiente (no distingue vencido vs. a plazo normal)
+
+type ScoreCtx = {
+  maxMargen: number
+  maxDocs: number
+  maxTicketMedio: number
+}
+
+function scoreClienteDetallado(row: SegmentInput, ctx: ScoreCtx): { total: number; factores: ScoreFactor[] } {
+  const margenAbs  = positive(row.margen)
+  const margenPct  = Math.max(row.margen_pct ?? 0, 0)
+  const docs       = positive(row.docs)
+  const ticketMed  = docs > 0 ? positive(row.ventas) / docs : 0
+
+  const f1 = { nombre: 'Margen absoluto', descripcion: 'Margen bruto generado en el periodo',       puntos: Math.round(ratio(margenAbs, ctx.maxMargen) * 35),      max: 35 }
+  const f2 = { nombre: 'Margen %',        descripcion: '% de margen sobre ventas (ref. máx. 35%)',  puntos: Math.round(ratio(margenPct, 35) * 20),                 max: 20 }
+  const f3 = { nombre: 'Frecuencia',      descripcion: 'Número de pedidos (capped: muchos pedidos pequeños no puntúan igual que pocos grandes)', puntos: Math.round(ratio(docs, ctx.maxDocs) * 15), max: 15 }
+  const f4 = { nombre: 'Ticket medio',    descripcion: 'Valor medio por pedido — premia clientes de mayor valor unitario', puntos: Math.round(ratio(ticketMed, ctx.maxTicketMedio) * 20), max: 20 }
+  const f5 = { nombre: 'Recencia',        descripcion: 'Tiempo desde el último pedido',             puntos: Math.round(recencyScore(row.ultima_compra) * 10),      max: 10 }
+
+  const total = clamp(f1.puntos + f2.puntos + f3.puntos + f4.puntos + f5.puntos, 0, 100)
+  return { total, factores: [f1, f2, f3, f4, f5] }
+}
+
+// ── Clasificación ─────────────────────────────────────────────────────────────
+// Sistema 5 categorías: vip / a / b / c / atencion
+// "Atención" sobreescribe cualquier otra categoría cuando el cliente lleva demasiado tiempo sin pedir.
+// VIP = Clase A + score >= 70 (top top: alto margen Y alta calidad). A = Clase A resto. B = Clase B. C = Clase C.
+// No hay "deuda" automática — el pendiente no distingue vencido de plazo normal.
+
+function programaCliente(
+  row: SegmentInput,
+  clase: ClienteABCClase,
+  score: number,
+): { programa: ClientePrograma; razon: string } {
+  const diasSinPedir  = row.dias_sin_pedir ?? daysSince(row.ultima_compra)
+  const cadencia      = row.cadencia_dias ?? null
+  const rompeCadencia = cadencia != null && diasSinPedir != null && diasSinPedir >= Math.max(cadencia + 3, cadencia * 1.6)
+
+  // Umbral de silencio según clase: A=21d, B=35d, C=60d
+  const silencioUmbral = clase === 'A' ? 21 : clase === 'B' ? 35 : 60
+  const demasiadoSilencio = diasSinPedir != null && diasSinPedir >= silencioUmbral
+
+  if (rompeCadencia || demasiadoSilencio) {
+    const motivo = rompeCadencia
+      ? `lleva ${diasSinPedir}d sin pedir (cadencia habitual: ${cadencia}d)`
+      : `lleva ${diasSinPedir}d sin pedir`
+    return { programa: 'atencion', razon: `${motivo} → contactar` }
+  }
+
+  if (clase === 'A' && score >= 70) {
+    return { programa: 'vip', razon: `Clase A con score ${score}/100 — alto margen y alta calidad de pedido` }
+  }
+  if (clase === 'A') {
+    return { programa: 'a', razon: `Clase A con score ${score}/100 — cliente sólido en top 70% margen` }
+  }
+  if (clase === 'B') {
+    return { programa: 'b', razon: `Clase B — potencial para subir a Clase A con más ticket o frecuencia` }
+  }
+  return { programa: 'c', razon: 'Clase C — evaluar si subir precios o dejar ir' }
+}
+
+function claseRazon(clase: ClienteABCClase, propioMargen: number, total: number): string {
+  const pct = total > 0 ? Math.round((propioMargen / total) * 100) : 0
+  const pctStr = pct > 0 ? `${pct}% del margen total` : 'margen negativo o nulo'
+  if (clase === 'A') return `Aporta el ${pctStr} — está en el top 70% → Clase A`
+  if (clase === 'B') return `Aporta el ${pctStr} — está entre el 70–90% → Clase B`
+  return `Aporta el ${pctStr} — fuera del top 90% → Clase C`
+}
+
+// ── segmentarClientes ─────────────────────────────────────────────────────────
+
 export function segmentarClientes<T extends SegmentInput>(rows: T[]): Array<T & ClienteSegmentacion> {
-  const totalMargen = rows.reduce((sum, row) => sum + positive(row.margen), 0)
-  const maxMargen = Math.max(...rows.map(row => positive(row.margen)), 0)
-  const maxDocs = Math.max(...rows.map(row => positive(row.docs)), 0)
-  const maxVentas = Math.max(...rows.map(row => positive(row.ventas)), 0)
+  const totalMargen    = rows.reduce((sum, r) => sum + positive(r.margen), 0)
+  const maxMargen      = Math.max(...rows.map(r => positive(r.margen)), 0)
+  const maxDocs        = Math.max(...rows.map(r => positive(r.docs)), 0)
+  const maxTicketMedio = Math.max(...rows.map(r => r.docs > 0 ? positive(r.ventas) / r.docs : 0), 0)
 
+  // Pareto ABC por margen
   const sorted = [...rows].sort((a, b) => b.margen - a.margen)
-  const clases = new Map<string, ClienteABCClase>()
+  const clases = new Map<string, { clase: ClienteABCClase; propioMargen: number }>()
   let acc = 0
-
   for (const row of sorted) {
-    const pos = totalMargen > 0 ? acc / totalMargen : 1
-    const clase: ClienteABCClase = pos < 0.7 ? 'A' : pos < 0.9 ? 'B' : 'C'
-    clases.set(row.contact_name_canon, positive(row.margen) > 0 ? clase : 'C')
+    const pos: ClienteABCClase = totalMargen > 0
+      ? acc / totalMargen < 0.7 ? 'A' : acc / totalMargen < 0.9 ? 'B' : 'C'
+      : 'C'
+    clases.set(row.contact_name_canon, { clase: positive(row.margen) > 0 ? pos : 'C', propioMargen: positive(row.margen) })
     acc += positive(row.margen)
   }
 
+  const ctx: ScoreCtx = { maxMargen, maxDocs, maxTicketMedio }
+
   return rows.map((row) => {
-    const clase = clases.get(row.contact_name_canon) ?? 'C'
-    const pendiente = getPendiente(row)
-    const score = scoreCliente(row, { maxMargen, maxDocs, maxVentas, pendiente })
-    const programa = programaCliente(row, clase, score, pendiente)
+    const { clase, propioMargen } = clases.get(row.contact_name_canon) ?? { clase: 'C' as ClienteABCClase, propioMargen: 0 }
+    const { total: score, factores } = scoreClienteDetallado(row, ctx)
+    const { programa, razon: programaRazon } = programaCliente(row, clase, score)
+
+    const breakdown: ScoreBreakdown = {
+      factores,
+      total: score,
+      claseRazon: claseRazon(clase, propioMargen, totalMargen),
+      programaRazon,
+    }
+
     return {
       ...row,
       clase,
       programa,
       loyaltyScore: score,
+      scoreBreakdown: breakdown,
       ...PROGRAMA_META[programa],
     }
   })
 }
 
-function programaCliente(row: SegmentInput, clase: ClienteABCClase, score: number, pendiente: number): ClientePrograma {
-  const ventas = positive(row.ventas)
-  const deudaRatio = ventas > 0 ? pendiente / ventas : 0
-  const diasSinComprar = daysSince(row.ultima_compra)
-  const diasSinPedir = row.dias_sin_pedir ?? diasSinComprar
-  const cadencia = row.cadencia_dias ?? null
-  const margenPct = row.margen_pct ?? 0
-  const rompeCadencia = cadencia != null && diasSinPedir != null && diasSinPedir >= Math.max(cadencia + 3, cadencia * 1.6)
-
-  if (clase === 'A' && (pendiente >= 500 || deudaRatio >= 0.25)) return 'deuda'
-  if (clase === 'A' && (rompeCadencia || (diasSinPedir != null && diasSinPedir >= 21))) return 'riesgo'
-  if (clase === 'A') return 'vip'
-  if (clase === 'B' && (score >= 58 || margenPct >= 22)) return 'potencial'
-  if (clase === 'C' && row.margen > 0 && pendiente <= 0 && margenPct >= 22) return 'rentable'
-  return 'estandar'
-}
-
-function scoreCliente(
-  row: SegmentInput,
-  ctx: { maxMargen: number; maxDocs: number; maxVentas: number; pendiente: number },
-): number {
-  const margenScore = ratio(positive(row.margen), ctx.maxMargen) * 35
-  const docsScore = ratio(positive(row.docs), ctx.maxDocs) * 18
-  const ventasScore = ratio(positive(row.ventas), ctx.maxVentas) * 12
-  const margenPctScore = ratio(Math.max(row.margen_pct ?? 0, 0), 35) * 15
-  const recenciaScore = recencyScore(row.ultima_compra) * 12
-  const deudaPenalty = ratio(ctx.pendiente, Math.max(positive(row.ventas), 1)) * 22
-
-  return clamp(Math.round(margenScore + docsScore + ventasScore + margenPctScore + recenciaScore - deudaPenalty), 0, 100)
-}
+// ── Utils ─────────────────────────────────────────────────────────────────────
 
 function recencyScore(date: string | null): number {
   const days = daysSince(date)
   if (days == null) return 0
-  if (days <= 7) return 1
+  if (days <= 7)  return 1
   if (days <= 14) return 0.85
   if (days <= 21) return 0.65
   if (days <= 35) return 0.4
@@ -138,10 +190,6 @@ function daysSince(date: string | null): number | null {
   const ts = new Date(`${date}T00:00:00`).getTime()
   if (Number.isNaN(ts)) return null
   return Math.max(0, Math.floor((Date.now() - ts) / 86_400_000))
-}
-
-function getPendiente(row: SegmentInput): number {
-  return positive(row.pendiente_cobro ?? row.pendiente ?? 0)
 }
 
 function ratio(value: number, max: number): number {

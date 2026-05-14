@@ -91,7 +91,7 @@ export interface PedidoEsperado {
 
 export interface ClienteProgramaPendiente {
   contact_name_canon: string
-  programa_manual: 'vip' | 'riesgo' | 'deuda' | 'potencial' | 'rentable' | 'estandar' | null
+  programa_manual: string | null
   estado: 'activo' | 'seguimiento' | 'pausado' | 'cerrado'
   prioridad: 'baja' | 'media' | 'alta'
   proxima_accion: string | null
@@ -274,7 +274,7 @@ export function useClientesProgramaPendientes(opts: { enabled?: boolean } = {}) 
       return ((data ?? []) as ClienteProgramaPendiente[]).filter((row) => {
         if (row.estado === 'pausado') return false
         if (row.proxima_accion_fecha && row.proxima_accion_fecha <= today) return true
-        return row.programa_manual === 'riesgo' || row.programa_manual === 'deuda'
+        return row.programa_manual === 'atencion'
       })
     },
     staleTime: 60_000,

@@ -210,7 +210,7 @@ function HomeAdmin() {
             subtitulo="acciones pendientes del programa"
             Icon={CalendarClock}
             severidad={
-              (programaQ.data ?? []).some(c => c.prioridad === 'alta' || c.programa_manual === 'deuda')
+              (programaQ.data ?? []).some(c => c.prioridad === 'alta' || c.programa_manual === 'atencion')
                 ? 'critica'
                 : (programaQ.data?.length ?? 0) > 0 ? 'aviso' : 'ok'
             }
@@ -446,13 +446,12 @@ function RiesgoFugaList({ rows, onDismiss }: { rows?: ClienteRiesgoFuga[]; onDis
   )
 }
 
-const PROGRAMA_LABEL: Record<NonNullable<ClienteProgramaPendiente['programa_manual']>, string> = {
-  vip: 'VIP',
-  riesgo: 'riesgo',
-  deuda: 'deuda',
-  potencial: 'potencial',
-  rentable: 'rentable',
-  estandar: 'estandar',
+const PROGRAMA_LABEL: Record<string, string> = {
+  vip:      'VIP',
+  a:        'Clase A',
+  b:        'Clase B',
+  c:        'Clase C',
+  atencion: 'Atención',
 }
 
 function ProgramaPendientesList({ rows }: { rows?: ClienteProgramaPendiente[] }) {

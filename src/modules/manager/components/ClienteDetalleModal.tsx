@@ -90,6 +90,7 @@ export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
                 programaLabel: cliente.programaLabel,
                 accionSugerida: cliente.accionSugerida,
                 loyaltyScore: cliente.loyaltyScore,
+                scoreBreakdown: cliente.scoreBreakdown,
               }}
             />
           </section>

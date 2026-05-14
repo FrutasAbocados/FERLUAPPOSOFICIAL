@@ -50,10 +50,11 @@ const eur = eurosShort
 
 const PROGRAMAS: Array<{ key: ProgramaFilter; label: string }> = [
   { key: null, label: 'Todos' },
+  { key: 'atencion', label: 'Atención' },
   { key: 'vip', label: 'VIP' },
-  { key: 'riesgo', label: 'Riesgo' },
-  { key: 'deuda', label: 'Deuda' },
-  { key: 'potencial', label: 'Potencial' },
+  { key: 'a', label: 'Clase A' },
+  { key: 'b', label: 'Clase B' },
+  { key: 'c', label: 'Clase C' },
 ]
 
 export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
@@ -94,7 +95,7 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
   }, [clientes, q, filtroABC, filtroPrograma])
 
   const programaCounts = useMemo(() => {
-    const c: Record<ClientePrograma, number> = { vip: 0, riesgo: 0, deuda: 0, potencial: 0, rentable: 0, estandar: 0 }
+    const c: Record<ClientePrograma, number> = { vip: 0, a: 0, b: 0, c: 0, atencion: 0 }
     for (const row of clientes) c[row.programa]++
     return c
   }, [clientes])
@@ -441,9 +442,8 @@ function abcBadgeActive(c: 'A' | 'B' | 'C'): string {
 
 function programaBadge(p: ClientePrograma): string {
   if (p === 'vip') return 'bg-[var(--mint-glow)] text-[var(--mint)]'
-  if (p === 'riesgo') return 'bg-[var(--color-warn-soft)] text-[var(--amber)]'
-  if (p === 'deuda') return 'bg-[var(--coral-glow)] text-[var(--coral)]'
-  if (p === 'potencial') return 'bg-[oklch(93%_.06_220_/_0.75)] text-[oklch(39%_.11_224)] dark:bg-[oklch(30%_.08_224_/_0.42)] dark:text-[oklch(76%_.12_224)]'
-  if (p === 'rentable') return 'bg-[var(--color-surface-2)] text-[var(--mint)]'
+  if (p === 'a') return 'bg-[oklch(28%_.12_235_/_0.22)] text-[oklch(76%_.12_235)]'
+  if (p === 'b') return 'bg-[var(--color-warn-soft)] text-[var(--amber)]'
+  if (p === 'atencion') return 'bg-[var(--coral-glow)] text-[var(--coral)]'
   return 'bg-[var(--color-surface-2)] text-[var(--color-ink-2)]'
 }
