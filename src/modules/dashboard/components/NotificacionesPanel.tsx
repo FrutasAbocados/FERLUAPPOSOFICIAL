@@ -143,11 +143,11 @@ function NotifItem({ n, onClose }: { n: Notificacion; onClose: () => void }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <p className="truncate text-sm font-medium text-[var(--color-ink)]">{n.titulo}</p>
+          <p className="min-w-0 text-sm font-medium leading-snug text-[var(--color-ink)]">{n.titulo}</p>
           <span className="shrink-0 text-[10px] uppercase tracking-wide text-[var(--color-ink-3)]">{cuando}</span>
         </div>
         {n.cuerpo && (
-      <p className="mt-0.5 line-clamp-2 text-xs text-[var(--ink-dim)]">{n.cuerpo}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-[var(--ink-dim)]">{n.cuerpo}</p>
         )}
       </div>
       <button
