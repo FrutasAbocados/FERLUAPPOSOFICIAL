@@ -10,8 +10,10 @@ import {
   Loader2,
   MoreVertical,
   Package,
+  Plus,
   Printer,
   RotateCcw,
+  Trash2,
   Truck,
   Undo2,
 } from 'lucide-react'
@@ -48,6 +50,15 @@ import { imprimirHojaRuta } from '../lib/exportacion/print'
 import { useActualizarPedido, usePedidosDelDia, useReasignarPedido, useReordenarRuta } from '../lib/queries'
 
 const REPARTIDOR_ORDER: Repartidor[] = ['TORRES', 'GERMAN', 'RAUL', 'ALEX']
+
+type ManualRouteLine = {
+  id: string
+  cliente: string
+  horario: string
+  factura: string
+  pedido: string
+  faltas: string
+}
 
 // Paletas por repartidor: header saturado + fondo de columna sutil + acentos.
 const PALETA: Record<Repartidor, {
@@ -396,15 +407,26 @@ function TableSection({
   section,
   fecha,
 }: {
-  section: { label: string; repartidor: Repartidor; pedidos: Pedido[] }
+  section: { key?: string; label: string; repartidor: Repartidor; pedidos: Pedido[] }
   fecha: string
 }) {
   const storageKey = `abocados:hoja-ruta:vehiculo:${fecha}:${section.repartidor}`
+  const manualStorageKey = `abocados:hoja-ruta:manual:${fecha}:${section.key ?? section.repartidor}`
   const [vehiculo, setVehiculo] = useState('')
+  const [manuales, setManuales] = useState<ManualRouteLine[]>([])
 
   useEffect(() => {
     setVehiculo(window.localStorage.getItem(storageKey) ?? '')
   }, [storageKey])
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(manualStorageKey)
+      setManuales(raw ? JSON.parse(raw) as ManualRouteLine[] : [])
+    } catch {
+      setManuales([])
+    }
+  }, [manualStorageKey])
 
   const guardarVehiculo = (valor: string) => {
     setVehiculo(valor)
@@ -413,6 +435,39 @@ function TableSection({
     } else {
       window.localStorage.removeItem(storageKey)
     }
+  }
+
+  const guardarManuales = (next: ManualRouteLine[]) => {
+    setManuales(next)
+    if (next.length > 0) {
+      window.localStorage.setItem(manualStorageKey, JSON.stringify(next))
+    } else {
+      window.localStorage.removeItem(manualStorageKey)
+    }
+  }
+
+  const añadirLinea = () => {
+    guardarManuales([
+      ...manuales,
+      {
+        id: crearIdManual(),
+        cliente: '',
+        horario: '',
+        factura: '',
+        pedido: '',
+        faltas: '',
+      },
+    ])
+  }
+
+  const actualizarLinea = (id: string, patch: Partial<ManualRouteLine>) => {
+    guardarManuales(manuales.map((linea) => (
+      linea.id === id ? { ...linea, ...patch } : linea
+    )))
+  }
+
+  const eliminarLinea = (id: string) => {
+    guardarManuales(manuales.filter((linea) => linea.id !== id))
   }
 
   return (
@@ -433,12 +488,96 @@ function TableSection({
             placeholder="Vehículo"
           />
         </td>
-        <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5" />
+        <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5 text-center">
+          <Button size="sm" variant="secondary" onClick={añadirLinea} className="h-7 text-xs">
+            <Plus className="h-3.5 w-3.5" /> Línea
+          </Button>
+        </td>
       </tr>
       {section.pedidos.map((pedido) => (
         <HojaRutaTableRow key={pedido.id} pedido={pedido} fecha={fecha} repartidor={section.repartidor} />
       ))}
+      {manuales.map((linea) => (
+        <ManualRouteTableRow
+          key={linea.id}
+          linea={linea}
+          repartidor={section.repartidor}
+          onChange={(patch) => actualizarLinea(linea.id, patch)}
+          onDelete={() => eliminarLinea(linea.id)}
+        />
+      ))}
     </>
+  )
+}
+
+function ManualRouteTableRow({
+  linea,
+  repartidor,
+  onChange,
+  onDelete,
+}: {
+  linea: ManualRouteLine
+  repartidor: Repartidor
+  onChange: (patch: Partial<ManualRouteLine>) => void
+  onDelete: () => void
+}) {
+  return (
+    <tr className="align-middle bg-[oklch(95%_.04_85)] dark:bg-[oklch(24%_.05_85_/_0.45)]">
+      <td className="border border-black/50 px-2 py-2 text-center">
+        <input
+          value={linea.cliente}
+          onChange={(e) => onChange({ cliente: e.target.value })}
+          className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-center font-display text-base font-bold uppercase text-[var(--ink)] focus:border-[var(--mint)] focus:outline-none"
+          placeholder="Cliente"
+        />
+      </td>
+      <td className="border border-black/50 px-2 py-2 text-center">
+        <input
+          value={linea.horario}
+          onChange={(e) => onChange({ horario: e.target.value })}
+          className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-center font-display text-base font-bold tabular-nums text-[var(--ink)] focus:border-[var(--mint)] focus:outline-none"
+          placeholder="—:—"
+          inputMode="numeric"
+        />
+      </td>
+      <td className="border border-black/50 px-2 py-2 text-center">
+        <input
+          value={linea.factura}
+          onChange={(e) => onChange({ factura: e.target.value })}
+          className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-center font-display text-base font-bold uppercase text-[var(--ink)] focus:border-[var(--mint)] focus:outline-none"
+          placeholder="Factura"
+        />
+      </td>
+      <td className="border border-black/50 px-2 py-2">
+        <textarea
+          value={linea.pedido}
+          onChange={(e) => onChange({ pedido: e.target.value })}
+          rows={2}
+          className="min-h-[46px] w-full resize-y rounded border border-transparent bg-transparent px-1 py-1 text-center text-[15px] font-semibold leading-snug text-[var(--ink)] focus:border-[var(--mint)] focus:outline-none"
+          placeholder="Pedido manual..."
+        />
+      </td>
+      <td className="border border-black/50 px-2 py-2">
+        <textarea
+          value={linea.faltas}
+          onChange={(e) => onChange({ faltas: e.target.value })}
+          rows={2}
+          className="min-h-[42px] w-full resize-y rounded border border-transparent bg-transparent px-1 py-1 text-center text-sm leading-snug text-[var(--ink)] focus:border-[var(--mint)] focus:outline-none"
+          placeholder="Faltas..."
+        />
+      </td>
+      <td className="border border-black/50 px-2 py-2" />
+      <td className="border border-black/50 px-2 py-2 text-center">
+        <div className="flex items-center justify-center gap-2">
+          <span className="font-display text-base font-bold uppercase leading-tight text-[var(--ink)]">
+            {REPARTIDOR_LABEL[repartidor]}
+          </span>
+          <Button size="icon" variant="ghost" onClick={onDelete} className="h-7 w-7 text-[var(--coral)]">
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </td>
+    </tr>
   )
 }
 
@@ -529,6 +668,7 @@ function HojaRutaTableRow({
           placeholder="Faltas…"
         />
       </td>
+      <td className="border border-black/50 px-2 py-2" />
       <td className="border border-black/50 px-2 py-2 text-center font-display text-base font-bold uppercase leading-tight text-[var(--ink)]">
         {REPARTIDOR_LABEL[repartidor]}
       </td>
@@ -1040,6 +1180,13 @@ function resumenPedidoPlano(p: Pedido): string {
     partes.push(`${sec}${qty} ${unit} ${l.producto_normalizado}${nota}${gratis}`)
   }
   return partes.join(' / ')
+}
+
+function crearIdManual(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
 // Acepta '8', '8:30', '08:30', '8.30', '0830', '830' → 'HH:MM'. null si no parsea.
