@@ -6,6 +6,8 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { toast } from '@/shared/lib/toast'
 import { eurosOrDash, eurosShortOrDash } from '@/shared/lib/format'
+import type { ClienteSegmentacion } from '@/shared/lib/clientes-segmentacion'
+import { ProgramaFidelizacionCard } from '@/modules/clientes/components/ProgramaFidelizacionCard'
 import type { Period } from '../lib/period'
 import type { ClienteListItem } from '../lib/types'
 import {
@@ -19,7 +21,7 @@ const fmt = (d: string | null) =>
   d == null ? '—' : format(parseISO(d), 'd LLL', { locale: es })
 
 interface Props {
-  cliente: ClienteListItem
+  cliente: ClienteListItem & Partial<ClienteSegmentacion>
   period: Period
   onClose: () => void
 }
@@ -78,6 +80,20 @@ export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
           <Tile label="Pendiente" value={eur0(cliente.pendiente_cobro)} tone="warning" />
           <Tile label="Última" value={fmt(cliente.ultima_compra)} />
         </div>
+
+        {cliente.programa && cliente.programaLabel && cliente.accionSugerida && cliente.loyaltyScore != null && (
+          <section className="border-b border-[var(--color-border)] px-5 py-4">
+            <ProgramaFidelizacionCard
+              cliente={{
+                contact_name_canon: cliente.contact_name_canon,
+                programa: cliente.programa,
+                programaLabel: cliente.programaLabel,
+                accionSugerida: cliente.accionSugerida,
+                loyaltyScore: cliente.loyaltyScore,
+              }}
+            />
+          </section>
+        )}
 
         {/* Aliases */}
         <section className="border-b border-[var(--color-border)] px-5 py-4">

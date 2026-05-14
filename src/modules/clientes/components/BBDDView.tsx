@@ -5,13 +5,16 @@ import { es } from 'date-fns/locale'
 import { Input } from '@/shared/components/ui/input'
 import { euros, eurosShort } from '@/shared/lib/format'
 import { cn } from '@/shared/lib/utils'
+import { type ClientePrograma, segmentarClientes } from '@/shared/lib/clientes-segmentacion'
 import {
   type ClienteABC,
   useClienteFacturas,
   useClienteProductos,
   useClientesBBDD,
+  useClientesSeguimiento,
 } from '../lib/hooks'
 import { PreferenciasCard } from './PreferenciasCard'
+import { ProgramaFidelizacionCard } from './ProgramaFidelizacionCard'
 import { NotasCard } from './NotasCard'
 import { AliasesCard } from './AliasesCard'
 import { EvolucionChart } from './EvolucionChart'
@@ -32,6 +35,7 @@ const PERIODOS = [
 ] as const
 
 type Periodo = typeof PERIODOS[number]['key']
+type ProgramaFilter = ClientePrograma | null
 
 function rangoFor(p: Periodo): { from: string; to: string } {
   const today = new Date()
@@ -43,10 +47,19 @@ function rangoFor(p: Periodo): { from: string; to: string } {
 
 const eur = eurosShort
 
+const PROGRAMAS: Array<{ key: ProgramaFilter; label: string }> = [
+  { key: null, label: 'Todos' },
+  { key: 'vip', label: 'VIP' },
+  { key: 'riesgo', label: 'Riesgo' },
+  { key: 'deuda', label: 'Deuda' },
+  { key: 'potencial', label: 'Potencial' },
+]
+
 export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
   const [periodo, setPeriodo] = useState<Periodo>('3m')
   const [q, setQ] = useState('')
   const [filtroABC, setFiltroABC] = useState<'A' | 'B' | 'C' | null>(null)
+  const [filtroPrograma, setFiltroPrograma] = useState<ProgramaFilter>(null)
   const [selectedInt, setSelectedInt] = useState<string | null>(null)
 
   const selected = selectedExt ?? selectedInt
@@ -56,14 +69,34 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
   }
 
   const range = rangoFor(periodo)
-  const { data: clientes = [], isLoading } = useClientesBBDD(range.from, range.to)
+  const { data: clientesBase = [], isLoading, error } = useClientesBBDD(range.from, range.to)
+  const { data: seguimiento = [] } = useClientesSeguimiento(7, 90)
+
+  const clientes = useMemo(() => {
+    const seg = new Map(seguimiento.map((s) => [s.contact_name_canon, s]))
+    return segmentarClientes(clientesBase.map((c) => {
+      const s = seg.get(c.contact_name_canon)
+      return {
+        ...c,
+        dias_sin_pedir: s?.dias_sin_pedir ?? null,
+        cadencia_dias: s?.cadencia_dias ?? null,
+      }
+    })) as ClienteABC[]
+  }, [clientesBase, seguimiento])
 
   const filtrados = useMemo(() => {
     let rows = clientes
     if (q.trim()) rows = rows.filter(c => c.contact_name_canon.toLowerCase().includes(q.trim().toLowerCase()))
     if (filtroABC) rows = rows.filter(c => c.clase === filtroABC)
+    if (filtroPrograma) rows = rows.filter(c => c.programa === filtroPrograma)
     return rows
-  }, [clientes, q, filtroABC])
+  }, [clientes, q, filtroABC, filtroPrograma])
+
+  const programaCounts = useMemo(() => {
+    const c: Record<ClientePrograma, number> = { vip: 0, riesgo: 0, deuda: 0, potencial: 0, rentable: 0, estandar: 0 }
+    for (const row of clientes) c[row.programa]++
+    return c
+  }, [clientes])
 
   const clienteSel = selected ? clientes.find(c => c.contact_name_canon === selected) : null
 
@@ -109,6 +142,24 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
             ))}
             <span className="ml-auto text-[10px] text-[var(--color-ink-3)] tabular-nums">{filtrados.length} clientes</span>
           </div>
+          <div className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 text-xs no-scrollbar">
+            <span className="shrink-0 text-[var(--color-ink-3)]">Programa:</span>
+            {PROGRAMAS.map((p) => (
+              <button
+                key={p.key ?? 'all'}
+                type="button"
+                onClick={() => setFiltroPrograma(p.key)}
+                className={cn(
+                  'shrink-0 rounded-md px-2 py-0.5 font-semibold',
+                  filtroPrograma === p.key
+                    ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]'
+                    : 'text-[var(--color-ink-2)] hover:bg-[rgba(255,255,255,.035)]',
+                )}
+              >
+                {p.label}{p.key ? ` · ${programaCounts[p.key]}` : ''}
+              </button>
+            ))}
+          </div>
           <div className="flex gap-1">
             {PERIODOS.map(p => (
               <button
@@ -145,6 +196,7 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
             </div>
           )}
           {!isLoading && filtrados.length === 0 && <div className="px-3 py-6 text-center text-sm text-[var(--color-ink-3)]">Sin resultados</div>}
+          {error && <div className="px-3 py-3 text-xs text-[var(--coral)]">{error instanceof Error ? error.message : 'Error cargando clientes'}</div>}
           {filtrados.map(c => (
             <button
               key={c.contact_name_canon}
@@ -162,6 +214,12 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
                 <div className="truncate text-[var(--color-ink)]">{c.contact_name_canon}</div>
                 <div className="mono text-[10px] text-[var(--color-ink-3)] tabular-nums">
                   {c.docs}p · {eur(c.margen)} margen{c.pendiente > 0 ? ` · ${eur(c.pendiente)} pdte` : ''}
+                </div>
+                <div className="mt-1 flex items-center gap-1">
+                  <span className={cn('inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold', programaBadge(c.programa))}>
+                    {c.programaLabel}
+                  </span>
+                  <span className="truncate text-[9px] text-[var(--color-ink-3)]">{c.accionSugerida}</span>
                 </div>
               </div>
               <span className="mono text-xs font-medium tabular-nums text-[var(--color-ink-2)]">{eur(c.ventas)}</span>
@@ -207,8 +265,12 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
             <span className={cn('inline-flex h-6 w-6 items-center justify-center rounded text-xs font-bold', abcBadge(cliente.clase))}>
               {cliente.clase}
             </span>
+            <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-semibold', programaBadge(cliente.programa))}>
+              {cliente.programaLabel}
+            </span>
             <h2 className="text-lg font-semibold text-[var(--color-ink)] md:text-xl">{cliente.contact_name_canon}</h2>
           </div>
+          <div className="mt-1 text-xs text-[var(--color-ink-3)]">{cliente.accionSugerida} · Score {cliente.loyaltyScore}/100</div>
           {cliente.num_aliases > 0 && (
             <div className="mt-0.5 text-[11px] text-[var(--color-ink-3)]">{cliente.num_aliases} alias{cliente.num_aliases === 1 ? '' : 'es'} unificado{cliente.num_aliases === 1 ? '' : 's'}</div>
           )}
@@ -303,6 +365,7 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
       <MargenesDetalle name={cliente.contact_name_canon} from={from} to={to} />
 
       {/* Preferencias operativas (editable) */}
+      <ProgramaFidelizacionCard cliente={cliente} />
       <PreferenciasCard name={cliente.contact_name_canon} />
 
       {/* Notas internas + Aliases */}
@@ -341,4 +404,13 @@ function abcBadgeActive(c: 'A' | 'B' | 'C'): string {
   if (c === 'A') return 'bg-[var(--mint)] text-[#06100d]'
   if (c === 'B') return 'bg-[var(--amber)] text-[#120d05]'
   return 'bg-[var(--color-ink-2)] text-[#06100d]'
+}
+
+function programaBadge(p: ClientePrograma): string {
+  if (p === 'vip') return 'bg-[var(--mint-glow)] text-[var(--mint)]'
+  if (p === 'riesgo') return 'bg-[var(--color-warn-soft)] text-[var(--amber)]'
+  if (p === 'deuda') return 'bg-[var(--coral-glow)] text-[var(--coral)]'
+  if (p === 'potencial') return 'bg-[oklch(93%_.06_220_/_0.75)] text-[oklch(39%_.11_224)] dark:bg-[oklch(30%_.08_224_/_0.42)] dark:text-[oklch(76%_.12_224)]'
+  if (p === 'rentable') return 'bg-[var(--color-surface-2)] text-[var(--mint)]'
+  return 'bg-[var(--color-surface-2)] text-[var(--color-ink-2)]'
 }

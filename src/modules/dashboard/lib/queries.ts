@@ -89,6 +89,16 @@ export interface PedidoEsperado {
   prioridad: 'urgente' | 'pronto' | 'esta_semana'
 }
 
+export interface ClienteProgramaPendiente {
+  contact_name_canon: string
+  programa_manual: 'vip' | 'riesgo' | 'deuda' | 'potencial' | 'rentable' | 'estandar' | null
+  estado: 'activo' | 'seguimiento' | 'pausado' | 'cerrado'
+  prioridad: 'baja' | 'media' | 'alta'
+  proxima_accion: string | null
+  proxima_accion_fecha: string | null
+  ultimo_contacto_at: string | null
+}
+
 const num = (v: unknown): number => v == null ? 0 : Number(v)
 const numN = (v: unknown): number | null => v == null ? null : Number(v)
 
@@ -245,6 +255,29 @@ export function usePedidosEsperados(opts: { enabled?: boolean } = {}) {
         prioridad:          (r.prioridad as PedidoEsperado['prioridad']) ?? 'esta_semana',
       }))
     },
+  })
+}
+
+export function useClientesProgramaPendientes(opts: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: ['dashboard', 'clientesProgramaPendientes'] as const,
+    enabled: opts.enabled ?? true,
+    queryFn: async (): Promise<ClienteProgramaPendiente[]> => {
+      const today = new Date().toISOString().slice(0, 10)
+      const { data, error } = await supabase
+        .from('clientes_programa')
+        .select('contact_name_canon, programa_manual, estado, prioridad, proxima_accion, proxima_accion_fecha, ultimo_contacto_at')
+        .neq('estado', 'cerrado')
+        .order('proxima_accion_fecha', { ascending: true, nullsFirst: false })
+        .order('prioridad', { ascending: false })
+      if (error) throw error
+      return ((data ?? []) as ClienteProgramaPendiente[]).filter((row) => {
+        if (row.estado === 'pausado') return false
+        if (row.proxima_accion_fecha && row.proxima_accion_fecha <= today) return true
+        return row.programa_manual === 'riesgo' || row.programa_manual === 'deuda'
+      })
+    },
+    staleTime: 60_000,
   })
 }
 

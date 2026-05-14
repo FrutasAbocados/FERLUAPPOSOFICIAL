@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
+import { type ClientePrograma, type ClienteSegmentacion, segmentarClientes } from '@/shared/lib/clientes-segmentacion'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -14,7 +15,7 @@ export type ClienteFila = {
   num_aliases: number
 }
 
-export type ClienteABC = ClienteFila & { clase: 'A' | 'B' | 'C' }
+export type ClienteABC = ClienteFila & ClienteSegmentacion
 
 export type ClienteFactura = {
   id: string
@@ -49,6 +50,20 @@ export type Preferencias = {
   updated_at: string
 }
 
+export type ClienteProgramaRow = {
+  contact_name_canon: string
+  programa_manual: ClientePrograma | null
+  estado: 'activo' | 'seguimiento' | 'pausado' | 'cerrado'
+  prioridad: 'baja' | 'media' | 'alta'
+  proxima_accion: string | null
+  proxima_accion_fecha: string | null
+  ultimo_contacto_at: string | null
+  ultimo_contacto_tipo: 'llamada' | 'whatsapp' | 'visita' | 'nota' | null
+  responsable: string | null
+  notas: string | null
+  updated_at: string
+}
+
 export type NotaInterna = {
   id: string
   contact_name_canon: string
@@ -68,7 +83,7 @@ export type SeguimientoFila = {
   estado: 'pidiendo' | 'sin_pedir' | 'pausa'
 }
 
-// ── BBDD lista (con ABC frontend Pareto 70/90) ───────────────────────────────
+// ── BBDD lista ───────────────────────────────────────────────────────────────
 
 export async function fetchClientesBBDD(from: string, to: string): Promise<ClienteABC[]> {
   const { data, error } = await supabase.rpc('manager_clientes_lista', { p_from: from, p_to: to })
@@ -79,19 +94,11 @@ export async function fetchClientesBBDD(from: string, to: string): Promise<Clien
     ventas:             Number(r.ventas ?? 0),
     margen:             Number(r.margen ?? 0),
     margen_pct:         r.margen_pct == null ? null : Number(r.margen_pct),
-    pendiente:          Number(r.pendiente ?? 0),
+    pendiente:          Number(r.pendiente_cobro ?? r.pendiente ?? 0),
     ultima_compra:      r.ultima_compra,
     num_aliases:        Number(r.num_aliases ?? 0),
   }))
-  const totalMargen = rows.reduce((s, r) => s + Math.max(r.margen, 0), 0)
-  const sorted = [...rows].sort((a, b) => b.margen - a.margen)
-  let acc = 0
-  return sorted.map((r): ClienteABC => {
-    const pos = totalMargen > 0 ? acc / totalMargen : 0
-    acc += Math.max(r.margen, 0)
-    const clase: 'A' | 'B' | 'C' = pos < 0.7 ? 'A' : pos < 0.9 ? 'B' : 'C'
-    return { ...r, clase }
-  })
+  return segmentarClientes(rows).sort((a, b) => b.margen - a.margen)
 }
 
 export function clientesBBDDQueryKey(from: string, to: string) {
@@ -190,6 +197,74 @@ export function useSetPreferencias() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ['clientes', 'prefs', vars.contact_name_canon] })
       qc.invalidateQueries({ queryKey: ['clientes', 'seguimiento'] })
+    },
+  })
+}
+
+// ── Programa fidelizacion ───────────────────────────────────────────────────
+
+export function useClientePrograma(name: string | null) {
+  return useQuery({
+    queryKey: ['clientes', 'programa', name] as const,
+    enabled: !!name,
+    queryFn: async (): Promise<ClienteProgramaRow | null> => {
+      if (!name) return null
+      const { data, error } = await supabase
+        .from('clientes_programa')
+        .select('contact_name_canon, programa_manual, estado, prioridad, proxima_accion, proxima_accion_fecha, ultimo_contacto_at, ultimo_contacto_tipo, responsable, notas, updated_at')
+        .eq('contact_name_canon', name)
+        .maybeSingle()
+      if (error) throw error
+      return (data ?? null) as ClienteProgramaRow | null
+    },
+  })
+}
+
+export function useSetClientePrograma() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { contact_name_canon: string; patch: Partial<Omit<ClienteProgramaRow, 'contact_name_canon' | 'updated_at'>> }) => {
+      const { error } = await supabase
+        .from('clientes_programa')
+        .upsert({
+          contact_name_canon: input.contact_name_canon,
+          ...input.patch,
+        }, { onConflict: 'contact_name_canon' })
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['clientes', 'programa', vars.contact_name_canon] })
+      qc.invalidateQueries({ queryKey: ['clientes', 'bbdd'] })
+      qc.invalidateQueries({ queryKey: ['manager', 'clientes'] })
+    },
+  })
+}
+
+export function useMarcarClienteContacto() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      contact_name_canon: string
+      tipo: NonNullable<ClienteProgramaRow['ultimo_contacto_tipo']>
+      proxima_accion?: string | null
+      proxima_accion_fecha?: string | null
+    }) => {
+      const { error } = await supabase
+        .from('clientes_programa')
+        .upsert({
+          contact_name_canon: input.contact_name_canon,
+          estado: 'seguimiento',
+          ultimo_contacto_at: new Date().toISOString(),
+          ultimo_contacto_tipo: input.tipo,
+          proxima_accion: input.proxima_accion ?? null,
+          proxima_accion_fecha: input.proxima_accion_fecha ?? null,
+        }, { onConflict: 'contact_name_canon' })
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['clientes', 'programa', vars.contact_name_canon] })
+      qc.invalidateQueries({ queryKey: ['clientes', 'bbdd'] })
+      qc.invalidateQueries({ queryKey: ['manager', 'clientes'] })
     },
   })
 }

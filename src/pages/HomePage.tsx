@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  AlertTriangle, BarChart3, Banknote, Bot, CalendarClock,
+  BarChart3, Banknote, Bot, CalendarClock,
   CheckSquare, CalendarDays, EyeOff, HandCoins, Package, RotateCcw, TrendingUp, UserMinus, Users, Wallet, X,
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
@@ -19,9 +19,9 @@ import { NotificacionesPanel } from '@/modules/dashboard/components/Notificacion
 import { PvpSugeridoCard } from '@/modules/dashboard/components/PvpSugeridoCard'
 import { FichajeCard } from '@/modules/trabajadores/components/FichajeCard'
 import {
-  useClientesRiesgoFuga, useCostesSubiendo,
+  useClientesProgramaPendientes, useClientesRiesgoFuga, useCostesSubiendo,
   usePedidosEsperados, useProductosAnomalos, useTopDeudoresCobros,
-  type DeudorCobros, type PedidoEsperado, type ClienteRiesgoFuga, type CosteSubiendo, type ProductoAnomalo,
+  type ClienteProgramaPendiente, type DeudorCobros, type PedidoEsperado, type ClienteRiesgoFuga, type CosteSubiendo, type ProductoAnomalo,
 } from '@/modules/dashboard/lib/queries'
 import {
   type AlertType,
@@ -68,6 +68,7 @@ function HomeAdmin() {
   const anomalosQ  = useProductosAnomalos(30, { enabled: isAdmin })
   const riesgoFugaQ = useClientesRiesgoFuga({ enabled: isAdmin })
   const costesQ    = useCostesSubiendo(14, 15, { enabled: isAdmin })
+  const programaQ  = useClientesProgramaPendientes({ enabled: isAdmin })
 
   const dismissed = useAlertasDescartadas()
   const descartar = useDescartarAlerta()
@@ -204,6 +205,23 @@ function HomeAdmin() {
             full={<RiesgoFugaList rows={riesgoFuga.data ?? []} onDismiss={(id, label) => handleDismiss('riesgo_fuga', id, label)} />}
           />
 
+          <AlertCard
+            titulo="Fidelización hoy"
+            subtitulo="acciones pendientes del programa"
+            Icon={CalendarClock}
+            severidad={
+              (programaQ.data ?? []).some(c => c.prioridad === 'alta' || c.programa_manual === 'deuda')
+                ? 'critica'
+                : (programaQ.data?.length ?? 0) > 0 ? 'aviso' : 'ok'
+            }
+            count={programaQ.data?.length ?? 0}
+            loading={programaQ.isLoading}
+            to="/clientes"
+            empty="Sin acciones comerciales pendientes"
+            preview={<ProgramaPendientesList rows={programaQ.data?.slice(0, 6)} />}
+            full={<ProgramaPendientesList rows={programaQ.data ?? []} />}
+          />
+
           {/* Costes subiendo */}
           <AlertCard
             titulo="Costes subiendo"
@@ -216,17 +234,6 @@ function HomeAdmin() {
             empty="Sin subidas relevantes"
             preview={<CostesList rows={costes.data?.slice(0, 6)} onDismiss={(id, label) => handleDismiss('coste_subiendo', id, label)} />}
             full={<CostesList rows={costes.data ?? []} onDismiss={(id, label) => handleDismiss('coste_subiendo', id, label)} />}
-          />
-
-          {/* Otra placeholder para llenar grid */}
-          <AlertCard
-            titulo="Atención general"
-            subtitulo="actualizaciones del sistema"
-            Icon={AlertTriangle}
-            severidad="ok"
-            count={0}
-            loading={false}
-            empty="Sin avisos del sistema"
           />
           </div>
 
@@ -432,6 +439,39 @@ function RiesgoFugaList({ rows, onDismiss }: { rows?: ClienteRiesgoFuga[]; onDis
                 : showTicket ? `-${dropPct}%` : ''}
             </span>
             {onDismiss && <DismissBtn onClick={() => onDismiss(c.contact_name_canon, c.contact_name_canon)} />}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+const PROGRAMA_LABEL: Record<NonNullable<ClienteProgramaPendiente['programa_manual']>, string> = {
+  vip: 'VIP',
+  riesgo: 'riesgo',
+  deuda: 'deuda',
+  potencial: 'potencial',
+  rentable: 'rentable',
+  estandar: 'estandar',
+}
+
+function ProgramaPendientesList({ rows }: { rows?: ClienteProgramaPendiente[] }) {
+  return (
+    <ul className="space-y-1.5">
+      {rows?.map(c => {
+        const overdue = c.proxima_accion_fecha != null && c.proxima_accion_fecha < new Date().toISOString().slice(0, 10)
+        return (
+          <li key={c.contact_name_canon} className="grid grid-cols-[1fr_auto] items-start gap-2 text-sm">
+            <div className="min-w-0">
+              <div className="truncate text-[var(--ink)]">{c.contact_name_canon}</div>
+              <div className="text-xs text-[var(--ink-mute)]">
+                {c.proxima_accion || 'Revisar seguimiento comercial'}
+                {c.programa_manual ? ` · ${PROGRAMA_LABEL[c.programa_manual]}` : ''}
+              </div>
+            </div>
+            <span className={`text-xs font-medium tabular-nums ${overdue || c.prioridad === 'alta' ? 'text-[var(--coral)]' : 'text-[var(--amber)]'}`}>
+              {c.proxima_accion_fecha ? fmt(c.proxima_accion_fecha) : c.prioridad}
+            </span>
           </li>
         )
       })}
