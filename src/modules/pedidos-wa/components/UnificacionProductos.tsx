@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { Check, ChevronDown, ChevronUp, Link2, Loader2, Search, X } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { Check, CheckCheck, ChevronDown, ChevronUp, Link2, Loader2, Search, X } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 import { toast } from '@/shared/lib/toast'
+import { supabase } from '@/shared/lib/supabase'
 import {
   useSugerenciasMapeo,
   useUpsertProductoHolded,
@@ -9,10 +11,41 @@ import {
   type SugerenciaMapeo,
 } from '../lib/queries'
 
+const UMBRAL_AUTO = 0.9
+
 export function UnificacionProductos() {
   const [open, setOpen] = useState(false)
+  const [batchPending, setBatchPending] = useState(false)
   const sugerencias = useSugerenciasMapeo()
+  const qc = useQueryClient()
   const total = sugerencias.data?.length ?? 0
+
+  const altaConfianza = sugerencias.data?.filter(
+    s => s.sugerencia_holded_id && (s.confianza ?? 0) >= UMBRAL_AUTO
+  ) ?? []
+
+  const confirmarTodos = async () => {
+    if (altaConfianza.length === 0) return
+    setBatchPending(true)
+    try {
+      const rows = altaConfianza.map(s => ({
+        producto_normalizado: s.producto_raw.toLowerCase(),
+        holded_product_id:    s.sugerencia_holded_id!,
+        holded_product_name:  s.sugerencia_nombre!,
+        source:               'manual',
+      }))
+      const { error } = await supabase
+        .from('pedidos_wa_productos_holded')
+        .upsert(rows, { onConflict: 'producto_normalizado' })
+      if (error) throw error
+      toast({ title: `${rows.length} productos vinculados`, variant: 'success' })
+      qc.invalidateQueries({ queryKey: ['pedidos_wa'] })
+    } catch (e) {
+      toast({ title: 'Error', description: e instanceof Error ? e.message : 'Inesperado', variant: 'error' })
+    } finally {
+      setBatchPending(false)
+    }
+  }
 
   return (
     <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -40,10 +73,25 @@ export function UnificacionProductos() {
 
       {open && (
         <div className="border-t border-[var(--color-border)] p-3">
-          <p className="mb-3 text-[11px] text-[var(--color-ink-3)]">
-            Productos que aparecen en pedidos o inventario sin estar vinculados al catálogo Holded.
-            Sin vínculo, el cotejo no los agrupa correctamente.
-          </p>
+          <div className="mb-3 flex items-start justify-between gap-2">
+            <p className="text-[11px] text-[var(--color-ink-3)]">
+              Productos que aparecen en pedidos o inventario sin estar vinculados al catálogo Holded.
+              Sin vínculo, el cotejo no los agrupa correctamente.
+            </p>
+            {altaConfianza.length > 0 && (
+              <button
+                type="button"
+                onClick={confirmarTodos}
+                disabled={batchPending}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md bg-[var(--mint)] px-2 py-1 text-[11px] font-semibold text-black hover:opacity-90 disabled:opacity-50"
+              >
+                {batchPending
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <CheckCheck className="h-3 w-3" />}
+                Confirmar todos ({altaConfianza.length})
+              </button>
+            )}
+          </div>
 
           {sugerencias.isLoading ? (
             <div className="flex items-center gap-2 text-xs text-[var(--color-ink-3)]">
