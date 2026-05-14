@@ -476,8 +476,19 @@ function TableSection({
         <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5" />
         <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5" />
         <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5" />
-        <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5 text-center font-display text-lg font-bold text-black dark:text-[var(--color-ink)]">
-          {section.label}
+        <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5 text-center text-black dark:text-[var(--color-ink)]">
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span className="font-display text-lg font-bold">{section.label}</span>
+            <label className="flex min-w-[220px] items-center gap-1 rounded border border-black/20 bg-white/80 px-2 py-1 text-xs font-bold uppercase text-black dark:bg-black/20 dark:text-[var(--color-ink)]">
+              <span>Vehículo</span>
+              <input
+                value={vehiculo}
+                onChange={(e) => guardarVehiculo(e.target.value)}
+                className="min-w-0 flex-1 bg-transparent text-center font-display text-sm font-bold uppercase outline-none"
+                placeholder="MASTER"
+              />
+            </label>
+          </div>
         </td>
         <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5" />
         <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5 text-center">
