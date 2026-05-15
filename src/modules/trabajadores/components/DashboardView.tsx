@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, startOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -6,9 +6,9 @@ import { Award } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 import { euros } from '@/shared/lib/format'
 import { useAuth } from '@/shared/auth/useAuth'
-import { SolicitarVacacionesModal } from './SolicitarVacacionesModal'
 import { ColaboradoresView } from './ColaboradoresView'
 import { EmpleadoHero } from './EmpleadoHero'
+import { useEmpleadoPropio } from '../lib/useEmpleadoPropio'
 
 interface Empleado {
   id: string
@@ -31,34 +31,119 @@ interface CreditoFila {
   disponible: number
   exceso_arrastrado: number
 }
-interface VacacionesFila {
-  empleado_id: string
-  dias_anuales: number
-  disfrutados: number
-  aprobados: number
-  pendientes: number
-  restantes: number
+interface PuntoDia {
+  total: number | null
+  puntualidad: number | null
+  reparto: number | null
+  responsabilidad: number | null
 }
-interface SabadosFila {
-  empleado_id: string
-  num_sabados: number
-  importe: number
+
+interface AjustePuntos {
+  delta_pts: number | null
+}
+
+interface CanjePuntos {
+  puntos_gastados: number | null
+}
+
+interface CreditoMesFila {
+  limite_base: number
+  exceso_arrastrado: number
+  gastado: number
+  disponible: number
+  exceso_nuevo: number
 }
 
 const eur = euros
 
 function num(v: unknown): number { return Number(v ?? 0) }
+function puntosAEuros(puntos: number): number {
+  if (puntos >= 140) return 150
+  if (puntos >= 120) return 100
+  if (puntos >= 100) return 50
+  return 0
+}
+
+function siguienteMes(mesISO: string): string {
+  const d = new Date(mesISO)
+  return format(new Date(d.getFullYear(), d.getMonth() + 1, 1), 'yyyy-MM-dd')
+}
 
 export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean }) {
   const { profile } = useAuth()
   const isAdmin = !modoEmpleado && profile?.role !== 'empleado'
-  const [solicitar, setSolicitar] = useState<{ id: string; nombre: string; dias: number } | null>(null)
 
   const mesISO = format(startOfMonth(new Date()), 'yyyy-MM-dd')
-  const anio = new Date().getFullYear()
+  const mesFinISO = siguienteMes(mesISO)
+  const empleadoPropio = useEmpleadoPropio(modoEmpleado)
+
+  const { data: puntosPropios } = useQuery({
+    queryKey: ['dash-trab-self-puntos', empleadoPropio.data?.id, mesISO] as const,
+    enabled: modoEmpleado && !!empleadoPropio.data?.id,
+    queryFn: async (): Promise<PuntosFila | null> => {
+      const empleadoId = empleadoPropio.data!.id
+      const [diasRes, ajustesRes, canjesRes] = await Promise.all([
+        supabase
+          .from('trabajadores_puntos_dias')
+          .select('total, puntualidad, reparto, responsabilidad')
+          .eq('empleado_id', empleadoId)
+          .gte('fecha', mesISO)
+          .lt('fecha', mesFinISO),
+        supabase
+          .from('trabajadores_puntos_ajustes')
+          .select('delta_pts')
+          .eq('empleado_id', empleadoId)
+          .gte('fecha', mesISO)
+          .lt('fecha', mesFinISO),
+        supabase
+          .from('trabajadores_ruleta_canjes')
+          .select('puntos_gastados')
+          .eq('empleado_id', empleadoId)
+          .gte('fecha', mesISO)
+          .lt('fecha', mesFinISO),
+      ])
+      if (diasRes.error) throw diasRes.error
+      if (ajustesRes.error) throw ajustesRes.error
+      if (canjesRes.error) throw canjesRes.error
+
+      const base = ((diasRes.data ?? []) as PuntoDia[]).reduce((acc, r) => acc + num(r.total), 0)
+      const ajustes = ((ajustesRes.data ?? []) as AjustePuntos[]).reduce((acc, r) => acc + num(r.delta_pts), 0)
+      const canjes = ((canjesRes.data ?? []) as CanjePuntos[]).reduce((acc, r) => acc + num(r.puntos_gastados), 0)
+      const total = Math.max(base + ajustes - canjes, 0)
+
+      return {
+        empleado_id: empleadoId,
+        total_puntos: total,
+        euros: puntosAEuros(total),
+      }
+    },
+  })
+
+  const { data: creditoPropio } = useQuery({
+    queryKey: ['dash-trab-self-credito', empleadoPropio.data?.id, mesISO] as const,
+    enabled: modoEmpleado && !!empleadoPropio.data?.id && (empleadoPropio.data?.pack === 1 || empleadoPropio.data?.pack === 3),
+    queryFn: async (): Promise<CreditoFila | null> => {
+      const empleadoId = empleadoPropio.data!.id
+      const { data, error } = await supabase.rpc('trabajadores_credito_estado_mes', {
+        p_empleado_id: empleadoId,
+        p_mes: mesISO,
+      })
+      if (error) throw error
+      const row = ((data ?? []) as CreditoMesFila[])[0]
+      if (!row) return null
+      return {
+        empleado_id: empleadoId,
+        limite_base: num(row.limite_base),
+        gastado: num(row.gastado),
+        disponible: num(row.disponible),
+        exceso_arrastrado: num(row.exceso_arrastrado),
+      }
+    },
+  })
 
   const { data: empleados } = useQuery({
     queryKey: ['dash-trab-empleados'] as const,
+    enabled: !modoEmpleado,
     queryFn: async (): Promise<Empleado[]> => {
       const { data, error } = await supabase
         .from('empleados_equipo')
@@ -72,74 +157,13 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
 
   const { data: puntos } = useQuery({
     queryKey: ['dash-trab-puntos', mesISO] as const,
+    enabled: !modoEmpleado,
     queryFn: async (): Promise<PuntosFila[]> => {
       const { data, error } = await supabase.rpc('trabajadores_puntos_resumen_mes', { p_mes: mesISO })
       if (error) throw error
       return (data ?? []).map((r: PuntosFila) => ({ ...r, total_puntos: num(r.total_puntos), euros: num(r.euros) }))
     },
   })
-
-  const { data: credito } = useQuery({
-    queryKey: ['dash-trab-credito'] as const,
-    queryFn: async (): Promise<CreditoFila[]> => {
-      const { data, error } = await supabase.rpc('trabajadores_credito_estado_actual')
-      if (error) throw error
-      return (data ?? []).map((r: CreditoFila) => ({
-        empleado_id: r.empleado_id,
-        limite_base: num(r.limite_base),
-        gastado: num(r.gastado),
-        disponible: num(r.disponible),
-        exceso_arrastrado: num(r.exceso_arrastrado),
-      }))
-    },
-  })
-
-  const { data: vacaciones } = useQuery({
-    queryKey: ['dash-trab-vac', anio] as const,
-    queryFn: async (): Promise<VacacionesFila[]> => {
-      const { data, error } = await supabase.rpc('trabajadores_vacaciones_resumen_anual', { p_anio: anio })
-      if (error) throw error
-      return (data ?? []).map((r: VacacionesFila) => ({
-        empleado_id: r.empleado_id,
-        dias_anuales: num(r.dias_anuales),
-        disfrutados: num(r.disfrutados),
-        aprobados: num(r.aprobados),
-        pendientes: num(r.pendientes),
-        restantes: num(r.restantes),
-      }))
-    },
-  })
-
-  const { data: sabados } = useQuery({
-    queryKey: ['dash-trab-sab', mesISO] as const,
-    queryFn: async (): Promise<SabadosFila[]> => {
-      const { data, error } = await supabase.rpc('trabajadores_sabados_resumen_mes', { p_mes: mesISO })
-      if (error) throw error
-      return (data ?? []).map((r: SabadosFila) => ({
-        empleado_id: r.empleado_id,
-        num_sabados: num(r.num_sabados),
-        importe: num(r.importe),
-      }))
-    },
-  })
-
-  // Si no es admin, solo el suyo
-  const visibles = useMemo(() => {
-    if (!empleados) return []
-    if (isAdmin) return empleados
-    return empleados.filter(e => e.user_id === profile?.id)
-  }, [empleados, isAdmin, profile?.id])
-
-  const indexBy = <T extends { empleado_id: string }>(arr: T[] | undefined): Map<string, T> => {
-    const m = new Map<string, T>()
-    for (const r of arr ?? []) m.set(r.empleado_id, r)
-    return m
-  }
-
-  const ptsByEmp = useMemo(() => indexBy(puntos), [puntos])
-  const credByEmp = useMemo(() => indexBy(credito), [credito])
-  const vacByEmp = useMemo(() => indexBy(vacaciones), [vacaciones])
-  const sabByEmp = useMemo(() => indexBy(sabados), [sabados])
 
   // Ranking puntos (entre todos pack 1)
   const ranking = useMemo(() => {
@@ -151,11 +175,9 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
 
   /* ── Vista empleado: hero personalizado ── */
   if (!isAdmin) {
-    const e = visibles[0] ?? null
-    const pts = e ? ptsByEmp.get(e.id) : null
-    const cr  = e ? credByEmp.get(e.id) : null
-    const vc  = e ? vacByEmp.get(e.id) : null
-    const sb  = e ? sabByEmp.get(e.id) : null
+    const e = empleadoPropio.data ?? null
+    const pts = e ? puntosPropios : null
+    const cr  = e ? creditoPropio : null
 
     return (
       <div className="ao-page py-5 md:py-6">
@@ -170,29 +192,11 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
             creditoDisponible={cr?.disponible ?? null}
             creditoGastado={cr?.gastado ?? null}
             creditoLimite={cr?.limite_base ?? null}
-            vacRestantes={vc?.restantes ?? null}
-            vacTotales={vc?.dias_anuales ?? null}
-            sabadosNum={sb?.num_sabados ?? null}
-            sabadosImporte={sb?.importe ?? null}
-            onSolicitar={
-              vc && vc.dias_anuales > 0
-                ? () => setSolicitar({ id: e.id, nombre: e.nombre, dias: vc.dias_anuales })
-                : undefined
-            }
           />
         ) : (
           <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-sm text-[var(--color-ink-3)]">
             Tu cuenta no está vinculada a un trabajador. Avisa a Luis o Álvaro.
           </p>
-        )}
-
-        {solicitar && (
-          <SolicitarVacacionesModal
-            empleadoId={solicitar.id}
-            empleadoNombre={solicitar.nombre}
-            diasAnuales={solicitar.dias}
-            onClose={() => setSolicitar(null)}
-          />
         )}
       </div>
     )
@@ -239,15 +243,6 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
       )}
 
       <ColaboradoresView />
-
-      {solicitar && (
-        <SolicitarVacacionesModal
-          empleadoId={solicitar.id}
-          empleadoNombre={solicitar.nombre}
-          diasAnuales={solicitar.dias}
-          onClose={() => setSolicitar(null)}
-        />
-      )}
     </div>
   )
 }

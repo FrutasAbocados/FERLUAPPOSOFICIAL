@@ -117,27 +117,13 @@ Deno.serve(async (req) => {
   const customSecret = req.headers.get('x-webhook-secret') ?? ''
 
   // Debug logging — útil mientras se confirma qué secret usa Holded.
-  // Una vez confirmado y estable, este log se puede quitar.
-  const debugHeaders: Record<string, string> = {}
-  for (const [k, v] of req.headers.entries()) {
-    if (k.toLowerCase().startsWith('x-') || k.toLowerCase() === 'content-type') {
-      debugHeaders[k] = v
-    }
-  }
-  console.log('[HOLDED-WEBHOOK-DEBUG]', JSON.stringify({
-    headers: debugHeaders,
-    body_preview: rawBody.slice(0, 800),
-    body_len: rawBody.length,
-  }))
-
   // Path 1 (preferido): HMAC SHA256
-  let authOK = false
-  let authMethod: 'hmac' | 'legacy_custom_header' | 'none' = 'none'
+  let authOK: boolean
+  let authMethod: 'hmac' | 'legacy_custom_header'
 
   if (sigHeader) {
     const hmacSecret = await getSetting('holded_webhook_hmac_secret')
     if (!hmacSecret) {
-      console.log('[HOLDED-WEBHOOK-DEBUG] sigHeader presente pero hmac_secret no configurado en app_settings')
       return jsonRes({ error: 'hmac secret no configurado en app_settings.holded_webhook_hmac_secret' }, 500)
     }
     const expectedSig = await hmacSha256Hex(hmacSecret, rawBody)
@@ -145,9 +131,6 @@ Deno.serve(async (req) => {
     const cleanSig = sigHeader.startsWith('sha256=') ? sigHeader.slice(7) : sigHeader
     authOK = timingSafeEqual(cleanSig.toLowerCase(), expectedSig.toLowerCase())
     authMethod = 'hmac'
-    if (!authOK) {
-      console.log('[HOLDED-WEBHOOK-DEBUG] HMAC mismatch', { received: cleanSig.slice(0, 16) + '…', expected: expectedSig.slice(0, 16) + '…' })
-    }
   } else if (customSecret) {
     // Path 2 (legacy): custom header. Solo aplica si Holded soporta enviar headers
     // custom — actualmente no parece soportarlo, pero dejamos el path por si acaso.
@@ -162,7 +145,7 @@ Deno.serve(async (req) => {
   if (!authOK) return jsonRes({ error: 'auth inválida', method: authMethod }, 401)
 
   // Body parsing
-  let body: unknown = null
+  let body: unknown
   try { body = JSON.parse(rawBody) } catch {
     return jsonRes({ ok: true, ignored: 'body no es JSON', auth_method: authMethod })
   }

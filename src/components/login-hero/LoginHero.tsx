@@ -53,8 +53,8 @@ export default function LoginHero({
       setSubmitting(true);
       try {
         await onSubmit({ email, password });
-      } catch (err: any) {
-        setError(err?.message ?? 'No pudimos entrar. Inténtalo de nuevo.');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'No pudimos entrar. Inténtalo de nuevo.');
       } finally {
         setSubmitting(false);
       }
@@ -210,15 +210,21 @@ function Clock() {
 }
 
 // ── Embers (rising mint particles) ─────────────────────────────
+function pseudoRandom(seed: number) {
+  let x = (seed * 1664525 + 1013904223) >>> 0;
+  x = (x * 1664525 + 1013904223) >>> 0;
+  return x / 4294967296;
+}
+
 function Embers({ count = 70 }: { count?: number }) {
   const seeds = useMemo(
-    () => Array.from({ length: count }).map(() => ({
-      x: Math.random() * 100,
-      dx: (Math.random() - 0.5) * 90,
-      dur: 6 + Math.random() * 10,
-      delay: -Math.random() * 16,
-      size: 2 + Math.random() * 4,
-      op: 0.45 + Math.random() * 0.55,
+    () => Array.from({ length: count }).map((_, i) => ({
+      x: pseudoRandom(i + 1) * 100,
+      dx: (pseudoRandom(i + 101) - 0.5) * 90,
+      dur: 6 + pseudoRandom(i + 201) * 10,
+      delay: -pseudoRandom(i + 301) * 16,
+      size: 2 + pseudoRandom(i + 401) * 4,
+      op: 0.45 + pseudoRandom(i + 501) * 0.55,
     })),
     [count]
   );
@@ -234,9 +240,9 @@ function Embers({ count = 70 }: { count?: number }) {
             height: s.size,
             animationDuration: `${s.dur}s`,
             animationDelay: `${s.delay}s`,
-            ['--ab-dx' as any]: `${s.dx}px`,
+            '--ab-dx': `${s.dx}px`,
             opacity: s.op,
-          }}
+          } as React.CSSProperties & { '--ab-dx': string }}
         />
       ))}
     </>
@@ -257,7 +263,19 @@ function Avocado({ size = 60 }: { size?: number }) {
 }
 
 function FloatingAvocados() {
-  const items = useMemo(() => ([
+  const items = useMemo<Array<{
+    top: string
+    left: string
+    size: number
+    op: number
+    dur: number
+    delay: number
+    dx: number
+    dy: number
+    r0: number
+    r1: number
+    blur?: number
+  }>>(() => ([
     { top: '6%',  left: '8%',  size: 68, op: 0.10, dur: 62, delay: -10, dx:  40, dy: -70, r0: -12, r1:  18 },
     { top: '11%', left: '88%', size: 54, op: 0.08, dur: 78, delay: -28, dx: -50, dy: -90, r0:  18, r1:  -8 },
     { top: '4%',  left: '52%', size: 42, op: 0.07, dur: 70, delay: -45, dx:  30, dy: 110, r0:   8, r1:  28 },
@@ -282,12 +300,18 @@ function FloatingAvocados() {
             left: it.left,
             animationDuration: `${it.dur}s`,
             animationDelay: `${it.delay}s`,
-            filter: `blur(${(it as any).blur ?? 0.5}px)`,
-            ['--ab-op' as any]: it.op,
-            ['--ab-dx' as any]: `${it.dx}px`,
-            ['--ab-dy' as any]: `${it.dy}px`,
-            ['--ab-r0' as any]: `${it.r0}deg`,
-            ['--ab-r1' as any]: `${it.r1}deg`,
+            filter: `blur(${it.blur ?? 0.5}px)`,
+            '--ab-op': it.op,
+            '--ab-dx': `${it.dx}px`,
+            '--ab-dy': `${it.dy}px`,
+            '--ab-r0': `${it.r0}deg`,
+            '--ab-r1': `${it.r1}deg`,
+          } as React.CSSProperties & {
+            '--ab-op': number
+            '--ab-dx': string
+            '--ab-dy': string
+            '--ab-r0': string
+            '--ab-r1': string
           }}
         >
           <Avocado size={it.size} />

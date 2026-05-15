@@ -8,13 +8,14 @@ export type Profile = {
   created_at: string
 }
 
-export type ModuleKey = 'manager' | 'cash' | 'trabajadores' | 'turnos' | 'cobros' | 'agente' | 'bbdd_trabajadores' | 'sueldos' | 'pedidos_wa' | 'gastos' | 'clientes'
+export type ModuleKey = 'manager' | 'cash' | 'trabajadores' | 'tareas' | 'turnos' | 'cobros' | 'agente' | 'bbdd_trabajadores' | 'sueldos' | 'pedidos_wa' | 'gastos' | 'clientes'
 
 export const MODULE_ACCESS: Record<ModuleKey, Role[]> = {
   manager:           ['admin_full', 'admin_op', 'responsable'],
   cash:              ['admin_full', 'admin_op'],
   trabajadores:      ['admin_full', 'admin_op', 'responsable', 'empleado'],
-  turnos:            ['admin_full', 'admin_op', 'responsable', 'empleado'],
+  tareas:            ['admin_full', 'admin_op', 'responsable'],
+  turnos:            ['admin_full', 'admin_op', 'responsable'],
   cobros:            ['admin_full', 'admin_op', 'responsable'],
   agente:            ['admin_full', 'admin_op'],
   bbdd_trabajadores: ['admin_full', 'admin_op', 'responsable'],

@@ -316,7 +316,7 @@ async function handleDeudaAlta(e: FerluEvent): Promise<HandlerResult> {
 
 // ── Agent: Audit ──────────────────────────────────────────────────────────────
 
-async function handleAuditRequested(_e: FerluEvent): Promise<HandlerResult> {
+async function handleAuditRequested(): Promise<HandlerResult> {
   const h = { apikey: SERVICE_KEY, authorization: `Bearer ${SERVICE_KEY}`, accept: 'application/json' }
   const since24h    = new Date(Date.now() - 86_400_000).toISOString()
   const stuckBefore = new Date(Date.now() - 1_800_000).toISOString()

@@ -1,22 +1,23 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Award, BarChart3, BookCheck, CalendarClock, CalendarDays, CalendarOff, Clock4, Construction, Fingerprint, ShoppingBasket, Sparkles } from 'lucide-react'
 import { useAuth } from '@/shared/auth/useAuth'
-import { TareasPage } from '@/modules/tareas/TareasPage'
-import { TurnosPage } from '@/modules/turnos/TurnosPage'
-import { CreditoView } from './components/CreditoView'
-import { VacacionesView } from './components/VacacionesView'
-import { SabadosView } from './components/SabadosView'
-import { PuntosView } from './components/PuntosView'
-import { DashboardView } from './components/DashboardView'
-import { HorasExtrasView } from './components/HorasExtrasView'
-import { RuletaAdminView } from './components/RuletaAdminView'
-import { FichajesView } from './components/FichajesView'
 import { EmpleadoNav, type EmpleadoTab } from './components/EmpleadoNav'
-import { EmpleadoPuntosView } from './components/EmpleadoPuntosView'
-import { EmpleadoCreditoView } from './components/EmpleadoCreditoView'
-import { EmpleadoColabView } from './components/EmpleadoColabView'
 import { useEmpleadoPropio } from './lib/useEmpleadoPropio'
+
+const TareasPage = lazy(() => import('@/modules/tareas/TareasPage').then(m => ({ default: m.TareasPage })))
+const TurnosPage = lazy(() => import('@/modules/turnos/TurnosPage').then(m => ({ default: m.TurnosPage })))
+const CreditoView = lazy(() => import('./components/CreditoView').then(m => ({ default: m.CreditoView })))
+const VacacionesView = lazy(() => import('./components/VacacionesView').then(m => ({ default: m.VacacionesView })))
+const SabadosView = lazy(() => import('./components/SabadosView').then(m => ({ default: m.SabadosView })))
+const PuntosView = lazy(() => import('./components/PuntosView').then(m => ({ default: m.PuntosView })))
+const DashboardView = lazy(() => import('./components/DashboardView').then(m => ({ default: m.DashboardView })))
+const HorasExtrasView = lazy(() => import('./components/HorasExtrasView').then(m => ({ default: m.HorasExtrasView })))
+const RuletaAdminView = lazy(() => import('./components/RuletaAdminView').then(m => ({ default: m.RuletaAdminView })))
+const FichajesView = lazy(() => import('./components/FichajesView').then(m => ({ default: m.FichajesView })))
+const EmpleadoPuntosView = lazy(() => import('./components/EmpleadoPuntosView').then(m => ({ default: m.EmpleadoPuntosView })))
+const EmpleadoCreditoView = lazy(() => import('./components/EmpleadoCreditoView').then(m => ({ default: m.EmpleadoCreditoView })))
+const EmpleadoColabView = lazy(() => import('./components/EmpleadoColabView').then(m => ({ default: m.EmpleadoColabView })))
 
 type Tab = 'dashboard' | 'tareas' | 'puntos' | 'vacaciones' | 'sabados' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'colab'
 
@@ -79,17 +80,19 @@ export function TrabajadoresOpPage() {
         </div>
       </div>
 
-      {tab === 'dashboard'    && <DashboardView />}
-      {tab === 'tareas'       && <TareasPage />}
-      {tab === 'puntos'       && <PuntosView />}
-      {tab === 'vacaciones'   && <VacacionesView />}
-      {tab === 'sabados'      && <SabadosView />}
-      {tab === 'credito'      && <CreditoView />}
-      {tab === 'horas_extras' && <HorasExtrasView />}
-      {tab === 'fichajes'     && <FichajesView />}
-      {tab === 'turnos'       && <TurnosPage />}
-      {tab === 'ruleta'       && <RuletaAdminView />}
-      {tab === 'productividad' && <Placeholder titulo="Plus productividad" descripcion="Cálculo de plus por productividad según métricas." comingSoon />}
+      <Suspense fallback={<TabFallback />}>
+        {tab === 'dashboard'    && <DashboardView />}
+        {tab === 'tareas'       && <TareasPage />}
+        {tab === 'puntos'       && <PuntosView />}
+        {tab === 'vacaciones'   && <VacacionesView />}
+        {tab === 'sabados'      && <SabadosView />}
+        {tab === 'credito'      && <CreditoView />}
+        {tab === 'horas_extras' && <HorasExtrasView />}
+        {tab === 'fichajes'     && <FichajesView />}
+        {tab === 'turnos'       && <TurnosPage />}
+        {tab === 'ruleta'       && <RuletaAdminView />}
+        {tab === 'productividad' && <Placeholder titulo="Plus productividad" descripcion="Cálculo de plus por productividad según métricas." comingSoon />}
+      </Suspense>
     </div>
   )
 }
@@ -116,10 +119,20 @@ function EmpleadoContent({
     <div>
       <EmpleadoNav tab={empTab} setTab={(t) => setTab(t)} />
 
-      {empTab === 'dashboard'    && <DashboardView modoEmpleado />}
-      {empTab === 'puntos'       && (empleado ? <EmpleadoPuntosView empleado={empleado} /> : <DashboardView modoEmpleado />)}
-      {empTab === 'credito'      && (empleado ? <EmpleadoCreditoView empleado={empleado} /> : <DashboardView modoEmpleado />)}
-      {empTab === 'colab'        && (empleado ? <EmpleadoColabView empleado={empleado} /> : <DashboardView modoEmpleado />)}
+      <Suspense fallback={<TabFallback />}>
+        {empTab === 'dashboard'    && <DashboardView modoEmpleado />}
+        {empTab === 'puntos'       && (empleado ? <EmpleadoPuntosView empleado={empleado} /> : <DashboardView modoEmpleado />)}
+        {empTab === 'credito'      && (empleado ? <EmpleadoCreditoView empleado={empleado} /> : <DashboardView modoEmpleado />)}
+        {empTab === 'colab'        && (empleado ? <EmpleadoColabView empleado={empleado} /> : <DashboardView modoEmpleado />)}
+      </Suspense>
+    </div>
+  )
+}
+
+function TabFallback() {
+  return (
+    <div className="mx-auto my-8 max-w-3xl rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center text-sm text-[var(--color-ink-3)]">
+      Cargando...
     </div>
   )
 }

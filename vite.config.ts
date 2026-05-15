@@ -15,6 +15,11 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         cleanupOutdatedCaches: true,
+        globIgnores: [
+          '**/vendor-excel-*.js',
+          '**/vendor-recharts-*.js',
+          '**/vendor-leaflet-*.js',
+        ],
         // Bundle pasó de 2MB tras añadir Recharts + Gastos + Clientes (2026-05-06).
         // 5 MiB cubre con margen y evita romper el build de Vercel.
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,

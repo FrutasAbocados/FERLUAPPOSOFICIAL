@@ -1,15 +1,16 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { PageTopbar } from '@/shared/components/PageTopbar'
 import { FileText, Package, Repeat, ShoppingCart, Truck, Users, Zap } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
-import { CapturaRapida } from './components/CapturaRapida'
-import { Compra } from './components/Compra'
-import { Compras } from './components/Compras'
-import { HojaRuta } from './components/HojaRuta'
-import { ListaClientes } from './components/ListaClientes'
-import { ListaPedidosHoy } from './components/ListaPedidosHoy'
-import { Productos } from './components/Productos'
-import { Recurrentes } from './components/Recurrentes'
+
+const CapturaRapida = lazy(() => import('./components/CapturaRapida').then(m => ({ default: m.CapturaRapida })))
+const Compra = lazy(() => import('./components/Compra').then(m => ({ default: m.Compra })))
+const Compras = lazy(() => import('./components/Compras').then(m => ({ default: m.Compras })))
+const HojaRuta = lazy(() => import('./components/HojaRuta').then(m => ({ default: m.HojaRuta })))
+const ListaClientes = lazy(() => import('./components/ListaClientes').then(m => ({ default: m.ListaClientes })))
+const ListaPedidosHoy = lazy(() => import('./components/ListaPedidosHoy').then(m => ({ default: m.ListaPedidosHoy })))
+const Productos = lazy(() => import('./components/Productos').then(m => ({ default: m.Productos })))
+const Recurrentes = lazy(() => import('./components/Recurrentes').then(m => ({ default: m.Recurrentes })))
 
 type Tab = 'captura' | 'hoy' | 'compra' | 'compras-prov' | 'ruta' | 'clientes' | 'productos' | 'recurrentes'
 
@@ -53,16 +54,26 @@ export function PedidosWaPage() {
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <div className="ao-page max-w-none">
-        {tab === 'captura'      && <CapturaRapida />}
-        {tab === 'hoy'          && <ListaPedidosHoy />}
-        {tab === 'compra'       && <Compra />}
-        {tab === 'compras-prov' && <Compras />}
-        {tab === 'ruta'         && <HojaRuta />}
-        {tab === 'clientes'     && <ListaClientes />}
-        {tab === 'productos'    && <Productos />}
-        {tab === 'recurrentes'  && <Recurrentes />}
+        <Suspense fallback={<TabFallback />}>
+          {tab === 'captura'      && <CapturaRapida />}
+          {tab === 'hoy'          && <ListaPedidosHoy />}
+          {tab === 'compra'       && <Compra />}
+          {tab === 'compras-prov' && <Compras />}
+          {tab === 'ruta'         && <HojaRuta />}
+          {tab === 'clientes'     && <ListaClientes />}
+          {tab === 'productos'    && <Productos />}
+          {tab === 'recurrentes'  && <Recurrentes />}
+        </Suspense>
         </div>
       </div>
+    </div>
+  )
+}
+
+function TabFallback() {
+  return (
+    <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center text-sm text-[var(--color-ink-3)]">
+      Cargando...
     </div>
   )
 }

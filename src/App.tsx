@@ -63,7 +63,11 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute module="trabajadores" />}>
                     <Route path="trabajadores" element={<Suspense fallback={<PageFallback />}><TrabajadoresOpPage /></Suspense>} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="tareas" />}>
                     <Route path="tareas" element={<Suspense fallback={<PageFallback />}><TareasPage /></Suspense>} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="turnos" />}>
                     <Route path="turnos" element={<Navigate to="/trabajadores?tab=turnos" replace />} />
                   </Route>
                   <Route element={<ProtectedRoute module="cobros" />}>

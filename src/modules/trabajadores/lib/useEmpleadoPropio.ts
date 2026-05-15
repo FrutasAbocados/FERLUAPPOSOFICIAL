@@ -11,11 +11,11 @@ export interface EmpleadoPropio {
   puesto: string | null
 }
 
-export function useEmpleadoPropio() {
+export function useEmpleadoPropio(enabled = true) {
   const { profile } = useAuth()
   return useQuery({
     queryKey: ['empleado-propio', profile?.id] as const,
-    enabled: !!profile?.id,
+    enabled: enabled && !!profile?.id,
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<EmpleadoPropio | null> => {
       const { data, error } = await supabase

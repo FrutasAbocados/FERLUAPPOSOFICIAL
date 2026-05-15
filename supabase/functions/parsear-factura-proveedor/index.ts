@@ -44,7 +44,7 @@ const cors = {
 const SYSTEM = `Eres un parser de facturas de proveedores de fruta y verdura para Frutas Abocados (Ferlu Project S.L.). Recibes un PDF y devuelves JSON estructurado.
 
 REGLAS ABSOLUTAS:
-1. Devuelve SOLO JSON válido. Tu respuesta debe empezar con `{` y terminar con `}`. Sin markdown, sin texto previo, sin análisis, sin \`\`\`. NADA antes del JSON.
+1. Devuelve SOLO JSON válido. Tu respuesta debe empezar con llave de apertura y terminar con llave de cierre. Sin markdown, sin texto previo, sin análisis, sin \`\`\`. NADA antes del JSON.
 2. Detecta el proveedor:
    - Si pone "ABASTHOSUR" o NIF "A-29076759" → "abasthosur".
    - Si pone "FRUTAS PEREZ ALCALDE" o NIF "B-92.906.189" → "alcalde".
