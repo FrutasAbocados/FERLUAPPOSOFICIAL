@@ -11,17 +11,17 @@ export type Profile = {
 export type ModuleKey = 'manager' | 'cash' | 'trabajadores' | 'turnos' | 'cobros' | 'agente' | 'bbdd_trabajadores' | 'sueldos' | 'pedidos_wa' | 'gastos' | 'clientes'
 
 export const MODULE_ACCESS: Record<ModuleKey, Role[]> = {
-  manager:           ['admin_full', 'admin_op', 'responsable', 'operaciones'],
+  manager:           ['admin_full', 'admin_op', 'responsable'],
   cash:              ['admin_full', 'admin_op'],
-  trabajadores:      ['admin_full', 'admin_op', 'responsable', 'empleado', 'operaciones'],
-  turnos:            ['admin_full', 'admin_op', 'responsable', 'empleado', 'operaciones'],
+  trabajadores:      ['admin_full', 'admin_op', 'responsable', 'empleado'],
+  turnos:            ['admin_full', 'admin_op', 'responsable', 'empleado'],
   cobros:            ['admin_full', 'admin_op', 'responsable'],
-  agente:            ['admin_full', 'admin_op', 'responsable'],
+  agente:            ['admin_full', 'admin_op'],
   bbdd_trabajadores: ['admin_full', 'admin_op', 'responsable'],
   sueldos:           ['admin_full', 'admin_op'],
-  pedidos_wa:        ['admin_full', 'admin_op', 'responsable', 'operaciones'],
+  pedidos_wa:        ['admin_full', 'admin_op', 'responsable', 'empleado'],
   gastos:            ['admin_full', 'admin_op'],
-  clientes:          ['admin_full', 'admin_op', 'operaciones'],
+  clientes:          ['admin_full', 'admin_op', 'responsable', 'empleado'],
 }
 
 export const canAccess = (mod: ModuleKey, role: Role): boolean =>

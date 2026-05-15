@@ -487,6 +487,179 @@ body::after {
 }
 
 /* ============================================================
+   Employee experience — animations & components
+   ============================================================ */
+
+@keyframes ao-fade-in-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ao-scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ao-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(78% .14 158 / 0), 0 0 22px oklch(78% .14 158 / .16); }
+  50%       { box-shadow: 0 0 0 6px oklch(78% .14 158 / .06), 0 0 42px oklch(78% .14 158 / .30); }
+}
+
+@keyframes ao-progress-fill {
+  from { width: 0%; }
+  to   { width: var(--progress, 0%); }
+}
+
+.ao-fade-in-up { animation: ao-fade-in-up .38s cubic-bezier(.22,.68,0,1.2) both; }
+.ao-scale-in   { animation: ao-scale-in  .28s ease both; }
+
+.ao-stagger > *:nth-child(1) { animation: ao-fade-in-up .38s cubic-bezier(.22,.68,0,1.2) .04s both; }
+.ao-stagger > *:nth-child(2) { animation: ao-fade-in-up .38s cubic-bezier(.22,.68,0,1.2) .10s both; }
+.ao-stagger > *:nth-child(3) { animation: ao-fade-in-up .38s cubic-bezier(.22,.68,0,1.2) .16s both; }
+.ao-stagger > *:nth-child(4) { animation: ao-fade-in-up .38s cubic-bezier(.22,.68,0,1.2) .22s both; }
+.ao-stagger > *:nth-child(5) { animation: ao-fade-in-up .38s cubic-bezier(.22,.68,0,1.2) .28s both; }
+
+/* Progress bar primitive */
+.ao-progress-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(255,255,255,.055);
+  overflow: hidden;
+}
+.ao-progress-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--mint-2), var(--mint));
+  box-shadow: 0 0 10px var(--mint-glow);
+  animation: ao-progress-fill .8s cubic-bezier(.22,.68,0,1.2) .35s both;
+}
+.ao-progress-bar-fill-sky {
+  background: linear-gradient(90deg, oklch(65% .13 235), oklch(76% .12 235));
+  box-shadow: 0 0 10px oklch(76% .12 235 / .3);
+}
+.ao-progress-bar-fill-amber {
+  background: linear-gradient(90deg, oklch(68% .15 70), oklch(78% .16 70));
+  box-shadow: 0 0 10px oklch(78% .16 70 / .28);
+}
+
+/* Employee KPI tile */
+.emp-kpi-tile {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--line-2);
+  padding: 14px 16px;
+  background: rgba(255,255,255,.02);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: border-color .15s ease, background .15s ease;
+}
+.emp-kpi-tile:hover {
+  border-color: rgba(140, 200, 170, .18);
+  background: rgba(255,255,255,.04);
+}
+
+/* Employee bottom navigation */
+.emp-bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 40;
+  display: flex;
+  padding: 0 8px;
+  padding-bottom: env(safe-area-inset-bottom, 4px);
+  background: linear-gradient(180deg, rgba(10,17,15,.90), rgba(7,11,10,.96));
+  border-top: 1px solid var(--line-2);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow: 0 -1px 0 rgba(140,200,170,.06), 0 -16px 48px rgba(0,0,0,.38);
+}
+
+.emp-bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 4px 9px;
+  color: var(--ink-mute);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.015em;
+  transition: color .15s ease;
+  border: none;
+  background: none;
+  cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.emp-bottom-nav-item svg {
+  transition: color .15s ease, transform .18s cubic-bezier(.22,.68,0,1.3), filter .15s ease;
+}
+
+.emp-bottom-nav-item.active {
+  color: var(--mint);
+}
+
+.emp-bottom-nav-item.active svg {
+  color: var(--mint);
+  filter: drop-shadow(0 0 8px var(--mint));
+  transform: scale(1.12);
+}
+
+.emp-bottom-nav-item.active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 15%; right: 15%;
+  height: 2px;
+  border-radius: 0 0 3px 3px;
+  background: var(--mint);
+  box-shadow: 0 0 14px var(--mint);
+}
+
+/* Employee hero card */
+.emp-hero-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--line-2);
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(18,30,26,.88), rgba(10,18,16,.76));
+}
+
+.emp-hero-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(520px 340px at 0% 0%, oklch(35% 0.11 158 / .24), transparent 60%),
+    radial-gradient(300px 200px at 100% 100%, oklch(32% 0.09 235 / .10), transparent 60%);
+}
+
+/* Avatar glow */
+.emp-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  background: linear-gradient(140deg, var(--mint), oklch(38% .10 158));
+  color: #0a1310;
+  flex-shrink: 0;
+  animation: ao-glow-pulse 3s ease-in-out infinite;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.10);
+}
+
+/* Employee desktop tab bar — slightly enhanced */
+.emp-desktop-nav {
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(14,21,18,.96), rgba(10,17,14,.92));
+  padding: 12px 16px;
+}
+
+/* ============================================================
    Print
    ============================================================ */
 

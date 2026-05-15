@@ -2,15 +2,13 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, startOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Award, CalendarDays, CalendarOff, Plus, ShoppingBasket, Users } from 'lucide-react'
-import { Button } from '@/shared/components/ui/button'
+import { Award } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 import { euros } from '@/shared/lib/format'
 import { useAuth } from '@/shared/auth/useAuth'
 import { SolicitarVacacionesModal } from './SolicitarVacacionesModal'
 import { ColaboradoresView } from './ColaboradoresView'
-import { PlusSelfCard } from './PlusSelfCard'
-import { RuletaSelfCard } from './RuletaSelfCard'
+import { EmpleadoHero } from './EmpleadoHero'
 
 interface Empleado {
   id: string
@@ -18,6 +16,7 @@ interface Empleado {
   pack: 1 | 2 | 3
   user_id: string | null
   activo: boolean
+  puesto: string | null
 }
 
 interface PuntosFila {
@@ -50,10 +49,9 @@ const eur = euros
 
 function num(v: unknown): number { return Number(v ?? 0) }
 
-export function DashboardView() {
+export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean }) {
   const { profile } = useAuth()
-  const role = profile?.role
-  const isAdmin = role === 'admin_full' || role === 'admin_op' || role === 'responsable'
+  const isAdmin = !modoEmpleado && profile?.role !== 'empleado'
   const [solicitar, setSolicitar] = useState<{ id: string; nombre: string; dias: number } | null>(null)
 
   const mesISO = format(startOfMonth(new Date()), 'yyyy-MM-dd')
@@ -64,7 +62,7 @@ export function DashboardView() {
     queryFn: async (): Promise<Empleado[]> => {
       const { data, error } = await supabase
         .from('empleados_equipo')
-        .select('id, nombre, pack, user_id, activo')
+        .select('id, nombre, pack, user_id, activo, puesto')
         .eq('activo', true)
         .order('nombre')
       if (error) throw error
@@ -151,20 +149,68 @@ export function DashboardView() {
       .map((p, i) => ({ id: p.empleado_id, posicion: i + 1, total_puntos: num(p.total_puntos), euros: num(p.euros) }))
   }, [puntos])
 
+  /* ── Vista empleado: hero personalizado ── */
+  if (!isAdmin) {
+    const e = visibles[0] ?? null
+    const pts = e ? ptsByEmp.get(e.id) : null
+    const cr  = e ? credByEmp.get(e.id) : null
+    const vc  = e ? vacByEmp.get(e.id) : null
+    const sb  = e ? sabByEmp.get(e.id) : null
+
+    return (
+      <div className="ao-page py-5 md:py-6">
+        {e ? (
+          <EmpleadoHero
+            empleadoId={e.id}
+            nombre={e.nombre}
+            pack={e.pack}
+            puesto={e.puesto}
+            puntosMes={pts?.total_puntos ?? 0}
+            puntosEuros={pts?.euros ?? 0}
+            creditoDisponible={cr?.disponible ?? null}
+            creditoGastado={cr?.gastado ?? null}
+            creditoLimite={cr?.limite_base ?? null}
+            vacRestantes={vc?.restantes ?? null}
+            vacTotales={vc?.dias_anuales ?? null}
+            sabadosNum={sb?.num_sabados ?? null}
+            sabadosImporte={sb?.importe ?? null}
+            onSolicitar={
+              vc && vc.dias_anuales > 0
+                ? () => setSolicitar({ id: e.id, nombre: e.nombre, dias: vc.dias_anuales })
+                : undefined
+            }
+          />
+        ) : (
+          <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-sm text-[var(--color-ink-3)]">
+            Tu cuenta no está vinculada a un trabajador. Avisa a Luis o Álvaro.
+          </p>
+        )}
+
+        {solicitar && (
+          <SolicitarVacacionesModal
+            empleadoId={solicitar.id}
+            empleadoNombre={solicitar.nombre}
+            diasAnuales={solicitar.dias}
+            onClose={() => setSolicitar(null)}
+          />
+        )}
+      </div>
+    )
+  }
+
+  /* ── Vista admin/responsable ── */
   return (
     <div className="ao-page py-5 md:py-7">
       <header className="mb-5 border-b border-[var(--line)] pb-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Trabajadores</p>
         <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">Dashboard</h1>
         <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
-          {isAdmin
-            ? `Resumen del equipo · ${format(new Date(), 'LLLL yyyy', { locale: es })}.`
-            : 'Tu resumen personal.'}
+          {`Resumen del equipo · ${format(new Date(), 'LLLL yyyy', { locale: es })}.`}
         </p>
       </header>
 
-      {/* Ranking puntos (solo si hay datos del mes) */}
-      {isAdmin && ranking.length > 0 && ranking.some(r => r.total_puntos > 0) && (
+      {/* Ranking puntos */}
+      {ranking.length > 0 && ranking.some(r => r.total_puntos > 0) && (
         <section className="ao-card mb-5 p-4">
           <div className="mb-3 flex items-center gap-2">
             <Award className="h-4 w-4 text-[var(--color-primary)]" />
@@ -192,106 +238,7 @@ export function DashboardView() {
         </section>
       )}
 
-      {/* Colaboradores 5% — sustituye las tarjetas para admin */}
-      {isAdmin && <ColaboradoresView />}
-
-      {/* Cards destacadas para empleado: ruleta + plus 5% */}
-      {!isAdmin && (
-        <>
-          <RuletaSelfCard />
-          <PlusSelfCard />
-        </>
-      )}
-
-      {/* Cards resumen por empleado — solo para empleado (su tarjeta personal) */}
-      {!isAdmin && (
-      <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {visibles.map(e => {
-          const pts = ptsByEmp.get(e.id)
-          const cr = credByEmp.get(e.id)
-          const vc = vacByEmp.get(e.id)
-          const sb = sabByEmp.get(e.id)
-          return (
-            <li key={e.id} className="ao-card p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary-soft)]">
-                  <Users className="h-4 w-4 text-[var(--color-primary-2)]" />
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate font-semibold text-[var(--color-ink)]">{e.nombre}</div>
-                  <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">
-                    {e.pack === 3 ? 'Prácticas' : `Pack ${e.pack}`}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                {/* Puntos (solo pack 1) */}
-                {e.pack === 1 && (
-                  <Linea
-                    Icon={Award}
-                    label="Puntos del mes"
-                    main={`${pts?.total_puntos ?? 0} pts`}
-                    sub={pts ? `→ ${eur(pts.euros)}` : ''}
-                  />
-                )}
-
-                {/* Crédito (pack 1 + 3) */}
-                {(e.pack === 1 || e.pack === 3) && cr && (
-                  <Linea
-                    Icon={ShoppingBasket}
-                    label="Crédito frutas"
-                    main={eur(cr.disponible)}
-                    sub={`gastado ${eur(cr.gastado)} de ${eur(cr.limite_base)}${cr.exceso_arrastrado > 0 ? ` · arrastre −${eur(cr.exceso_arrastrado)}` : ''}`}
-                    tone={cr.disponible < 0 ? 'red' : 'green'}
-                  />
-                )}
-
-                {/* Vacaciones */}
-                {vc && vc.dias_anuales > 0 && (
-                  <>
-                    <Linea
-                      Icon={CalendarOff}
-                      label="Vacaciones"
-                      main={`${vc.restantes} / ${vc.dias_anuales} d`}
-                      sub={`disfrutado ${vc.disfrutados} · aprobado ${vc.aprobados} · pendiente ${vc.pendientes}`}
-                    />
-                    {/* Si es el propio user (no admin) o eres admin, puedes solicitar */}
-                    {(!isAdmin || profile?.id === e.user_id) && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => setSolicitar({ id: e.id, nombre: e.nombre, dias: vc.dias_anuales })}
-                      >
-                        <Plus className="mr-1 h-3 w-3" /> Solicitar vacaciones
-                      </Button>
-                    )}
-                  </>
-                )}
-
-                {/* Sábados (pack 2) */}
-                {e.pack === 2 && sb && (
-                  <Linea
-                    Icon={CalendarDays}
-                    label="Sábados (mes)"
-                    main={`${sb.num_sabados} sáb.`}
-                    sub={`→ ${eur(sb.importe)}`}
-                    tone="amber"
-                  />
-                )}
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-      )}
-
-      {!isAdmin && visibles.length === 0 && (
-        <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-sm text-[var(--color-ink-3)]">
-          {isAdmin ? 'No hay trabajadores activos.' : 'Tu cuenta no está vinculada a un trabajador. Avisa a Luis o Álvaro.'}
-        </p>
-      )}
+      <ColaboradoresView />
 
       {solicitar && (
         <SolicitarVacacionesModal
@@ -301,32 +248,6 @@ export function DashboardView() {
           onClose={() => setSolicitar(null)}
         />
       )}
-    </div>
-  )
-}
-
-function Linea({
-  Icon, label, main, sub, tone = 'neutral',
-}: {
-  Icon: typeof Award
-  label: string
-  main: string
-  sub?: string
-  tone?: 'neutral' | 'green' | 'red' | 'amber'
-}) {
-  const color =
-    tone === 'green' ? 'text-emerald-700' :
-    tone === 'red' ? 'text-red-600' :
-    tone === 'amber' ? 'text-amber-700' :
-    'text-[var(--color-ink)]'
-  return (
-    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-md border border-[var(--color-border)] px-2 py-1.5">
-      <Icon className="h-4 w-4 text-[var(--color-ink-3)]" />
-      <div className="min-w-0">
-        <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">{label}</div>
-        {sub && <div className="truncate text-[11px] text-[var(--color-ink-3)]">{sub}</div>}
-      </div>
-      <div className={`font-display text-sm font-bold tabular-nums ${color}`}>{main}</div>
     </div>
   )
 }
