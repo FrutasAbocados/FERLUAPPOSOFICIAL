@@ -7,8 +7,8 @@ import { BBDDView } from './components/BBDDView'
 import { ProgramaFidelizacionView } from './components/ProgramaFidelizacionView'
 import { SeguimientoView } from './components/SeguimientoView'
 import {
-  clientesSeguimientoQueryKey,
-  fetchClientesSeguimiento,
+  seguimientoV2QueryKey,
+  fetchClientesSeguimientoV2,
 } from './lib/hooks'
 
 type SubTab = 'bbdd' | 'seguimiento' | 'programa'
@@ -28,9 +28,9 @@ export function ClientesPage() {
   // carga bajo demanda al abrir su pestaña.
   useEffect(() => {
     qc.prefetchQuery({
-      queryKey: clientesSeguimientoQueryKey(7, 90),
-      queryFn: () => fetchClientesSeguimiento(7, 90),
-      staleTime: 5 * 60_000,
+      queryKey: seguimientoV2QueryKey(90),
+      queryFn: () => fetchClientesSeguimientoV2(90),
+      staleTime: 3 * 60_000,
     })
   }, [qc])
 

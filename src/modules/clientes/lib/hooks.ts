@@ -4,6 +4,13 @@ import { type ClienteSegmentacion, segmentarClientes } from '@/shared/lib/client
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
+type DbRow = Record<string, unknown>
+
+const str = (v: unknown): string => String(v ?? '')
+const nullableStr = (v: unknown): string | null => v == null ? null : String(v)
+const num = (v: unknown): number => Number(v ?? 0)
+const nullableNum = (v: unknown): number | null => v == null ? null : Number(v)
+
 export type ClienteFila = {
   contact_name_canon: string
   docs: number
@@ -88,15 +95,15 @@ export type SeguimientoFila = {
 export async function fetchClientesBBDD(from: string, to: string): Promise<ClienteABC[]> {
   const { data, error } = await supabase.rpc('manager_clientes_lista', { p_from: from, p_to: to })
   if (error) throw error
-  const rows: ClienteFila[] = (data ?? []).map((r: any): ClienteFila => ({
-    contact_name_canon: r.contact_name_canon,
-    docs:               Number(r.docs ?? 0),
-    ventas:             Number(r.ventas ?? 0),
-    margen:             Number(r.margen ?? 0),
-    margen_pct:         r.margen_pct == null ? null : Number(r.margen_pct),
-    pendiente:          Number(r.pendiente_cobro ?? r.pendiente ?? 0),
-    ultima_compra:      r.ultima_compra,
-    num_aliases:        Number(r.num_aliases ?? 0),
+  const rows: ClienteFila[] = ((data ?? []) as DbRow[]).map((r): ClienteFila => ({
+    contact_name_canon: str(r.contact_name_canon),
+    docs:               num(r.docs),
+    ventas:             num(r.ventas),
+    margen:             num(r.margen),
+    margen_pct:         nullableNum(r.margen_pct),
+    pendiente:          num(r.pendiente_cobro ?? r.pendiente),
+    ultima_compra:      nullableStr(r.ultima_compra),
+    num_aliases:        num(r.num_aliases),
   }))
   return segmentarClientes(rows).sort((a, b) => b.margen - a.margen)
 }
@@ -125,15 +132,15 @@ export function useClienteFacturas(name: string | null, from: string, to: string
         p_contact_name_canon: name, p_from: from, p_to: to,
       })
       if (error) throw error
-      return (data ?? []).map((r: any): ClienteFactura => ({
-        id: r.id,
-        doc_number: r.doc_number,
-        subtipo: r.subtipo,
-        fecha: r.fecha,
-        subtotal: Number(r.subtotal ?? 0),
-        total: Number(r.total ?? 0),
-        payments_pending: Number(r.payments_pending ?? 0),
-        status: r.status,
+      return ((data ?? []) as DbRow[]).map((r): ClienteFactura => ({
+        id: str(r.id),
+        doc_number: nullableStr(r.doc_number),
+        subtipo: nullableStr(r.subtipo),
+        fecha: str(r.fecha),
+        subtotal: num(r.subtotal),
+        total: num(r.total),
+        payments_pending: num(r.payments_pending),
+        status: nullableStr(r.status),
       }))
     },
   })
@@ -148,16 +155,16 @@ export function useClienteProductos(name: string | null, from: string, to: strin
         p_contact_name_canon: name, p_from: from, p_to: to, p_limit: limit,
       })
       if (error) throw error
-      return (data ?? []).map((r: any): ClienteProductoFila => ({
-        product_id: r.product_id,
-        nombre: r.nombre,
-        veces: Number(r.veces ?? 0),
-        unidades: Number(r.unidades ?? 0),
-        ventas_subtotal: Number(r.ventas_subtotal ?? 0),
-        cogs: Number(r.cogs ?? 0),
-        margen: Number(r.margen ?? 0),
-        margen_pct: r.margen_pct == null ? null : Number(r.margen_pct),
-        ultima_compra: r.ultima_compra,
+      return ((data ?? []) as DbRow[]).map((r): ClienteProductoFila => ({
+        product_id: nullableStr(r.product_id),
+        nombre: str(r.nombre),
+        veces: num(r.veces),
+        unidades: num(r.unidades),
+        ventas_subtotal: num(r.ventas_subtotal),
+        cogs: num(r.cogs),
+        margen: num(r.margen),
+        margen_pct: nullableNum(r.margen_pct),
+        ultima_compra: nullableStr(r.ultima_compra),
       }))
     },
   })
@@ -335,15 +342,15 @@ export function useClienteEvolucionMensual(name: string | null, meses: number = 
         p_contact_name_canon: name, p_meses: meses,
       })
       if (error) throw error
-      return (data ?? []).map((r: any): EvolucionMensualRow => ({
-        mes_iso: r.mes_iso,
-        anio: Number(r.anio),
-        mes: Number(r.mes),
-        docs: Number(r.docs ?? 0),
-        ventas: Number(r.ventas ?? 0),
-        cogs: Number(r.cogs ?? 0),
-        margen: Number(r.margen ?? 0),
-        margen_pct: r.margen_pct == null ? null : Number(r.margen_pct),
+      return ((data ?? []) as DbRow[]).map((r): EvolucionMensualRow => ({
+        mes_iso: str(r.mes_iso),
+        anio: num(r.anio),
+        mes: num(r.mes),
+        docs: num(r.docs),
+        ventas: num(r.ventas),
+        cogs: num(r.cogs),
+        margen: num(r.margen),
+        margen_pct: nullableNum(r.margen_pct),
       }))
     },
     staleTime: 5 * 60_000,
@@ -366,10 +373,10 @@ export function useClienteHeatmap(name: string | null, from: string, to: string)
         p_contact_name_canon: name, p_from: from, p_to: to,
       })
       if (error) throw error
-      return (data ?? []).map((r: any): HeatmapDiaRow => ({
-        fecha: r.fecha,
-        pedidos: Number(r.pedidos ?? 0),
-        ventas: Number(r.ventas ?? 0),
+      return ((data ?? []) as DbRow[]).map((r): HeatmapDiaRow => ({
+        fecha: str(r.fecha),
+        pedidos: num(r.pedidos),
+        ventas: num(r.ventas),
       }))
     },
     staleTime: 5 * 60_000,
@@ -398,16 +405,16 @@ export function useClienteMargenDetalle(name: string | null, from: string, to: s
         p_contact_name_canon: name, p_from: from, p_to: to, p_limit: limit,
       })
       if (error) throw error
-      return (data ?? []).map((r: any): MargenDetalleRow => ({
-        product_id: r.product_id,
-        nombre: r.nombre,
-        unidades: Number(r.unidades ?? 0),
-        ventas_subtotal: Number(r.ventas_subtotal ?? 0),
-        cogs: Number(r.cogs ?? 0),
-        margen: Number(r.margen ?? 0),
-        margen_pct: r.margen_pct == null ? null : Number(r.margen_pct),
-        margen_pct_global: r.margen_pct_global == null ? null : Number(r.margen_pct_global),
-        delta_pp: r.delta_pp == null ? null : Number(r.delta_pp),
+      return ((data ?? []) as DbRow[]).map((r): MargenDetalleRow => ({
+        product_id: str(r.product_id),
+        nombre: str(r.nombre),
+        unidades: num(r.unidades),
+        ventas_subtotal: num(r.ventas_subtotal),
+        cogs: num(r.cogs),
+        margen: num(r.margen),
+        margen_pct: nullableNum(r.margen_pct),
+        margen_pct_global: nullableNum(r.margen_pct_global),
+        delta_pp: nullableNum(r.delta_pp),
       }))
     },
     staleTime: 5 * 60_000,
@@ -455,11 +462,11 @@ export function useNombresParecidos(q: string) {
         .limit(500)
       if (error) throw error
       const map = new Map<string, { docs: number; total: number }>()
-      for (const r of (data ?? []) as any[]) {
-        const k = r.contact_name as string
+      for (const r of (data ?? []) as DbRow[]) {
+        const k = str(r.contact_name)
         const cur = map.get(k) ?? { docs: 0, total: 0 }
         cur.docs += 1
-        cur.total += Number(r.total ?? 0)
+        cur.total += num(r.total)
         map.set(k, cur)
       }
       return Array.from(map.entries())
@@ -500,22 +507,22 @@ export function useDeleteAliasCliente() {
   })
 }
 
-// ── Seguimiento ──────────────────────────────────────────────────────────────
+// ── Seguimiento (legacy) ──────────────────────────────────────────────────────
 
 export async function fetchClientesSeguimiento(diasUmbral: number, diasActivo: number): Promise<SeguimientoFila[]> {
   const { data, error } = await supabase.rpc('clientes_seguimiento_semanal', {
     p_dias_umbral: diasUmbral, p_dias_activo: diasActivo,
   })
   if (error) throw error
-  return (data ?? []).map((r: any): SeguimientoFila => ({
-    contact_name_canon: r.contact_name_canon,
-    ult_pedido: r.ult_pedido,
-    dias_sin_pedir: Number(r.dias_sin_pedir ?? 0),
-    cadencia_dias: r.cadencia_dias == null ? null : Number(r.cadencia_dias),
-    pedidos_activo: Number(r.pedidos_activo ?? 0),
-    ventas_activo: Number(r.ventas_activo ?? 0),
-    en_pausa_hasta: r.en_pausa_hasta,
-    estado: r.estado,
+  return ((data ?? []) as DbRow[]).map((r): SeguimientoFila => ({
+    contact_name_canon: str(r.contact_name_canon),
+    ult_pedido: str(r.ult_pedido),
+    dias_sin_pedir: num(r.dias_sin_pedir),
+    cadencia_dias: nullableNum(r.cadencia_dias),
+    pedidos_activo: num(r.pedidos_activo),
+    ventas_activo: num(r.ventas_activo),
+    en_pausa_hasta: nullableStr(r.en_pausa_hasta),
+    estado: str(r.estado) as SeguimientoFila['estado'],
   }))
 }
 
@@ -529,5 +536,106 @@ export function useClientesSeguimiento(diasUmbral: number = 7, diasActivo: numbe
     queryFn: () => fetchClientesSeguimiento(diasUmbral, diasActivo),
     staleTime: 5 * 60_000,
     gcTime: 30 * 60_000,
+  })
+}
+
+// ── Seguimiento v2 ────────────────────────────────────────────────────────────
+
+export type SeguimientoFilaV2 = {
+  contact_name_canon: string
+  ult_pedido: string
+  dias_sin_pedir: number
+  cadencia_dias: number | null
+  pedidos_activo: number
+  ventas_activo: number
+  llamado_seguimiento_at: string | null
+}
+
+export type ExcluidoFila = {
+  contact_name_canon: string
+  motivo_exclusion: string | null
+  excluido_at: string
+}
+
+export function seguimientoV2QueryKey(diasActivo: number) {
+  return ['clientes', 'seguimiento-v2', diasActivo] as const
+}
+
+export async function fetchClientesSeguimientoV2(diasActivo: number): Promise<SeguimientoFilaV2[]> {
+  const { data, error } = await supabase.rpc('clientes_seguimiento_v2', { p_dias_activo: diasActivo })
+  if (error) throw error
+  return ((data ?? []) as DbRow[]).map((r): SeguimientoFilaV2 => ({
+    contact_name_canon: str(r.contact_name_canon),
+    ult_pedido: str(r.ult_pedido),
+    dias_sin_pedir: num(r.dias_sin_pedir),
+    cadencia_dias: nullableNum(r.cadencia_dias),
+    pedidos_activo: num(r.pedidos_activo),
+    ventas_activo: num(r.ventas_activo),
+    llamado_seguimiento_at: nullableStr(r.llamado_seguimiento_at),
+  }))
+}
+
+export function useClientesSeguimientoV2(diasActivo = 90) {
+  return useQuery({
+    queryKey: seguimientoV2QueryKey(diasActivo),
+    queryFn: () => fetchClientesSeguimientoV2(diasActivo),
+    staleTime: 3 * 60_000,
+  })
+}
+
+export function useClientesSeguimientoExcluidos() {
+  return useQuery({
+    queryKey: ['clientes', 'seguimiento-excluidos'] as const,
+    queryFn: async (): Promise<ExcluidoFila[]> => {
+      const { data, error } = await supabase.rpc('clientes_seguimiento_excluidos')
+      if (error) throw error
+      return ((data ?? []) as DbRow[]).map((r): ExcluidoFila => ({
+        contact_name_canon: str(r.contact_name_canon),
+        motivo_exclusion: nullableStr(r.motivo_exclusion),
+        excluido_at: str(r.excluido_at),
+      }))
+    },
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useSeguimientoExcluir() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ name, motivo }: { name: string; motivo: string | null }) => {
+      const { error } = await supabase.rpc('seguimiento_excluir', { p_name: name, p_motivo: motivo })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['clientes', 'seguimiento-v2'] })
+      qc.invalidateQueries({ queryKey: ['clientes', 'seguimiento-excluidos'] })
+    },
+  })
+}
+
+export function useSeguimientoRestaurar() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const { error } = await supabase.rpc('seguimiento_restaurar', { p_name: name })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['clientes', 'seguimiento-v2'] })
+      qc.invalidateQueries({ queryKey: ['clientes', 'seguimiento-excluidos'] })
+    },
+  })
+}
+
+export function useSeguimientoLlamado() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const { error } = await supabase.rpc('seguimiento_marcar_llamado', { p_name: name })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['clientes', 'seguimiento-v2'] })
+    },
   })
 }
