@@ -3,6 +3,7 @@ import { Loader2, Search, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { confirm } from '@/shared/lib/confirm'
+import { supabase } from '@/shared/lib/supabase'
 import { euros, fmtDate } from '../lib/format'
 import {
   useActualizarJornada,
@@ -21,7 +22,7 @@ import type {
   LineaInput,
 } from '../lib/repartos-types'
 
-type LineaUI = LineaInput & { _key: string }
+type LineaUI = LineaInput & { _key: string; _loading?: boolean }
 
 type Props = {
   fecha: string
@@ -94,18 +95,33 @@ function JornadaForm({
     })),
   )
 
-  const addLinea = (c: ContactoOpt) => {
+  const addLinea = async (c: ContactoOpt) => {
+    const key = newKey()
     setLineas((prev) => [
       ...prev,
       {
-        _key: newKey(),
+        _key: key,
         contact_id: c.id,
         contact_nombre: c.nombre,
         importe: 0,
         forma_pago: 'efectivo',
         orden: prev.length,
+        _loading: true,
       },
     ])
+    const { data, error } = await supabase
+      .from('manager_facturas')
+      .select('total')
+      .eq('tipo', 'VENTA')
+      .eq('contact_id', c.id)
+      .in('subtipo', ['waybill', 'invoice', 'salesreceipt'])
+      .order('fecha', { ascending: false })
+      .order('updated_at', { ascending: false })
+      .limit(1)
+    const importe = error ? 0 : Number(data?.[0]?.total ?? 0)
+    setLineas((prev) =>
+      prev.map((l) => (l._key === key ? { ...l, importe, _loading: false } : l)),
+    )
   }
 
   const updLinea = (key: string, patch: Partial<LineaInput>) => {
@@ -121,8 +137,13 @@ function JornadaForm({
     const efectivo = lineas
       .filter((l) => l.forma_pago === 'efectivo')
       .reduce((s, l) => s + Number(l.importe || 0), 0)
-    const tarjeta = total - efectivo
-    return { total, efectivo, tarjeta, count: lineas.length }
+    const tarjeta = lineas
+      .filter((l) => l.forma_pago === 'tarjeta')
+      .reduce((s, l) => s + Number(l.importe || 0), 0)
+    const deuda = lineas
+      .filter((l) => l.forma_pago === 'deuda')
+      .reduce((s, l) => s + Number(l.importe || 0), 0)
+    return { total, efectivo, tarjeta, deuda, count: lineas.length }
   }, [lineas])
 
   const duracion = useMemo(() => {
@@ -255,17 +276,23 @@ function JornadaForm({
                     <span className="truncate font-medium text-[var(--color-ink)]">
                       {l.contact_nombre}
                     </span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={l.importe || ''}
-                      onChange={(ev) =>
-                        updLinea(l._key, { importe: Number(ev.target.value) })
-                      }
-                      placeholder="0,00"
-                      className="h-8 w-24 text-right"
-                    />
+                    {l._loading ? (
+                      <div className="flex h-8 w-24 items-center justify-center">
+                        <Loader2 className="h-3 w-3 animate-spin text-[var(--color-ink-3)]" />
+                      </div>
+                    ) : (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={l.importe || ''}
+                        onChange={(ev) =>
+                          updLinea(l._key, { importe: Number(ev.target.value) })
+                        }
+                        placeholder="0,00"
+                        className="h-8 w-24 text-right"
+                      />
+                    )}
                     <select
                       value={l.forma_pago}
                       onChange={(ev) =>
@@ -277,6 +304,7 @@ function JornadaForm({
                     >
                       <option value="efectivo">Efectivo</option>
                       <option value="tarjeta">Tarjeta</option>
+                      <option value="deuda">Deuda</option>
                     </select>
                     <Button
                       type="button"
@@ -308,11 +336,12 @@ function JornadaForm({
         </div>
 
         <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-          <div className="mb-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-5">
+          <div className="mb-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-6">
             <Total label="Repartos" value={String(totales.count)} />
             <Total label="Total" value={euros(totales.total)} />
             <Total label="Efectivo" value={euros(totales.efectivo)} tone="success" />
             <Total label="Tarjeta" value={euros(totales.tarjeta)} />
+            <Total label="Deuda" value={euros(totales.deuda)} />
             <Total label="Duración" value={duracion ?? '—'} />
           </div>
           <div className="flex items-center justify-between gap-2">

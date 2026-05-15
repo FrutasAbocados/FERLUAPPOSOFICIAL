@@ -134,7 +134,13 @@ function JornadaCard({
     const efectivo = list
       .filter((l) => l.forma_pago === 'efectivo')
       .reduce((s, l) => s + Number(l.importe), 0)
-    return { count: list.length, total, efectivo, tarjeta: total - efectivo }
+    const tarjeta = list
+      .filter((l) => l.forma_pago === 'tarjeta')
+      .reduce((s, l) => s + Number(l.importe), 0)
+    const deuda = list
+      .filter((l) => l.forma_pago === 'deuda')
+      .reduce((s, l) => s + Number(l.importe), 0)
+    return { count: list.length, total, efectivo, tarjeta, deuda }
   }, [lineas.data])
 
   const horas =
@@ -156,10 +162,11 @@ function JornadaCard({
             {horas} · {stats.count} reparto{stats.count === 1 ? '' : 's'}
           </p>
         </div>
-        <div className="grid grid-cols-3 gap-3 text-right text-xs tabular-nums">
+        <div className="grid grid-cols-4 gap-3 text-right text-xs tabular-nums">
           <Mini label="Total" value={euros(stats.total)} />
           <Mini label="Efectivo" value={euros(stats.efectivo)} tone="success" />
           <Mini label="Tarjeta" value={euros(stats.tarjeta)} />
+          <Mini label="Deuda" value={euros(stats.deuda)} />
         </div>
       </div>
     </button>
@@ -194,18 +201,19 @@ function Mini({
 function ResumenDia({ fecha }: { fecha: string }) {
   const resumen = useResumenDia(fecha)
   if (resumen.isLoading || !resumen.data) return null
-  const { total, efectivo, tarjeta, count } = resumen.data
+  const { total, efectivo, tarjeta, deuda, count } = resumen.data
   if (count === 0) return null
   return (
     <div className="ao-card p-4">
       <p className="label-caps mb-2">
         Total del día
       </p>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Mini label="Repartos" value={String(count)} />
         <Mini label="Total" value={euros(total)} />
         <Mini label="Efectivo" value={euros(efectivo)} tone="success" />
         <Mini label="Tarjeta" value={euros(tarjeta)} />
+        <Mini label="Deuda" value={euros(deuda)} />
       </div>
     </div>
   )

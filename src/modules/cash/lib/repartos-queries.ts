@@ -101,6 +101,7 @@ export type ResumenDia = {
   total: number
   efectivo: number
   tarjeta: number
+  deuda: number
 }
 
 export function useResumenDia(fecha: string) {
@@ -113,16 +114,23 @@ export function useResumenDia(fecha: string) {
         .select('importe, forma_pago, repartos_jornada!inner(fecha)')
         .eq('repartos_jornada.fecha', fecha)
       if (error) throw error
-      const list = (data ?? []) as Array<{ importe: number; forma_pago: 'efectivo' | 'tarjeta' }>
+      const list = (data ?? []) as Array<{ importe: number; forma_pago: 'efectivo' | 'tarjeta' | 'deuda' }>
       const total = list.reduce((s, l) => s + Number(l.importe), 0)
       const efectivo = list
         .filter((l) => l.forma_pago === 'efectivo')
+        .reduce((s, l) => s + Number(l.importe), 0)
+      const tarjeta = list
+        .filter((l) => l.forma_pago === 'tarjeta')
+        .reduce((s, l) => s + Number(l.importe), 0)
+      const deuda = list
+        .filter((l) => l.forma_pago === 'deuda')
         .reduce((s, l) => s + Number(l.importe), 0)
       return {
         count: list.length,
         total,
         efectivo,
-        tarjeta: total - efectivo,
+        tarjeta,
+        deuda,
       }
     },
   })
@@ -200,6 +208,7 @@ export type StatsSemana = {
   total: number
   efectivo: number
   tarjeta: number
+  deuda: number
   jornadas: number
 }
 
@@ -213,11 +222,12 @@ export function useCashStatsSemanas(from: string, to: string) {
         p_to: to,
       })
       if (error) throw error
-      type Raw = Omit<StatsSemana, 'horas' | 'total' | 'efectivo' | 'tarjeta' | 'jornadas'> & {
+      type Raw = Omit<StatsSemana, 'horas' | 'total' | 'efectivo' | 'tarjeta' | 'deuda' | 'jornadas'> & {
         horas: number | string
         total: number | string
         efectivo: number | string
         tarjeta: number | string
+        deuda: number | string
         jornadas: number | string
       }
       return (data ?? []).map((r: Raw) => ({
@@ -228,6 +238,7 @@ export function useCashStatsSemanas(from: string, to: string) {
         total: Number(r.total),
         efectivo: Number(r.efectivo),
         tarjeta: Number(r.tarjeta),
+        deuda: Number(r.deuda),
         jornadas: Number(r.jornadas),
       }))
     },

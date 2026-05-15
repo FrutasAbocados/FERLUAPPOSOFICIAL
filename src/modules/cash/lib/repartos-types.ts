@@ -1,4 +1,4 @@
-export type FormaPago = 'efectivo' | 'tarjeta'
+export type FormaPago = 'efectivo' | 'tarjeta' | 'deuda'
 
 export type Jornada = {
   id: string
@@ -37,6 +37,7 @@ export type JornadaResumen = {
   importe_total: number
   importe_efectivo: number
   importe_tarjeta: number
+  importe_deuda: number
 }
 
 export type EmpleadoOpt = {
