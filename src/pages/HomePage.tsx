@@ -1,23 +1,27 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   BarChart3, Banknote, Bot, CalendarClock,
   CheckSquare, CalendarDays, EyeOff, HandCoins, Package, RotateCcw, TrendingUp, UserMinus, Users, Wallet, X,
+  ChevronDown, ArrowRight,
+  type LucideIcon,
 } from 'lucide-react'
-import { format, parseISO } from 'date-fns'
+import { format, formatDistanceToNow, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '@/shared/auth/useAuth'
 import { eurosShort } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
+import { errorMessage } from '@/shared/lib/errors'
 import { canAccess, type ModuleKey } from '@/shared/types'
 import { PageTopbar } from '@/shared/components/PageTopbar'
-import { AlertCard } from '@/modules/dashboard/components/AlertCard'
 import { BriefingDiarioCard } from '@/modules/dashboard/components/BriefingDiarioCard'
-import { EstadoDelDia } from '@/modules/dashboard/components/EstadoDelDia'
+import { PanelEmpresa } from '@/modules/dashboard/components/PanelEmpresa'
 import { NotificacionesPanel } from '@/modules/dashboard/components/NotificacionesPanel'
 import { PvpSugeridoCard } from '@/modules/dashboard/components/PvpSugeridoCard'
 import { FichajeCard } from '@/modules/trabajadores/components/FichajeCard'
+import { RuletaSelfCard } from '@/modules/trabajadores/components/RuletaSelfCard'
 import {
   useClientesProgramaPendientes, useClientesRiesgoFuga, useCostesSubiendo,
   usePedidosEsperados, useProductosAnomalos, useTopDeudoresCobros,
@@ -29,20 +33,25 @@ import {
   useDescartarAlerta,
   useRestaurarTodas,
 } from '@/modules/dashboard/lib/dismiss'
+import {
+  useNotificaciones,
+  useDescartarNotif,
+  useDescartarTodas as useDescartarTodasNotif,
+} from '@/modules/dashboard/lib/notificaciones'
 
 const eur = eurosShort
 const fmt = (d: string | null) =>
   d == null ? '—' : format(parseISO(d), 'd LLL', { locale: es })
 
 const MODULOS = [
-  { key: 'manager',   title: 'Manager',         to: '/manager',           Icon: BarChart3 },
-  { key: 'agente',    title: 'Agente IA',       to: '/agente',            Icon: Bot },
-  { key: 'cash',      title: 'Caja',            to: '/cash',              Icon: Banknote },
-  { key: 'trabajadores', title: 'Trabajadores', to: '/trabajadores',      Icon: CheckSquare },
-  { key: 'turnos',    title: 'Turnos',          to: '/turnos',            Icon: CalendarDays },
-  { key: 'cobros',    title: 'Cobros',          to: '/cobros',            Icon: HandCoins },
-  { key: 'sueldos',   title: 'Sueldos',         to: '/sueldos',           Icon: Wallet },
-  { key: 'bbdd_trabajadores', title: 'BBDD',    to: '/bbdd-trabajadores', Icon: Users },
+  { key: 'manager',           title: 'Manager',      to: '/manager',           Icon: BarChart3,    color: 'oklch(78% 0.14 158)', bg: 'oklch(22% 0.10 158 / 0.55)' },
+  { key: 'agente',            title: 'Agente IA',    to: '/agente',            Icon: Bot,          color: 'oklch(76% 0.12 235)', bg: 'oklch(20% 0.09 235 / 0.55)' },
+  { key: 'cash',              title: 'Caja',         to: '/cash',              Icon: Banknote,     color: 'oklch(78% 0.16 70)',  bg: 'oklch(22% 0.10 70  / 0.55)' },
+  { key: 'trabajadores',      title: 'Trabajadores', to: '/trabajadores',      Icon: CheckSquare,  color: 'oklch(75% 0.14 310)', bg: 'oklch(20% 0.09 310 / 0.55)' },
+  { key: 'turnos',            title: 'Turnos',       to: '/turnos',            Icon: CalendarDays, color: 'oklch(76% 0.13 195)', bg: 'oklch(20% 0.08 195 / 0.55)' },
+  { key: 'cobros',            title: 'Cobros',       to: '/cobros',            Icon: HandCoins,    color: 'oklch(70% 0.18 25)',  bg: 'oklch(22% 0.10 25  / 0.55)' },
+  { key: 'sueldos',           title: 'Sueldos',      to: '/sueldos',           Icon: Wallet,       color: 'oklch(80% 0.15 55)',  bg: 'oklch(23% 0.09 55  / 0.55)' },
+  { key: 'bbdd_trabajadores', title: 'BBDD',         to: '/bbdd-trabajadores', Icon: Users,        color: 'oklch(75% 0.12 270)', bg: 'oklch(20% 0.08 270 / 0.55)' },
 ] as const
 
 export function HomePage() {
@@ -59,27 +68,24 @@ function HomeAdmin() {
   const role = profile?.role
   const moduleEntries = MODULOS.filter(m => role && canAccess(m.key as ModuleKey, role))
 
-  // Las alertas (Cobros / Pedidos / Anómalos / Fuga / Costes) son cuadro de mando
-  // ejecutivo: sólo admin_full y admin_op las consumen. responsable cae aquí pero
-  // no debe disparar esas RPCs (algunas pueden no estar concedidas a su rol).
   const isAdmin = role === 'admin_full' || role === 'admin_op'
-  const deudoresQ = useTopDeudoresCobros({ enabled: isAdmin })
-  const esperadosQ = usePedidosEsperados({ enabled: isAdmin })
-  const anomalosQ  = useProductosAnomalos(30, { enabled: isAdmin })
+  const deudoresQ   = useTopDeudoresCobros({ enabled: isAdmin })
+  const esperadosQ  = usePedidosEsperados({ enabled: isAdmin })
+  const anomalosQ   = useProductosAnomalos(30, { enabled: isAdmin })
   const riesgoFugaQ = useClientesRiesgoFuga({ enabled: isAdmin })
-  const costesQ    = useCostesSubiendo(14, 15, { enabled: isAdmin })
-  const programaQ  = useClientesProgramaPendientes({ enabled: isAdmin })
+  const costesQ     = useCostesSubiendo(14, 15, { enabled: isAdmin })
+  const programaQ   = useClientesProgramaPendientes({ enabled: isAdmin })
 
-  const dismissed = useAlertasDescartadas()
-  const descartar = useDescartarAlerta()
+  const dismissed      = useAlertasDescartadas()
+  const descartar      = useDescartarAlerta()
   const restaurarTodas = useRestaurarTodas()
 
   const handleDismiss = async (alert_type: AlertType, entity_id: string, label: string) => {
     try {
       await descartar.mutateAsync({ alert_type, entity_id })
       toast({ title: `Descartado: ${label}`, variant: 'success' })
-    } catch (e: any) {
-      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error', description: errorMessage(e), variant: 'error' })
     }
   }
 
@@ -94,36 +100,49 @@ function HomeAdmin() {
     try {
       await restaurarTodas.mutateAsync()
       toast({ title: 'Alertas restauradas', variant: 'success' })
-    } catch (e: any) {
-      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error', description: errorMessage(e), variant: 'error' })
     }
   }
 
-  // Filtrar descartadas
   const deudores = useMemo(() => ({
     ...deudoresQ,
     data: (deudoresQ.data ?? []).filter((d) => !dismissed.isDescartada('deuda', d.cliente_id)),
-  }), [deudoresQ.data, dismissed.set])
+  }), [deudoresQ, dismissed])
   const esperados = useMemo(() => ({
     ...esperadosQ,
     data: (esperadosQ.data ?? []).filter((p) => !dismissed.isDescartada('pedido_esperado', p.contact_name_canon)),
-  }), [esperadosQ.data, dismissed.set])
+  }), [esperadosQ, dismissed])
   const anomalos = useMemo(() => ({
     ...anomalosQ,
     data: (anomalosQ.data ?? []).filter((p) => !dismissed.isDescartada('producto_anomalo', p.product_id ?? p.nombre)),
-  }), [anomalosQ.data, dismissed.set])
+  }), [anomalosQ, dismissed])
   const riesgoFuga = useMemo(() => ({
     ...riesgoFugaQ,
     data: (riesgoFugaQ.data ?? []).filter((c) => !dismissed.isDescartada('riesgo_fuga', c.contact_name_canon)),
-  }), [riesgoFugaQ.data, dismissed.set])
+  }), [riesgoFugaQ, dismissed])
   const costes = useMemo(() => ({
     ...costesQ,
     data: (costesQ.data ?? []).filter((p) => !dismissed.isDescartada('coste_subiendo', p.product_id)),
-  }), [costesQ.data, dismissed.set])
+  }), [costesQ, dismissed])
 
-  const totalDeuda = (deudores.data ?? []).reduce((s, d) => s + d.pendiente, 0)
-  const totalVencido = (deudores.data ?? []).reduce((s, d) => s + d.vencido, 0)
+  const totalDeuda        = (deudores.data ?? []).reduce((s, d) => s + d.pendiente, 0)
+  const totalVencido      = (deudores.data ?? []).reduce((s, d) => s + d.vencido, 0)
   const esperadosUrgentes = (esperados.data ?? []).filter(p => p.prioridad === 'urgente' || p.prioridad === 'pronto')
+
+  const totalAlertas = [
+    deudores.data?.length ?? 0,
+    esperadosUrgentes.length,
+    anomalos.data?.length ?? 0,
+    riesgoFuga.data?.length ?? 0,
+    programaQ.data?.length ?? 0,
+    costes.data?.length ?? 0,
+  ].reduce((s, n) => s + n, 0)
+
+  const hayCriticas =
+    totalVencido > 0 ||
+    (riesgoFuga.data ?? []).some(c => c.severidad === 'critica') ||
+    (programaQ.data ?? []).some(c => c.prioridad === 'alta' || c.programa_manual === 'atencion')
 
   return (
     <div>
@@ -132,148 +151,163 @@ function HomeAdmin() {
         subtitle={`Hola, ${profile?.display_name ?? '—'}`}
       />
       <div className="ao-page">
+        {/* Desktop xl+: columna principal (flex) + sidebar 280px fija */}
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
 
-      <div className="space-y-[22px]">
-        <EstadoDelDia />
-        {isAdmin && <BriefingDiarioCard />}
-        {isAdmin && <PvpSugeridoCard />}
-        <NotificacionesPanel />
-        <FichajeCard />
+          {/* ── COLUMNA PRINCIPAL ── */}
+          <div className="min-w-0 space-y-6">
 
-        {isAdmin && (
-        <section>
-          <h2 className="label-caps mb-3">Alertas</h2>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {/* Top deudores Cobros */}
-          <AlertCard
-            titulo="Deuda pendiente Cobros"
-            subtitulo={totalVencido > 0 ? `${eur(totalVencido)} vencido` : 'al día con vencimientos'}
-            Icon={HandCoins}
-            severidad={totalVencido > 0 ? 'critica' : (totalDeuda > 0 ? 'aviso' : 'ok')}
-            count={deudores.data?.length ?? 0}
-            total={totalDeuda > 0 ? eur(totalDeuda) : undefined}
-            loading={deudoresQ.isLoading}
-            to="/cobros"
-            empty="Sin deuda pendiente"
-            preview={<DeudoresList rows={deudores.data?.slice(0, 6)} onDismiss={(id, label) => handleDismiss('deuda', id, label)} />}
-            full={<DeudoresList rows={deudores.data ?? []} onDismiss={(id, label) => handleDismiss('deuda', id, label)} />}
-          />
+            {/* 1 — Estado ejecutivo empresa */}
+            <PanelEmpresa />
 
-          {/* Pedidos esperados hoy/inminentes */}
-          <AlertCard
-            titulo="Pedidos esperados hoy / vencidos"
-            subtitulo="basado en cadencia regular del cliente"
-            Icon={CalendarClock}
-            severidad={esperadosUrgentes.length > 0 ? 'aviso' : 'ok'}
-            count={esperadosUrgentes.length}
-            loading={esperadosQ.isLoading}
-            to="/manager"
-            empty="Nadie por encima del patrón hoy"
-            preview={<EsperadosList rows={esperadosUrgentes.slice(0, 6)} onDismiss={(id, label) => handleDismiss('pedido_esperado', id, label)} />}
-            full={<EsperadosList rows={esperados.data ?? []} mostrarTodos onDismiss={(id, label) => handleDismiss('pedido_esperado', id, label)} />}
-          />
-
-          {/* Productos anómalos */}
-          <AlertCard
-            titulo="Productos con margen anómalo"
-            subtitulo="últimos 30 días"
-            Icon={Package}
-            severidad={(anomalos.data?.length ?? 0) > 0 ? 'aviso' : 'ok'}
-            count={anomalos.data?.length ?? 0}
-            loading={anomalosQ.isLoading}
-            to="/manager"
-            empty="Todos los productos con margen razonable"
-            preview={<ProductosList rows={anomalos.data?.slice(0, 6)} onDismiss={(id, label) => handleDismiss('producto_anomalo', id, label)} />}
-            full={<ProductosList rows={anomalos.data ?? []} onDismiss={(id, label) => handleDismiss('producto_anomalo', id, label)} />}
-          />
-
-          {/* Riesgo de fuga (inactivo / ralentiza / ticket cae) */}
-          <AlertCard
-            titulo="Riesgo de fuga"
-            subtitulo="parados, ralentizan o ticket cae"
-            Icon={UserMinus}
-            severidad={
-              (riesgoFuga.data ?? []).some(c => c.severidad === 'critica')
-                ? 'critica'
-                : (riesgoFuga.data?.length ?? 0) > 0 ? 'aviso' : 'ok'
-            }
-            count={riesgoFuga.data?.length ?? 0}
-            loading={riesgoFugaQ.isLoading}
-            to="/manager"
-            empty="Sin clientes en riesgo"
-            preview={<RiesgoFugaList rows={riesgoFuga.data?.slice(0, 6)} onDismiss={(id, label) => handleDismiss('riesgo_fuga', id, label)} />}
-            full={<RiesgoFugaList rows={riesgoFuga.data ?? []} onDismiss={(id, label) => handleDismiss('riesgo_fuga', id, label)} />}
-          />
-
-          <AlertCard
-            titulo="Fidelización hoy"
-            subtitulo="acciones pendientes del programa"
-            Icon={CalendarClock}
-            severidad={
-              (programaQ.data ?? []).some(c => c.prioridad === 'alta' || c.programa_manual === 'atencion')
-                ? 'critica'
-                : (programaQ.data?.length ?? 0) > 0 ? 'aviso' : 'ok'
-            }
-            count={programaQ.data?.length ?? 0}
-            loading={programaQ.isLoading}
-            to="/clientes"
-            empty="Sin acciones comerciales pendientes"
-            preview={<ProgramaPendientesList rows={programaQ.data?.slice(0, 6)} />}
-            full={<ProgramaPendientesList rows={programaQ.data ?? []} />}
-          />
-
-          {/* Costes subiendo */}
-          <AlertCard
-            titulo="Costes subiendo"
-            subtitulo="≥15% últimos 14d vs 90d"
-            Icon={TrendingUp}
-            severidad={(costes.data?.length ?? 0) > 0 ? 'aviso' : 'ok'}
-            count={costes.data?.length ?? 0}
-            loading={costesQ.isLoading}
-            to="/manager"
-            empty="Sin subidas relevantes"
-            preview={<CostesList rows={costes.data?.slice(0, 6)} onDismiss={(id, label) => handleDismiss('coste_subiendo', id, label)} />}
-            full={<CostesList rows={costes.data ?? []} onDismiss={(id, label) => handleDismiss('coste_subiendo', id, label)} />}
-          />
-          </div>
-
-          {dismissed.list.length > 0 && (
-            <div className="mt-3 flex items-center justify-end gap-2 text-xs text-[var(--ink-mute)]">
-              <EyeOff className="h-3.5 w-3.5" />
-              <span>{dismissed.list.length} alerta{dismissed.list.length === 1 ? '' : 's'} descartada{dismissed.list.length === 1 ? '' : 's'}</span>
-              <button
-                type="button"
-                onClick={handleRestaurarTodas}
-                disabled={restaurarTodas.isPending}
-                className="ao-pill px-2 py-1 text-[11px] hover:text-[var(--mint)]"
-              >
-                <RotateCcw className="h-3 w-3" />
-                Restaurar todas
-              </button>
-            </div>
-          )}
-        </section>
-        )}
-
-        {/* Atajos */}
-        <section>
-          <h2 className="label-caps mb-3">Módulos</h2>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-            {moduleEntries.map(({ key, title, to, Icon }) => (
-              <Link
-                key={key}
-                to={to}
-                className="ao-panel ao-card-hover group flex flex-col items-center gap-2 px-3 py-4"
-              >
-                <div className="ao-icon-tile h-9 w-9">
-                  <Icon className="h-5 w-5" />
+            {/* 2 — Centro de alertas: feed expandible por categoría */}
+            {isAdmin && (
+              <section>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h2 className="label-caps">Centro de alertas</h2>
+                  <div className="flex items-center gap-2 text-[11px]">
+                    {totalAlertas > 0 && (
+                      <span className={`ao-chip ${hayCriticas ? 'ao-chip-coral' : 'ao-chip-amber'}`}>
+                        {totalAlertas} activa{totalAlertas === 1 ? '' : 's'}
+                        {hayCriticas ? ' · críticas' : ''}
+                      </span>
+                    )}
+                    {dismissed.list.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleRestaurarTodas}
+                        disabled={restaurarTodas.isPending}
+                        className="flex items-center gap-1 text-[var(--ink-mute)] transition-colors hover:text-[var(--mint)]"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        <span className="hidden sm:inline">{dismissed.list.length} descartada{dismissed.list.length === 1 ? '' : 's'}</span>
+                        <EyeOff className="h-3 w-3 sm:hidden" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <span className="truncate text-sm font-medium text-[var(--ink)]">{title}</span>
-              </Link>
-            ))}
+
+                <div
+                  className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--line)]"
+                  style={{ background: 'linear-gradient(180deg,rgba(18,26,24,.58),rgba(12,18,17,.46))' }}
+                >
+                  <AlertRow
+                    titulo="Cobros pendientes"
+                    Icon={HandCoins}
+                    severidad={totalVencido > 0 ? 'critica' : totalDeuda > 0 ? 'aviso' : 'ok'}
+                    count={deudores.data?.length ?? 0}
+                    meta={totalDeuda > 0 ? `${eur(totalDeuda)} · ${eur(totalVencido)} vencido` : undefined}
+                    to="/cobros"
+                    loading={deudoresQ.isLoading}
+                  >
+                    <DeudoresList rows={deudores.data} onDismiss={(id, label) => handleDismiss('deuda', id, label)} />
+                  </AlertRow>
+
+                  <AlertRow
+                    titulo="Pedidos esperados"
+                    Icon={CalendarClock}
+                    severidad={esperadosUrgentes.length > 0 ? 'aviso' : 'ok'}
+                    count={esperadosUrgentes.length}
+                    to="/manager"
+                    loading={esperadosQ.isLoading}
+                  >
+                    <EsperadosList rows={esperados.data ?? []} mostrarTodos onDismiss={(id, label) => handleDismiss('pedido_esperado', id, label)} />
+                  </AlertRow>
+
+                  <AlertRow
+                    titulo="Margen anómalo"
+                    Icon={Package}
+                    severidad={(anomalos.data?.length ?? 0) > 0 ? 'aviso' : 'ok'}
+                    count={anomalos.data?.length ?? 0}
+                    meta="últimos 30 días"
+                    to="/manager"
+                    loading={anomalosQ.isLoading}
+                  >
+                    <ProductosList rows={anomalos.data} onDismiss={(id, label) => handleDismiss('producto_anomalo', id, label)} />
+                  </AlertRow>
+
+                  <AlertRow
+                    titulo="Riesgo de fuga"
+                    Icon={UserMinus}
+                    severidad={
+                      (riesgoFuga.data ?? []).some(c => c.severidad === 'critica') ? 'critica'
+                      : (riesgoFuga.data?.length ?? 0) > 0 ? 'aviso'
+                      : 'ok'
+                    }
+                    count={riesgoFuga.data?.length ?? 0}
+                    to="/manager"
+                    loading={riesgoFugaQ.isLoading}
+                  >
+                    <RiesgoFugaList rows={riesgoFuga.data} onDismiss={(id, label) => handleDismiss('riesgo_fuga', id, label)} />
+                  </AlertRow>
+
+                  <AlertRow
+                    titulo="Fidelización hoy"
+                    Icon={CalendarClock}
+                    severidad={
+                      (programaQ.data ?? []).some(c => c.prioridad === 'alta' || c.programa_manual === 'atencion') ? 'critica'
+                      : (programaQ.data?.length ?? 0) > 0 ? 'aviso'
+                      : 'ok'
+                    }
+                    count={programaQ.data?.length ?? 0}
+                    to="/clientes"
+                    loading={programaQ.isLoading}
+                  >
+                    <ProgramaPendientesList rows={programaQ.data} />
+                  </AlertRow>
+
+                  <AlertRow
+                    titulo="Costes subiendo"
+                    Icon={TrendingUp}
+                    severidad={(costes.data?.length ?? 0) > 0 ? 'aviso' : 'ok'}
+                    count={costes.data?.length ?? 0}
+                    meta="≥15% últimos 14d vs 90d"
+                    to="/manager"
+                    loading={costesQ.isLoading}
+                  >
+                    <CostesList rows={costes.data} onDismiss={(id, label) => handleDismiss('coste_subiendo', id, label)} />
+                  </AlertRow>
+                </div>
+
+                {/* PVP a revisar — dentro del bloque de alertas */}
+                <div className="mt-3">
+                  <PvpSugeridoCard />
+                </div>
+              </section>
+            )}
+
+            {/* 3 — Briefing IA */}
+            {isAdmin && <BriefingDiarioCard />}
           </div>
-        </section>
-      </div>
+
+          {/* ── SIDEBAR ── */}
+          <div className="space-y-4">
+            <section>
+              <h2 className="label-caps mb-3">Módulos</h2>
+              <div className="grid grid-cols-2 gap-2">
+                {moduleEntries.map(({ key, title, to, Icon, color, bg }) => (
+                  <Link
+                    key={key}
+                    to={to}
+                    className="group flex items-center gap-2.5 rounded-[var(--radius-lg)] px-3 py-2.5 transition-all active:scale-95"
+                    style={{ background: bg, border: `1px solid ${color}28` }}
+                  >
+                    <div
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)]"
+                      style={{ background: `${color}18`, color }}
+                    >
+                      <Icon className="h-3.5 w-3.5 transition-transform group-hover:scale-110" />
+                    </div>
+                    <span className="min-w-0 truncate text-xs font-medium text-[var(--ink)]">{title}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          </div>
+        </div>
+
+        {/* ── NOTIFICACIONES — tira horizontal full-width debajo del grid ── */}
+        <NotifStrip />
       </div>
     </div>
   )
@@ -292,6 +326,7 @@ function HomeEmpleado() {
       <div className="space-y-[22px]">
         <NotificacionesPanel />
         <FichajeCard />
+        <RuletaSelfCard />
 
         <section>
           <h2 className="label-caps mb-3">Tus módulos</h2>
@@ -311,6 +346,77 @@ function HomeEmpleado() {
           </div>
         </section>
       </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Tira de notificaciones horizontal ────────────────────────────────────────
+
+const DEPRIO_TIPOS = new Set(['neutral_ia', 'puntos_dia'])
+
+function notifDotColor(tipo: string): string {
+  if (tipo === 'penalizacion_ia' || tipo === 'vacaciones_denegada') return 'var(--coral)'
+  if (tipo === 'vacaciones_solicitada') return 'var(--amber)'
+  return 'var(--mint)'
+}
+
+function NotifStrip() {
+  const { data: notifs = [], isLoading } = useNotificaciones()
+  const descartar      = useDescartarNotif()
+  const descartarTodas = useDescartarTodasNotif()
+
+  const sorted = [...notifs].sort((a, b) => {
+    const aD = DEPRIO_TIPOS.has(a.tipo) ? 1 : 0
+    const bD = DEPRIO_TIPOS.has(b.tipo) ? 1 : 0
+    if (aD !== bD) return aD - bD
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+  const visible = sorted.slice(0, 4)
+
+  if (isLoading || visible.length === 0) return null
+
+  return (
+    <div className="mt-6">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="label-caps">Notificaciones</h2>
+        <button
+          type="button"
+          onClick={() => descartarTodas.mutate(notifs.map(n => n.id))}
+          disabled={descartarTodas.isPending}
+          className="text-[11px] text-[var(--ink-mute)] transition-colors hover:text-[var(--ink)]"
+        >
+          descartar todas
+        </button>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {visible.map(n => {
+          const dot = notifDotColor(n.tipo)
+          return (
+            <div
+              key={n.id}
+              className="group flex items-center gap-2.5 rounded-[var(--radius-lg)] border border-[var(--line)] px-3 py-2.5"
+              style={{ background: 'rgba(18,26,24,.55)' }}
+            >
+              <div
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ background: dot, boxShadow: `0 0 5px ${dot}` }}
+              />
+              <span className="min-w-0 flex-1 truncate text-xs text-[var(--ink)]">{n.titulo}</span>
+              <span className="shrink-0 whitespace-nowrap text-[10px] text-[var(--ink-mute)]">
+                {formatDistanceToNow(new Date(n.created_at), { locale: es })}
+              </span>
+              <button
+                type="button"
+                onClick={() => descartar.mutate(n.id)}
+                disabled={descartar.isPending}
+                className="shrink-0 text-[var(--ink-mute)] opacity-0 transition-opacity hover:text-[var(--ink)] group-hover:opacity-100"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -492,5 +598,80 @@ function CostesList({ rows, onDismiss }: { rows?: CosteSubiendo[]; onDismiss?: (
         </li>
       ))}
     </ul>
+  )
+}
+
+// ── Fila expandible del feed de alertas ──────────────────────────────────────
+
+function AlertRow({
+  titulo, Icon, severidad, count, meta, to, loading, children,
+}: {
+  titulo: string
+  Icon: LucideIcon
+  severidad: 'ok' | 'aviso' | 'critica'
+  count: number
+  meta?: string
+  to: string
+  loading?: boolean
+  children?: ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+
+  const dotClr = severidad === 'critica' ? 'var(--coral)' : severidad === 'aviso' ? 'var(--amber)' : 'var(--mint)'
+  const cntCls = severidad === 'critica' ? 'text-[var(--coral)]' : severidad === 'aviso' ? 'text-[var(--amber)]' : 'text-[var(--mint)]'
+
+  return (
+    <div className="border-b border-[var(--line)] last:border-b-0">
+      <div
+        role={count > 0 ? 'button' : undefined}
+        tabIndex={count > 0 ? 0 : undefined}
+        className={`flex select-none items-center gap-3 px-4 py-3 transition-colors ${count > 0 ? 'cursor-pointer hover:bg-[rgba(140,200,170,0.05)]' : ''}`}
+        onClick={() => count > 0 && setOpen(v => !v)}
+        onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && count > 0 && setOpen(v => !v)}
+      >
+        {/* Estado visual */}
+        <div
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ background: dotClr, boxShadow: severidad !== 'ok' ? `0 0 5px ${dotClr}` : 'none' }}
+        />
+
+        <Icon className="h-4 w-4 shrink-0 text-[var(--ink-mute)]" />
+
+        <span className="min-w-0 flex-1 truncate text-sm text-[var(--ink)]">{titulo}</span>
+
+        {meta && (
+          <span className="hidden shrink-0 text-xs text-[var(--ink-mute)] sm:block">{meta}</span>
+        )}
+
+        {loading ? (
+          <div className="h-4 w-6 animate-pulse rounded bg-[rgba(255,255,255,.05)]" />
+        ) : count > 0 ? (
+          <span className={`mono shrink-0 text-sm font-semibold tabular-nums ${cntCls}`}>{count}</span>
+        ) : (
+          <span className="mono shrink-0 text-xs text-[var(--mint)]">OK</span>
+        )}
+
+        <Link
+          to={to}
+          className="shrink-0 text-[var(--ink-mute)] transition-colors hover:text-[var(--mint)]"
+          onClick={e => e.stopPropagation()}
+          aria-label="Ir al módulo"
+        >
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+
+        {count > 0 && (
+          <ChevronDown
+            className={`h-3.5 w-3.5 shrink-0 text-[var(--ink-mute)] transition-transform ${open ? 'rotate-180' : ''}`}
+          />
+        )}
+      </div>
+
+      {open && count > 0 && (
+        <div className="border-t border-[var(--line)] bg-[rgba(0,0,0,.14)] px-4 pb-4 pt-3">
+          {children}
+        </div>
+      )}
+    </div>
   )
 }
