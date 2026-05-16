@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
-import type { Period } from './period'
+import { periodFromPreset, type Period } from './period'
 import type {
   AbueloFactura, AbueloLinea, AliasRow, CatalogoProducto,
   ClienteFactura, ClienteListItem, ClienteProducto,
@@ -10,6 +10,7 @@ import type {
   TopClienteMargen, TopProductoMargen,
 } from './types'
 
+const STALE_5M = 5 * 60_000
 const periodKey = (p: Period) => `${p.from}_${p.to}`
 
 // ── KPIs agregados del periodo ────────────────────────────────────────────
@@ -41,9 +42,10 @@ export function useResumen(period: Period) {
 }
 
 // ── Resumen comparativo (vs periodo anterior equivalente) ────────────────
-export function useResumenComparativo(period: Period) {
-  return useQuery({
+function resumenCompOpts(period: Period) {
+  return {
     queryKey: ['manager', 'resumenComp', periodKey(period)] as const,
+    staleTime: STALE_5M,
     queryFn: async (): Promise<ResumenComparativo> => {
       const { data, error } = await supabase.rpc('manager_resumen_comparativo', {
         p_from: period.from, p_to: period.to,
@@ -68,13 +70,18 @@ export function useResumenComparativo(period: Period) {
         comp_to:            r?.comp_to == null ? null : String(r.comp_to),
       }
     },
-  })
+  }
+}
+
+export function useResumenComparativo(period: Period) {
+  return useQuery({ ...resumenCompOpts(period), placeholderData: (prev) => prev })
 }
 
 // ── Forecast próximo mes (con tendencia y proyección 3m) ─────────────────
 export function useForecast() {
   return useQuery({
     queryKey: ['manager', 'forecast'] as const,
+    staleTime: STALE_5M,
     queryFn: async (): Promise<Forecast> => {
       const { data, error } = await supabase.rpc('manager_forecast_proximo_mes')
       if (error) throw error
@@ -94,9 +101,10 @@ export function useForecast() {
 }
 
 // ── Top clientes por margen € ─────────────────────────────────────────────
-export function useTopClientesMargen(period: Period, limit = 10) {
-  return useQuery({
+function topClientesOpts(period: Period, limit: number) {
+  return {
     queryKey: ['manager', 'topClientes', periodKey(period), limit] as const,
+    staleTime: STALE_5M,
     queryFn: async (): Promise<TopClienteMargen[]> => {
       const { data, error } = await supabase.rpc('manager_top_clientes_margen', {
         p_from: period.from,
@@ -115,13 +123,18 @@ export function useTopClientesMargen(period: Period, limit = 10) {
         margen_pct:         r.margen_pct == null ? null : Number(r.margen_pct),
       }))
     },
-  })
+  }
+}
+
+export function useTopClientesMargen(period: Period, limit = 10) {
+  return useQuery({ ...topClientesOpts(period, limit), placeholderData: (prev) => prev })
 }
 
 // ── Top productos por margen € ────────────────────────────────────────────
-export function useTopProductosMargen(period: Period, limit = 10) {
-  return useQuery({
+function topProductosOpts(period: Period, limit: number) {
+  return {
     queryKey: ['manager', 'topProductos', periodKey(period), limit] as const,
+    staleTime: STALE_5M,
     queryFn: async (): Promise<TopProductoMargen[]> => {
       const { data, error } = await supabase.rpc('manager_top_productos_margen', {
         p_from: period.from,
@@ -140,13 +153,18 @@ export function useTopProductosMargen(period: Period, limit = 10) {
         margen_pct:       r.margen_pct == null ? null : Number(r.margen_pct),
       }))
     },
-  })
+  }
+}
+
+export function useTopProductosMargen(period: Period, limit = 10) {
+  return useQuery({ ...topProductosOpts(period, limit), placeholderData: (prev) => prev })
 }
 
 // ── Serie diaria ventas / compras / margen ────────────────────────────────
-export function useSerieDiaria(period: Period) {
-  return useQuery({
+function serieDiariaOpts(period: Period) {
+  return {
     queryKey: ['manager', 'serieDiaria', periodKey(period)] as const,
+    staleTime: STALE_5M,
     queryFn: async (): Promise<SerieDiariaPunto[]> => {
       const { data, error } = await supabase.rpc('manager_serie_diaria', {
         p_from: period.from,
@@ -160,7 +178,11 @@ export function useSerieDiaria(period: Period) {
         margen:  Number(r.margen ?? 0),
       }))
     },
-  })
+  }
+}
+
+export function useSerieDiaria(period: Period) {
+  return useQuery({ ...serieDiariaOpts(period), placeholderData: (prev) => prev })
 }
 
 // ── Lista de clientes (agrupados por nombre canónico) ────────────────────
@@ -642,6 +664,7 @@ export function useCatalogoProductos(q: string) {
 export function useUltimoSync() {
   return useQuery({
     queryKey: ['manager', 'sync', 'last'] as const,
+    staleTime: 60_000,
     queryFn: async (): Promise<SyncLog | null> => {
       const { data, error } = await supabase
         .from('manager_holded_sync')
@@ -670,4 +693,13 @@ export function useSyncManual() {
       qc.invalidateQueries({ queryKey: ['manager'] })
     },
   })
+}
+
+// ── Prefetch datos Resumen al hacer hover sobre el link Manager ───────────
+export function prefetchManagerResumen(queryClient: QueryClient, period?: Period): void {
+  const p = period ?? periodFromPreset('mes')
+  void queryClient.prefetchQuery(resumenCompOpts(p))
+  void queryClient.prefetchQuery(serieDiariaOpts(p))
+  void queryClient.prefetchQuery(topClientesOpts(p, 10))
+  void queryClient.prefetchQuery(topProductosOpts(p, 10))
 }

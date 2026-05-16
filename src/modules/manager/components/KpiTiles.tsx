@@ -55,14 +55,18 @@ export function KpiTiles({ k, loading }: Props) {
             <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">{t.label}</div>
             <DeltaPill delta={t.delta} inverso={t.deltaInverso} />
           </div>
-          <div className={`mt-1 font-display text-xl font-bold lg:text-2xl ${
-            t.tone === 'positive' ? 'text-[var(--mint)]'
-            : t.tone === 'negative' ? 'text-[var(--coral)]'
-            : t.tone === 'warning'  ? 'text-[var(--color-primary)]'
-            : 'text-[var(--color-ink)]'
-          }`}>
-            {loading && !k ? '…' : t.value}
-          </div>
+          {loading && !k ? (
+            <div className="mt-2 h-6 w-20 animate-pulse rounded bg-[var(--color-surface-2)]" />
+          ) : (
+            <div className={`mt-1 font-display text-xl font-bold lg:text-2xl ${
+              t.tone === 'positive' ? 'text-[var(--mint)]'
+              : t.tone === 'negative' ? 'text-[var(--coral)]'
+              : t.tone === 'warning'  ? 'text-[var(--color-primary)]'
+              : 'text-[var(--color-ink)]'
+            }`}>
+              {t.value}
+            </div>
+          )}
           {t.sub && <div className="mt-0.5 text-xs text-[var(--color-ink-3)]">{t.sub}</div>}
         </div>
       ))}

@@ -17,11 +17,27 @@ const MapaClientesView       = lazy(() => import('./components/MapaClientesView'
 
 function TabFallback() {
   return (
-    <div
-      className="flex items-center justify-center min-h-40 text-sm"
-      style={{ color: 'var(--color-muted, #6b7280)' }}
-    >
-      Cargando…
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="ao-card px-4 py-3">
+            <div className="h-3 w-16 animate-pulse rounded bg-[var(--color-surface-2)]" />
+            <div className="mt-2 h-6 w-20 animate-pulse rounded bg-[var(--color-surface-2)]" />
+          </div>
+        ))}
+      </div>
+      <div className="ao-card p-4">
+        <div className="mb-3 h-4 w-48 animate-pulse rounded bg-[var(--color-surface-2)]" />
+        <div className="flex h-64 items-end gap-1 px-2 pb-2">
+          {[55, 38, 72, 45, 85, 40, 68, 52, 78, 35, 62, 48].map((h, i) => (
+            <div
+              key={i}
+              className="flex-1 animate-pulse rounded-sm bg-[var(--color-surface-2)]"
+              style={{ height: `${h}%`, animationDelay: `${i * 40}ms` }}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

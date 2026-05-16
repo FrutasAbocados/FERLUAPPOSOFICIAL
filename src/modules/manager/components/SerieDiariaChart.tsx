@@ -20,7 +20,7 @@ export function SerieDiariaChart({ data, loading }: Props) {
       </div>
       <div className="h-72 w-full">
         {data && data.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={288}>
             <ComposedChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis
@@ -53,9 +53,19 @@ export function SerieDiariaChart({ data, loading }: Props) {
               <Line dataKey="margen" name="Margen" type="monotone" stroke="#f0b84b" strokeWidth={2} dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
+        ) : loading ? (
+          <div className="flex h-full items-end gap-1 px-2 pb-2">
+            {[55, 38, 72, 45, 85, 40, 68, 52, 78, 35, 62, 48, 80, 42, 70, 56, 88, 44].map((h, i) => (
+              <div
+                key={i}
+                className="flex-1 animate-pulse rounded-sm bg-[var(--color-surface-2)]"
+                style={{ height: `${h}%`, animationDelay: `${i * 40}ms` }}
+              />
+            ))}
+          </div>
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-[var(--color-ink-3)]">
-            {loading ? 'Cargando…' : 'Sin datos en este periodo'}
+            Sin datos en este periodo
           </div>
         )}
       </div>

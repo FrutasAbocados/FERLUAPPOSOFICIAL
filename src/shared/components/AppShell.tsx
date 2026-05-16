@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { prefetchManagerResumen } from '@/modules/manager/lib/queries'
 import {
   BarChart3,
   Banknote,
@@ -86,14 +88,29 @@ export function AppShell() {
   const { profile, signOut } = useAuth()
   const location = useLocation()
   const role = profile?.role
+  const qc = useQueryClient()
   const preload = useCallback((to: string) => { PRELOADERS[to]?.() }, [])
   const visible = MODULES.filter((m) => role && canAccess(m.key, role))
   const equipo  = EQUIPO.filter((m) => role && canAccess(m.key, role))
   const socios  = SOCIOS.filter((m) => role && canAccess(m.key, role))
-  const [equipoOpen, setEquipoOpen] = useState(false)
-  const [sociosOpen, setSociosOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState({ path: location.pathname, equipo: false, socios: false })
+  const equipoOpen = menuOpen.path === location.pathname && menuOpen.equipo
+  const sociosOpen = menuOpen.path === location.pathname && menuOpen.socios
+  const setEquipoOpen = useCallback((open: boolean) => {
+    setMenuOpen((prev) => ({
+      path: location.pathname,
+      equipo: open,
+      socios: open ? false : (prev.path === location.pathname && prev.socios),
+    }))
+  }, [location.pathname])
+  const setSociosOpen = useCallback((open: boolean) => {
+    setMenuOpen((prev) => ({
+      path: location.pathname,
+      equipo: open ? false : (prev.path === location.pathname && prev.equipo),
+      socios: open,
+    }))
+  }, [location.pathname])
 
-  useEffect(() => { setEquipoOpen(false); setSociosOpen(false) }, [location.pathname])
   useEffect(() => {
     if (!equipoOpen && !sociosOpen) return
     const onKey = (e: KeyboardEvent) => {
@@ -101,7 +118,7 @@ export function AppShell() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [equipoOpen, sociosOpen])
+  }, [equipoOpen, sociosOpen, setEquipoOpen, setSociosOpen])
 
   const isEquipoActive = equipo.some(m => location.pathname.startsWith(m.to))
   const isSociosActive = socios.some(m => location.pathname.startsWith(m.to))
@@ -193,7 +210,10 @@ export function AppShell() {
             <NavLink
               key={m.key}
               to={m.to}
-              onMouseEnter={() => preload(m.to)}
+              onMouseEnter={() => {
+                preload(m.to)
+                if (m.to === '/manager') prefetchManagerResumen(qc)
+              }}
               className={({ isActive }) => cn('sidebar-nav-item', isActive && 'sidebar-nav-active')}
             >
               <m.icon className="h-4 w-4 shrink-0" strokeWidth={1.6} />
@@ -334,12 +354,12 @@ export function AppShell() {
         {/* Bottom nav móvil */}
         {visible.length > 0 && (
           <nav
-            className="fixed bottom-0 left-0 right-0 z-30 grid border-t pb-[env(safe-area-inset-bottom)] md:hidden"
+            className="fixed bottom-0 left-0 right-0 z-30 flex overflow-x-auto border-t pb-[env(safe-area-inset-bottom)] md:hidden"
             style={{
               borderColor: 'var(--line)',
               background: 'rgba(10,17,14,.94)',
               backdropFilter: 'blur(10px)',
-              gridTemplateColumns: `repeat(${visible.length + 1}, 1fr)`,
+              scrollbarWidth: 'none',
             }}
           >
             <NavLink
@@ -348,7 +368,7 @@ export function AppShell() {
               onTouchStart={() => preload('/')}
               className={({ isActive }) =>
                 cn(
-                  'flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] uppercase tracking-wider transition-colors',
+                  'flex min-w-[72px] flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] uppercase tracking-wider transition-colors',
                   isActive ? 'text-[var(--color-mint)]' : 'text-[var(--ink-mute)]',
                 )
               }
@@ -363,7 +383,7 @@ export function AppShell() {
                 onTouchStart={() => preload(m.to)}
                 className={({ isActive }) =>
                   cn(
-                    'flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] uppercase tracking-wider transition-colors',
+                    'flex min-w-[72px] flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] uppercase tracking-wider transition-colors',
                     isActive ? 'text-[var(--color-mint)]' : 'text-[var(--ink-mute)]',
                   )
                 }

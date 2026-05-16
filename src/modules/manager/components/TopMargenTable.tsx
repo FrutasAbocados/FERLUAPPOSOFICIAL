@@ -28,9 +28,13 @@ export function TopMargenTable({ title, subtitle, rows, loading, emptyText = 'Si
         {subtitle && <div className="text-xs text-[var(--color-ink-3)]">{subtitle}</div>}
       </div>
       <ul className="divide-y divide-[var(--color-border)]">
-        {loading && !rows && (
-          <li className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Cargando…</li>
-        )}
+        {loading && !rows && Array.from({ length: 6 }).map((_, i) => (
+          <li key={i} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2.5">
+            <span className="w-5 h-3 rounded animate-pulse bg-[var(--color-surface-2)]" />
+            <span className="h-3 w-28 rounded animate-pulse bg-[var(--color-surface-2)]" />
+            <span className="h-3 w-24 rounded animate-pulse bg-[var(--color-surface-2)]" />
+          </li>
+        ))}
         {rows?.length === 0 && (
           <li className="px-4 py-3 text-sm text-[var(--color-ink-3)]">{emptyText}</li>
         )}
