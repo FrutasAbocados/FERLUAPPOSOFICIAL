@@ -12,7 +12,8 @@ export async function loginAdmin(page: Page): Promise<void> {
   await page.goto('/', { waitUntil: 'domcontentloaded' })
 
   // Espera a que aparezca o la sesión ya autenticada o el campo email.
-  const emailInput = page.locator('#email')
+  const emailInput = page.locator('input[type="email"], #ab-email').first()
+  const passwordInput = page.locator('input[type="password"], #ab-pw').first()
   const appShell = page.getByRole('link', { name: /Manager|Pedidos|Inicio/i }).first()
   await Promise.race([
     emailInput.waitFor({ state: 'visible', timeout: 15_000 }),
@@ -21,11 +22,13 @@ export async function loginAdmin(page: Page): Promise<void> {
 
   if (await emailInput.isVisible().catch(() => false)) {
     await emailInput.fill(USER)
-    await page.locator('#password').fill(PASS)
+    await passwordInput.fill(PASS)
     await page.getByRole('button', { name: /^Entrar/i }).click()
+    await expect(appShell).toBeVisible({ timeout: 30_000 })
   }
 
   // Validación estable de sesión admin: el módulo Manager debe cargar.
   await page.goto('/manager', { waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('heading', { name: /^Manager$/ })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('link', { name: /^Manager$/ }).first()).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText('ANALÍTICA · MANAGER')).toBeVisible({ timeout: 30_000 })
 }
