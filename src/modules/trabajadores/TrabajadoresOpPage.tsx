@@ -57,7 +57,7 @@ export function TrabajadoresOpPage() {
   const previewEmpleado = role === 'admin_full' && searchParams.get('preview') === 'empleado'
 
   /* ── Vista empleado: nav adaptada + contenido ── */
-  if (role === 'empleado' || previewEmpleado) {
+  if (role === 'empleado' || role === 'gestor_cobros' || previewEmpleado) {
     return <EmpleadoContent tab={tab} setTab={setTab} isEmpleadoTab={isEmpleadoTab} />
   }
 
