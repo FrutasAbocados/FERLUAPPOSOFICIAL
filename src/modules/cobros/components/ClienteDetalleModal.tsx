@@ -1,18 +1,19 @@
 import { useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
-import { Loader2, Trash2 } from 'lucide-react'
+import { CheckSquare, Loader2, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { confirm } from '@/shared/lib/confirm'
 import { Modal } from './Modal'
 import {
+  useCobrar,
   useClientes,
   useDeleteMovimiento,
   useMovimientosCliente,
   useUpsertCliente,
 } from '../lib/queries'
-import { eur, estadoMovimiento, importePendiente } from '../lib/utils'
+import { eur, estadoMovimiento, importePendiente, isoDate } from '../lib/utils'
 import { METODOS_COBRO } from '../lib/constants'
 import { FORMA_PAGO_LABEL } from '../lib/types'
 import type { Cliente, FormaPago, MetodoCobro } from '../lib/types'
@@ -51,6 +52,7 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
   const movs = useMovimientosCliente(cliente.id)
   const upsert = useUpsertCliente()
   const del = useDeleteMovimiento()
+  const cobrar = useCobrar()
 
   const [editando, setEditando] = useState(false)
   const [forma, setForma] = useState<FormaPago>(cliente.forma_pago)
@@ -59,6 +61,15 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
   )
   const [notas, setNotas] = useState(cliente.notas ?? '')
   const [activo, setActivo] = useState(cliente.activo)
+
+  // Multi-select
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [multiOpen, setMultiOpen] = useState(false)
+  const [multiDate, setMultiDate] = useState(isoDate(new Date()))
+  const [multiMetodo, setMultiMetodo] = useState<MetodoCobro>(
+    (cliente.metodo_cobro_preferido as MetodoCobro) ?? 'Transferencia',
+  )
+  const [multiLoading, setMultiLoading] = useState(false)
 
   const ordenados = useMemo(() => {
     return [...(movs.data ?? [])].sort((a, b) =>
@@ -69,6 +80,46 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
   const totalPend = ordenados
     .filter((m) => !m.pagado)
     .reduce((s, m) => s + importePendiente(m), 0)
+
+  const cobrables = useMemo(
+    () => ordenados.filter((m) => !m.pagado && Number(m.importe) >= 0),
+    [ordenados],
+  )
+  const selectedMovs = cobrables.filter((m) => selectedIds.has(m.id))
+  const totalSelected = selectedMovs.reduce((s, m) => s + importePendiente(m), 0)
+  const allSelected = cobrables.length > 0 && selectedIds.size === cobrables.length
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+    setMultiOpen(false)
+  }
+
+  const toggleAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(cobrables.map((m) => m.id)))
+    setMultiOpen(false)
+  }
+
+  const cobrarMulti = async () => {
+    setMultiLoading(true)
+    for (const m of selectedMovs) {
+      const pend = importePendiente(m)
+      await cobrar.mutateAsync({
+        id: m.id,
+        fecha_cobro: multiDate,
+        importe_cobrado: Number(m.importe_cobrado ?? 0) + pend,
+        metodo_cobro: multiMetodo,
+        importe_total: Number(m.importe),
+      })
+    }
+    setMultiLoading(false)
+    setSelectedIds(new Set())
+    setMultiOpen(false)
+  }
 
   const guardar = async () => {
     await upsert.mutateAsync({
@@ -183,6 +234,17 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
           <table className="w-full text-xs">
             <thead className="bg-[rgba(255,255,255,.025)] text-[var(--color-ink-2)]">
               <tr>
+                <th className="w-7 px-2 py-1.5 text-center">
+                  {cobrables.length > 0 && (
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      className="cursor-pointer accent-[var(--mint)]"
+                      title="Seleccionar todas las pendientes"
+                    />
+                  )}
+                </th>
                 <th className="px-2 py-1.5 text-left">Fecha</th>
                 <th className="px-2 py-1.5 text-left">Tipo</th>
                 <th className="px-2 py-1.5 text-left">Nº / Concepto</th>
@@ -203,11 +265,22 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
                       ? 'text-[var(--amber)]'
                       : 'text-[var(--mint)]'
                 const cobrable = !m.pagado && Number(m.importe) >= 0
+                const isSelected = selectedIds.has(m.id)
                 return (
                   <tr
                     key={m.id}
-                    className="border-t border-[var(--color-border)]"
+                    className={`border-t border-[var(--color-border)] ${isSelected ? 'bg-[rgba(var(--mint-rgb,100,220,160),.08)]' : ''}`}
                   >
+                    <td className="px-2 py-1.5 text-center">
+                      {cobrable && (
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(m.id)}
+                          className="cursor-pointer accent-[var(--mint)]"
+                        />
+                      )}
+                    </td>
                     <td className="px-2 py-1.5">
                       {format(parseISO(m.fecha_factura), 'dd/MM/yy')}
                     </td>
@@ -254,6 +327,72 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
             </tbody>
           </table>
         </div>
+
+        {/* Barra multi-cobro */}
+        {selectedIds.size > 0 && (
+          <div className="mt-2 rounded-[var(--radius-md)] border border-[var(--mint)] bg-[rgba(var(--mint-rgb,100,220,160),.07)] p-3">
+            {!multiOpen ? (
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <span className="flex items-center gap-1.5 text-sm font-medium text-[var(--mint)]">
+                  <CheckSquare className="h-4 w-4" />
+                  {selectedIds.size} {selectedIds.size === 1 ? 'factura seleccionada' : 'facturas seleccionadas'} ·{' '}
+                  <span className="mono tabular-nums">{eur(totalSelected)}</span>
+                </span>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+                    Deseleccionar
+                  </Button>
+                  <Button size="sm" onClick={() => setMultiOpen(true)}>
+                    Cobrar {selectedIds.size > 1 ? `${selectedIds.size} facturas` : 'factura'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-[var(--color-ink)]">
+                  Cobrar {selectedIds.size} {selectedIds.size === 1 ? 'factura' : 'facturas'} ·{' '}
+                  <span className="mono tabular-nums text-[var(--mint)]">{eur(totalSelected)}</span>
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="multi-fecha">Fecha de cobro</Label>
+                    <Input
+                      id="multi-fecha"
+                      type="date"
+                      value={multiDate}
+                      onChange={(e) => setMultiDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="multi-metodo">Método</Label>
+                    <select
+                      id="multi-metodo"
+                      value={multiMetodo}
+                      onChange={(e) => setMultiMetodo(e.target.value as MetodoCobro)}
+                      className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-ink)]"
+                    >
+                      {METODOS_COBRO.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <p className="text-[11px] text-[var(--color-ink-3)]">
+                  Cada factura se marcará como cobrada por su importe pendiente completo.
+                </p>
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setMultiOpen(false)} disabled={multiLoading}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" onClick={cobrarMulti} disabled={multiLoading}>
+                    {multiLoading && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                    Confirmar cobro
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
