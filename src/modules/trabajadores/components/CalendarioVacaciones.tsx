@@ -87,7 +87,7 @@ function Mes({
             cls += ' bg-red-100 text-red-700 font-semibold'
             title = `Festivo: ${fes.nombre}`
           } else if (finde) {
-            cls += ' bg-slate-50 text-slate-400'
+            cls += ' bg-[var(--color-surface-2)] text-[var(--color-ink-3)]'
           } else {
             cls += ' text-[var(--color-ink-2)]'
           }
@@ -112,7 +112,7 @@ function Leyenda() {
         <li><span className="mr-2 inline-block h-3 w-3 rounded bg-blue-300 align-middle" />Aprobado</li>
         <li><span className="mr-2 inline-block h-3 w-3 rounded bg-amber-300 align-middle" />Pendiente</li>
         <li><span className="mr-2 inline-block h-3 w-3 rounded bg-red-100 align-middle" />Festivo</li>
-        <li><span className="mr-2 inline-block h-3 w-3 rounded bg-slate-50 align-middle" />Fin de semana</li>
+        <li><span className="mr-2 inline-block h-3 w-3 rounded bg-[var(--color-surface-2)] align-middle" />Fin de semana</li>
       </ul>
     </div>
   )

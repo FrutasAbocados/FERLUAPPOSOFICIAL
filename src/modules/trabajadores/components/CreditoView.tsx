@@ -499,7 +499,7 @@ function FacturaItem({ factura, onDelete }: { factura: FacturaCabecera; onDelete
         </Button>
       </div>
       {open && lineas && (
-        <ul className="bg-slate-50/40 px-12 py-2 text-xs">
+        <ul className="bg-[rgba(255,255,255,.03)] px-12 py-2 text-xs">
           {lineas.map(l => (
             <li key={l.id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 py-0.5">
               <span className="truncate text-[var(--color-ink)]">{l.nombre}</span>
@@ -516,10 +516,10 @@ function FacturaItem({ factura, onDelete }: { factura: FacturaCabecera; onDelete
 
 function MesDetalle({ empleadoId, mes }: { empleadoId: string; mes: string }) {
   const { data: facturas, isLoading } = useFacturasMes(empleadoId, mes)
-  if (isLoading) return <div className="bg-slate-50 px-12 py-2 text-xs text-[var(--color-ink-3)]">Cargando…</div>
-  if (!facturas?.length) return <div className="bg-slate-50 px-12 py-2 text-xs text-[var(--color-ink-3)]">Sin cargos</div>
+  if (isLoading) return <div className="bg-[var(--color-surface-2)] px-12 py-2 text-xs text-[var(--color-ink-3)]">Cargando…</div>
+  if (!facturas?.length) return <div className="bg-[var(--color-surface-2)] px-12 py-2 text-xs text-[var(--color-ink-3)]">Sin cargos</div>
   return (
-    <div className="bg-slate-50/60 px-4 py-2">
+    <div className="bg-[rgba(255,255,255,.03)] px-4 py-2">
       <ul className="divide-y divide-[var(--color-border)]/50">
         {facturas.map(f => <FacturaItemSimple key={f.id} factura={f} />)}
       </ul>

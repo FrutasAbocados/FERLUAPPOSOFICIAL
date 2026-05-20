@@ -68,8 +68,10 @@ function HomeAdmin() {
   const role = profile?.role
   const moduleEntries = MODULOS.filter(m => role && canAccess(m.key as ModuleKey, role))
 
-  const isAdmin = role === 'admin_full' || role === 'admin_op'
-  const deudoresQ   = useTopDeudoresCobros({ enabled: isAdmin })
+  const isAdmin        = role === 'admin_full' || role === 'admin_op'
+  const isGestorCobros = role === 'gestor_cobros'
+  const canSeeCobros   = isAdmin || isGestorCobros
+  const deudoresQ   = useTopDeudoresCobros({ enabled: canSeeCobros })
   const esperadosQ  = usePedidosEsperados({ enabled: isAdmin })
   const anomalosQ   = useProductosAnomalos(30, { enabled: isAdmin })
   const riesgoFugaQ = useClientesRiesgoFuga({ enabled: isAdmin })
@@ -161,7 +163,7 @@ function HomeAdmin() {
             <PanelEmpresa />
 
             {/* 2 — Centro de alertas: feed expandible por categoría */}
-            {isAdmin && (
+            {(isAdmin || isGestorCobros) && (
               <section>
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <h2 className="label-caps">Centro de alertas</h2>
@@ -203,6 +205,8 @@ function HomeAdmin() {
                     <DeudoresList rows={deudores.data} onDismiss={(id, label) => handleDismiss('deuda', id, label)} />
                   </AlertRow>
 
+                  {isAdmin && (
+                    <>
                   <AlertRow
                     titulo="Pedidos esperados"
                     Icon={CalendarClock}
@@ -267,6 +271,8 @@ function HomeAdmin() {
                   >
                     <CostesList rows={costes.data} onDismiss={(id, label) => handleDismiss('coste_subiendo', id, label)} />
                   </AlertRow>
+                    </>
+                  )}
                 </div>
 
                 {/* PVP a revisar — dentro del bloque de alertas */}

@@ -259,7 +259,7 @@ function DetalleEmpleado({ empleado, mes, onClose }: { empleado: Resumen; mes: D
                       disabled={toggle.isPending}
                       className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-md border px-3 py-2 text-left transition ${marcado ? 'border-emerald-300 bg-emerald-50' : 'border-[var(--color-border)] bg-[var(--color-surface)]'} hover:border-[var(--color-primary)]`}
                     >
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-bold ${marcado ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-bold ${marcado ? 'bg-emerald-500 text-white' : 'bg-[var(--color-surface-2)] text-[var(--color-ink-3)]'}`}>
                         {d.getDate()}
                       </div>
                       <span className="text-sm capitalize text-[var(--color-ink)]">

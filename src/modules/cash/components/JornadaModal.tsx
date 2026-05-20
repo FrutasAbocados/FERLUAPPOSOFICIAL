@@ -3,6 +3,7 @@ import { Loader2, Search, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { confirm } from '@/shared/lib/confirm'
+import { toast } from '@/shared/lib/toast'
 import { supabase } from '@/shared/lib/supabase'
 import { euros, fmtDate } from '../lib/format'
 import {
@@ -171,24 +172,28 @@ function JornadaForm({
       hora_fin: horaFin || null,
       notas: notas.trim() || null,
     }
-    let id = jornada?.id
-    if (id) {
-      await actualizar.mutateAsync({ id, ...payload })
-    } else {
-      const nueva = await crear.mutateAsync(payload)
-      id = nueva.id
+    try {
+      let id = jornada?.id
+      if (id) {
+        await actualizar.mutateAsync({ id, ...payload })
+      } else {
+        const nueva = await crear.mutateAsync(payload)
+        id = nueva.id
+      }
+      await guardarLineas.mutateAsync({
+        jornadaId: id,
+        lineas: lineas.map((l, i) => ({
+          contact_id: l.contact_id,
+          contact_nombre: l.contact_nombre,
+          importe: l.importe,
+          forma_pago: l.forma_pago,
+          orden: i,
+        })),
+      })
+      onClose()
+    } catch (err) {
+      toast({ title: 'No se pudo guardar la jornada', description: err instanceof Error ? err.message : '', variant: 'error' })
     }
-    await guardarLineas.mutateAsync({
-      jornadaId: id,
-      lineas: lineas.map((l, i) => ({
-        contact_id: l.contact_id,
-        contact_nombre: l.contact_nombre,
-        importe: l.importe,
-        forma_pago: l.forma_pago,
-        orden: i,
-      })),
-    })
-    onClose()
   }
 
   const onBorrar = async () => {
@@ -200,8 +205,12 @@ function JornadaForm({
       variant: 'danger',
     })
     if (!ok) return
-    await borrar.mutateAsync(jornada.id)
-    onClose()
+    try {
+      await borrar.mutateAsync(jornada.id)
+      onClose()
+    } catch (err) {
+      toast({ title: 'No se pudo eliminar la jornada', description: err instanceof Error ? err.message : '', variant: 'error' })
+    }
   }
 
   return (

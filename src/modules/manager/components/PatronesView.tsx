@@ -288,7 +288,7 @@ function Columna({ titulo, subtitulo, tono, rows }: { titulo: string; subtitulo:
             const confBadge = p.confianza === 'alta'
               ? 'bg-emerald-100 text-emerald-700'
               : p.confianza === 'media'
-                ? 'bg-zinc-100 text-zinc-600'
+                ? 'bg-[rgba(255,255,255,.07)] text-[var(--color-ink-2)]'
                 : 'bg-amber-100 text-amber-700'
             return (
               <li key={p.contact_name_canon} className="border-t border-[var(--color-border)]/60 pt-1.5 first:border-t-0 first:pt-0">

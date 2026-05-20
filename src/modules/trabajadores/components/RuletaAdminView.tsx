@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Check, Gift, Loader2, Power, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { Check, Gift, Loader2, Power, Plus, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Modal } from '@/shared/components/Modal'
@@ -12,7 +12,7 @@ import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
 import { RuletaModal } from './RuletaModal'
 
-type Tipo = 'puntos' | 'euros' | 'fisico' | 'comodin'
+type Tipo = 'puntos' | 'euros' | 'fisico' | 'comodin' | 'bonus'
 
 type Premio = {
   id: string
@@ -24,6 +24,7 @@ type Premio = {
   icono: string | null
   color: string | null
   activo: boolean
+  garantizable: boolean
   created_at: string
 }
 
@@ -57,12 +58,14 @@ const TIPO_LABEL: Record<Tipo, string> = {
   euros: 'euros',
   fisico: 'físico',
   comodin: 'comodín',
+  bonus: 'tirada extra',
 }
 const TIPO_COLOR: Record<Tipo, string> = {
   puntos: 'bg-amber-100 text-amber-800',
   euros: 'bg-emerald-100 text-emerald-800',
   fisico: 'bg-rose-100 text-rose-800',
   comodin: 'bg-sky-100 text-sky-800',
+  bonus: 'bg-violet-100 text-violet-800',
 }
 const COLOR_OPTS = ['amber', 'emerald', 'rose', 'sky', 'indigo', 'lime', 'violet', 'pink', 'orange', 'teal']
 
@@ -142,13 +145,13 @@ function ActivaToggle() {
       className={`mb-3 flex items-center justify-between gap-3 rounded-xl border p-4 ${
         on
           ? 'border-emerald-300 bg-gradient-to-br from-emerald-50 to-emerald-100/60'
-          : 'border-slate-300 bg-slate-50'
+          : 'border-[var(--color-border)] bg-[var(--color-surface-2)]'
       }`}
     >
       <div className="flex items-center gap-3">
         <div
           className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-            on ? 'bg-emerald-500 text-white' : 'bg-slate-300 text-slate-600'
+            on ? 'bg-emerald-500 text-white' : 'bg-[var(--color-surface-2)] text-[var(--color-ink-3)]'
           }`}
         >
           <Power className="h-5 w-5" />
@@ -333,7 +336,7 @@ function ResumenSection() {
               </button>
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums ${
-                  r.saldo_pendiente > 0 ? 'bg-amber-200 text-amber-900' : 'bg-slate-100 text-slate-500'
+                  r.saldo_pendiente > 0 ? 'bg-amber-200 text-amber-900' : 'bg-[rgba(255,255,255,.06)] text-[var(--color-ink-3)]'
                 }`}
                 title="Pendientes de tirar"
               >
@@ -341,7 +344,7 @@ function ResumenSection() {
               </span>
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums ${
-                  r.pendientes_entrega > 0 ? 'bg-rose-200 text-rose-900' : 'bg-slate-100 text-slate-500'
+                  r.pendientes_entrega > 0 ? 'bg-rose-200 text-rose-900' : 'bg-[rgba(255,255,255,.06)] text-[var(--color-ink-3)]'
                 }`}
                 title="Premios por entregar"
               >
@@ -624,9 +627,14 @@ function CatalogoSection() {
                     {p.tipo === 'puntos' && p.valor ? ` · +${p.valor}` : ''}
                     {p.tipo === 'euros' && p.valor ? ` · ${euros(p.valor)}` : ''}
                   </span>
-                  <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                  <span className="rounded-full bg-[rgba(255,255,255,.07)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-ink-2)]">
                     prob. {p.peso}/100
                   </span>
+                  {p.garantizable && (
+                    <span className="flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700" title="Premio garantizable (pity timer)">
+                      <ShieldCheck className="h-3 w-3" /> garantizable
+                    </span>
+                  )}
                 </div>
                 {p.descripcion && (
                   <div className="truncate text-[11px] text-[var(--color-ink-3)]">{p.descripcion}</div>
@@ -680,6 +688,7 @@ function PremioFormModal({ premio, onClose }: { premio: Premio | null; onClose: 
   const [peso, setPeso] = useState(premio?.peso ?? 1)
   const [icono, setIcono] = useState(premio?.icono ?? '')
   const [color, setColor] = useState(premio?.color ?? 'amber')
+  const [garantizable, setGarantizable] = useState(premio?.garantizable ?? false)
 
   const save = useMutation({
     mutationFn: async () => {
@@ -691,6 +700,7 @@ function PremioFormModal({ premio, onClose }: { premio: Premio | null; onClose: 
         peso,
         icono: icono.trim() || null,
         color,
+        garantizable,
       }
       if (!payload.nombre) throw new Error('El nombre es obligatorio')
       if (payload.peso < 1 || payload.peso > 100) throw new Error('Probabilidad debe estar entre 1 y 100')
@@ -738,6 +748,7 @@ function PremioFormModal({ premio, onClose }: { premio: Premio | null; onClose: 
               <option value="euros">Euros</option>
               <option value="fisico">Físico</option>
               <option value="comodin">Comodín</option>
+              <option value="bonus">Tirada extra</option>
             </select>
           </div>
           <div>
@@ -748,7 +759,7 @@ function PremioFormModal({ premio, onClose }: { premio: Premio | null; onClose: 
               type="number"
               value={valor}
               onChange={(e) => setValor(Number(e.target.value) || 0)}
-              disabled={tipo === 'fisico' || tipo === 'comodin'}
+              disabled={tipo === 'fisico' || tipo === 'comodin' || tipo === 'bonus'}
             />
           </div>
         </div>
@@ -782,11 +793,23 @@ function PremioFormModal({ premio, onClose }: { premio: Premio | null; onClose: 
           </div>
         </div>
       </div>
-      <div className="flex justify-end gap-2 border-t border-[var(--color-border)] px-5 py-3">
-        <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
-          {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Guardar'}
-        </Button>
+      <div className="flex items-center justify-between border-t border-[var(--color-border)] px-5 py-3">
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={garantizable}
+            onChange={(e) => setGarantizable(e.target.checked)}
+            className="h-4 w-4 accent-emerald-600"
+          />
+          <ShieldCheck className="h-4 w-4 text-emerald-600" />
+          <span className="text-[var(--color-ink-2)]">Garantizable (pity timer)</span>
+        </label>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
+            {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Guardar'}
+          </Button>
+        </div>
       </div>
     </Modal>
   )

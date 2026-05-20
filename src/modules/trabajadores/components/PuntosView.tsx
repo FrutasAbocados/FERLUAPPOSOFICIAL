@@ -464,7 +464,7 @@ function CategoriaSelector({ label, value, onChange }: { label: string; value: n
             className={`h-9 w-9 rounded-md border text-sm font-bold transition ${
               v === value
                 ? v === 0
-                  ? 'border-slate-300 bg-slate-200 text-slate-700'
+                  ? 'border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-ink-2)]'
                   : v === 1
                   ? 'border-amber-300 bg-amber-200 text-amber-900'
                   : 'border-emerald-300 bg-emerald-200 text-emerald-900'
@@ -639,9 +639,9 @@ function DetalleEmpleadoMes({
                   <li key={d.fecha} className="py-2 text-sm">
                     <div className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-3">
                       <span className="capitalize text-[var(--color-ink)]">{fmtFechaCorta(d.fecha)}</span>
-                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs tabular-nums text-slate-700">P {d.puntualidad}</span>
-                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs tabular-nums text-slate-700">R {d.reparto}</span>
-                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs tabular-nums text-slate-700">Rs {d.responsabilidad}</span>
+                      <span className="rounded-md bg-[rgba(255,255,255,.07)] px-2 py-0.5 text-xs tabular-nums text-[var(--color-ink-2)]">P {d.puntualidad}</span>
+                      <span className="rounded-md bg-[rgba(255,255,255,.07)] px-2 py-0.5 text-xs tabular-nums text-[var(--color-ink-2)]">R {d.reparto}</span>
+                      <span className="rounded-md bg-[rgba(255,255,255,.07)] px-2 py-0.5 text-xs tabular-nums text-[var(--color-ink-2)]">Rs {d.responsabilidad}</span>
                       <span className="font-display text-base font-bold tabular-nums text-emerald-700">{d.total}</span>
                     </div>
                     {algunaNota && (

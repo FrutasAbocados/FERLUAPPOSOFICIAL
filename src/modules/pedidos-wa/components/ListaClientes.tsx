@@ -399,7 +399,7 @@ function ClienteCard({
 
       <div className="flex flex-wrap gap-1 text-[10px]">
         {!cliente.activo && (
-          <Badge color="bg-zinc-200 text-zinc-700">Inactivo</Badge>
+          <Badge color="bg-[rgba(255,255,255,.08)] text-[var(--color-ink-2)]">Inactivo</Badge>
         )}
         {cliente.tipo_factura !== 'HOLDED' && (
           <Badge color="bg-[var(--color-surface-2)] text-[var(--color-ink-2)] border border-[var(--color-border)]">
@@ -452,7 +452,7 @@ function ClienteRowCompacta({
             {cliente.nombre}
           </span>
           {!cliente.activo && (
-            <span className="rounded-full bg-zinc-200 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-zinc-700">
+            <span className="rounded-full bg-[rgba(255,255,255,.08)] px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[var(--color-ink-2)]">
               inactivo
             </span>
           )}
