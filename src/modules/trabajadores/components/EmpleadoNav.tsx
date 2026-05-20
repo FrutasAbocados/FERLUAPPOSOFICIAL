@@ -1,12 +1,13 @@
-import { Award, BarChart3, Handshake, ShoppingBasket } from 'lucide-react'
+import { Award, BarChart3, CalendarOff, Handshake, ShoppingBasket } from 'lucide-react'
 
-export type EmpleadoTab = 'dashboard' | 'puntos' | 'credito' | 'colab'
+export type EmpleadoTab = 'dashboard' | 'puntos' | 'credito' | 'colab' | 'vacaciones'
 
 const ALL_TABS = [
-  { k: 'dashboard', l: 'Inicio',  Icon: BarChart3 },
-  { k: 'puntos',    l: 'Puntos',  Icon: Award },
-  { k: 'credito',   l: 'Crédito', Icon: ShoppingBasket },
-  { k: 'colab',     l: 'Colab',   Icon: Handshake },
+  { k: 'dashboard',  l: 'Inicio',      Icon: BarChart3 },
+  { k: 'puntos',     l: 'Puntos',      Icon: Award },
+  { k: 'vacaciones', l: 'Vacaciones',  Icon: CalendarOff },
+  { k: 'credito',    l: 'Crédito',     Icon: ShoppingBasket },
+  { k: 'colab',      l: 'Colab',       Icon: Handshake },
 ] as const
 
 export function EmpleadoNav({

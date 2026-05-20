@@ -18,6 +18,7 @@ const FichajesView = lazy(() => import('./components/FichajesView').then(m => ({
 const EmpleadoPuntosView = lazy(() => import('./components/EmpleadoPuntosView').then(m => ({ default: m.EmpleadoPuntosView })))
 const EmpleadoCreditoView = lazy(() => import('./components/EmpleadoCreditoView').then(m => ({ default: m.EmpleadoCreditoView })))
 const EmpleadoColabView = lazy(() => import('./components/EmpleadoColabView').then(m => ({ default: m.EmpleadoColabView })))
+const EmpleadoVacacionesView = lazy(() => import('./components/EmpleadoVacacionesView').then(m => ({ default: m.EmpleadoVacacionesView })))
 
 type Tab = 'dashboard' | 'tareas' | 'puntos' | 'vacaciones' | 'sabados' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'colab'
 
@@ -35,7 +36,7 @@ const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'productividad', l: 'Plus productividad', Icon: Construction },
 ]
 
-const TABS_EMPLEADO: Tab[] = ['dashboard', 'puntos', 'credito', 'colab']
+const TABS_EMPLEADO: Tab[] = ['dashboard', 'puntos', 'vacaciones', 'credito', 'colab']
 const TAB_KEYS = new Set<string>([...TABS.map(t => t.k), ...TABS_EMPLEADO])
 
 const isTab = (v: string | null | undefined): v is Tab =>
@@ -123,6 +124,7 @@ function EmpleadoContent({
         {empTab === 'dashboard'    && <DashboardView modoEmpleado />}
         {empTab === 'puntos'       && (empleado ? <EmpleadoPuntosView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'credito'      && (empleado ? <EmpleadoCreditoView empleado={empleado} /> : <DashboardView modoEmpleado />)}
+        {empTab === 'vacaciones'   && (empleado ? <EmpleadoVacacionesView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'colab'        && (empleado ? <EmpleadoColabView empleado={empleado} /> : <DashboardView modoEmpleado />)}
       </Suspense>
     </div>
