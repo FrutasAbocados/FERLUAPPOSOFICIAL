@@ -5,6 +5,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { confirm } from '@/shared/lib/confirm'
+import { toast } from '@/shared/lib/toast'
 import { Modal } from './Modal'
 import {
   useCobrar,
@@ -106,19 +107,24 @@ function ClienteDetalleContent({ cliente, onCobrar }: ContentProps) {
 
   const cobrarMulti = async () => {
     setMultiLoading(true)
-    for (const m of selectedMovs) {
-      const pend = importePendiente(m)
-      await cobrar.mutateAsync({
-        id: m.id,
-        fecha_cobro: multiDate,
-        importe_cobrado: Number(m.importe_cobrado ?? 0) + pend,
-        metodo_cobro: multiMetodo,
-        importe_total: Number(m.importe),
-      })
+    try {
+      for (const m of selectedMovs) {
+        const pend = importePendiente(m)
+        await cobrar.mutateAsync({
+          id: m.id,
+          fecha_cobro: multiDate,
+          importe_cobrado: Number(m.importe_cobrado ?? 0) + pend,
+          metodo_cobro: multiMetodo,
+          importe_total: Number(m.importe),
+        })
+      }
+      setSelectedIds(new Set())
+      setMultiOpen(false)
+    } catch (e) {
+      toast({ title: 'Error al cobrar', description: e instanceof Error ? e.message : '', variant: 'error' })
+    } finally {
+      setMultiLoading(false)
     }
-    setMultiLoading(false)
-    setSelectedIds(new Set())
-    setMultiOpen(false)
   }
 
   const guardar = async () => {

@@ -10,7 +10,7 @@ type Premio = {
   id: string
   nombre: string
   descripcion: string | null
-  tipo: 'puntos' | 'euros' | 'fisico' | 'comodin'
+  tipo: 'puntos' | 'euros' | 'fisico' | 'comodin' | 'bonus'
   valor: number
   peso: number
   icono: string | null
@@ -303,15 +303,17 @@ function PremioResult({ resultado, onClose }: { resultado: Resultado; onClose: (
     euros: 'euros',
     fisico: 'físico',
     comodin: 'comodín',
+    bonus: 'tirada extra',
   }[resultado.premio_tipo]
 
   const valorTxt =
-    resultado.premio_tipo === 'puntos' ? `+${resultado.premio_valor} pts`
+    resultado.premio_tipo === 'puntos' ? `${resultado.premio_valor > 0 ? '+' : ''}${resultado.premio_valor} pts`
     : resultado.premio_tipo === 'euros' ? euros(resultado.premio_valor)
+    : resultado.premio_tipo === 'bonus' ? '¡Otra tirada!'
     : null
 
   return (
-    <div className="w-full max-w-md rounded-xl border border-amber-300 bg-white p-5 text-center shadow-lg">
+    <div className="w-full max-w-md rounded-xl border border-amber-300 bg-[var(--color-surface)] p-5 text-center shadow-lg">
       <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">
         ¡has ganado!
       </div>

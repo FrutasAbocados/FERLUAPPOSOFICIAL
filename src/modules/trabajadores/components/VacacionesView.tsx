@@ -263,7 +263,7 @@ export function VacacionesView() {
                       <div className="bg-emerald-500" style={{ width: `${(disf / total) * 100}%` }} title={`Disfrutados: ${t.disfrutados}`} />
                       <div className="bg-blue-400" style={{ width: `${(apr / total) * 100}%` }} title={`Aprobados: ${t.aprobados}`} />
                       <div className="bg-amber-300" style={{ width: `${(pend / total) * 100}%` }} title={`Pendientes: ${t.pendientes}`} />
-                      <div className="bg-slate-200" style={{ width: `${(sobrante / total) * 100}%` }} />
+                      <div className="bg-[var(--color-surface-2)]" style={{ width: `${(sobrante / total) * 100}%` }} />
                     </div>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-[var(--color-ink-3)]">
@@ -368,7 +368,7 @@ function DetalleVacaciones({ empleado, anio, onClose }: { empleado: Resumen; ani
               </div>
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Días</label>
-                <div className="flex h-9 items-center justify-end rounded-md border border-[var(--color-border)] bg-slate-50 px-3 font-display text-base font-bold tabular-nums text-[var(--color-ink)]">
+                <div className="flex h-9 items-center justify-end rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 font-display text-base font-bold tabular-nums text-[var(--color-ink)]">
                   {diasNuevo}
                 </div>
               </div>

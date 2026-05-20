@@ -208,20 +208,25 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
 
   const cobrarMulti = async () => {
     setMultiLoading(true)
-    for (const m of cobrablesSeleccionadas) {
-      const pend = importePendiente(m)
-      await cobrar.mutateAsync({
-        id: m.id,
-        fecha_cobro: multiDate,
-        importe_cobrado: Number(m.importe_cobrado ?? 0) + pend,
-        metodo_cobro: multiMetodo,
-        importe_total: Number(m.importe),
-      })
+    try {
+      for (const m of cobrablesSeleccionadas) {
+        const pend = importePendiente(m)
+        await cobrar.mutateAsync({
+          id: m.id,
+          fecha_cobro: multiDate,
+          importe_cobrado: Number(m.importe_cobrado ?? 0) + pend,
+          metodo_cobro: multiMetodo,
+          importe_total: Number(m.importe),
+        })
+      }
+      setSelected(new Set())
+      setMultiOpen(false)
+      toast({ title: `${cobrablesSeleccionadas.length} facturas cobradas`, variant: 'success' })
+    } catch (e) {
+      toast({ title: 'Error al cobrar', description: e instanceof Error ? e.message : '', variant: 'error' })
+    } finally {
+      setMultiLoading(false)
     }
-    setMultiLoading(false)
-    setSelected(new Set())
-    setMultiOpen(false)
-    toast({ title: `${cobrablesSeleccionadas.length} facturas cobradas`, variant: 'success' })
   }
 
   const sortBy = (key: SortKey) => {
