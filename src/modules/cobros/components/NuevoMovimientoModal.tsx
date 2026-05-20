@@ -50,33 +50,40 @@ function NuevoMovimientoForm({ tipo, clienteId, onClose }: FormProps) {
   const formaActiva: FormaPago = nuevoCliente ? nuevoForma : (cliente?.forma_pago ?? 'Contado')
   const fechaVencimiento = calcVencimiento(new Date(fechaFactura), formaActiva)
 
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     const imp = parseFloat(importe.replace(',', '.'))
     if (!Number.isFinite(imp) || imp <= 0) return
 
-    let cid = clienteSel
-    if (nuevoCliente) {
-      if (!nuevoNombre.trim()) return
-      const c = await upsertCliente.mutateAsync({
-        nombre: nuevoNombre,
-        forma_pago: nuevoForma,
-      })
-      cid = c.id
-    }
-    if (!cid) return
+    setSubmitError(null)
+    try {
+      let cid = clienteSel
+      if (nuevoCliente) {
+        if (!nuevoNombre.trim()) return
+        const c = await upsertCliente.mutateAsync({
+          nombre: nuevoNombre,
+          forma_pago: nuevoForma,
+        })
+        cid = c.id
+      }
+      if (!cid) return
 
-    await create.mutateAsync({
-      cliente_id: cid,
-      forma_pago_cliente: formaActiva,
-      tipo,
-      numero_factura: tipo === 'Factura' ? numFactura.trim() || null : null,
-      fecha_factura: fechaFactura,
-      importe: imp,
-      fecha_vencimiento: fechaVencimiento,
-      concepto: concepto.trim() || null,
-    })
-    onClose()
+      await create.mutateAsync({
+        cliente_id: cid,
+        forma_pago_cliente: formaActiva,
+        tipo,
+        numero_factura: tipo === 'Factura' ? numFactura.trim() || null : null,
+        fecha_factura: fechaFactura,
+        importe: imp,
+        fecha_vencimiento: fechaVencimiento,
+        concepto: concepto.trim() || null,
+      })
+      onClose()
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : 'No se pudo guardar')
+    }
   }
 
   return (
@@ -190,6 +197,9 @@ function NuevoMovimientoForm({ tipo, clienteId, onClose }: FormProps) {
         </div>
       )}
 
+      {submitError && (
+        <p className="text-xs text-[var(--color-danger)]">{submitError}</p>
+      )}
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onClose}>
           Cancelar

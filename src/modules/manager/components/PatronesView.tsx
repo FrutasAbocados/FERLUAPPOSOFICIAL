@@ -104,11 +104,11 @@ function useRecomendaciones() {
 }
 
 const RECO_META: Record<RecoTipo, { titulo: string; Icon: typeof Lightbulb; color: string; accent: string }> = {
-  vendiendo_bajo_coste:   { titulo: 'Vendiendo bajo coste',   Icon: AlertTriangle, color: 'text-red-700',     accent: 'border-l-red-500' },
-  cliente_caida_pedido:   { titulo: 'Cliente baja pedido',    Icon: ArrowDown,     color: 'text-amber-700',   accent: 'border-l-amber-500' },
-  cliente_subida_pedido:  { titulo: 'Cliente sube pedido',    Icon: ArrowUp,       color: 'text-emerald-700', accent: 'border-l-emerald-500' },
-  cliente_dejo_producto:  { titulo: 'Cliente dejó producto',  Icon: EyeOff,        color: 'text-amber-700',   accent: 'border-l-amber-500' },
-  producto_se_apaga:      { titulo: 'Producto en caída',      Icon: Moon,          color: 'text-blue-700',    accent: 'border-l-blue-500' },
+  vendiendo_bajo_coste:   { titulo: 'Vendiendo bajo coste',   Icon: AlertTriangle, color: 'text-red-400',     accent: 'border-l-red-500' },
+  cliente_caida_pedido:   { titulo: 'Cliente baja pedido',    Icon: ArrowDown,     color: 'text-amber-400',   accent: 'border-l-amber-500' },
+  cliente_subida_pedido:  { titulo: 'Cliente sube pedido',    Icon: ArrowUp,       color: 'text-emerald-400', accent: 'border-l-emerald-500' },
+  cliente_dejo_producto:  { titulo: 'Cliente dejó producto',  Icon: EyeOff,        color: 'text-amber-400',   accent: 'border-l-amber-500' },
+  producto_se_apaga:      { titulo: 'Producto en caída',      Icon: Moon,          color: 'text-blue-400',    accent: 'border-l-blue-500' },
 }
 
 interface HeatmapRow {
@@ -265,12 +265,12 @@ function Columna({ titulo, subtitulo, tono, rows }: { titulo: string; subtitulo:
   const accent = tono === 'critica' ? 'border-l-red-500'
                 : tono === 'aviso'   ? 'border-l-amber-500'
                 : 'border-l-blue-500'
-  const color = tono === 'critica' ? 'text-red-700'
-              : tono === 'aviso'   ? 'text-amber-700'
-              : 'text-blue-700'
-  const badge = tono === 'critica' ? 'bg-red-100 text-red-800'
-              : tono === 'aviso'   ? 'bg-amber-100 text-amber-800'
-              : 'bg-blue-100 text-blue-800'
+  const color = tono === 'critica' ? 'text-red-400'
+              : tono === 'aviso'   ? 'text-amber-400'
+              : 'text-blue-400'
+  const badge = tono === 'critica' ? 'bg-red-400/15 text-red-400'
+              : tono === 'aviso'   ? 'bg-amber-400/15 text-amber-400'
+              : 'bg-blue-400/15 text-blue-400'
   return (
     <div className={`rounded-lg border border-[var(--color-border)] border-l-4 ${accent} p-3`}>
       <div className="mb-2 flex items-baseline justify-between">
@@ -286,10 +286,10 @@ function Columna({ titulo, subtitulo, tono, rows }: { titulo: string; subtitulo:
         <ul className="space-y-2">
           {rows.map(p => {
             const confBadge = p.confianza === 'alta'
-              ? 'bg-emerald-100 text-emerald-700'
+              ? 'bg-emerald-400/15 text-emerald-400'
               : p.confianza === 'media'
                 ? 'bg-[rgba(255,255,255,.07)] text-[var(--color-ink-2)]'
-                : 'bg-amber-100 text-amber-700'
+                : 'bg-amber-400/15 text-amber-400'
             return (
               <li key={p.contact_name_canon} className="border-t border-[var(--color-border)]/60 pt-1.5 first:border-t-0 first:pt-0">
                 <div className="flex items-baseline gap-1.5">
@@ -441,10 +441,10 @@ function HeatmapClienteDia({
                       >
                         {ventas > 0 ? (
                           <>
-                            <span className="font-semibold text-emerald-900">
+                            <span className="font-semibold text-emerald-400">
                               {ventas >= 1000 ? `${(ventas / 1000).toFixed(1)}k` : Math.round(ventas)}
                             </span>
-                            <span className="text-[9px] text-emerald-800/80">{pedidos}p</span>
+                            <span className="text-[9px] text-emerald-400/70">{pedidos}p</span>
                           </>
                         ) : (
                           <span className="text-[var(--color-ink-3)]">—</span>

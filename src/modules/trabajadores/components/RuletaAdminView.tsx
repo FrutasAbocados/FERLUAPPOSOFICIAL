@@ -157,7 +157,7 @@ function ActivaToggle() {
           <Power className="h-5 w-5" />
         </div>
         <div>
-          <div className={`text-[10px] font-semibold uppercase tracking-wider ${on ? 'text-emerald-800' : 'text-slate-500'}`}>
+          <div className={`text-[10px] font-semibold uppercase tracking-wider ${on ? 'text-emerald-400' : 'text-[var(--color-ink-3)]'}`}>
             Estado global
           </div>
           <div className="font-display text-base font-bold text-[var(--color-ink)]">

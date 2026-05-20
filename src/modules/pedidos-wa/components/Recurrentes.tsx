@@ -39,14 +39,18 @@ export function Recurrentes() {
 
   const onGenerarHoy = async () => {
     const fecha = format(getBusinessDate(), 'yyyy-MM-dd')
-    const res = await generar.mutateAsync(fecha)
-    const creados = res.filter(r => r.status === 'creado').length
-    const yaExistian = res.filter(r => r.status === 'ya_existia').length
-    toast({
-      title: `${creados} pedido${creados === 1 ? '' : 's'} generado${creados === 1 ? '' : 's'}`,
-      description: yaExistian > 0 ? `${yaExistian} ya existían (no duplicados)` : 'Listos en la pestaña "Hoy"',
-      variant: 'success',
-    })
+    try {
+      const res = await generar.mutateAsync(fecha)
+      const creados = res.filter(r => r.status === 'creado').length
+      const yaExistian = res.filter(r => r.status === 'ya_existia').length
+      toast({
+        title: `${creados} pedido${creados === 1 ? '' : 's'} generado${creados === 1 ? '' : 's'}`,
+        description: yaExistian > 0 ? `${yaExistian} ya existían (no duplicados)` : 'Listos en la pestaña "Hoy"',
+        variant: 'success',
+      })
+    } catch (e) {
+      toast({ title: 'No se pudo generar los pedidos', description: e instanceof Error ? e.message : '', variant: 'error' })
+    }
   }
 
   if (isLoading) {

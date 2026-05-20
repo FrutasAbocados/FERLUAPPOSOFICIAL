@@ -75,14 +75,18 @@ function CobrarForm({ movimiento: m, onClose }: FormProps) {
       }
     }
     setError(null)
-    await cobrar.mutateAsync({
-      id: m.id,
-      fecha_cobro: fecha,
-      importe_cobrado: Number(m.importe_cobrado ?? 0) + imp,
-      metodo_cobro: metodo,
-      importe_total: Number(m.importe),
-    })
-    onClose()
+    try {
+      await cobrar.mutateAsync({
+        id: m.id,
+        fecha_cobro: fecha,
+        importe_cobrado: Number(m.importe_cobrado ?? 0) + imp,
+        metodo_cobro: metodo,
+        importe_total: Number(m.importe),
+      })
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo registrar el cobro')
+    }
   }
 
   return (

@@ -5,6 +5,7 @@ import { Input } from '@/shared/components/ui/input'
 import { fetchAutorrellenarDia, useUpsertCierre } from '../lib/queries'
 import { emptyInput, fromCierre, type Cierre, type CierreInput } from '../lib/types'
 import { euros, fmtDate } from '../lib/format'
+import { toast } from '@/shared/lib/toast'
 
 type Props = {
   fecha: string
@@ -73,8 +74,12 @@ function CierreFormContent({ fecha, cierre, onClose, readOnly }: Props) {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await upsert.mutateAsync(form)
-    onClose()
+    try {
+      await upsert.mutateAsync(form)
+      onClose()
+    } catch (e) {
+      toast({ title: 'No se pudo guardar el cierre', description: e instanceof Error ? e.message : '', variant: 'error' })
+    }
   }
 
   return (
