@@ -160,7 +160,7 @@ export function ClientesView({ period }: Props) {
         {isLoading && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
         {!isLoading && filtered.length === 0 && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Sin clientes en este periodo</p>}
 
-        <div className="hidden md:grid md:grid-cols-[40px_1fr_136px_repeat(5,_110px)_72px] md:gap-2 md:border-b md:border-[var(--color-border)] md:px-4 md:py-2 md:text-xs md:font-semibold md:uppercase md:tracking-wider md:text-[var(--color-ink-3)]">
+        <div className="hidden md:grid md:grid-cols-[36px_1fr_120px_repeat(5,_84px)_60px] md:gap-2 md:border-b md:border-[var(--color-border)] md:px-4 md:py-2 md:text-xs md:font-semibold md:uppercase md:tracking-wider md:text-[var(--color-ink-3)]">
           <div>ABC</div>
           <div>Cliente</div>
           <div>Programa</div>
@@ -177,7 +177,7 @@ export function ClientesView({ period }: Props) {
             <li key={c.contact_name_canon}>
               <button
                 onClick={() => setSelected(c)}
-                className="grid w-full grid-cols-[1fr_auto] gap-2 px-4 py-2 text-left text-sm transition hover:bg-[var(--color-surface-2,#f8fafc)] md:grid-cols-[40px_1fr_136px_repeat(5,_110px)_72px]"
+                className="grid w-full grid-cols-[1fr_auto] gap-2 px-4 py-2 text-left text-sm transition hover:bg-[var(--color-surface-2,#f8fafc)] md:grid-cols-[36px_1fr_120px_repeat(5,_84px)_60px]"
               >
                 <div className="hidden md:flex md:items-center">
                   <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${CLASE_BADGE[c.clase]}`}>
