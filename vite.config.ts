@@ -50,10 +50,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) return 'vendor-react'
-          if (id.includes('node_modules/@supabase')) return 'vendor-supabase'
-          if (id.includes('node_modules/@tanstack')) return 'vendor-query'
-          if (id.includes('node_modules/@sentry')) return 'vendor-sentry'
           if (id.includes('node_modules/recharts')) return 'vendor-recharts'
           if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet') || id.includes('node_modules/@react-leaflet')) return 'vendor-leaflet'
           if (id.includes('node_modules/exceljs')) return 'vendor-exceljs'
