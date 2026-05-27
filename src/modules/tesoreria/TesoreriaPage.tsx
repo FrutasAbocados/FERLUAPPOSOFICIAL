@@ -75,7 +75,7 @@ function MovimientoModal({ movimiento, defaultTipo = 'entrada', onClose }: Modal
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-2 md:p-6"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/90 p-2 md:p-6"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="ao-panel w-full max-w-md mt-10 p-5">
