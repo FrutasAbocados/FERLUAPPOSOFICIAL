@@ -30,6 +30,41 @@ function fechaSiguienteUnixMadrid(fechaIso: string): number {
   d.setUTCDate(d.getUTCDate() + 1)
   return Math.floor(d.getTime() / 1000)
 }
+
+function generarLoteAleatorio(fechaIso: string): string {
+  const d = fechaIso.replace(/-/g, '')
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase()
+  return `LT-${d}-${rand}`
+}
+
+async function getNextInvoiceNum(): Promise<string | null> {
+  try {
+    const res = await fetch(`${HOLDED_BASE}/invoice?limit=100`, {
+      headers: { key: HOLDED_KEY, accept: 'application/json' },
+    })
+    if (!res.ok) return null
+    const docs = await res.json() as Array<{ docNumber?: string }>
+    let maxNum = 0
+    let winnerDoc = ''
+    for (const doc of docs) {
+      const dn = doc.docNumber ?? ''
+      const m = dn.match(/(\d+)$/)
+      if (!m) continue
+      const n = parseInt(m[1], 10)
+      if (n > maxNum) { maxNum = n; winnerDoc = dn }
+    }
+    if (maxNum === 0 || !winnerDoc) return null
+    // Preservar ceros a la izquierda si los hay (ej: "0243" → "0244")
+    const m = winnerDoc.match(/^(.*?)(\d+)$/)!
+    const prefix = m[1]
+    const numStr = m[2]
+    const nextNum = maxNum + 1
+    const padded = numStr.startsWith('0') && numStr.length > 1
+      ? String(nextNum).padStart(numStr.length, '0')
+      : String(nextNum)
+    return `${prefix}${padded}`
+  } catch { return null }
+}
 function decodeJwtPayload(token: string): Record<string, unknown> {
   const part = token.split('.')[1]
   if (!part) throw new Error('jwt sin payload')
@@ -162,7 +197,7 @@ async function writeLog(row: {
   } catch { /* no romper la respuesta principal por un fallo de log */ }
 }
 
-function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
+function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[], numFactura?: string | null) {
   const isInvoice = p.cliente.holded_doc_type === 'invoice'
 
   // Facturas y albaranes no llevan notes en Holded: las notas del pedido quedan
@@ -183,13 +218,14 @@ function buildHoldedBody(p: PedidoRow, lineas: PrecioResuelto[]) {
     desc:        `Pedido WhatsApp ${p.fecha}`,
     date:        fechaDoc,
     ...(isInvoice ? { dueDate: fechaDoc } : {}),
+    ...(isInvoice && numFactura ? { numFactura } : {}),
     ...(noteParts.length > 0 ? { notes: noteParts.join('\n\n') } : {}),
     language:    'es',
     currency:    'eur',
     items:       lineas
       .filter(l => !(l.es_gratis && Number(l.precio_resuelto ?? 0) === 0))
       .map(l => {
-        const traDesc = l.trazabilidad ?? '⚠️ Lote pendiente — completar manualmente'
+        const traDesc = l.trazabilidad ?? generarLoteAleatorio(p.fecha)
         // Si hay productId: name=nombre catálogo Holded, desc=solo trazabilidad.
         // Si no hay productId: name=producto_normalizado (no coincide con catálogo,
         // evita auto-vinculación que sobrescribiría el precio), desc incluye holded_product_name.
@@ -289,8 +325,9 @@ Deno.serve(async (req) => {
   if (lineas.length === 0) return jsonRes({ error: 'pedido sin líneas' }, 422)
 
   const noResueltas = lineas.filter(l => l.precio_fuente === 'no_resuelto')
-  const holdedBody = buildHoldedBody(pedido, lineas)
   const docType = pedido.cliente.holded_doc_type as 'invoice' | 'waybill'
+  const numFactura = docType === 'invoice' ? await getNextInvoiceNum() : null
+  const holdedBody = buildHoldedBody(pedido, lineas, numFactura)
   const endpoint = `${HOLDED_BASE}/${docType}`
 
   if (dryRun) {

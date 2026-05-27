@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Plus, Trash2 } from 'lucide-react'
+import { FileText, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { toast } from '@/shared/lib/toast'
@@ -12,6 +13,7 @@ import {
   useAbueloFacturas, useAbueloLineas,
   useAddAbueloFactura, useDeleteAbueloFactura,
 } from '../lib/queries'
+import { subirPdfAbuelo, getPdfSignedUrl } from '../lib/abueloHtml'
 import { ProductoAutocomplete } from './ProductoAutocomplete'
 
 type IvaRate = 4 | 10 | 21
@@ -49,6 +51,7 @@ interface Props {
 }
 
 export function AbueloView({ period }: Props) {
+  const qc = useQueryClient()
   const { data, isLoading } = useAbueloFacturas(period)
   const add = useAddAbueloFactura()
   const del = useDeleteAbueloFactura()
@@ -87,14 +90,18 @@ export function AbueloView({ period }: Props) {
       toast({ title: 'Añade fecha y al menos una línea válida (producto, ud, precio)', variant: 'error' })
       return
     }
+    const numeroVal = numero.trim() || null
+    const notaVal = nota.trim() || null
+    const fechaVal = fecha
     try {
-      await add.mutateAsync({
-        fecha, numero_factura: numero.trim() || null, nota: nota.trim() || null,
+      const newId = await add.mutateAsync({
+        fecha: fechaVal, numero_factura: numeroVal, nota: notaVal,
         lineas: lineasValidas,
       })
-      // Reset
       setFecha(today); setNumero(''); setNota(''); setLineas([nuevaLinea()])
       toast({ title: 'Factura guardada', variant: 'success' })
+      subirPdfAbuelo({ id: newId, fecha: fechaVal, numero_factura: numeroVal, nota: notaVal, lineas: lineasValidas })
+        .then(path => { if (path) qc.invalidateQueries({ queryKey: ['manager'] }) })
     } catch (e) {
       toast({ title: 'No se pudo guardar', description: e instanceof Error ? e.message : '', variant: 'error' })
     }
@@ -249,6 +256,15 @@ export function AbueloView({ period }: Props) {
                   <Button size="sm" variant="ghost" onClick={() => setExpandedId(expandedId === f.id ? null : f.id)}>
                     {expandedId === f.id ? 'Ocultar' : 'Ver'}
                   </Button>
+                  {f.pdf_url && (
+                    <Button size="sm" variant="ghost" title="Ver PDF"
+                      onClick={async () => {
+                        const url = await getPdfSignedUrl(f.pdf_url!)
+                        if (url) window.open(url, '_blank')
+                      }}>
+                      <FileText className="h-4 w-4 text-[var(--mint)]" />
+                    </Button>
+                  )}
                   <Button size="sm" variant="ghost" onClick={() => onBorrar(f.id)} disabled={del.isPending}>
                     <Trash2 className="h-4 w-4 text-[var(--coral)]" />
                   </Button>
