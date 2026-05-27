@@ -17,6 +17,7 @@ import {
   Receipt,
   Users,
   UsersRound,
+  Vault,
   Wallet,
   X,
 } from 'lucide-react'
@@ -37,8 +38,9 @@ const MODULES: ModuleNav[] = [
   { key: 'pedidos_wa', label: 'Pedidos',  to: '/pedidos-wa', icon: MessageSquare },
   { key: 'cash',       label: 'Caja',     to: '/cash',       icon: Banknote },
   { key: 'clientes',   label: 'Clientes', to: '/clientes',   icon: Contact },
-  { key: 'cobros',     label: 'Cobros',   to: '/cobros',     icon: HandCoins },
-  { key: 'gastos',     label: 'Gastos',   to: '/gastos',     icon: Receipt },
+  { key: 'cobros',     label: 'Cobros',     to: '/cobros',     icon: HandCoins },
+  { key: 'gastos',     label: 'Gastos',     to: '/gastos',     icon: Receipt },
+  { key: 'tesoreria',  label: 'Tesorería',  to: '/tesoreria',  icon: Vault },
 ]
 
 const EQUIPO: ModuleNav[] = [
@@ -59,6 +61,7 @@ const PRELOADERS: Record<string, () => void> = {
   '/clientes':         () => { void import('@/modules/clientes/ClientesPage') },
   '/cobros':           () => { void import('@/modules/cobros/CobrosPage') },
   '/gastos':           () => { void import('@/modules/gastos/GastosPage') },
+  '/tesoreria':        () => { void import('@/modules/tesoreria/TesoreriaPage') },
   '/trabajadores':     () => { void import('@/modules/trabajadores/TrabajadoresOpPage') },
   '/bbdd-trabajadores':() => { void import('@/modules/trabajadores/TrabajadoresPage') },
   '/sueldos':          () => { void import('@/modules/sueldos/SueldosPage') },

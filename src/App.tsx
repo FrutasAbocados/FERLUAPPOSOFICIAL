@@ -22,6 +22,7 @@ const SueldosPage       = lazy(() => import('@/modules/sueldos/SueldosPage').the
 const PedidosWaPage     = lazy(() => import('@/modules/pedidos-wa/PedidosWaPage').then(m => ({ default: m.PedidosWaPage })))
 const GastosPage        = lazy(() => import('@/modules/gastos/GastosPage').then(m => ({ default: m.GastosPage })))
 const ClientesPage      = lazy(() => import('@/modules/clientes/ClientesPage').then(m => ({ default: m.ClientesPage })))
+const TesoreriaPage     = lazy(() => import('@/modules/tesoreria/TesoreriaPage').then(m => ({ default: m.TesoreriaPage })))
 
 function PageFallback() {
   return (
@@ -90,6 +91,9 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute module="clientes" />}>
                     <Route path="clientes" element={<Suspense fallback={<PageFallback />}><ClientesPage /></Suspense>} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="tesoreria" />}>
+                    <Route path="tesoreria" element={<Suspense fallback={<PageFallback />}><TesoreriaPage /></Suspense>} />
                   </Route>
                 </Route>
               </Route>
