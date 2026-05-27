@@ -1,18 +1,13 @@
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Area, AreaChart, ResponsiveContainer } from 'recharts'
+import { numFormat, numCompact } from '@/shared/lib/format'
 import { useKpisHoy, useKpisSerie, useTopDeudoresCobros, useClientesRiesgoFuga } from '../lib/queries'
 
 const MINT  = 'oklch(78% 0.14 158)'
 const CORAL = 'oklch(70% 0.18 25)'
 const SKY   = 'oklch(76% 0.12 235)'
 const AMBER = 'oklch(78% 0.16 70)'
-
-const fmtNum = (n: number) => new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(n)
-const fmtK   = (n: number) =>
-  n >= 1000
-    ? `${new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 }).format(n / 1000)}K`
-    : fmtNum(n)
 
 export function PanelEmpresa() {
   const { data: kpi, isLoading } = useKpisHoy()
@@ -107,7 +102,7 @@ export function PanelEmpresa() {
               className="mono font-semibold leading-none text-[var(--ink)]"
               style={{ fontSize: 'clamp(34px,9vw,50px)', letterSpacing: '-0.055em' }}
             >
-              {kpi ? fmtNum(kpi.ventas_hoy) : '—'}
+              {kpi ? numFormat(kpi.ventas_hoy) : '—'}
             </div>
             <div className="mono mt-1 text-[9px] uppercase tracking-[0.16em] text-[var(--ink-mute)]">EUR</div>
           </div>
@@ -164,7 +159,7 @@ export function PanelEmpresa() {
               className="mono font-semibold leading-none tabular-nums"
               style={{ fontSize: 'clamp(20px,5vw,26px)', color: margenColor, letterSpacing: '-0.04em' }}
             >
-              {fmtK(margenBruto7d)}
+              {numCompact(margenBruto7d)}
             </div>
             <div className="mono mt-1 text-[9px]" style={{ color: margenColor }}>
               {margen7d != null ? `${margen7d.toFixed(0)}% sobre ventas` : '—'}
@@ -187,7 +182,7 @@ export function PanelEmpresa() {
               className="mono font-semibold leading-none tabular-nums"
               style={{ fontSize: 'clamp(16px,4vw,20px)', color: SKY, letterSpacing: '-0.04em' }}
             >
-              {kpi ? fmtK(kpi.compras_hoy) : '—'}
+              {kpi ? numCompact(kpi.compras_hoy) : '—'}
             </div>
           )}
           <p className="mono text-[9px] text-[var(--ink-mute)]">eur</p>
@@ -221,11 +216,11 @@ export function PanelEmpresa() {
             className="mono font-semibold leading-none tabular-nums"
             style={{ fontSize: 'clamp(16px,4vw,20px)', color: deudaColor, letterSpacing: '-0.04em' }}
           >
-            {totalDeuda > 0 ? fmtK(totalDeuda) : '—'}
+            {totalDeuda > 0 ? numCompact(totalDeuda) : '—'}
           </div>
           {totalVencido > 0 && (
             <div className="mono mt-0.5 text-[9px] tabular-nums" style={{ color: CORAL }}>
-              {fmtK(totalVencido)} vencido
+              {numCompact(totalVencido)} vencido
             </div>
           )}
         </div>

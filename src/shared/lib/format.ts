@@ -29,6 +29,26 @@ export const eurosOrDash = (n: number | null | undefined): string =>
 export const eurosShortOrDash = (n: number | null | undefined): string =>
   n == null ? '—' : eurShort.format(Number(n))
 
+// ── Números sin moneda ───────────────────────────────────────────────────────
+
+const _numFull    = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 })
+const _numCompact = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 })
+const _numDec     = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 })
+
+/** Número sin moneda, sin decimales (`1.234`). */
+export const numFormat = (n: number | null | undefined): string =>
+  _numFull.format(Number(n ?? 0))
+
+/** Número compacto sin moneda — K para ≥1000 (`23,5K` o `456`). */
+export const numCompact = (n: number | null | undefined): string => {
+  const v = Number(n ?? 0)
+  return v >= 1000 ? `${_numCompact.format(v / 1000)}K` : _numFull.format(v)
+}
+
+/** Número sin moneda con 2 decimales (`1.234,56`). Para cantidades/unidades. */
+export const numDec = (n: number | null | undefined): string =>
+  _numDec.format(Number(n ?? 0))
+
 /** Formato fecha ISO → "lun 5 de may" (default). */
 export const fmtDate = (iso: string, fmt = "EEE d 'de' MMM"): string =>
   format(parseISO(iso), fmt, { locale: es })

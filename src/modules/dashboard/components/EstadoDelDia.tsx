@@ -2,20 +2,13 @@ import { useMemo } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Area, AreaChart, ResponsiveContainer } from 'recharts'
+import { numFormat, numCompact } from '@/shared/lib/format'
 import { useKpisHoy, useKpisSerie, type KpiPunto } from '../lib/queries'
 
 const MINT  = 'oklch(78% 0.14 158)'
 const CORAL = 'oklch(70% 0.18 25)'
 const SKY   = 'oklch(76% 0.12 235)'
 const AMBER = 'oklch(78% 0.16 70)'
-
-const fmtNum = (n: number) =>
-  new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(n)
-
-const fmtK = (n: number) =>
-  n >= 1000
-    ? `${new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 }).format(n / 1000)}K`
-    : fmtNum(n)
 
 function calcTrend(serie: KpiPunto[], val: number, key: 'ventas' | 'compras') {
   if (!serie.length) return null
@@ -109,7 +102,7 @@ export function EstadoDelDia() {
               className="mono mt-1 font-semibold leading-none tabular-nums"
               style={{ fontSize: 'clamp(38px,10vw,52px)', letterSpacing: '-0.055em', color: MINT }}
             >
-              {data ? fmtNum(data.ventas_hoy) : '—'}
+              {data ? numFormat(data.ventas_hoy) : '—'}
             </div>
           )}
           <p className="mono mt-1 text-[9px] uppercase tracking-[0.18em] text-[var(--ink-mute)]">
@@ -189,7 +182,7 @@ export function EstadoDelDia() {
               className="mono font-semibold leading-none tabular-nums"
               style={{ fontSize: 'clamp(22px,6vw,28px)', color: SKY, letterSpacing: '-0.04em' }}
             >
-              {data ? fmtK(data.compras_hoy) : '—'}
+              {data ? numCompact(data.compras_hoy) : '—'}
             </span>
             <span className="mono ml-0.5 text-[9px] text-[var(--ink-mute)]">eur</span>
           </div>
@@ -218,7 +211,7 @@ export function EstadoDelDia() {
                 className="mono font-semibold leading-none tabular-nums"
                 style={{ fontSize: 20, color: AMBER, letterSpacing: '-0.03em' }}
               >
-                {data ? fmtK(data.pendiente_mes) : '—'}
+                {data ? numCompact(data.pendiente_mes) : '—'}
               </span>
               <span className="mono text-[9px] text-[var(--ink-mute)]">EUR</span>
             </div>

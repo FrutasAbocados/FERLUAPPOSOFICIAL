@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
+import { Modal } from '@/shared/components/Modal'
 import { PageTopbar } from '@/shared/components/PageTopbar'
 import { confirm } from '@/shared/lib/confirm'
 import { euros } from '@/shared/lib/format'
@@ -74,11 +75,8 @@ function MovimientoModal({ movimiento, defaultTipo = 'entrada', onClose }: Modal
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/90 p-2 md:p-6"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="ao-panel w-full max-w-md mt-10 p-5">
+    <Modal onClose={onClose} size="sm">
+      <div className="p-5">
         <h3 className="mb-4 text-base font-semibold text-[var(--ink)]">
           {movimiento ? 'Editar movimiento' : tipo === 'entrada' ? 'Nueva entrada' : 'Nueva salida'}
           {movimiento?.fuente === 'cierre' && (
@@ -174,7 +172,7 @@ function MovimientoModal({ movimiento, defaultTipo = 'entrada', onClose }: Modal
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   )
 }
 

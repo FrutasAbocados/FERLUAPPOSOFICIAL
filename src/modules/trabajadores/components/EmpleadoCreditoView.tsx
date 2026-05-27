@@ -4,7 +4,7 @@ import { format, parseISO, startOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ChevronDown, ChevronRight, ShoppingBasket } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
-import { euros } from '@/shared/lib/format'
+import { euros, numDec } from '@/shared/lib/format'
 import type { EmpleadoPropio } from '../lib/useEmpleadoPropio'
 
 type EstadoActual = {
@@ -47,9 +47,6 @@ type LineaDB = {
 }
 
 function num(v: unknown) { return Number(v ?? 0) }
-function qty(v: number) {
-  return new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 }).format(v)
-}
 
 function mesSiguiente(mesISO: string) {
   const d = parseISO(mesISO)
@@ -264,7 +261,7 @@ function FacturaItem({
           <ul className="space-y-1">
             {lineas.data?.map(l => (
               <li key={l.id} className="grid grid-cols-[1fr_auto] gap-2 text-xs">
-                <span className="truncate text-[var(--ink-dim)]">{l.nombre} · {qty(l.units)} x {euros(l.price)}</span>
+                <span className="truncate text-[var(--ink-dim)]">{l.nombre} · {numDec(l.units)} x {euros(l.price)}</span>
                 <span className="tabular-nums text-[var(--ink)]">{euros(l.subtotal)}</span>
               </li>
             ))}
