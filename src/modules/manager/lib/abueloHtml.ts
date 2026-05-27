@@ -41,14 +41,11 @@ export function generarHtmlFacturaAbuelo(opts: {
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Factura Abuelo${numero_factura ? ' ' + numero_factura : ''}</title>
+<title>Factura${numero_factura ? ' ' + numero_factura : ''} — El Abuelo</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 13px; color: #1a1a1a; padding: 40px; max-width: 800px; margin: 0 auto; }
   .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 3px solid #1a5c38; }
-  .empresa { color: #1a5c38; }
-  .empresa h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
-  .empresa p { font-size: 11px; color: #555; margin-top: 2px; }
   .doc-info { text-align: right; }
   .doc-info .num-factura { font-size: 18px; font-weight: 700; color: #1a5c38; }
   .doc-info .fecha { font-size: 12px; color: #555; margin-top: 4px; }
@@ -70,20 +67,17 @@ export function generarHtmlFacturaAbuelo(opts: {
   .totales td { padding: 5px 12px; font-size: 13px; }
   .totales .total-row td { border-top: 2px solid #1a5c38; font-size: 15px; font-weight: 800; color: #1a5c38; padding-top: 8px; }
   .nota { margin-top: 24px; font-size: 11px; color: #666; font-style: italic; }
-  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 10px; color: #aaa; text-align: center; }
+  .btn-print { display: block; margin: 32px auto 0; padding: 10px 28px; background: #1a5c38; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; letter-spacing: 0.02em; }
+  .btn-print:hover { background: #154d2f; }
   @media print {
     body { padding: 20px; }
-    .no-print { display: none; }
+    .btn-print { display: none; }
   }
 </style>
 </head>
 <body>
   <div class="header">
-    <div class="empresa">
-      <h1>FRUTAS ABOCADOS</h1>
-      <p>Frutas y Verduras · Mayorista</p>
-      <p>Ferlu Project S.L. · B22560510</p>
-    </div>
+    <div></div>
     <div class="doc-info">
       <div class="num-factura">FACTURA${numero_factura ? ' Nº ' + numero_factura : ''}</div>
       <div class="fecha">${new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
@@ -121,7 +115,7 @@ export function generarHtmlFacturaAbuelo(opts: {
 
   ${nota ? `<div class="nota">Nota: ${nota}</div>` : ''}
 
-  <div class="footer">Documento generado por AbocadosOS · ${new Date().toLocaleDateString('es-ES')}</div>
+  <button class="btn-print" onclick="window.print()">Imprimir / Guardar PDF</button>
 </body>
 </html>`
 }
