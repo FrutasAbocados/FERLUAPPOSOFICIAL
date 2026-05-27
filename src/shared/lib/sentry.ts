@@ -42,6 +42,9 @@ export function initSentry(): void {
       'NetworkError',
       'Failed to fetch',
       'Load failed',
+      'Failed to fetch dynamically imported module',
+      'Importing a module script failed',
+      'is not a valid JavaScript MIME type',
     ],
     beforeSend(event, hint) {
       // En dev local nunca enviamos

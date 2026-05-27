@@ -56,16 +56,20 @@ function mesSiguiente(mesISO: string) {
   return format(new Date(d.getFullYear(), d.getMonth() + 1, 1), 'yyyy-MM-dd')
 }
 
-function useCreditoActual(empleadoId: string) {
+function useCreditoActual(empleadoId: string, mesISO: string) {
   return useQuery({
-    queryKey: ['emp-credito-actual', empleadoId] as const,
+    queryKey: ['emp-credito-actual', empleadoId, mesISO] as const,
     queryFn: async (): Promise<EstadoActual | null> => {
-      const { data, error } = await supabase.rpc('trabajadores_credito_estado_actual')
+      const { data, error } = await supabase.rpc('trabajadores_credito_estado_mes', {
+        p_empleado_id: empleadoId,
+        p_mes: mesISO,
+      })
       if (error) throw error
-      const mine = ((data ?? []) as EstadoActual[]).find(r => r.empleado_id === empleadoId)
+      const mine = ((data ?? []) as EstadoActual[])[0]
       if (!mine) return null
       return {
         ...mine,
+        empleado_id: empleadoId,
         limite_base: num(mine.limite_base),
         exceso_arrastrado: num(mine.exceso_arrastrado),
         gastado: num(mine.gastado),
@@ -136,7 +140,7 @@ function useLineasFactura(facturaId: string | null) {
 export function EmpleadoCreditoView({ empleado }: { empleado: EmpleadoPropio }) {
   const mesISO = format(startOfMonth(new Date()), 'yyyy-MM-dd')
   const [facturaAbierta, setFacturaAbierta] = useState<string | null>(null)
-  const actual = useCreditoActual(empleado.id)
+  const actual = useCreditoActual(empleado.id, mesISO)
   const historico = useHistorico(empleado.id)
   const facturas = useFacturasMes(empleado.id, mesISO)
 

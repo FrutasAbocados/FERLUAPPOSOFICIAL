@@ -52,7 +52,7 @@ export function ForecastCard() {
 
           {data.meses_serie.length > 0 && (
             <div className="mt-4 h-44 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={176}>
                 <BarChart data={data.meses_serie} margin={{ top: 18, right: 8, left: -10, bottom: 0 }}>
                   <XAxis dataKey="mes" tickFormatter={fmtMes} fontSize={11} stroke="var(--color-ink-3)" />
                   <YAxis tickFormatter={(n) => `${(n/1000).toFixed(0)}k`} fontSize={11} stroke="var(--color-ink-3)" width={40} />

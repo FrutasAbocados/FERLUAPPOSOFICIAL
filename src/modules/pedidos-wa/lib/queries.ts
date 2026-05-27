@@ -23,6 +23,7 @@ const KEYS = {
   inventario:      (fecha: string) => ['pedidos_wa', 'inventario', fecha] as const,
   cotejo:          (fecha: string) => ['pedidos_wa', 'cotejo', fecha] as const,
   kgPorCaja:       ['pedidos_wa', 'kg_por_caja'] as const,
+  holdedLogs:      (fecha: string) => ['pedidos_wa', 'holded_logs', fecha] as const,
   comprasMes:      (yyyymm: string) => ['pedidos_wa', 'compras', yyyymm] as const,
   compra:          (id: string) => ['pedidos_wa', 'compra', id] as const,
 }
@@ -203,6 +204,7 @@ export function useReasignarPedido() {
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.holdedLogs(vars.fecha) })
     },
   })
 }
@@ -531,15 +533,16 @@ export type HoldedLastLog = {
 
 /** Último log Holded por pedido para una fecha concreta. Permite ver fallos en la UI. */
 export function useHoldedLastLogs(fecha: string, pedidoIds: string[]) {
+  const stablePedidoIds = [...pedidoIds].sort()
   return useQuery({
-    queryKey: ['pedidos_wa', 'holded_logs', fecha, pedidoIds.length] as const,
-    enabled: pedidoIds.length > 0,
+    queryKey: [...KEYS.holdedLogs(fecha), stablePedidoIds] as const,
+    enabled: stablePedidoIds.length > 0,
     queryFn: async (): Promise<Map<string, HoldedLastLog>> => {
-      if (pedidoIds.length === 0) return new Map()
+      if (stablePedidoIds.length === 0) return new Map()
       const { data, error } = await supabase
         .from('pedidos_wa_holded_last_log')
         .select('*')
-        .in('pedido_id', pedidoIds)
+        .in('pedido_id', stablePedidoIds)
       if (error) throw error
       const map = new Map<string, HoldedLastLog>()
       for (const r of (data ?? []) as HoldedLastLog[]) map.set(r.pedido_id, r)
@@ -562,9 +565,16 @@ export function useConfirmarPedido() {
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.holdedLogs(vars.fecha) })
       // Polling 3-5s para captar el holded_invoice_id que rellena el trigger
-      setTimeout(() => qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) }), 3000)
-      setTimeout(() => qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) }), 8000)
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+        qc.invalidateQueries({ queryKey: KEYS.holdedLogs(vars.fecha) })
+      }, 3000)
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+        qc.invalidateQueries({ queryKey: KEYS.holdedLogs(vars.fecha) })
+      }, 8000)
     },
   })
 }
@@ -1327,6 +1337,7 @@ export function useSubirPedidoAHolded() {
     onSuccess: (res, vars) => {
       if ('holded_invoice_id' in res && res.holded_invoice_id) {
         qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+        qc.invalidateQueries({ queryKey: KEYS.holdedLogs(vars.fecha) })
       }
     },
   })

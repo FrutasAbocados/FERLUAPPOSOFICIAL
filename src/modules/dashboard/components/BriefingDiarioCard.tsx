@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ArrowRight, Loader2, RefreshCw, Sparkles } from 'lucide-react'
+import { ArrowRight, ChevronDown, ChevronUp, Loader2, RefreshCw, Sparkles } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { Link } from 'react-router-dom'
 import { Button } from '@/shared/components/ui/button'
@@ -18,6 +18,7 @@ export function BriefingDiarioCard() {
   const briefing = useBriefingHoy()
   const generar = useGenerarBriefingAhora()
   const [generating, setGenerating] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   const handleGenerar = async () => {
     setGenerating(true)
@@ -87,15 +88,27 @@ export function BriefingDiarioCard() {
       {data && (
         <div className="grid gap-6 lg:grid-cols-[1.45fr_1fr]">
           <div>
-            <div className="prose prose-sm max-w-none text-[var(--ink)] [&_p]:mb-3 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_strong]:text-[var(--mint)] [&_em]:font-serif [&_em]:text-lg [&_em]:leading-snug [&_em]:text-[var(--ink-dim)] [&_ul]:my-2 [&_ul]:pl-5 [&_li]:my-0.5">
+            {/* Mobile: collapsible text */}
+            <div className={`prose prose-sm max-w-none text-[var(--ink)] [&_p]:mb-3 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_strong]:text-[var(--mint)] [&_em]:font-serif [&_em]:text-lg [&_em]:leading-snug [&_em]:text-[var(--ink-dim)] [&_ul]:my-2 [&_ul]:pl-5 [&_li]:my-0.5 ${!expanded ? 'max-sm:line-clamp-4 max-sm:overflow-hidden' : ''}`}>
               <ReactMarkdown>{data.contenido_md}</ReactMarkdown>
             </div>
-            <p className="mono mt-5 text-[10px] uppercase tracking-[0.14em] text-[var(--ink-mute)]">
+            {/* Show/hide toggle on mobile only */}
+            <button
+              type="button"
+              onClick={() => setExpanded(p => !p)}
+              className="mt-2 flex items-center gap-1 text-xs font-medium text-[var(--mint)] sm:hidden"
+            >
+              {expanded
+                ? <><ChevronUp className="h-3.5 w-3.5" /> Menos</>
+                : <><ChevronDown className="h-3.5 w-3.5" /> Leer más</>
+              }
+            </button>
+            <p className="mono mt-4 text-[10px] uppercase tracking-[0.14em] text-[var(--ink-mute)]">
               Generado {format(parseISO(data.generated_at), "d LLL HH:mm", { locale: es })}
               {data.modelo ? ` · ${data.modelo.replace('claude-', '')}` : ''}
             </p>
           </div>
-          <div className="grid gap-2.5 content-start">
+          <div className="grid content-start gap-2.5">
             {briefingActions.map(({ title, sub, to }) => (
               <Link key={title} to={to} className="ao-panel ao-card-hover flex items-center gap-3 p-3">
                 <div className="ao-icon-tile h-8 w-8 shrink-0">

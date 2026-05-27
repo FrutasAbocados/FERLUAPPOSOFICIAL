@@ -198,6 +198,7 @@ export function VariablesView({ anchor }: Props) {
 
       {editing && (
         <VariableModal
+          key={editing === 'new' ? 'new' : editing.id}
           variable={editing === 'new' ? null : editing}
           onClose={() => setEditing(null)}
         />

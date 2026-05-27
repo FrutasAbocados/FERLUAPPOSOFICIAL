@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { addDays, format, formatDistanceToNow, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { CalendarClock, ChevronDown, Clock, Phone, RotateCcw, Save } from 'lucide-react'
@@ -74,23 +74,28 @@ function toForm(row: ClienteProgramaRow | null | undefined): Form {
 
 export function ProgramaFidelizacionCard({ cliente }: { cliente: ProgramaClienteInput }) {
   const { data: programa } = useClientePrograma(cliente.contact_name_canon)
+  return (
+    <ProgramaFidelizacionCardInner
+      key={`${cliente.contact_name_canon}-${programa?.updated_at ?? 'empty'}`}
+      cliente={cliente}
+      programa={programa}
+    />
+  )
+}
+
+function ProgramaFidelizacionCardInner({
+  cliente,
+  programa,
+}: {
+  cliente: ProgramaClienteInput
+  programa: ClienteProgramaRow | null | undefined
+}) {
   const setPrograma = useSetClientePrograma()
   const marcarContacto = useMarcarClienteContacto()
-  const [form, setForm] = useState<Form>(empty)
+  const [form, setForm] = useState<Form>(() => toForm(programa))
   const [dirty, setDirty] = useState(false)
-  const [scoreAnim, setScoreAnim] = useState(0)
+  const [scoreAnim] = useState(cliente.loyaltyScore)
   const [showBreakdown, setShowBreakdown] = useState(false)
-
-  useEffect(() => {
-    setForm(toForm(programa))
-    setDirty(false)
-  }, [cliente.contact_name_canon, programa?.updated_at])
-
-  useEffect(() => {
-    setScoreAnim(0)
-    const t = setTimeout(() => setScoreAnim(cliente.loyaltyScore), 80)
-    return () => clearTimeout(t)
-  }, [cliente.loyaltyScore, cliente.contact_name_canon])
 
   const programaFinal = (form.programa_manual || cliente.programa) as ClientePrograma
   const cfg = PROG_CFG[programaFinal]

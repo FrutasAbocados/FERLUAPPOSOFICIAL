@@ -576,7 +576,7 @@ export function useAbueloFacturas(period: Period) {
     queryFn: async (): Promise<AbueloFactura[]> => {
       const { data, error } = await supabase
         .from('manager_abuelo_facturas')
-        .select('id, fecha, numero_factura, nota, subtotal, total, num_lineas, created_at')
+        .select('id, fecha, numero_factura, nota, subtotal, total, num_lineas, created_at, pdf_url')
         .gte('fecha', period.from).lte('fecha', period.to)
         .order('fecha', { ascending: false })
       if (error) throw error

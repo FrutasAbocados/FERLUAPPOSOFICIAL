@@ -3,6 +3,20 @@ import { supabase } from '@/shared/lib/supabase'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
+type DbRow = Record<string, unknown>
+
+const str = (v: unknown): string => String(v ?? '')
+const nullableStr = (v: unknown): string | null => v == null ? null : String(v)
+const num = (v: unknown): number => Number(v ?? 0)
+
+function nestedString(row: DbRow, key: string, prop: string): string | null {
+  const value = row[key]
+  if (!value || typeof value !== 'object') return null
+  const nested = Array.isArray(value) ? value[0] : value
+  if (!nested || typeof nested !== 'object') return null
+  return nullableStr((nested as DbRow)[prop])
+}
+
 export type Categoria = {
   id: string
   nombre: string
@@ -176,7 +190,11 @@ export function useProveedoresHoldedSearch(q: string) {
         .order('nombre', { ascending: true })
         .limit(15)
       if (error) throw error
-      return (data ?? []).map((r: any) => ({ id: r.id, nombre: r.nombre, nif: r.nif }))
+      return ((data ?? []) as DbRow[]).map((r): ProveedorHolded => ({
+        id: str(r.id),
+        nombre: str(r.nombre),
+        nif: nullableStr(r.nif),
+      }))
     },
   })
 }
@@ -209,10 +227,18 @@ export function useFijos() {
         .select('id, nombre, importe, iva_pct, dia_cargo, categoria_id, proveedor_holded_id, proveedor_manual_id, metodo_pago, notas, activo')
         .order('dia_cargo', { ascending: true })
       if (error) throw error
-      return (data ?? []).map((r: any): Fijo => ({
-        ...r,
-        importe: Number(r.importe),
-        iva_pct: Number(r.iva_pct),
+      return ((data ?? []) as DbRow[]).map((r): Fijo => ({
+        id: str(r.id),
+        nombre: str(r.nombre),
+        importe: num(r.importe),
+        iva_pct: num(r.iva_pct),
+        dia_cargo: num(r.dia_cargo),
+        categoria_id: nullableStr(r.categoria_id),
+        proveedor_holded_id: nullableStr(r.proveedor_holded_id),
+        proveedor_manual_id: nullableStr(r.proveedor_manual_id),
+        metodo_pago: nullableStr(r.metodo_pago),
+        notas: nullableStr(r.notas),
+        activo: Boolean(r.activo),
       }))
     },
   })
@@ -224,22 +250,22 @@ export function useCalendarioMes(anio: number, mes: number) {
     queryFn: async (): Promise<CalendarioRow[]> => {
       const { data, error } = await supabase.rpc('gastos_calendario_mes', { p_anio: anio, p_mes: mes })
       if (error) throw error
-      return (data ?? []).map((r: any): CalendarioRow => ({
-        fijo_id: r.fijo_id,
-        nombre: r.nombre,
-        importe: Number(r.importe),
-        iva_pct: Number(r.iva_pct),
-        total: Number(r.total),
-        dia_cargo: Number(r.dia_cargo),
-        fecha_cargo: r.fecha_cargo,
-        categoria_id: r.categoria_id,
-        categoria_nombre: r.categoria_nombre,
-        categoria_color: r.categoria_color,
-        proveedor: r.proveedor,
-        metodo_pago: r.metodo_pago,
-        pagado_at: r.pagado_at,
-        importe_real: r.importe_real == null ? null : Number(r.importe_real),
-        estado: r.estado,
+      return ((data ?? []) as DbRow[]).map((r): CalendarioRow => ({
+        fijo_id: str(r.fijo_id),
+        nombre: str(r.nombre),
+        importe: num(r.importe),
+        iva_pct: num(r.iva_pct),
+        total: num(r.total),
+        dia_cargo: num(r.dia_cargo),
+        fecha_cargo: str(r.fecha_cargo),
+        categoria_id: nullableStr(r.categoria_id),
+        categoria_nombre: nullableStr(r.categoria_nombre),
+        categoria_color: nullableStr(r.categoria_color),
+        proveedor: str(r.proveedor),
+        metodo_pago: nullableStr(r.metodo_pago),
+        pagado_at: nullableStr(r.pagado_at),
+        importe_real: r.importe_real == null ? null : num(r.importe_real),
+        estado: str(r.estado) as CalendarioRow['estado'],
       }))
     },
   })
@@ -350,19 +376,19 @@ export function useVariables(f: VariableFiltros) {
       if (f.q && f.q.trim().length > 0) q = q.or(`descripcion.ilike.%${f.q}%,proveedor_libre.ilike.%${f.q}%`)
       const { data, error } = await q
       if (error) throw error
-      return (data ?? []).map((r: any): Variable => ({
-        id: r.id,
-        fecha: r.fecha,
-        categoria_id: r.categoria_id,
-        proveedor_holded_id: r.proveedor_holded_id,
-        proveedor_manual_id: r.proveedor_manual_id,
-        proveedor_libre: r.proveedor_libre,
-        descripcion: r.descripcion,
-        metodo_pago: r.metodo_pago,
-        subtotal: Number(r.subtotal),
-        iva_pct: Number(r.iva_pct),
-        total: Number(r.total),
-        proveedor_holded_nombre: r.manager_contactos?.nombre ?? null,
+      return ((data ?? []) as DbRow[]).map((r): Variable => ({
+        id: str(r.id),
+        fecha: str(r.fecha),
+        categoria_id: nullableStr(r.categoria_id),
+        proveedor_holded_id: nullableStr(r.proveedor_holded_id),
+        proveedor_manual_id: nullableStr(r.proveedor_manual_id),
+        proveedor_libre: nullableStr(r.proveedor_libre),
+        descripcion: nullableStr(r.descripcion),
+        metodo_pago: nullableStr(r.metodo_pago),
+        subtotal: num(r.subtotal),
+        iva_pct: num(r.iva_pct),
+        total: num(r.total),
+        proveedor_holded_nombre: nestedString(r, 'manager_contactos', 'nombre'),
       }))
     },
   })
@@ -429,17 +455,17 @@ export function useGastosUnificados(from: string, to: string) {
       // Fijos pagados en el rango (vía RPC)
       const fijosResp = await supabase.rpc('gastos_fijos_pagos_detalle', { p_from: from, p_to: to })
       if (fijosResp.error) throw fijosResp.error
-      const fijos: GastoUnificado[] = (fijosResp.data ?? []).map((r: any): GastoUnificado => ({
-        fecha: `${r.anio}-${String(r.mes).padStart(2, '0')}-01`,
-        anio: Number(r.anio),
-        mes: Number(r.mes),
+      const fijos: GastoUnificado[] = ((fijosResp.data ?? []) as DbRow[]).map((r): GastoUnificado => ({
+        fecha: `${str(r.anio)}-${str(r.mes).padStart(2, '0')}-01`,
+        anio: num(r.anio),
+        mes: num(r.mes),
         tipo: 'fijo',
-        total: Number(r.total),
-        categoria_id: r.categoria_id,
-        categoria_nombre: r.categoria_nombre,
-        categoria_color: r.categoria_color,
-        proveedor: r.proveedor,
-        proveedor_clave: r.proveedor_clave,
+        total: num(r.total),
+        categoria_id: nullableStr(r.categoria_id),
+        categoria_nombre: nullableStr(r.categoria_nombre),
+        categoria_color: nullableStr(r.categoria_color),
+        proveedor: str(r.proveedor),
+        proveedor_clave: str(r.proveedor_clave),
       }))
 
       // Variables (con embed para nombre Holded y categoría)
@@ -454,24 +480,25 @@ export function useGastosUnificados(from: string, to: string) {
         .gte('fecha', from)
         .lte('fecha', to)
       if (varsResp.error) throw varsResp.error
-      const variables: GastoUnificado[] = (varsResp.data ?? []).map((r: any): GastoUnificado => {
-        const provHolded = r.manager_contactos?.nombre ?? null
-        const provManual = r.gastos_proveedores_manuales?.nombre ?? null
-        const proveedor  = provHolded ?? provManual ?? r.proveedor_libre ?? '—'
+      const variables: GastoUnificado[] = ((varsResp.data ?? []) as DbRow[]).map((r): GastoUnificado => {
+        const provHolded = nestedString(r, 'manager_contactos', 'nombre')
+        const provManual = nestedString(r, 'gastos_proveedores_manuales', 'nombre')
+        const proveedor  = provHolded ?? provManual ?? nullableStr(r.proveedor_libre) ?? '—'
         const proveedor_clave =
-          r.proveedor_holded_id ??
-          (r.proveedor_manual_id ? `m:${r.proveedor_manual_id}` : null) ??
-          (r.proveedor_libre ? `l:${r.proveedor_libre}` : '_sin')
-        const d: Date = new Date(r.fecha)
+          nullableStr(r.proveedor_holded_id) ??
+          (r.proveedor_manual_id ? `m:${String(r.proveedor_manual_id)}` : null) ??
+          (r.proveedor_libre ? `l:${String(r.proveedor_libre)}` : '_sin')
+        const fecha = str(r.fecha)
+        const d: Date = new Date(fecha)
         return {
-          fecha: r.fecha,
+          fecha,
           anio: d.getUTCFullYear(),
           mes: d.getUTCMonth() + 1,
           tipo: 'variable',
-          total: Number(r.total),
-          categoria_id: r.categoria_id,
-          categoria_nombre: r.gastos_categorias?.nombre ?? null,
-          categoria_color: r.gastos_categorias?.color ?? null,
+          total: num(r.total),
+          categoria_id: nullableStr(r.categoria_id),
+          categoria_nombre: nestedString(r, 'gastos_categorias', 'nombre'),
+          categoria_color: nestedString(r, 'gastos_categorias', 'color'),
           proveedor,
           proveedor_clave,
         }
@@ -497,13 +524,13 @@ export function useSerieMensual(meses: number = 12) {
     queryFn: async (): Promise<SerieMensualRow[]> => {
       const { data, error } = await supabase.rpc('gastos_serie_mensual', { p_meses: meses })
       if (error) throw error
-      return (data ?? []).map((r: any): SerieMensualRow => ({
-        anio: Number(r.anio),
-        mes:  Number(r.mes),
-        mes_iso: r.mes_iso,
-        fijos_total: Number(r.fijos_total),
-        variables_total: Number(r.variables_total),
-        total: Number(r.total),
+      return ((data ?? []) as DbRow[]).map((r): SerieMensualRow => ({
+        anio: num(r.anio),
+        mes:  num(r.mes),
+        mes_iso: str(r.mes_iso),
+        fijos_total: num(r.fijos_total),
+        variables_total: num(r.variables_total),
+        total: num(r.total),
       }))
     },
   })

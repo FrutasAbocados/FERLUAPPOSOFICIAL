@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Trash2, X } from 'lucide-react'
 import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
@@ -6,6 +6,7 @@ import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { confirm } from '@/shared/lib/confirm'
 import { toast } from '@/shared/lib/toast'
+import { errorMessage } from '@/shared/lib/errors'
 import {
   type Fijo,
   type FijoFormInput,
@@ -47,17 +48,6 @@ export function FijoModal({ fijo, onClose }: Props) {
     return rest
   })
 
-  // Reset si cambia el fijo
-  useEffect(() => {
-    if (fijo) {
-      const { id: _ignore, ...rest } = fijo
-      void _ignore
-      setForm(rest)
-    } else {
-      setForm(empty)
-    }
-  }, [fijo?.id])
-
   const isEdit = !!fijo
   const total = Math.round(Number(form.importe || 0) * (1 + Number(form.iva_pct || 0) / 100) * 100) / 100
 
@@ -94,8 +84,8 @@ export function FijoModal({ fijo, onClose }: Props) {
         toast({ title: 'Fijo creado', variant: 'success' })
       }
       onClose()
-    } catch (e: any) {
-      toast({ title: 'Error al guardar', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error al guardar', description: errorMessage(e), variant: 'error' })
     }
   }
 
@@ -112,8 +102,8 @@ export function FijoModal({ fijo, onClose }: Props) {
       await del.mutateAsync(fijo.id)
       toast({ title: 'Fijo eliminado', variant: 'success' })
       onClose()
-    } catch (e: any) {
-      toast({ title: 'Error al eliminar', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error al eliminar', description: errorMessage(e), variant: 'error' })
     }
   }
 

@@ -252,6 +252,7 @@ export interface AbueloFactura {
   total: number     // con IVA (subtotal + suma(IVA por línea))
   num_lineas: number
   created_at: string
+  pdf_url: string | null
 }
 
 export type IvaRate = 4 | 10 | 21

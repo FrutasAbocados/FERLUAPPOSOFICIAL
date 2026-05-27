@@ -399,8 +399,8 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
       <MargenesDetalle name={cliente.contact_name_canon} from={from} to={to} />
 
       {/* Preferencias operativas (editable) */}
-      <ProgramaFidelizacionCard cliente={cliente} />
-      <PreferenciasCard name={cliente.contact_name_canon} />
+      <ProgramaFidelizacionCard key={`programa-${cliente.contact_name_canon}`} cliente={cliente} />
+      <PreferenciasCard key={`prefs-${cliente.contact_name_canon}`} name={cliente.contact_name_canon} />
 
       {/* Notas internas + Aliases */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">

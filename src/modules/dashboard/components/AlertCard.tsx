@@ -48,31 +48,31 @@ export function AlertCard({ titulo, subtitulo, Icon, severidad, count, total, to
           isInteractive ? t.ring : ''
         }`}
       >
-        <header className="flex items-start gap-3 px-4 pb-2 pt-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border" style={styleToObj(t.iconStyle)}>
-            <Icon className={`h-5 w-5 ${t.icon}`} />
+        <header className="flex items-start gap-2.5 px-3 pb-2 pt-3 sm:px-4 sm:pt-4">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border sm:h-10 sm:w-10 sm:rounded-xl" style={styleToObj(t.iconStyle)}>
+            <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${t.icon}`} />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-sm font-medium leading-tight text-[var(--ink)]">{titulo}</h3>
-            {subtitulo && <p className="mt-0.5 text-xs leading-snug text-[var(--ink-mute)]">{subtitulo}</p>}
+            <h3 className="text-xs font-medium leading-tight text-[var(--ink)] sm:text-sm">{titulo}</h3>
+            {subtitulo && <p className="mt-0.5 hidden text-xs leading-snug text-[var(--ink-mute)] sm:block">{subtitulo}</p>}
           </div>
           {hasCount && (
-            <span className={`mono shrink-0 text-3xl font-medium tabular-nums leading-none ${t.countStyle}`}>
+            <span className={`mono shrink-0 text-2xl font-medium tabular-nums leading-none sm:text-3xl ${t.countStyle}`}>
               {count}
             </span>
           )}
           {!hasCount && total && (
-            <span className="mono shrink-0 text-base font-medium tabular-nums text-[var(--ink)]">
+            <span className="mono shrink-0 text-sm font-medium tabular-nums text-[var(--ink)] sm:text-base">
               {total}
             </span>
           )}
         </header>
         {hasCount && total && (
-          <p className="mono px-4 pb-1 text-right text-[10px] uppercase tracking-[0.12em] text-[var(--ink-mute)]">
+          <p className="mono px-3 pb-1 text-right text-[10px] uppercase tracking-[0.12em] text-[var(--ink-mute)] sm:px-4">
             total {total}
           </p>
         )}
-        <div className="flex-1 px-4 pb-3">
+        <div className="hidden flex-1 px-3 pb-3 sm:block sm:px-4">
           {loading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
           {!loading && !hasCount && (
             <p className="flex items-center gap-1.5 text-sm text-[var(--ink-mute)]">
@@ -82,7 +82,16 @@ export function AlertCard({ titulo, subtitulo, Icon, severidad, count, total, to
           )}
           {!loading && hasCount && preview}
         </div>
-        <footer className="flex items-center justify-end gap-2 border-t border-[var(--line)] px-4 py-2 text-xs">
+        {/* Mobile: estado ok compacto */}
+        <div className="px-3 pb-2 sm:hidden">
+          {!loading && !hasCount && (
+            <p className="flex items-center gap-1 text-xs text-[var(--ink-mute)]">
+              <CheckCircle2 className="h-3 w-3 text-[var(--mint)]" />
+              {empty ?? 'OK'}
+            </p>
+          )}
+        </div>
+        <footer className="flex items-center justify-end gap-2 border-t border-[var(--line)] px-3 py-2 text-xs sm:px-4">
           {tieneFull && (
             <button onClick={() => setExpanded(true)} className="font-medium text-[var(--mint)] hover:underline">
               Ver todos ({count})

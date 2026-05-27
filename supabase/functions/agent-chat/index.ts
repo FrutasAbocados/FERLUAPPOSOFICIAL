@@ -16,11 +16,30 @@ const MODEL          = Deno.env.get('AGENT_MODEL') || 'claude-sonnet-4-6'
 const SUPABASE_URL   = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY    = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const TENANT_ID      = 'ferlu'
+const ANTHROPIC_TIMEOUT_MS = 35_000
+const TOOL_TIMEOUT_MS = 15_000
+const MAX_HISTORY_MESSAGES = 12
+const MAX_TOOL_RESULTS_PER_ITER = 4
 
 const dbHeaders = {
   apikey: SERVICE_KEY,
   authorization: `Bearer ${SERVICE_KEY}`,
   'content-type': 'application/json',
+}
+
+async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs = TOOL_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error(`timeout ${timeoutMs}ms: ${input.split('?')[0]}`, { cause: err })
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -35,7 +54,7 @@ interface MemoryDecision {
 /** Últimas N decisiones del tenant (no requiere embeddings) */
 async function fetchRecentDecisions(limit = 5): Promise<MemoryDecision[]> {
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${SUPABASE_URL}/rest/v1/memory_decisions?tenant_id=eq.${TENANT_ID}&order=created_at.desc&limit=${limit}`,
       { headers: dbHeaders },
     )
@@ -56,25 +75,26 @@ function buildMemoryBlock(decisions: MemoryDecision[]): string {
 
 /** Registra la interacción en agent_interactions (fire-and-forget) */
 async function logInteraction(opts: {
-  inputTokens: number; outputTokens: number; cacheReadTokens: number
+  inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number
   costEur: number; latencyMs: number; success: boolean
   inputSummary: string; outputSummary: string; toolCount: number
 }): Promise<void> {
   const body = {
-    tenant_id:          TENANT_ID,
-    agent_name:         'agent-chat',
-    model_used:         MODEL,
-    input_tokens:       opts.inputTokens,
-    output_tokens:      opts.outputTokens,
-    cache_read_tokens:  opts.cacheReadTokens,
-    cost_eur:           opts.costEur,
+    tenant_id:           TENANT_ID,
+    agent_name:          'agent-chat',
+    model_used:          MODEL,
+    input_tokens:        opts.inputTokens,
+    output_tokens:       opts.outputTokens,
+    cache_read_tokens:   opts.cacheReadTokens,
+    cache_write_tokens:  opts.cacheWriteTokens,
+    cost_eur:            opts.costEur,
     latency_ms:         opts.latencyMs,
     success:            opts.success,
     input_summary:      opts.inputSummary.slice(0, 500),
     output_summary:     opts.outputSummary.slice(0, 500),
     actions_taken:      [{ tool_calls: opts.toolCount }],
   }
-  await fetch(`${SUPABASE_URL}/rest/v1/agent_interactions`, {
+  await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/agent_interactions`, {
     method: 'POST',
     headers: { ...dbHeaders, 'Prefer': 'return=minimal' },
     body: JSON.stringify(body),
@@ -233,7 +253,7 @@ const tools = [
   },
   {
     name: 'get_repartos_dia',
-    description: 'Jornadas de reparto de un día: qué empleado repartió, hora inicio/fin, y lista de clientes con importe y forma de pago (efectivo/tarjeta). Útil para ver quién cobró qué.',
+    description: 'Jornadas de reparto de un día: qué empleado repartió, hora inicio/fin, y lista de clientes con importe y forma de pago (efectivo/tarjeta/deuda). Útil para ver quién cobró o entregó qué.',
     input_schema: {
       type: 'object',
       properties: {
@@ -244,7 +264,7 @@ const tools = [
   },
   {
     name: 'get_cash_stats_semanas',
-    description: 'Estadísticas semanales de Caja por repartidor: horas trabajadas, total cobrado (efectivo + tarjeta), número de jornadas. Útil para comparar rendimiento por semana o por empleado.',
+    description: 'Estadísticas semanales de Caja por repartidor: horas trabajadas, total repartido, efectivo, tarjeta, deuda y número de jornadas. Útil para comparar rendimiento por semana o por empleado.',
     input_schema: {
       type: 'object',
       properties: {
@@ -260,7 +280,7 @@ const tools = [
 // Implementación de cada tool: llama a la RPC correspondiente
 // ---------------------------------------------------------------------------
 async function rpc(fn: string, args: Record<string, unknown> = {}): Promise<unknown> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+  const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
     method: 'POST',
     headers: dbHeaders,
     body: JSON.stringify(args),
@@ -304,7 +324,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
 
     // ── Caja ───────────────────────────────────────────────────────────────
     case 'get_cierres_mes': {
-      const res = await fetch(
+      const res = await fetchWithTimeout(
         `${SUPABASE_URL}/rest/v1/cierres?fecha=gte.${args.from}&fecha=lte.${args.to}&order=fecha.asc`,
         { headers: dbHeaders },
       )
@@ -312,7 +332,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
       return await res.json()
     }
     case 'get_cierre_dia': {
-      const res = await fetch(
+      const res = await fetchWithTimeout(
         `${SUPABASE_URL}/rest/v1/cierres?fecha=eq.${args.fecha}`,
         { headers: dbHeaders },
       )
@@ -321,7 +341,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
       return rows[0] ?? null
     }
     case 'get_deuda_acum': {
-      const res = await fetch(
+      const res = await fetchWithTimeout(
         `${SUPABASE_URL}/rest/v1/cierres?fecha=lte.${args.hasta}&select=deuda_generada,deuda_cobrada`,
         { headers: dbHeaders },
       )
@@ -331,7 +351,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
       return { deuda_acumulada: Math.round(total * 100) / 100, hasta: args.hasta, num_cierres: rows.length }
     }
     case 'get_repartos_dia': {
-      const jorRes = await fetch(
+      const jorRes = await fetchWithTimeout(
         `${SUPABASE_URL}/rest/v1/repartos_jornada?fecha=eq.${args.fecha}&select=*`,
         { headers: dbHeaders },
       )
@@ -339,7 +359,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
       const jornadas = await jorRes.json() as Array<{ id: string; empleado_id: string; hora_inicio: string | null; hora_fin: string | null; notas: string | null }>
       if (jornadas.length === 0) return []
       const ids = jornadas.map(j => j.id).join(',')
-      const linRes = await fetch(
+      const linRes = await fetchWithTimeout(
         `${SUPABASE_URL}/rest/v1/repartos_jornada_lineas?jornada_id=in.(${ids})&select=*&order=orden.asc`,
         { headers: dbHeaders },
       )
@@ -353,6 +373,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
           total: Math.round(propias.reduce((s, l) => s + Number(l.importe), 0) * 100) / 100,
           efectivo: Math.round(propias.filter(l => l.forma_pago === 'efectivo').reduce((s, l) => s + Number(l.importe), 0) * 100) / 100,
           tarjeta:  Math.round(propias.filter(l => l.forma_pago === 'tarjeta').reduce((s, l) => s + Number(l.importe), 0) * 100) / 100,
+          deuda:    Math.round(propias.filter(l => l.forma_pago === 'deuda').reduce((s, l) => s + Number(l.importe), 0) * 100) / 100,
         }
       })
     }
@@ -394,7 +415,7 @@ Deno.serve(async (req) => {
   const recentDecisions = await fetchRecentDecisions(5)
   const memoryBlock = buildMemoryBlock(recentDecisions)
 
-  const system = `Eres un asistente experto en análisis de negocio para Frutas Abocados, una distribuidora mayorista de frutas y verduras en Málaga (España).
+  const systemText = `Eres un asistente experto en análisis de negocio para Frutas Abocados, una distribuidora mayorista de frutas y verduras en Málaga (España).
 
 Hoy es ${today}.
 
@@ -422,15 +443,21 @@ Responde en español, conciso y directo. Cuando muestres listas, usa Markdown (t
 Reglas de negocio de Caja:
 - Un "cierre" = registro diario con lo que entró en caja (efectivo + tarjeta + otros) y lo que salió (compras, vehículos, otras). El campo "resultado" = total_cobrado - total_gastos.
 - "Deuda generada" en un cierre = ventas fiadas ese día. "Deuda cobrada" = pagos de deuda recibidos ese día.
-- Los "repartos" son los cobros que hace cada repartidor en ruta: por cliente, con importe y forma de pago (efectivo/tarjeta). Pueden existir varias jornadas por día (uno por repartidor).
+- Los "repartos" son las entregas/cobros que hace cada repartidor en ruta: por cliente, con importe y forma de pago (efectivo/tarjeta/deuda). Pueden existir varias jornadas por día (uno por repartidor).
 - La deuda acumulada se calcula sumando toda la historia: Σ(deuda_generada - deuda_cobrada) hasta la fecha.
 - Para ver cuánto cobró un repartidor en una semana, usa get_cash_stats_semanas.
 - Para ver el detalle de un día concreto (quién cobró qué a quién), usa get_repartos_dia.
 
 Si una pregunta requiere varias herramientas, encadena llamadas. Si la pregunta no se puede responder con los datos disponibles, dilo claramente.${memoryBlock}`
 
+  // System como array con cache_control — el loop de tool_use hace hasta 6 llamadas Anthropic
+  // con el mismo system prompt. Cache evita re-tokenizar ~700 tokens en cada iteración.
+  const systemBlocks = [
+    { type: 'text' as const, text: systemText, cache_control: { type: 'ephemeral' as const } },
+  ]
+
   // Convert messages al formato Anthropic
-  const anthropicMessages: Array<unknown> = userMessages.map(m => ({
+  const anthropicMessages: Array<unknown> = userMessages.slice(-MAX_HISTORY_MESSAGES).map(m => ({
     role: m.role,
     content: m.content,
   }))
@@ -441,21 +468,22 @@ Si una pregunta requiere varias herramientas, encadena llamadas. Si la pregunta 
   const MAX_ITERS = 6
 
   for (let iter = 0; iter < MAX_ITERS; iter++) {
-    const res = await fetch(ANTHROPIC_URL, {
+    const res = await fetchWithTimeout(ANTHROPIC_URL, {
       method: 'POST',
       headers: {
         'x-api-key': ANTHROPIC_KEY,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'prompt-caching-2024-07-31',
         'content-type': 'application/json',
       },
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 2048,
-        system,
+        system: systemBlocks,
         tools,
         messages: anthropicMessages,
       }),
-    })
+    }, ANTHROPIC_TIMEOUT_MS)
 
     if (!res.ok) {
       const errText = await res.text()
@@ -477,45 +505,61 @@ Si una pregunta requiere varias herramientas, encadena llamadas. Si la pregunta 
       break
     }
 
-    const toolResults: Array<unknown> = []
-    for (const block of toolUseBlocks) {
+    const toolResults = await Promise.all(toolUseBlocks.map(async (block, index) => {
       const name = block.name!
       const input = block.input ?? {}
-      try {
-        const result = await executeTool(name, input)
-        toolCalls.push({ name, input, summary: `OK (${Array.isArray(result) ? result.length + ' rows' : 'object'})` })
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: block.id,
-          content: JSON.stringify(result).slice(0, 60_000),
-        })
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e)
-        toolCalls.push({ name, input, summary: `ERR ${msg.slice(0, 100)}` })
-        toolResults.push({
+      if (index >= MAX_TOOL_RESULTS_PER_ITER) {
+        const msg = `Demasiadas herramientas en una iteración; máximo ${MAX_TOOL_RESULTS_PER_ITER}`
+        toolCalls.push({ name, input, summary: `SKIP ${msg}` })
+        return {
           type: 'tool_result',
           tool_use_id: block.id,
           is_error: true,
           content: `Error: ${msg}`,
-        })
+        }
       }
-    }
+      try {
+        const result = await executeTool(name, input)
+        toolCalls.push({ name, input, summary: `OK (${Array.isArray(result) ? result.length + ' rows' : 'object'})` })
+        return {
+          type: 'tool_result',
+          tool_use_id: block.id,
+          content: JSON.stringify(result).slice(0, 60_000),
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        toolCalls.push({ name, input, summary: `ERR ${msg.slice(0, 100)}` })
+        return {
+          type: 'tool_result',
+          tool_use_id: block.id,
+          is_error: true,
+          content: `Error: ${msg}`,
+        }
+      }
+    }))
     anthropicMessages.push({ role: 'user', content: toolResults })
   }
 
   const reply = finalText || '(sin respuesta)'
 
   // Log en agent_interactions (fire-and-forget, no bloquea la respuesta)
-  const lastUsage = (lastData as { usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number } } | null)?.usage
-  const inputTokens     = lastUsage?.input_tokens ?? 0
-  const outputTokens    = lastUsage?.output_tokens ?? 0
-  const cacheReadTokens = lastUsage?.cache_read_input_tokens ?? 0
-  const costEur = inputTokens * EUR_PER_TOKEN.input
-               + outputTokens * EUR_PER_TOKEN.output
-               + cacheReadTokens * EUR_PER_TOKEN.cacheRead
+  const lastUsage = (lastData as {
+    usage?: {
+      input_tokens?: number; output_tokens?: number
+      cache_read_input_tokens?: number; cache_creation_input_tokens?: number
+    }
+  } | null)?.usage
+  const inputTokens      = lastUsage?.input_tokens ?? 0
+  const outputTokens     = lastUsage?.output_tokens ?? 0
+  const cacheReadTokens  = lastUsage?.cache_read_input_tokens ?? 0
+  const cacheWriteTokens = lastUsage?.cache_creation_input_tokens ?? 0
+  const costEur = inputTokens      * EUR_PER_TOKEN.input
+               + outputTokens      * EUR_PER_TOKEN.output
+               + cacheReadTokens   * EUR_PER_TOKEN.cacheRead
+               + cacheWriteTokens  * EUR_PER_TOKEN.input * 1.25
   const userText = userMessages.at(-1)?.content
   logInteraction({
-    inputTokens, outputTokens, cacheReadTokens,
+    inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens,
     costEur: Math.round(costEur * 1e6) / 1e6,
     latencyMs: Date.now() - t0,
     success: true,

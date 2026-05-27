@@ -85,7 +85,7 @@ export function ListaPedidosHoy() {
 
   const titulo = format(getBusinessDate(), "EEEE d 'de' MMMM", { locale: es })
 
-  const lista = pedidos ?? []
+  const lista = useMemo(() => pedidos ?? [], [pedidos])
   const idsList = useMemo(() => lista.map(p => p.id), [lista])
   const { data: logsMap } = useHoldedLastLogs(fecha, idsList)
 
@@ -445,7 +445,7 @@ function PedidoCard({ pedido, log }: { pedido: Pedido; log: HoldedLastLog | null
         </div>
       </div>
 
-      {cliente && <NotaClienteEditable cliente={cliente} />}
+      {cliente && <NotaClienteEditable key={`${cliente.id}-${cliente.notas ?? ''}`} cliente={cliente} />}
 
       {open && (
         <div className="mt-3 space-y-3 border-t border-[var(--color-border)]/40 pt-3">
@@ -503,10 +503,6 @@ function NotaClienteEditable({ cliente }: { cliente: ClientePedido }) {
   const [valor, setValor] = useState(cliente.notas ?? '')
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const actualizar = useActualizarClientePedido()
-
-  useEffect(() => {
-    setValor(cliente.notas ?? '')
-  }, [cliente.notas])
 
   useEffect(() => {
     if (editando) inputRef.current?.focus()
@@ -601,6 +597,7 @@ function NotasAdminEditable({ pedido, fecha }: { pedido: Pedido; fecha: string }
   const actualizar = useActualizarPedido()
   return (
     <CampoTextoEditable
+      key={`${pedido.id}-notas-${pedido.notas_admin ?? ''}`}
       label="Notas del día"
       valor={pedido.notas_admin}
       tonoBg="bg-[oklch(92%_.08_82_/_0.85)] dark:bg-[oklch(28%_.08_72_/_0.42)]"
@@ -619,6 +616,7 @@ function FaltasEditable({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
   const actualizar = useActualizarPedido()
   return (
     <CampoTextoEditable
+      key={`${pedido.id}-faltas-${pedido.faltas ?? ''}`}
       label="Faltas"
       valor={pedido.faltas}
       tonoBg="bg-[oklch(30%_.12_25_/_0.12)]"
@@ -647,7 +645,6 @@ function CampoTextoEditable({
   const [v, setV] = useState(valor ?? '')
   const ref = useRef<HTMLTextAreaElement | null>(null)
 
-  useEffect(() => { setV(valor ?? '') }, [valor])
   useEffect(() => { if (editando) ref.current?.focus() }, [editando])
 
   const guardar = async (nuevo: string | null) => {

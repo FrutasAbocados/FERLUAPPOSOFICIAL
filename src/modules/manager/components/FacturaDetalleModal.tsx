@@ -28,6 +28,7 @@ export function FacturaDetalleModal({ factura, onClose }: Props) {
   const totalLineas = (detalle.data ?? []).reduce((s, l) => s + Number(l.subtotal ?? 0), 0)
   const totalCogs = (detalle.data ?? []).reduce((s, l) => s + Number(l.cogs_linea ?? 0), 0)
   const totalMargen = totalLineas - totalCogs
+  const totalMargenPct = totalLineas > 0 ? (totalMargen / totalLineas) * 100 : null
 
   return (
     <div
@@ -54,7 +55,12 @@ export function FacturaDetalleModal({ factura, onClose }: Props) {
           {factura.tipo === 'VENTA' && (
             <>
               <Tile label="COGS" value={eur(totalCogs)} sub="suma líneas" />
-              <Tile label="Margen" value={eur(totalMargen)} tone={totalMargen >= 0 ? 'positive' : 'negative'} />
+              <Tile
+                label="Margen"
+                value={eur(totalMargen)}
+                sub={totalMargenPct == null ? undefined : `${totalMargenPct.toFixed(1)}%`}
+                tone={totalMargen >= 0 ? 'positive' : 'negative'}
+              />
               <Tile label="Pendiente" value={eur(factura.payments_pending)} tone="warning" />
             </>
           )}
@@ -78,12 +84,18 @@ export function FacturaDetalleModal({ factura, onClose }: Props) {
                       <>
                         <th className="px-3 py-2 text-right">Coste/ud</th>
                         <th className="px-3 py-2 text-right">Margen</th>
+                        <th className="px-3 py-2 text-right">Margen %</th>
                       </>
                     )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border)]">
-                  {detalle.data.map(l => (
+                  {detalle.data.map(l => {
+                    const subtotal = Number(l.subtotal ?? 0)
+                    const margen = Number(l.margen_linea ?? 0)
+                    const margenPct =
+                      l.margen_linea == null || subtotal <= 0 ? null : (margen / subtotal) * 100
+                    return (
                     <tr key={l.id} className="bg-[var(--panel-2)]">
                       <td className="px-3 py-1.5">
                         <div className="text-[var(--color-ink)]">{l.nombre}</div>
@@ -95,13 +107,17 @@ export function FacturaDetalleModal({ factura, onClose }: Props) {
                       {factura.tipo === 'VENTA' && (
                         <>
                           <td className="px-3 py-1.5 text-right tabular-nums text-[var(--color-ink-2)]">{l.coste_unidad == null ? '—' : eur(l.coste_unidad)}</td>
-                          <td className={`px-3 py-1.5 text-right tabular-nums ${Number(l.margen_linea ?? 0) >= 0 ? 'text-[var(--mint)]' : 'text-[var(--coral)]'}`}>
+                          <td className={`px-3 py-1.5 text-right tabular-nums ${margen >= 0 ? 'text-[var(--mint)]' : 'text-[var(--coral)]'}`}>
                             {eur(l.margen_linea)}
+                          </td>
+                          <td className={`px-3 py-1.5 text-right tabular-nums ${margenPct == null ? 'text-[var(--color-ink-3)]' : margen >= 0 ? 'text-[var(--mint)]' : 'text-[var(--coral)]'}`}>
+                            {margenPct == null ? '—' : `${margenPct.toFixed(1)}%`}
                           </td>
                         </>
                       )}
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             )}

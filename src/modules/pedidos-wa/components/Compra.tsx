@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
@@ -62,13 +62,20 @@ export function Compra() {
   const guardar = useGuardarInventario()
   const eliminar = useEliminarInventario()
 
-  const [texto, setTexto] = useState('')
+  const textoSource = inv.data?.fecha ?? fechaIso
+  const textoInicial = inv.data?.texto_original ?? ''
+  const [textoDraft, setTextoDraft] = useState({ source: textoSource, value: textoInicial })
+  const texto = textoDraft.source === textoSource ? textoDraft.value : textoInicial
+  const setTexto = (next: string | ((prev: string) => string)) => {
+    setTextoDraft((prev) => {
+      const current = prev.source === textoSource ? prev.value : textoInicial
+      return {
+        source: textoSource,
+        value: typeof next === 'function' ? next(current) : next,
+      }
+    })
+  }
   const [parseando, setParseando] = useState(false)
-
-  // Sincroniza el textarea con el inventario guardado (solo cuando cambia el id del inventario).
-  useEffect(() => {
-    setTexto(inv.data?.texto_original ?? '')
-  }, [inv.data?.fecha])
 
   const totalPedidos   = pedidos.data?.length ?? 0
   const tieneInventario = !!inv.data
@@ -149,13 +156,13 @@ export function Compra() {
     }
   }
 
-  const exportarExcel = () => {
+  const exportarExcel = async () => {
     if (aComprar.length === 0) {
       toast({ title: 'Nada que exportar', variant: 'success' })
       return
     }
     try {
-      exportarCompra(aComprar, fechaIso)
+      await exportarCompra(aComprar, fechaIso)
       toast({ title: 'Excel descargado', variant: 'success' })
     } catch (e) {
       toast({
@@ -552,7 +559,7 @@ function ConversionesEditor() {
             <ul className="divide-y divide-[var(--color-border)] overflow-hidden rounded-md border border-[var(--color-border)]">
               {factores.data.map(f => (
                 <FactorRow
-                  key={f.producto_normalizado}
+                  key={`${f.producto_normalizado}-${f.kg_por_caja ?? ''}-${f.unidades_por_kg ?? ''}`}
                   fila={f}
                   onSave={async (kg, uds) => {
                     await upsert.mutateAsync({
@@ -661,11 +668,6 @@ function FactorRow({
   const [kg,  setKg]  = useState<number | ''>(fila.kg_por_caja  ?? '')
   const [uds, setUds] = useState<number | ''>(fila.unidades_por_kg ?? '')
   const [pending, setPending] = useState(false)
-
-  useEffect(() => {
-    setKg(fila.kg_por_caja      ?? '')
-    setUds(fila.unidades_por_kg ?? '')
-  }, [fila.kg_por_caja, fila.unidades_por_kg])
 
   const cancelar = () => {
     setKg(fila.kg_por_caja      ?? '')

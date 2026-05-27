@@ -10,7 +10,7 @@ type Props = { name: string; dias?: number }
 const DOW_LABEL = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 
 export function HeatmapDiaCalendario({ name, dias = 90 }: Props) {
-  const today = new Date()
+  const today = useMemo(() => new Date(), [])
   const from = format(subDays(today, dias - 1), 'yyyy-MM-dd')
   const to   = format(today, 'yyyy-MM-dd')
 

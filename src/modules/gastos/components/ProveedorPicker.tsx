@@ -7,6 +7,7 @@ import {
   useProveedorHoldedById,
 } from '../lib/hooks'
 import { toast } from '@/shared/lib/toast'
+import { errorMessage } from '@/shared/lib/errors'
 import { cn } from '@/shared/lib/utils'
 
 export type ProveedorValue = {
@@ -77,8 +78,8 @@ export function ProveedorPicker({ value, onChange, allowLibre = false, className
       toast({ title: 'Proveedor manual creado', variant: 'success' })
       setOpen(false)
       setQ('')
-    } catch (e: any) {
-      toast({ title: 'Error al crear proveedor', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error al crear proveedor', description: errorMessage(e), variant: 'error' })
     }
   }
   const handleSetLibre = () => {

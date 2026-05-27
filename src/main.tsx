@@ -4,7 +4,9 @@ import './index.css'
 import App from './App.tsx'
 import { initSentry } from './shared/lib/sentry'
 import { initPwaUpdate } from './shared/lib/pwa-update'
+import { initChunkRecovery } from './shared/lib/chunk-recovery'
 
+initChunkRecovery()
 initSentry()
 initPwaUpdate()
 

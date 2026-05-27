@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle2, Mic, MicOff, RotateCcw, Send, Undo2, UserPlus } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '@/shared/components/ui/button'
 import { toast } from '@/shared/lib/toast'
+import { errorMessage } from '@/shared/lib/errors'
 import { cn, getBusinessDate } from '@/shared/lib/utils'
 import { parsearPedido } from '../lib/parser'
 import {
@@ -65,12 +66,43 @@ type SpeechHook = {
   stop: () => void
 }
 
+type SpeechRecognitionResultListLike = {
+  length: number
+  [index: number]: { isFinal: boolean; 0: { transcript: string } }
+}
+
+type SpeechRecognitionEventLike = {
+  resultIndex: number
+  results: SpeechRecognitionResultListLike
+}
+
+type SpeechRecognitionErrorEventLike = {
+  error: string
+}
+
+type SpeechRecognitionLike = {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
+type SpeechWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor
+  webkitSpeechRecognition?: SpeechRecognitionConstructor
+}
+
 function useSpeech(onFinal: (text: string) => void): SpeechHook {
   const [listening, setListening] = useState(false)
-  const ref = useRef<any>(null)
-  const SpeechRecognition: any =
+  const ref = useRef<SpeechRecognitionLike | null>(null)
+  const SpeechRecognition =
     typeof window !== 'undefined' &&
-    ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+    (((window as SpeechWindow).SpeechRecognition || (window as SpeechWindow).webkitSpeechRecognition) ?? null)
 
   const available = !!SpeechRecognition
 
@@ -84,14 +116,14 @@ function useSpeech(onFinal: (text: string) => void): SpeechHook {
       r.lang = 'es-ES'
       r.continuous = true
       r.interimResults = false
-      r.onresult = (e: any) => {
+      r.onresult = (e) => {
         let text = ''
         for (let i = e.resultIndex; i < e.results.length; i++) {
           if (e.results[i].isFinal) text += e.results[i][0].transcript
         }
         if (text) onFinal(text.trim())
       }
-      r.onerror = (e: any) => {
+      r.onerror = (e) => {
         setListening(false)
         if (e.error !== 'aborted') {
           toast({ title: 'Error dictado', description: e.error, variant: 'error' })
@@ -101,17 +133,21 @@ function useSpeech(onFinal: (text: string) => void): SpeechHook {
       r.start()
       ref.current = r
       setListening(true)
-    } catch (err: any) {
-      toast({ title: 'No pude iniciar dictado', description: err?.message, variant: 'error' })
+    } catch (err: unknown) {
+      toast({ title: 'No pude iniciar dictado', description: errorMessage(err), variant: 'error' })
     }
   }
 
   const stop = () => {
-    try { ref.current?.stop() } catch {}
+    try { ref.current?.stop() } catch {
+      // El navegador puede lanzar si el dictado ya terminó.
+    }
     setListening(false)
   }
 
-  useEffect(() => () => { try { ref.current?.stop() } catch {} }, [])
+  useEffect(() => () => { try { ref.current?.stop() } catch {
+    // Limpieza defensiva al desmontar.
+  } }, [])
 
   return { available, listening, start, stop }
 }
@@ -150,18 +186,6 @@ export function CapturaRapida() {
     setTexto(t => (t ? `${t} ${dictado}` : dictado))
   })
 
-  // Atajos
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault()
-        void guardar()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [texto, clienteMatch])
-
   const cargarUltimo = () => {
     if (!ultimo || !clienteMatch || !ultimo.lineas?.length) return
     const t = pedidoToText(
@@ -181,7 +205,7 @@ export function CapturaRapida() {
     inputRef.current?.focus()
   }
 
-  const guardar = async () => {
+  const guardar = useCallback(async () => {
     if (!texto.trim()) return
     if (!clienteMatch) {
       toast({
@@ -210,18 +234,30 @@ export function CapturaRapida() {
       toast({ title: `${clienteMatch.nombre} · ${lineas.length} líneas`, variant: 'success' })
       setTexto('')
       inputRef.current?.focus()
-    } catch (e: any) {
-      toast({ title: 'Error al guardar', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error al guardar', description: errorMessage(e), variant: 'error' })
     }
-  }
+  }, [clienteMatch, crear, rawCliente, rawProductos, texto])
+
+  // Atajos
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault()
+        void guardar()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [guardar])
 
   const deshacer = async (g: Guardado) => {
     try {
       await eliminar.mutateAsync({ id: g.id, fecha: g.fecha })
       setGuardados(arr => arr.filter(x => x.id !== g.id))
       toast({ title: 'Pedido deshecho', variant: 'success' })
-    } catch (e: any) {
-      toast({ title: 'Error al deshacer', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error al deshacer', description: errorMessage(e), variant: 'error' })
     }
   }
 

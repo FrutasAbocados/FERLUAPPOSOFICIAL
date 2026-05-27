@@ -17,13 +17,30 @@ const TG_TOKEN      = Deno.env.get('TELEGRAM_BOT_TOKEN') || ''
 const TG_CHAT       = Deno.env.get('TELEGRAM_ADMIN_CHAT_ID') || ''
 
 const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 }
-const BATCH_SIZE  = 50
+const BATCH_SIZE  = 20
 const USD_TO_EUR  = 0.92
+const EXTERNAL_TIMEOUT_MS = 30_000
+const DB_TIMEOUT_MS = 15_000
 
 const dbH = {
   apikey:          SERVICE_KEY,
   authorization:   `Bearer ${SERVICE_KEY}`,
   'content-type':  'application/json',
+}
+
+async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs = DB_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error(`timeout ${timeoutMs}ms: ${input.split('?')[0]}`, { cause: err })
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 // ── AgentsConfig ──────────────────────────────────────────────────────────────
@@ -56,7 +73,7 @@ async function callClaude(
   system: string, prompt: string,
   model = 'claude-haiku-4-5-20251001', maxTokens = 200,
 ): Promise<ClaudeResponse> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'x-api-key': ANTHROPIC_KEY,
@@ -66,7 +83,7 @@ async function callClaude(
       system:   [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: prompt }],
     }),
-  })
+  }, EXTERNAL_TIMEOUT_MS)
   if (!res.ok) throw new Error(`Claude ${res.status}: ${await res.text()}`)
   const data = await res.json() as {
     content: Array<{ type: string; text?: string }>
@@ -113,7 +130,7 @@ async function logInteraction(
   const cost  = model !== 'none'
     ? costEur(model, result.inputTokens ?? 0, result.outputTokens ?? 0, result.cacheRead ?? 0, result.cacheWrite ?? 0)
     : 0
-  await fetch(`${SUPABASE_URL}/rest/v1/agent_interactions`, {
+  await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/agent_interactions`, {
     method: 'POST',
     headers: { ...dbH, prefer: 'return=minimal' },
     body: JSON.stringify({
@@ -139,13 +156,13 @@ async function logInteraction(
 // ── Helpers generales ─────────────────────────────────────────────────────────
 
 async function pgGet(path: string): Promise<unknown[]> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: dbH })
+  const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/${path}`, { headers: dbH })
   if (!res.ok) throw new Error(`GET ${path} → ${res.status}: ${await res.text()}`)
   return res.json() as Promise<unknown[]>
 }
 
 async function pgPatch(path: string, body: unknown): Promise<void> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/${path}`, {
     method: 'PATCH', headers: { ...dbH, prefer: 'return=minimal' }, body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`PATCH ${path} → ${res.status}: ${await res.text()}`)
@@ -155,24 +172,24 @@ async function pgPatch(path: string, body: unknown): Promise<void> {
 
 async function tg(text: string): Promise<void> {
   if (!TG_TOKEN || !TG_CHAT) return
-  await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+  await fetchWithTimeout(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ chat_id: TG_CHAT, text, parse_mode: 'HTML' }),
-  })
+  }, EXTERNAL_TIMEOUT_MS)
 }
 
 // ── Supabase helpers para agentes ─────────────────────────────────────────────
 
 async function fetchClientDebt(nombre: string): Promise<number> {
   const h = { apikey: SERVICE_KEY, authorization: `Bearer ${SERVICE_KEY}`, accept: 'application/json' }
-  const cr = await fetch(
+  const cr = await fetchWithTimeout(
     `${SUPABASE_URL}/rest/v1/cobros_clientes?nombre=ilike.${encodeURIComponent(nombre)}&select=id&limit=1`,
     { headers: h },
   )
   if (!cr.ok) return 0
   const clientes = await cr.json() as Array<{ id: string }>
   if (!clientes.length || !clientes[0]) return 0
-  const mr = await fetch(
+  const mr = await fetchWithTimeout(
     `${SUPABASE_URL}/rest/v1/cobros_movimientos?cliente_id=eq.${clientes[0].id}&pagado=eq.false&select=importe,importe_cobrado`,
     { headers: h },
   )
@@ -185,7 +202,7 @@ async function saveMemory(
   category: string, title: string, content: string,
   tags: string[], metadata: Record<string, unknown>,
 ): Promise<void> {
-  await fetch(`${SUPABASE_URL}/rest/v1/memory_facts`, {
+  await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/memory_facts`, {
     method: 'POST',
     headers: { ...dbH, prefer: 'return=minimal' },
     body: JSON.stringify({ tenant_id: 'ferlu', category, title, content, importance: 3, source: 'operations-agent', tags, metadata }),
@@ -283,7 +300,7 @@ async function handleCierreDia(e: FerluEvent): Promise<HandlerResult> {
   const p = e.payload as { fecha: string }
   const h = { apikey: SERVICE_KEY, authorization: `Bearer ${SERVICE_KEY}`, accept: 'application/json' }
 
-  const cr = await fetch(
+  const cr = await fetchWithTimeout(
     `${SUPABASE_URL}/rest/v1/cierres?fecha=eq.${p.fecha}&select=efectivo,tarjeta,otros_efectivo,otros_tarjeta,compras,total_cobrado`,
     { headers: h },
   )
@@ -322,11 +339,11 @@ async function handleAuditRequested(): Promise<HandlerResult> {
   const stuckBefore = new Date(Date.now() - 1_800_000).toISOString()
 
   const [pend, fail, inter] = await Promise.all([
-    fetch(`${SUPABASE_URL}/rest/v1/events?status=eq.pending&created_at=lt.${stuckBefore}&select=id`, { headers: h })
+    fetchWithTimeout(`${SUPABASE_URL}/rest/v1/events?status=eq.pending&created_at=lt.${stuckBefore}&select=id`, { headers: h })
       .then((r) => r.json() as Promise<unknown[]>).then((a) => a.length).catch(() => -1),
-    fetch(`${SUPABASE_URL}/rest/v1/events?status=eq.failed&created_at=gte.${since24h}&select=id`, { headers: h })
+    fetchWithTimeout(`${SUPABASE_URL}/rest/v1/events?status=eq.failed&created_at=gte.${since24h}&select=id`, { headers: h })
       .then((r) => r.json() as Promise<unknown[]>).then((a) => a.length).catch(() => -1),
-    fetch(`${SUPABASE_URL}/rest/v1/agent_interactions?created_at=gte.${since24h}&select=success`, { headers: h })
+    fetchWithTimeout(`${SUPABASE_URL}/rest/v1/agent_interactions?created_at=gte.${since24h}&select=success`, { headers: h })
       .then((r) => r.json() as Promise<Array<{ success: boolean }>>).catch(() => [] as Array<{ success: boolean }>),
   ])
   const errors = Array.isArray(inter) ? inter.filter((i) => !i.success).length : 0

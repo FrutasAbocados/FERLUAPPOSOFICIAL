@@ -395,7 +395,7 @@ function HojaRutaTabla({
         </thead>
         <tbody>
           {sections.map((s) => (
-            <TableSection key={s.key} section={s} fecha={fecha} />
+            <TableSection key={`${fecha}-${s.key ?? s.repartidor}`} section={s} fecha={fecha} />
           ))}
         </tbody>
       </table>
@@ -412,21 +412,15 @@ function TableSection({
 }) {
   const storageKey = `abocados:hoja-ruta:vehiculo:${fecha}:${section.repartidor}`
   const manualStorageKey = `abocados:hoja-ruta:manual:${fecha}:${section.key ?? section.repartidor}`
-  const [vehiculo, setVehiculo] = useState('')
-  const [manuales, setManuales] = useState<ManualRouteLine[]>([])
-
-  useEffect(() => {
-    setVehiculo(window.localStorage.getItem(storageKey) ?? '')
-  }, [storageKey])
-
-  useEffect(() => {
+  const [vehiculo, setVehiculo] = useState(() => window.localStorage.getItem(storageKey) ?? '')
+  const [manuales, setManuales] = useState<ManualRouteLine[]>(() => {
     try {
       const raw = window.localStorage.getItem(manualStorageKey)
-      setManuales(raw ? JSON.parse(raw) as ManualRouteLine[] : [])
+      return raw ? JSON.parse(raw) as ManualRouteLine[] : []
     } catch {
-      setManuales([])
+      return []
     }
-  }, [manualStorageKey])
+  })
 
   const guardarVehiculo = (valor: string) => {
     setVehiculo(valor)
@@ -506,7 +500,12 @@ function TableSection({
         </td>
       </tr>
       {section.pedidos.map((pedido) => (
-        <HojaRutaTableRow key={pedido.id} pedido={pedido} fecha={fecha} repartidor={section.repartidor} />
+        <HojaRutaTableRow
+          key={`${pedido.id}-${pedido.override_horario ?? pedido.cliente?.horario ?? ''}-${pedido.faltas ?? ''}`}
+          pedido={pedido}
+          fecha={fecha}
+          repartidor={section.repartidor}
+        />
       ))}
       {manuales.map((linea) => (
         <ManualRouteTableRow
@@ -607,9 +606,6 @@ function HojaRutaTableRow({
   const [faltasEdit, setFaltasEdit] = useState(pedido.faltas ?? '')
   const reasignar = useReasignarPedido()
   const actualizarPedido = useActualizarPedido()
-
-  useEffect(() => { setHorarioEdit(horarioActual) }, [horarioActual])
-  useEffect(() => { setFaltasEdit(pedido.faltas ?? '') }, [pedido.faltas])
 
   const guardarHorario = () => {
     const raw = horarioEdit.trim()
@@ -777,7 +773,13 @@ function renderConSeparadores(pedidos: Pedido[], repartidor: Repartidor, fecha: 
         </div>,
       )
     }
-    out.push(<TarjetaPedido key={p.id} pedido={p} fecha={fecha} />)
+    out.push(
+      <TarjetaPedido
+        key={`${p.id}-${p.override_horario ?? p.cliente?.horario ?? ''}-${p.faltas ?? ''}`}
+        pedido={p}
+        fecha={fecha}
+      />,
+    )
     prevSalida = salida
   }
   return out
@@ -797,10 +799,7 @@ function TarjetaPedido({ pedido, fecha }: { pedido: Pedido; fecha: string }) {
   const actualizarPedido = useActualizarPedido()
 
   const [horarioEdit, setHorarioEdit] = useState(horarioActual)
-  useEffect(() => { setHorarioEdit(horarioActual) }, [horarioActual])
-
   const [obsEdit, setObsEdit] = useState(pedido.faltas ?? '')
-  useEffect(() => { setObsEdit(pedido.faltas ?? '') }, [pedido.faltas])
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: pedido.id })
   const dragStyle: React.CSSProperties = {

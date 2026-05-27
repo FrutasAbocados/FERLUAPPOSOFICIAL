@@ -108,8 +108,8 @@ export function StatsView({ anchor }: Props) {
               />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(n: number) => eurosShort(n)} />
               <Tooltip
-                labelFormatter={((d: any) => format(parseISO(String(d)), "MMMM yyyy", { locale: es })) as any}
-                formatter={((v: any, name: any) => [euros(Number(v)), nameMap(String(name))]) as any}
+                labelFormatter={(d: unknown) => format(parseISO(String(d)), "MMMM yyyy", { locale: es })}
+                formatter={(v: unknown, name: unknown) => [euros(Number(v)), nameMap(String(name))]}
                 contentStyle={{ fontSize: 12 }}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} formatter={(v) => nameMap(v)} />
@@ -133,7 +133,7 @@ export function StatsView({ anchor }: Props) {
               >
                 {porCategoria.map((d, i) => <Cell key={i} fill={d.color} />)}
               </Pie>
-              <Tooltip formatter={((v: any) => euros(Number(v))) as any} contentStyle={{ fontSize: 12 }} />
+              <Tooltip formatter={(v: unknown) => euros(Number(v))} contentStyle={{ fontSize: 12 }} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
             </PieChart>
           </ResponsiveContainer>
@@ -144,7 +144,7 @@ export function StatsView({ anchor }: Props) {
             <BarChart data={topProv} layout="vertical" margin={{ top: 5, right: 20, left: 60, bottom: 5 }}>
               <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(n: number) => eurosShort(n)} />
               <YAxis type="category" dataKey="key" tick={{ fontSize: 11 }} width={100} />
-              <Tooltip formatter={((v: any) => euros(Number(v))) as any} contentStyle={{ fontSize: 12 }} />
+              <Tooltip formatter={(v: unknown) => euros(Number(v))} contentStyle={{ fontSize: 12 }} />
               <Bar dataKey="total" fill="var(--sky)" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -160,8 +160,8 @@ export function StatsView({ anchor }: Props) {
               />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(n: number) => eurosShort(n)} />
               <Tooltip
-                labelFormatter={((d: any) => format(parseISO(String(d)), "MMMM yyyy", { locale: es })) as any}
-                formatter={((v: any, name: any) => [euros(Number(v)), String(name)]) as any}
+                labelFormatter={(d: unknown) => format(parseISO(String(d)), "MMMM yyyy", { locale: es })}
+                formatter={(v: unknown, name: unknown) => [euros(Number(v)), String(name)]}
                 contentStyle={{ fontSize: 12 }}
               />
               {stackedMensual.cats.map((c) => (

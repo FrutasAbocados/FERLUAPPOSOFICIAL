@@ -4,6 +4,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { confirm } from '@/shared/lib/confirm'
 import { toast } from '@/shared/lib/toast'
+import { errorMessage } from '@/shared/lib/errors'
 import {
   useAddAliasCliente,
   useAliasesDe,
@@ -29,8 +30,8 @@ export function AliasesCard({ canon }: { canon: string }) {
     try {
       await del.mutateAsync(id)
       toast({ title: 'Alias eliminado', variant: 'success' })
-    } catch (e: any) {
-      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error', description: errorMessage(e), variant: 'error' })
     }
   }
 
@@ -95,8 +96,8 @@ function UnirDuplicadoModal({ canon, onClose, onAdded }: { canon: string; onClos
       toast({ title: `“${alias_from}” unificado a “${canon}”`, variant: 'success' })
       onAdded()
       onClose()
-    } catch (e: any) {
-      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error', description: errorMessage(e), variant: 'error' })
     }
   }
 

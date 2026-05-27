@@ -14,6 +14,7 @@ type RuletaSelfEstado = {
   saldo_pendiente: number
   puntos_disponibles: number
   puede_canjear_1: boolean
+  puede_canjear_5: boolean
   puede_canjear_10: boolean
 }
 
@@ -36,19 +37,20 @@ export function RuletaSelfCard() {
         saldo_pendiente: Number(row.saldo_pendiente ?? 0),
         puntos_disponibles: Number(row.puntos_disponibles ?? 0),
         puede_canjear_1: Boolean(row.puede_canjear_1),
+        puede_canjear_5: Boolean(row.puede_canjear_5),
         puede_canjear_10: Boolean(row.puede_canjear_10),
       }
     },
   })
 
   const canjear = useMutation({
-    mutationFn: async (tiradas: 1 | 10) => {
+    mutationFn: async (tiradas: 1 | 5 | 10) => {
       const { data, error } = await supabase.rpc('ruleta_canjear_self', { p_tiradas: tiradas })
       if (error) throw error
       const row = Array.isArray(data) ? data[0] : data
       return {
         tiradas: Number(row?.tiradas_creadas ?? tiradas),
-        puntos: Number(row?.puntos_gastados ?? (tiradas === 10 ? 100 : 15)),
+        puntos: Number(row?.puntos_gastados ?? (tiradas === 10 ? 100 : tiradas === 5 ? 55 : 12)),
         saldo: Number(row?.saldo_pendiente ?? 0),
       }
     },
@@ -97,7 +99,7 @@ export function RuletaSelfCard() {
                     <>Tienes <span className="text-[var(--color-primary)]">{estado.puntos_disponibles}</span> puntos para canjear</>
                   )}
                 </div>
-                <div className="text-xs text-[var(--color-ink-3)]">15 pts = 1 tirada · 100 pts = 10 tiradas</div>
+                <div className="text-xs text-[var(--color-ink-3)]">12 pts = 1 tirada · 55 pts = 5 tiradas · 100 pts = 10 tiradas</div>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -107,7 +109,15 @@ export function RuletaSelfCard() {
                 onClick={() => canjear.mutate(1)}
                 disabled={!estado.puede_canjear_1 || canjear.isPending}
               >
-                {canjear.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : '15 pts -> 1'}
+                {canjear.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : '12 pts → 1'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => canjear.mutate(5)}
+                disabled={!estado.puede_canjear_5 || canjear.isPending}
+              >
+                {canjear.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : '55 pts → 5'}
               </Button>
               <Button
                 size="sm"
@@ -115,7 +125,7 @@ export function RuletaSelfCard() {
                 onClick={() => canjear.mutate(10)}
                 disabled={!estado.puede_canjear_10 || canjear.isPending}
               >
-                {canjear.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : '100 pts -> 10'}
+                {canjear.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : '100 pts → 10'}
               </Button>
               <Button
                 size="sm"

@@ -40,7 +40,7 @@ export function EstadisticasView() {
   const [to, setTo]     = useState<string>(initial.to)
 
   const stats = useCashStatsSemanas(from, to)
-  const rows = stats.data ?? []
+  const rows = useMemo(() => stats.data ?? [], [stats.data])
 
   const totals = useMemo(() => {
     const acc = { horas: 0, total: 0, efectivo: 0, tarjeta: 0, deuda: 0, jornadas: 0 }

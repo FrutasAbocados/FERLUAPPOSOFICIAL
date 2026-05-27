@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, HandCoins, Search, Trash2 } from 'lucide-react'
@@ -30,13 +30,18 @@ export function FacturasView({ period }: Props) {
   const [tipo, setTipo] = useState<'VENTA' | 'COMPRA' | null>('VENTA')
   const [subtipo, setSubtipo] = useState<string | null>(null)
   const [q, setQ] = useState('')
-  const [page, setPage] = useState(1)
+  const pageKey = `${tipo ?? 'all'}|${subtipo ?? 'all'}|${q.trim()}|${period.from}|${period.to}`
+  const [pageState, setPageState] = useState({ key: pageKey, page: 1 })
+  const page = pageState.key === pageKey ? pageState.page : 1
+  const setPage = (next: number | ((prev: number) => number)) => {
+    setPageState((prev) => ({
+      key: pageKey,
+      page: typeof next === 'function' ? next(prev.key === pageKey ? prev.page : 1) : next,
+    }))
+  }
   const [selected, setSelected] = useState<FacturaListItem | null>(null)
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set())
   const [generarOpen, setGenerarOpen] = useState(false)
-
-  // Reset página al cambiar filtros o periodo
-  useEffect(() => { setPage(1); setMarcadas(new Set()) }, [tipo, subtipo, q, period.from, period.to])
 
   const filtros: FacturaFiltros = { tipo, subtipo, q: q.trim() || null, page, pageSize: PAGE_SIZE }
   const { data, isLoading } = useFacturasLista(period, filtros)

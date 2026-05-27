@@ -92,22 +92,21 @@ export function GenerarDeudaModal({ facturas, onClose, onSuccess }: Props) {
     },
   })
 
-  const [mappings, setMappings] = useState<Mapping[]>([])
-
-  // Inicializar mappings cuando los clientes carguen
-  useEffect(() => {
-    if (!clientesQ.data) return
-    setMappings(facturas.map(f => {
+  const initialMappings = useMemo<Mapping[]>(() => {
+    if (!clientesQ.data) return []
+    return facturas.map(f => {
       const nombreManager = f.contact_name_canon ?? '(sin contacto)'
-      const match = findBestMatch(nombreManager, clientesQ.data!)
+      const match = findBestMatch(nombreManager, clientesQ.data)
       return {
         facturaId: f.id,
         cliente_id: match?.id ?? null,
         nombreNuevo: match?.nombre ?? nombreManager,
         incluir: true,
       }
-    }))
+    })
   }, [clientesQ.data, facturas])
+  const [editedMappings, setEditedMappings] = useState<Mapping[] | null>(null)
+  const mappings = editedMappings ?? initialMappings
 
   const generar = useMutation({
     mutationFn: async () => {
@@ -206,7 +205,7 @@ export function GenerarDeudaModal({ facturas, onClose, onSuccess }: Props) {
                           type="checkbox"
                           checked={m.incluir && !yaExiste}
                           disabled={yaExiste}
-                          onChange={(e) => setMappings(prev => prev.map((mm, j) => j === i ? { ...mm, incluir: e.target.checked } : mm))}
+                          onChange={(e) => setEditedMappings(prev => (prev ?? initialMappings).map((mm, j) => j === i ? { ...mm, incluir: e.target.checked } : mm))}
                           className="h-4 w-4"
                         />
                         <div className="min-w-0 text-sm">
@@ -219,7 +218,7 @@ export function GenerarDeudaModal({ facturas, onClose, onSuccess }: Props) {
                             value={m.cliente_id ?? '__nuevo__'}
                             onChange={(e) => {
                               const v = e.target.value
-                              setMappings(prev => prev.map((mm, j) => j === i ? {
+                              setEditedMappings(prev => (prev ?? initialMappings).map((mm, j) => j === i ? {
                                 ...mm,
                                 cliente_id: v === '__nuevo__' ? null : v,
                               } : mm))
@@ -234,7 +233,7 @@ export function GenerarDeudaModal({ facturas, onClose, onSuccess }: Props) {
                           {m.cliente_id == null && (
                             <Input
                               value={m.nombreNuevo}
-                              onChange={(e) => setMappings(prev => prev.map((mm, j) => j === i ? { ...mm, nombreNuevo: e.target.value } : mm))}
+                              onChange={(e) => setEditedMappings(prev => (prev ?? initialMappings).map((mm, j) => j === i ? { ...mm, nombreNuevo: e.target.value } : mm))}
                               className="mt-1 h-8 text-xs"
                               placeholder="Nombre cliente nuevo"
                             />

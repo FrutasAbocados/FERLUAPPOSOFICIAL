@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Save } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { toast } from '@/shared/lib/toast'
+import { errorMessage } from '@/shared/lib/errors'
 import { type Preferencias, usePreferencias, useSetPreferencias } from '../lib/hooks'
 
 const DIAS = ['', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
@@ -32,14 +33,13 @@ function fromPrefs(p: Preferencias | null | undefined): Form {
 
 export function PreferenciasCard({ name }: { name: string }) {
   const { data: prefs } = usePreferencias(name)
-  const set = useSetPreferencias()
-  const [form, setForm] = useState<Form>(empty)
-  const [dirty, setDirty] = useState(false)
+  return <PreferenciasCardInner key={`${name}-${prefs?.updated_at ?? 'empty'}`} name={name} prefs={prefs} />
+}
 
-  useEffect(() => {
-    setForm(fromPrefs(prefs))
-    setDirty(false)
-  }, [name, prefs?.updated_at])
+function PreferenciasCardInner({ name, prefs }: { name: string; prefs: Preferencias | null | undefined }) {
+  const set = useSetPreferencias()
+  const [form, setForm] = useState<Form>(() => fromPrefs(prefs))
+  const [dirty, setDirty] = useState(false)
 
   const update = (patch: Partial<Form>) => {
     setForm((f) => ({ ...f, ...patch }))
@@ -60,8 +60,8 @@ export function PreferenciasCard({ name }: { name: string }) {
       })
       toast({ title: 'Preferencias guardadas', variant: 'success' })
       setDirty(false)
-    } catch (e: any) {
-      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error', description: errorMessage(e), variant: 'error' })
     }
   }
 

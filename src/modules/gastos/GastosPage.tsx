@@ -31,6 +31,11 @@ type AlertaProx = {
   estado: 'vencido' | 'proximo'
 }
 
+type DbRow = Record<string, unknown>
+
+const str = (v: unknown): string => String(v ?? '')
+const num = (v: unknown): number => Number(v ?? 0)
+
 function useResumenMes(anchor: Date) {
   const from = format(startOfMonth(anchor), 'yyyy-MM-dd')
   const to   = format(endOfMonth(anchor),   'yyyy-MM-dd')
@@ -57,13 +62,13 @@ function useAlertasProximas() {
     queryFn: async (): Promise<AlertaProx[]> => {
       const { data, error } = await supabase.rpc('gastos_alertas_proximos_pagos')
       if (error) throw error
-      return (data ?? []).map((r: any) => ({
-        fijo_id: r.fijo_id,
-        nombre: r.nombre,
-        total: Number(r.total ?? 0),
-        fecha_cargo: r.fecha_cargo,
-        dias_para: Number(r.dias_para ?? 0),
-        estado: r.estado,
+      return ((data ?? []) as DbRow[]).map((r): AlertaProx => ({
+        fijo_id: str(r.fijo_id),
+        nombre: str(r.nombre),
+        total: num(r.total),
+        fecha_cargo: str(r.fecha_cargo),
+        dias_para: num(r.dias_para),
+        estado: str(r.estado) as AlertaProx['estado'],
       }))
     },
   })

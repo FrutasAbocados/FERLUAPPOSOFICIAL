@@ -381,14 +381,21 @@ function EditorTrabajador({ trabajador, onClose }: { trabajador: Trabajador; onC
 
 function CondicionesSection({ empleadoId }: { empleadoId: string }) {
   const { data, isLoading } = useCondiciones(empleadoId)
-  const guardar = useGuardarCondiciones()
-  const [c, setC] = useState<Condiciones>(CONDICIONES_VACIAS(empleadoId))
-  const [dirty, setDirty] = useState(false)
+  if (isLoading) {
+    return (
+      <section className="rounded-md border border-[var(--color-border)] p-3 text-sm text-[var(--color-ink-3)]">
+        Cargando condiciones…
+      </section>
+    )
+  }
+  const initial = data ?? CONDICIONES_VACIAS(empleadoId)
+  return <CondicionesSectionForm key={`${empleadoId}-${JSON.stringify(initial)}`} initial={initial} />
+}
 
-  useEffect(() => {
-    if (data) { setC(data); setDirty(false) }
-    else if (!isLoading) { setC(CONDICIONES_VACIAS(empleadoId)); setDirty(false) }
-  }, [data, isLoading, empleadoId])
+function CondicionesSectionForm({ initial }: { initial: Condiciones }) {
+  const guardar = useGuardarCondiciones()
+  const [c, setC] = useState<Condiciones>(initial)
+  const [dirty, setDirty] = useState(false)
 
   const set = <K extends keyof Condiciones>(k: K, v: Condiciones[K]) => {
     setC(prev => ({ ...prev, [k]: v }))
@@ -415,11 +422,7 @@ function CondicionesSection({ empleadoId }: { empleadoId: string }) {
         {dirty && <span className="ml-auto text-[10px] uppercase tracking-wider text-amber-700">sin guardar</span>}
       </div>
 
-      {isLoading ? (
-        <p className="text-xs text-[var(--color-ink-3)]">Cargando…</p>
-      ) : (
-        <>
-          <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
             <Field label="Tipo de contrato">
               <select
                 value={c.contrato_tipo ?? ''}
@@ -460,25 +463,23 @@ function CondicionesSection({ empleadoId }: { empleadoId: string }) {
             <Field label="Días de descanso" full>
               <Input value={c.dias_descanso ?? ''} onChange={(e) => set('dias_descanso', e.target.value || null)} className="h-9" placeholder="Ej: domingo · lunes y domingo" />
             </Field>
-          </div>
+      </div>
 
-          <Field label="Cláusulas / observaciones (texto libre)">
-            <textarea
-              value={c.texto_libre ?? ''}
-              onChange={(e) => set('texto_libre', e.target.value || null)}
-              className="min-h-[100px] w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-sm focus:border-[var(--color-primary)] focus:outline-none"
-              placeholder="Acuerdos económicos pactados, condiciones especiales, etc."
-            />
-          </Field>
+      <Field label="Cláusulas / observaciones (texto libre)">
+        <textarea
+          value={c.texto_libre ?? ''}
+          onChange={(e) => set('texto_libre', e.target.value || null)}
+          className="min-h-[100px] w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-sm focus:border-[var(--color-primary)] focus:outline-none"
+          placeholder="Acuerdos económicos pactados, condiciones especiales, etc."
+        />
+      </Field>
 
-          <div className="mt-3 flex justify-end">
-            <Button size="sm" variant="primary" onClick={submit} disabled={guardar.isPending || !dirty}>
-              <Save className="mr-1 h-3.5 w-3.5" />
-              {guardar.isPending ? 'Guardando…' : 'Guardar condiciones'}
-            </Button>
-          </div>
-        </>
-      )}
+      <div className="mt-3 flex justify-end">
+        <Button size="sm" variant="primary" onClick={submit} disabled={guardar.isPending || !dirty}>
+          <Save className="mr-1 h-3.5 w-3.5" />
+          {guardar.isPending ? 'Guardando…' : 'Guardar condiciones'}
+        </Button>
+      </div>
     </div>
   )
 }

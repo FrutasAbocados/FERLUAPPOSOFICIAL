@@ -5,6 +5,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { confirm } from '@/shared/lib/confirm'
 import { toast } from '@/shared/lib/toast'
+import { errorMessage } from '@/shared/lib/errors'
 import {
   useCategorias,
   useCategoriaCreate,
@@ -36,8 +37,8 @@ export function CategoriasModal({ onClose }: { onClose: () => void }) {
       await create.mutateAsync({ nombre: nuevo.nombre.trim(), color: nuevo.color, orden: 50 })
       toast({ title: 'Categoría creada', variant: 'success' })
       setNuevo({ nombre: '', color: '#64748b' })
-    } catch (e: any) {
-      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error', description: errorMessage(e), variant: 'error' })
     }
   }
 
@@ -52,8 +53,8 @@ export function CategoriasModal({ onClose }: { onClose: () => void }) {
     try {
       await del.mutateAsync(id)
       toast({ title: 'Categoría eliminada', variant: 'success' })
-    } catch (e: any) {
-      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error', description: errorMessage(e), variant: 'error' })
     }
   }
 
@@ -62,24 +63,24 @@ export function CategoriasModal({ onClose }: { onClose: () => void }) {
     if (!trimmed) return
     try {
       await update.mutateAsync({ id, patch: { nombre: trimmed } })
-    } catch (e: any) {
-      toast({ title: 'Error al renombrar', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error al renombrar', description: errorMessage(e), variant: 'error' })
     }
   }
 
   const handleColor = async (id: string, color: string) => {
     try {
       await update.mutateAsync({ id, patch: { color } })
-    } catch (e: any) {
-      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error', description: errorMessage(e), variant: 'error' })
     }
   }
 
   const toggleActivo = async (id: string, activo: boolean) => {
     try {
       await update.mutateAsync({ id, patch: { activo } })
-    } catch (e: any) {
-      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error', description: errorMessage(e), variant: 'error' })
     }
   }
 

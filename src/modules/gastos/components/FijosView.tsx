@@ -4,6 +4,7 @@ import { Button } from '@/shared/components/ui/button'
 import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
+import { errorMessage } from '@/shared/lib/errors'
 import { cn } from '@/shared/lib/utils'
 import {
   type CalendarioRow,
@@ -51,8 +52,8 @@ export function FijosView({ anio, mes, CalendarioComp }: Props) {
         await marcar.mutateAsync({ fijo_id: row.fijo_id, anio, mes })
         toast({ title: 'Marcado como pagado', variant: 'success' })
       }
-    } catch (e: any) {
-      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error', description: errorMessage(e), variant: 'error' })
     }
   }
 
@@ -140,6 +141,7 @@ export function FijosView({ anio, mes, CalendarioComp }: Props) {
 
       {editing && (
         <FijoModal
+          key={editing === 'new' ? 'new' : editing.id}
           fijo={editing === 'new' ? null : editing}
           onClose={() => setEditing(null)}
         />

@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs'
+import type ExcelJS from 'exceljs'
 import {
   REPARTIDOR_LABEL,
   UNIDAD_LABEL,
@@ -193,8 +193,9 @@ function buildSheet(wb: ExcelJS.Workbook, sheetName: string, pedidos: Pedido[]) 
 
 // ── Export principal ─────────────────────────────────────────────────────────
 export async function exportarHojaRuta(pedidos: Pedido[], fechaIso: string) {
+  const { default: ExcelJSRuntime } = await import('exceljs')
   const ordenados = ordenarPedidos(pedidos)
-  const wb = new ExcelJS.Workbook()
+  const wb = new ExcelJSRuntime.Workbook()
   wb.creator = 'Abocados OS'
   wb.created = new Date()
 
@@ -218,9 +219,6 @@ export async function exportarHojaRuta(pedidos: Pedido[], fechaIso: string) {
   URL.revokeObjectURL(url)
 }
 
-// ===== Export lista de compra (sin cambios) ==================================
-import * as XLSX from 'xlsx'
-
 export type CompraFila = {
   producto: string
   unidad: string
@@ -233,7 +231,8 @@ export type CompraFila = {
   kg_por_caja: number | null
 }
 
-export function exportarCompra(filas: CompraFila[], fechaIso: string) {
+export async function exportarCompra(filas: CompraFila[], fechaIso: string) {
+  const XLSX = await import('xlsx')
   const HEADER_COMPRA = [
     'PRODUCTO', 'UNIDAD',
     'PEDIDO', 'PEDIDO (cajas)',

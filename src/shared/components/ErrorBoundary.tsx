@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { reportError } from '@/shared/lib/sentry'
+import { isChunkLoadError, recoverFromChunkLoadError } from '@/shared/lib/chunk-recovery'
 
 type Props = { children: ReactNode }
 type State = { error: Error | null }
@@ -12,6 +13,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    if (isChunkLoadError(error)) {
+      if (recoverFromChunkLoadError(error)) return
+      console.warn('[ErrorBoundary] chunk load error after reload attempt', error)
+      return
+    }
     console.error('[ErrorBoundary]', error, info)
     reportError(error, { componentStack: info.componentStack })
   }

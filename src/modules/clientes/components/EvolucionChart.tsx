@@ -51,8 +51,8 @@ export function EvolucionChart({ name }: Props) {
               />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(n: number) => eurosShort(n)} />
               <Tooltip
-                labelFormatter={((d: any) => format(parseISO(String(d)), "MMMM yyyy", { locale: es })) as any}
-                formatter={((v: any, name: any) => [euros(Number(v)), labelMap(String(name))]) as any}
+                labelFormatter={(d: unknown) => format(parseISO(String(d)), "MMMM yyyy", { locale: es })}
+                formatter={(v: unknown, name: unknown) => [euros(Number(v)), labelMap(String(name))]}
                 contentStyle={{ fontSize: 12 }}
               />
               <Bar dataKey="ventas" fill="var(--mint)" name="ventas" radius={[3, 3, 0, 0]} />

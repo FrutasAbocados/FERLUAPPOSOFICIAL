@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Trash2, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { Modal } from '@/shared/components/Modal'
@@ -7,6 +7,7 @@ import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { confirm } from '@/shared/lib/confirm'
 import { toast } from '@/shared/lib/toast'
+import { errorMessage } from '@/shared/lib/errors'
 import {
   type Variable,
   type VariableFormInput,
@@ -47,16 +48,6 @@ export function VariableModal({ variable, onClose }: Props) {
     return rest
   })
 
-  useEffect(() => {
-    if (variable) {
-      const { id: _id, total: _t, ...rest } = variable
-      void _id; void _t
-      setForm(rest)
-    } else {
-      setForm(empty())
-    }
-  }, [variable?.id])
-
   const isEdit = !!variable
   const total = Math.round(Number(form.subtotal || 0) * (1 + Number(form.iva_pct || 0) / 100) * 100) / 100
 
@@ -93,8 +84,8 @@ export function VariableModal({ variable, onClose }: Props) {
         toast({ title: 'Gasto creado', variant: 'success' })
       }
       onClose()
-    } catch (e: any) {
-      toast({ title: 'Error al guardar', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error al guardar', description: errorMessage(e), variant: 'error' })
     }
   }
 
@@ -106,8 +97,8 @@ export function VariableModal({ variable, onClose }: Props) {
       await del.mutateAsync(variable.id)
       toast({ title: 'Gasto eliminado', variant: 'success' })
       onClose()
-    } catch (e: any) {
-      toast({ title: 'Error al eliminar', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error al eliminar', description: errorMessage(e), variant: 'error' })
     }
   }
 

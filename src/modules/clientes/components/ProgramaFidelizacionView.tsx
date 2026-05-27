@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { format, endOfMonth, startOfMonth, subMonths } from 'date-fns'
 import { Search } from 'lucide-react'
 import { Input } from '@/shared/components/ui/input'
@@ -59,14 +59,8 @@ export function ProgramaFidelizacionView() {
       .sort((a, b) => PROG_ORDER[a.programa] - PROG_ORDER[b.programa] || b.loyaltyScore - a.loyaltyScore || b.margen - a.margen)
   }, [clientes, filtro, q])
 
-  useEffect(() => {
-    if (rows.length === 0) { setSelected(null); return }
-    if (!selected || !rows.some((r) => r.contact_name_canon === selected)) {
-      setSelected(rows[0].contact_name_canon)
-    }
-  }, [rows, selected])
-
-  const clienteSel = selected ? rows.find((r) => r.contact_name_canon === selected) ?? null : null
+  const selectedInRows = selected ? rows.find((r) => r.contact_name_canon === selected) ?? null : null
+  const clienteSel = selectedInRows ?? rows[0] ?? null
 
   return (
     <div className="space-y-3">
@@ -164,7 +158,7 @@ export function ProgramaFidelizacionView() {
           >
             {rows.map((c) => {
               const cfg = PROG_CFG[c.programa]
-              const active = selected === c.contact_name_canon
+              const active = clienteSel?.contact_name_canon === c.contact_name_canon
               return (
                 <button
                   key={c.contact_name_canon}

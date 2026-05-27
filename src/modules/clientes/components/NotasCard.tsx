@@ -6,6 +6,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { confirm } from '@/shared/lib/confirm'
 import { toast } from '@/shared/lib/toast'
+import { errorMessage } from '@/shared/lib/errors'
 import { useAddNota, useDeleteNota, useNotas } from '../lib/hooks'
 
 export function NotasCard({ name }: { name: string }) {
@@ -22,8 +23,8 @@ export function NotasCard({ name }: { name: string }) {
       await add.mutateAsync({ contact_name_canon: name, texto: t })
       setTexto('')
       toast({ title: 'Nota añadida', variant: 'success' })
-    } catch (e: any) {
-      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error', description: errorMessage(e), variant: 'error' })
     }
   }
 
@@ -32,8 +33,8 @@ export function NotasCard({ name }: { name: string }) {
     if (!ok) return
     try {
       await del.mutateAsync(id)
-    } catch (e: any) {
-      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error', description: errorMessage(e), variant: 'error' })
     }
   }
 
