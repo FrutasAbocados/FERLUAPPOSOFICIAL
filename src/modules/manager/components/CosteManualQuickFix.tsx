@@ -5,6 +5,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { toast } from '@/shared/lib/toast'
+import { errorMessage } from '@/shared/lib/errors'
 import { useSetCosteManual } from '../lib/queries'
 
 type Props = {
@@ -16,8 +17,10 @@ type Props = {
 
 /** Modal mínimo para asignar coste manual desde la lista, sin abrir el detalle completo. */
 export function CosteManualQuickFix({ productId, productNombre, costeActual, onClose }: Props) {
+  const today = new Date().toISOString().slice(0, 10)
   const [valor, setValor] = useState<string>(costeActual != null ? String(costeActual) : '')
   const [nota, setNota] = useState('')
+  const [fechaDesde, setFechaDesde] = useState(today)
   const set = useSetCosteManual()
 
   const submit = async (e: React.FormEvent) => {
@@ -28,11 +31,11 @@ export function CosteManualQuickFix({ productId, productNombre, costeActual, onC
       return
     }
     try {
-      await set.mutateAsync({ product_id: productId, coste_eur: n, nota: nota || null })
+      await set.mutateAsync({ product_id: productId, fecha_desde: fechaDesde, coste_eur: n, nota: nota || null })
       toast({ title: 'Coste asignado', variant: 'success' })
       onClose()
-    } catch (e: any) {
-      toast({ title: 'Error', description: e?.message, variant: 'error' })
+    } catch (e: unknown) {
+      toast({ title: 'Error', description: errorMessage(e), variant: 'error' })
     }
   }
 
@@ -51,6 +54,15 @@ export function CosteManualQuickFix({ productId, productNombre, costeActual, onC
             <div className="mt-0.5 text-[10px] text-[var(--color-ink-3)]">
               Anula el cálculo automático (media 4 últimas compras). De aquí en adelante el sistema usa este coste.
             </div>
+          </div>
+          <div>
+            <Label htmlFor="fecha_desde">Vigente desde</Label>
+            <Input
+              id="fecha_desde"
+              type="date"
+              value={fechaDesde}
+              onChange={(e) => setFechaDesde(e.target.value)}
+            />
           </div>
           <div>
             <Label htmlFor="coste">Coste por unidad (€)</Label>

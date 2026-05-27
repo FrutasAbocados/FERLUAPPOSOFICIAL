@@ -1,15 +1,13 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Award, BarChart3, BookCheck, CalendarClock, CalendarDays, CalendarOff, Clock4, Construction, Fingerprint, ShoppingBasket, Sparkles } from 'lucide-react'
+import { Award, BarChart3, CalendarClock, CalendarOff, Clock4, Construction, Fingerprint, ShoppingBasket, Sparkles } from 'lucide-react'
 import { useAuth } from '@/shared/auth/useAuth'
 import { EmpleadoNav, type EmpleadoTab } from './components/EmpleadoNav'
 import { useEmpleadoPropio } from './lib/useEmpleadoPropio'
 
-const TareasPage = lazy(() => import('@/modules/tareas/TareasPage').then(m => ({ default: m.TareasPage })))
 const TurnosPage = lazy(() => import('@/modules/turnos/TurnosPage').then(m => ({ default: m.TurnosPage })))
 const CreditoView = lazy(() => import('./components/CreditoView').then(m => ({ default: m.CreditoView })))
 const VacacionesView = lazy(() => import('./components/VacacionesView').then(m => ({ default: m.VacacionesView })))
-const SabadosView = lazy(() => import('./components/SabadosView').then(m => ({ default: m.SabadosView })))
 const PuntosView = lazy(() => import('./components/PuntosView').then(m => ({ default: m.PuntosView })))
 const DashboardView = lazy(() => import('./components/DashboardView').then(m => ({ default: m.DashboardView })))
 const HorasExtrasView = lazy(() => import('./components/HorasExtrasView').then(m => ({ default: m.HorasExtrasView })))
@@ -20,14 +18,12 @@ const EmpleadoCreditoView = lazy(() => import('./components/EmpleadoCreditoView'
 const EmpleadoColabView = lazy(() => import('./components/EmpleadoColabView').then(m => ({ default: m.EmpleadoColabView })))
 const EmpleadoVacacionesView = lazy(() => import('./components/EmpleadoVacacionesView').then(m => ({ default: m.EmpleadoVacacionesView })))
 
-type Tab = 'dashboard' | 'tareas' | 'puntos' | 'vacaciones' | 'sabados' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'colab'
+type Tab = 'dashboard' | 'puntos' | 'vacaciones' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'colab'
 
 const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'dashboard',     l: 'Dashboard',          Icon: BarChart3 },
-  { k: 'tareas',        l: 'Tareas',             Icon: BookCheck },
   { k: 'puntos',        l: 'Puntos',             Icon: Award },
   { k: 'vacaciones',    l: 'Vacaciones',         Icon: CalendarOff },
-  { k: 'sabados',       l: 'Sábados',            Icon: CalendarDays },
   { k: 'credito',       l: 'Crédito frutas',     Icon: ShoppingBasket },
   { k: 'horas_extras',  l: 'Horas extras',       Icon: Clock4 },
   { k: 'fichajes',      l: 'Fichajes',           Icon: Fingerprint },
@@ -83,10 +79,8 @@ export function TrabajadoresOpPage() {
 
       <Suspense fallback={<TabFallback />}>
         {tab === 'dashboard'    && <DashboardView />}
-        {tab === 'tareas'       && <TareasPage />}
         {tab === 'puntos'       && <PuntosView />}
         {tab === 'vacaciones'   && <VacacionesView />}
-        {tab === 'sabados'      && <SabadosView />}
         {tab === 'credito'      && <CreditoView />}
         {tab === 'horas_extras' && <HorasExtrasView />}
         {tab === 'fichajes'     && <FichajesView />}

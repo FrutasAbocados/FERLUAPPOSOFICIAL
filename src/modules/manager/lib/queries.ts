@@ -446,20 +446,20 @@ export function useProductoCompras(productId: string | null) {
   })
 }
 
-// ── Costes manuales (override) ────────────────────────────────────────────
+// ── Costes manuales (override con fecha efectiva) ─────────────────────────
 export function useCosteManual(productId: string | null) {
   return useQuery({
     queryKey: ['manager', 'producto', productId, 'costeManual'] as const,
     enabled: !!productId,
-    queryFn: async (): Promise<CosteManualRow | null> => {
-      if (!productId) return null
+    queryFn: async (): Promise<CosteManualRow[]> => {
+      if (!productId) return []
       const { data, error } = await supabase
         .from('manager_costes_manuales')
-        .select('product_id, coste_eur, nota, updated_at')
+        .select('product_id, fecha_desde, coste_eur, nota, updated_at')
         .eq('product_id', productId)
-        .maybeSingle()
+        .order('fecha_desde', { ascending: false })
       if (error) throw error
-      return (data ?? null) as CosteManualRow | null
+      return (data ?? []) as CosteManualRow[]
     },
   })
 }
@@ -467,15 +467,16 @@ export function useCosteManual(productId: string | null) {
 export function useSetCosteManual() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { product_id: string; coste_eur: number; nota?: string | null }) => {
+    mutationFn: async (input: { product_id: string; fecha_desde: string; coste_eur: number; nota?: string | null }) => {
       const { error } = await supabase
         .from('manager_costes_manuales')
         .upsert({
-          product_id: input.product_id,
-          coste_eur:  input.coste_eur,
-          nota:       input.nota ?? null,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'product_id' })
+          product_id:  input.product_id,
+          fecha_desde: input.fecha_desde,
+          coste_eur:   input.coste_eur,
+          nota:        input.nota ?? null,
+          updated_at:  new Date().toISOString(),
+        }, { onConflict: 'product_id,fecha_desde' })
       if (error) throw error
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['manager'] }) },
@@ -485,11 +486,12 @@ export function useSetCosteManual() {
 export function useDeleteCosteManual() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (productId: string) => {
+    mutationFn: async (input: { product_id: string; fecha_desde: string }) => {
       const { error } = await supabase
         .from('manager_costes_manuales')
         .delete()
-        .eq('product_id', productId)
+        .eq('product_id', input.product_id)
+        .eq('fecha_desde', input.fecha_desde)
       if (error) throw error
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['manager'] }) },

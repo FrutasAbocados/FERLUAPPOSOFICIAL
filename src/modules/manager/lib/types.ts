@@ -202,6 +202,7 @@ export interface ProductoHistoricoMes {
 
 export interface CosteManualRow {
   product_id: string
+  fecha_desde: string  // 'YYYY-MM-DD' — coste vigente desde esta fecha
   coste_eur: number
   nota: string | null
   updated_at: string

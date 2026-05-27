@@ -33,18 +33,8 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
   const setCoste = useSetCosteManual()
   const delCoste = useDeleteCosteManual()
 
-  const [coste, setCosteInput] = useState('')
-  const [nota, setNota] = useState('')
-
-  useEffect(() => {
-    if (costeManual.data) {
-      setCosteInput(String(costeManual.data.coste_eur))
-      setNota(costeManual.data.nota ?? '')
-    } else {
-      setCosteInput('')
-      setNota('')
-    }
-  }, [costeManual.data])
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const [costeDraft, setCosteDraft] = useState({ coste: '', nota: '', fecha_desde: today })
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -53,15 +43,21 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
   }, [onClose])
 
   const guardarCoste = async () => {
-    const v = Number(coste.replace(',', '.'))
-    if (!producto.product_id || !Number.isFinite(v) || v < 0) return
+    const v = Number(costeDraft.coste.replace(',', '.'))
+    if (!producto.product_id || !Number.isFinite(v) || v < 0 || !costeDraft.fecha_desde) return
     try {
-      await setCoste.mutateAsync({ product_id: producto.product_id, coste_eur: v, nota: nota.trim() || null })
+      await setCoste.mutateAsync({
+        product_id:  producto.product_id,
+        fecha_desde: costeDraft.fecha_desde,
+        coste_eur:   v,
+        nota:        costeDraft.nota.trim() || null,
+      })
+      setCosteDraft({ coste: '', nota: '', fecha_desde: today })
     } catch (e) { toast({ title: 'No se pudo guardar', description: e instanceof Error ? e.message : '', variant: 'error' }) }
   }
-  const quitarCoste = async () => {
+  const quitarCoste = async (fecha_desde: string) => {
     if (!producto.product_id) return
-    try { await delCoste.mutateAsync(producto.product_id) }
+    try { await delCoste.mutateAsync({ product_id: producto.product_id, fecha_desde }) }
     catch (e) { toast({ title: 'No se pudo quitar', description: e instanceof Error ? e.message : '', variant: 'error' }) }
   }
 
@@ -116,41 +112,73 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
           <Tile label="Última venta" value={fmt(producto.ultima_venta)} />
         </div>
 
-        {/* Override coste manual */}
+        {/* Override coste manual con fecha efectiva */}
         <section className="border-b border-[var(--color-border)] bg-[color:rgba(245,158,11,0.06)] px-5 py-4">
           <h3 className="text-sm font-semibold text-[var(--color-ink)]">
-            Coste manual (override) {costeManual.data && <span className="ml-2 rounded-full bg-[oklch(92%_.08_82_/_0.85)] px-2 py-0.5 text-xs text-[var(--color-primary)] dark:bg-[oklch(28%_.08_72_/_0.42)]">Activo</span>}
+            Coste manual (override)
+            {(costeManual.data ?? []).length > 0 && (
+              <span className="ml-2 rounded-full bg-[oklch(92%_.08_82_/_0.85)] px-2 py-0.5 text-xs text-[var(--color-primary)] dark:bg-[oklch(28%_.08_72_/_0.42)]">
+                {(costeManual.data ?? []).length} entrada{(costeManual.data ?? []).length > 1 ? 's' : ''}
+              </span>
+            )}
           </h3>
           <p className="mt-0.5 text-xs text-[var(--color-ink-3)]">
-            Si pones un coste aquí, sobrescribe la media de las 4 últimas compras para este producto en TODO el Manager.
+            El coste vigente en cada venta es el override más reciente con fecha ≤ fecha de la venta. El histórico queda intacto.
           </p>
+
+          {/* Historial de overrides */}
+          {(costeManual.data ?? []).length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {(costeManual.data ?? []).map(row => (
+                <li key={row.fecha_desde} className="flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm">
+                  <span className="w-24 shrink-0 tabular-nums text-[var(--color-ink-3)]">{format(parseISO(row.fecha_desde), 'd LLL yyyy', { locale: es })}</span>
+                  <span className="font-medium tabular-nums text-[var(--color-ink)]">{eur(row.coste_eur)}/ud</span>
+                  {row.nota && <span className="flex-1 truncate text-xs text-[var(--color-ink-3)]">{row.nota}</span>}
+                  <button
+                    type="button"
+                    onClick={() => quitarCoste(row.fecha_desde)}
+                    disabled={delCoste.isPending}
+                    className="ml-auto text-xs text-[var(--coral)] hover:underline disabled:opacity-40"
+                  >
+                    Quitar
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Formulario nuevo override */}
           <div className="mt-2 flex flex-wrap items-end gap-2">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Desde</label>
+              <Input
+                type="date"
+                value={costeDraft.fecha_desde}
+                onChange={(e) => setCosteDraft(p => ({ ...p, fecha_desde: e.target.value }))}
+                className="h-9 w-36"
+              />
+            </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Coste €/ud</label>
               <Input
                 type="number" step="0.0001" min="0" placeholder="0.00"
-                value={coste}
-                onChange={(e) => setCosteInput(e.target.value)}
-                className="h-9 w-32 tabular-nums"
+                value={costeDraft.coste}
+                onChange={(e) => setCosteDraft(p => ({ ...p, coste: e.target.value }))}
+                className="h-9 w-28 tabular-nums"
               />
             </div>
-            <div className="min-w-[200px] flex-1">
+            <div className="min-w-[160px] flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Nota (opcional)</label>
               <Input
-                value={nota}
-                onChange={(e) => setNota(e.target.value)}
-                placeholder="por qué este coste"
+                value={costeDraft.nota}
+                onChange={(e) => setCosteDraft(p => ({ ...p, nota: e.target.value }))}
+                placeholder="bajada precio trops…"
                 className="h-9"
               />
             </div>
-            <Button size="sm" onClick={guardarCoste} disabled={!coste || setCoste.isPending}>
-              {setCoste.isPending ? 'Guardando…' : (costeManual.data ? 'Actualizar' : 'Guardar')}
+            <Button size="sm" onClick={guardarCoste} disabled={!costeDraft.coste || !costeDraft.fecha_desde || setCoste.isPending}>
+              {setCoste.isPending ? 'Guardando…' : 'Añadir override'}
             </Button>
-            {costeManual.data && (
-              <Button size="sm" variant="outline" onClick={quitarCoste} disabled={delCoste.isPending}>
-                Quitar override
-              </Button>
-            )}
           </div>
         </section>
 

@@ -129,7 +129,7 @@ function FilaProducto({
 }) {
   const upsert = useUpsertProductoHolded()
   const del = useDeleteProductoHolded()
-  const [busqueda, setBusqueda] = useState(producto.primer_uso)
+  const [busqueda, setBusqueda] = useState('')
   const { data: candidatos, isFetching } = useBuscarProductosHolded(editando ? busqueda : '')
 
   const eliminar = async () => {
@@ -219,13 +219,16 @@ function FilaProducto({
 
       {editando && (
         <div className="border-t border-[var(--color-border)] bg-[var(--color-surface-2,#f8fafc)] px-4 py-3">
+          <p className="mb-1.5 text-[11px] text-[var(--color-ink-3)]">
+            Vinculando: <span className="font-medium text-[var(--color-ink)]">{producto.primer_uso}</span>
+          </p>
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--color-ink-3)]" />
             <Input
               autoFocus
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar producto en Holded…"
+              placeholder="Escribe para buscar en Holded…"
               className="h-9 pl-8"
             />
           </div>
