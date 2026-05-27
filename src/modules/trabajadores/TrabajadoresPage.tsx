@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Modal } from '@/shared/components/Modal'
 import { PageTopbar } from '@/shared/components/PageTopbar'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Save, UserCog, Users, X } from 'lucide-react'
@@ -212,12 +213,6 @@ function EditorTrabajador({ trabajador, onClose }: { trabajador: Trabajador; onC
   const guardar = useGuardarTrabajador()
   const [t, setT] = useState<Trabajador>(trabajador)
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
   const set = <K extends keyof Trabajador>(k: K, v: Trabajador[K]) => setT(prev => ({ ...prev, [k]: v }))
   const setNum = (k: keyof Trabajador, v: string) =>
     setT(prev => ({ ...prev, [k]: v === '' ? null : Number(v.replace(',', '.')) }))
@@ -232,11 +227,7 @@ function EditorTrabajador({ trabajador, onClose }: { trabajador: Trabajador; onC
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 md:p-8"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="w-full max-w-2xl rounded-2xl bg-[var(--color-surface)] shadow-xl">
+    <Modal onClose={onClose} size="xl">
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div className="flex items-start gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary-soft)]">
@@ -374,8 +365,7 @@ function EditorTrabajador({ trabajador, onClose }: { trabajador: Trabajador; onC
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

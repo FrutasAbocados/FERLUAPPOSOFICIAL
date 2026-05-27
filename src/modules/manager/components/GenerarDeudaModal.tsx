@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Check, HandCoins, Sparkles, X } from 'lucide-react'
+import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
@@ -158,12 +159,6 @@ export function GenerarDeudaModal({ facturas, onClose, onSuccess }: Props) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cobros'] }),
   })
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !generar.isPending) onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, generar.isPending])
-
   const facsById = useMemo(() => new Map(facturas.map(f => [f.id, f])), [facturas])
   const totalIncluido = useMemo(() =>
     mappings.filter(m => m.incluir).reduce((s, m) => s + Number(facsById.get(m.facturaId)?.total ?? 0), 0),
@@ -172,11 +167,7 @@ export function GenerarDeudaModal({ facturas, onClose, onSuccess }: Props) {
   const numNuevos = new Set(mappings.filter(m => m.incluir && m.cliente_id == null).map(m => m.nombreNuevo)).size
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 md:p-8"
-      onClick={(e) => { if (e.target === e.currentTarget && !generar.isPending) onClose() }}
-    >
-      <div className="ao-modal-card w-full max-w-4xl p-0">
+    <Modal onClose={onClose} size="4xl" closeOnOverlay={!generar.isPending} closeOnEscape={!generar.isPending}>
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div className="flex items-start gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary-soft)]">
@@ -286,7 +277,6 @@ export function GenerarDeudaModal({ facturas, onClose, onSuccess }: Props) {
             <Button className="mt-4" onClick={() => { onSuccess(); onClose() }}>Cerrar</Button>
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   )
 }

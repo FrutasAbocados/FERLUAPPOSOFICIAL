@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { X } from 'lucide-react'
+import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { eurosOrDash } from '@/shared/lib/format'
 import type { FacturaListItem } from '../lib/types'
@@ -19,23 +19,13 @@ interface Props {
 export function FacturaDetalleModal({ factura, onClose }: Props) {
   const detalle = useFacturaDetalle(factura.id)
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
   const totalLineas = (detalle.data ?? []).reduce((s, l) => s + Number(l.subtotal ?? 0), 0)
   const totalCogs = (detalle.data ?? []).reduce((s, l) => s + Number(l.cogs_linea ?? 0), 0)
   const totalMargen = totalLineas - totalCogs
   const totalMargenPct = totalLineas > 0 ? (totalMargen / totalLineas) * 100 : null
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 md:p-8"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="ao-modal-card w-full max-w-5xl p-0">
+    <Modal onClose={onClose} size="3xl">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div className="min-w-0">
@@ -123,8 +113,7 @@ export function FacturaDetalleModal({ factura, onClose }: Props) {
             )}
           </div>
         </section>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

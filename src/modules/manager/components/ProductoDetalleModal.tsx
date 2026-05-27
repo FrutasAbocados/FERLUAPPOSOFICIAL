@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { TrendingDown, X } from 'lucide-react'
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { toast } from '@/shared/lib/toast'
@@ -35,12 +36,6 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
 
   const today = format(new Date(), 'yyyy-MM-dd')
   const [costeDraft, setCosteDraft] = useState({ coste: '', nota: '', fecha_desde: today })
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
 
   const guardarCoste = async () => {
     const v = Number(costeDraft.coste.replace(',', '.'))
@@ -87,11 +82,7 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
   }, [historico.data])
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 md:p-8"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="ao-modal-card w-full max-w-4xl p-0">
+    <Modal onClose={onClose} size="4xl">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div className="min-w-0">
@@ -308,8 +299,7 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
             </div>
           </section>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

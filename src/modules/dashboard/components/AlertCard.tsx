@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, CheckCircle2, X, type LucideIcon } from 'lucide-react'
+import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 
 type Severidad = 'critica' | 'aviso' | 'info' | 'ok'
@@ -106,28 +107,23 @@ export function AlertCard({ titulo, subtitulo, Icon, severidad, count, total, to
       </section>
 
       {expanded && (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm md:p-8"
-          onClick={(e) => { if (e.target === e.currentTarget) setExpanded(false) }}
-        >
-          <div className="ao-card w-full max-w-3xl overflow-hidden p-0">
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-5 py-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border" style={styleToObj(t.iconStyle)}>
-                  <Icon className={`h-5 w-5 ${t.icon}`} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-medium text-[var(--ink)]">{titulo}</h2>
-                  {subtitulo && <p className="mt-0.5 text-xs text-[var(--ink-mute)]">{subtitulo}</p>}
-                </div>
+        <Modal onClose={() => setExpanded(false)} size="2xl">
+          <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-5 py-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border" style={styleToObj(t.iconStyle)}>
+                <Icon className={`h-5 w-5 ${t.icon}`} />
               </div>
-              <Button size="sm" variant="ghost" onClick={() => setExpanded(false)}><X className="h-4 w-4" /></Button>
+              <div>
+                <h2 className="text-lg font-medium text-[var(--ink)]">{titulo}</h2>
+                {subtitulo && <p className="mt-0.5 text-xs text-[var(--ink-mute)]">{subtitulo}</p>}
+              </div>
             </div>
-            <div className="px-5 py-4">
-              {full}
-            </div>
+            <Button size="sm" variant="ghost" onClick={() => setExpanded(false)}><X className="h-4 w-4" /></Button>
           </div>
-        </div>
+          <div className="px-5 py-4">
+            {full}
+          </div>
+        </Modal>
       )}
     </>
   )

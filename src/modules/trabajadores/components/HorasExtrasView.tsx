@@ -4,6 +4,7 @@ import { format, parseISO, startOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Banknote, CalendarOff, Check, Clock4, Plus, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/shared/auth/useAuth'
+import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
@@ -342,9 +343,7 @@ function NuevaModal({ empleados, onClose }: { empleados: EmpleadoOpt[]; onClose:
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-2 md:p-6"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-md rounded-2xl bg-[var(--color-surface)] shadow-xl">
+    <Modal onClose={onClose} size="sm">
         <div className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
           <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">Nuevas horas extras</h2>
           <Button size="sm" variant="ghost" onClick={onClose}><X className="h-4 w-4" /></Button>
@@ -397,7 +396,6 @@ function NuevaModal({ empleados, onClose }: { empleados: EmpleadoOpt[]; onClose:
             {crear.isPending ? 'Guardando…' : 'Guardar'}
           </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

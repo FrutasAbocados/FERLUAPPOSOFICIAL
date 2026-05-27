@@ -4,6 +4,7 @@ import { format, parseISO, startOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Award, MessageSquare, Plus, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/shared/auth/useAuth'
+import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
@@ -404,11 +405,7 @@ function NotasModal({
   const [res, setRes] = useState(fila.nota_responsabilidad ?? '')
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-2 md:p-6"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="w-full max-w-lg rounded-2xl bg-[var(--color-surface)] shadow-xl">
+    <Modal onClose={onClose} size="md">
         <div className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
           <div>
             <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">Notas · {fila.nombre}</h2>
@@ -432,8 +429,7 @@ function NotasModal({
             {saving ? 'Guardando…' : 'Guardar notas'}
           </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -607,11 +603,7 @@ function DetalleEmpleadoMes({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-2 md:p-6"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="w-full max-w-xl rounded-2xl bg-[var(--color-surface)] shadow-xl">
+    <Modal onClose={onClose} size="lg">
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div>
             <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">{empleado.nombre}</h2>
@@ -741,7 +733,6 @@ function DetalleEmpleadoMes({
             )}
           </section>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

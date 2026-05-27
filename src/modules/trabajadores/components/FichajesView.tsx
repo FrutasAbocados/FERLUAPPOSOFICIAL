@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { addDays, format, parseISO, startOfWeek, subWeeks, addWeeks } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
@@ -254,11 +255,7 @@ function DetalleEmpleadoModal({
   })
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-2 md:p-6"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="w-full max-w-2xl rounded-2xl bg-[var(--color-surface)] shadow-xl">
+    <Modal onClose={onClose} size="xl">
         <header className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
           <div>
             <h3 className="font-display text-lg font-bold text-[var(--color-ink)]">{empleadoNombre}</h3>
@@ -325,8 +322,7 @@ function DetalleEmpleadoModal({
             ))}
           </ul>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

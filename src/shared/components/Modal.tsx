@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 
-type Size = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl'
+type Size = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl'
 const SIZE: Record<Size, string> = {
   sm: 'max-w-md',
   md: 'max-w-lg',
@@ -8,6 +8,7 @@ const SIZE: Record<Size, string> = {
   xl: 'max-w-2xl',
   '2xl': 'max-w-3xl',
   '3xl': 'max-w-5xl',
+  '4xl': 'max-w-4xl',
 }
 
 type Props = {
@@ -60,7 +61,7 @@ export function Modal({
       role="dialog"
       aria-modal="true"
     >
-      <div className={`ao-card w-full ${SIZE[size]} overflow-hidden p-0 ${className}`}>
+      <div className={`ao-card w-full ${SIZE[size]} [overflow:clip] p-0 ${className}`}>
         {children}
       </div>
     </div>

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { eachDayOfInterval, format, getDay, isSameDay, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Users, X } from 'lucide-react'
+import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { supabase } from '@/shared/lib/supabase'
 import { euros, eurosShort } from '@/shared/lib/format'
@@ -143,18 +144,8 @@ export function CalendarioClientesView({ period }: Props) {
 }
 
 function ModalDia({ dia, onClose }: { dia: DiaCliente; onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 md:p-8"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="ao-modal-card w-full max-w-2xl p-0">
+    <Modal onClose={onClose} size="xl">
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Clientes que pidieron</p>
@@ -175,8 +166,7 @@ function ModalDia({ dia, onClose }: { dia: DiaCliente; onClose: () => void }) {
             </li>
           ))}
         </ul>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

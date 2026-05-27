@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ChevronDown, ChevronRight, Plus, ShoppingBasket, Trash2, X } from 'lucide-react'
+import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
@@ -329,11 +330,7 @@ function DetalleEmpleado({ empleado, onClose }: { empleado: EstadoActual; onClos
   const sobregiroActual = empleado.disponible < 0
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-2 md:p-6"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="w-full max-w-3xl rounded-2xl bg-[var(--color-surface)] shadow-xl">
+    <Modal onClose={onClose} size="2xl">
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div>
             <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">{empleado.nombre}</h2>
@@ -474,8 +471,7 @@ function DetalleEmpleado({ empleado, onClose }: { empleado: EstadoActual; onClos
             </section>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

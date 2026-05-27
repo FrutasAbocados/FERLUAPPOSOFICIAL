@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { X } from 'lucide-react'
+import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { toast } from '@/shared/lib/toast'
@@ -37,11 +38,6 @@ export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
   const preview = useAliasPreview(nuevoAlias)
 
   // ESC para cerrar
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
 
   const aliasesEsteCliente = aliases.data?.filter(a => a.alias_to === cliente.contact_name_canon) ?? []
 
@@ -57,11 +53,7 @@ export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 md:p-8"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="ao-modal-card w-full max-w-4xl p-0">
+    <Modal onClose={onClose} size="4xl">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div className="min-w-0">
@@ -180,8 +172,7 @@ export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
             </div>
           </section>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

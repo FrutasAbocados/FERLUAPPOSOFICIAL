@@ -13,6 +13,7 @@ import {
   Upload,
   X,
 } from 'lucide-react'
+import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { confirm } from '@/shared/lib/confirm'
 import { euros } from '@/shared/lib/format'
@@ -629,11 +630,7 @@ function ModalSubirHolded({
   const subtotal = items.reduce((s, it) => s + it.units * it.subtotal, 0)
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-2 md:p-6"
-      onClick={(e) => { if (e.target === e.currentTarget) onCancelar() }}
-    >
-      <div className="ao-card w-full max-w-3xl rounded-[var(--radius-md)] p-0">
+    <Modal onClose={onCancelar} size="2xl">
         <div className="flex items-start justify-between gap-2 border-b border-[var(--color-border)] p-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-[var(--color-ink-2)]">
@@ -753,8 +750,7 @@ function ModalSubirHolded({
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
