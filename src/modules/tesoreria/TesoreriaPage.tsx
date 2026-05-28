@@ -99,7 +99,7 @@ function MovimientoModal({ movimiento, defaultTipo = 'entrada', onClose }: Modal
                       ? t === 'entrada'
                         ? 'border-[var(--mint)] bg-[var(--mint)]/15 text-[var(--mint)]'
                         : 'border-[var(--coral)] bg-[var(--coral)]/15 text-[var(--coral)]'
-                      : 'border-[var(--border)] text-[var(--ink-mute)]',
+                      : 'border-[var(--line-2)] text-[var(--ink-mute)]',
                   )}
                 >
                   {t}
@@ -145,7 +145,7 @@ function MovimientoModal({ movimiento, defaultTipo = 'entrada', onClose }: Modal
             <select
               value={categoria}
               onChange={e => setCategoria(e.target.value)}
-              className="h-9 rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 text-sm text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--mint)]"
+              className="h-9 rounded-md border border-[var(--line-2)] bg-[var(--panel)] px-3 text-sm text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--mint)]"
             >
               <option value="">— Sin categoría —</option>
               {cats.map(c => (
@@ -271,7 +271,7 @@ export function TesoreriaPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[var(--border)] text-left">
+                  <tr className="border-b border-[var(--line-2)] text-left">
                     <th className="px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-[var(--ink-mute)]">Fecha</th>
                     <th className="px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-[var(--ink-mute)]">Tipo</th>
                     <th className="px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-[var(--ink-mute)]">Concepto</th>
@@ -280,9 +280,9 @@ export function TesoreriaPage() {
                     <th className="px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-[var(--ink-mute)]"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--border)]">
+                <tbody className="divide-y divide-[var(--line-2)]">
                   {(lista.data ?? []).map(m => (
-                    <tr key={m.id} className="bg-[var(--panel-2)] hover:bg-[var(--panel-3)] transition-colors">
+                    <tr key={m.id} className="bg-[var(--panel-2)] hover:bg-white/[0.04] transition-colors">
                       <td className="px-3 py-2 tabular-nums text-[var(--ink-mute)]">
                         {format(parseISO(m.fecha), 'dd/MM')}
                       </td>
