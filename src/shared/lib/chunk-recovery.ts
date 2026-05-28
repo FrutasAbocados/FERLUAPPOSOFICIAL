@@ -22,6 +22,26 @@ export function isChunkLoadError(error: unknown): boolean {
   return CHUNK_ERROR_PATTERNS.some((pattern) => message.includes(pattern))
 }
 
+// Purga el service worker + caches ANTES de recargar. Sin esto, un reload simple
+// vuelve a pedir el index.html viejo cacheado (que referencia chunks ya inexistentes)
+// y el error se repite. Verificado: revocar SW + limpiar caches es lo único que
+// hace que la ruta lazy vuelva a cargar el chunk correcto tras un deploy.
+async function purgeServiceWorkerAndReload(): Promise<void> {
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(regs.map((r) => r.unregister()))
+    }
+    if (typeof caches !== 'undefined') {
+      const keys = await caches.keys()
+      await Promise.all(keys.map((k) => caches.delete(k)))
+    }
+  } catch {
+    // Si la purga falla, recargamos igualmente: mejor un reload que la PWA rota.
+  }
+  window.location.reload()
+}
+
 export function recoverFromChunkLoadError(error: unknown): boolean {
   if (!isChunkLoadError(error) || typeof window === 'undefined') return false
 
@@ -35,7 +55,7 @@ export function recoverFromChunkLoadError(error: unknown): boolean {
     // Si sessionStorage falla, recargamos igualmente: es mejor que dejar la PWA rota.
   }
 
-  window.location.reload()
+  void purgeServiceWorkerAndReload()
   return true
 }
 
