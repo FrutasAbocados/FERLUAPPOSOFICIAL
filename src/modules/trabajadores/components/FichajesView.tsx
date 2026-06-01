@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { addDays, format, parseISO, startOfWeek, subWeeks, addWeeks } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -10,6 +10,7 @@ import { supabase } from '@/shared/lib/supabase'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
 import { FichajesActivosPanel } from './FichajesActivosPanel'
+import { FichajesStatsPanel } from './FichajesStatsPanel'
 
 interface SemanaRow {
   empleado_id: string
@@ -29,6 +30,10 @@ interface FichajeMes {
   horas: number | null
   fuente: string
   nota: string | null
+  lat_in: number | null
+  lng_in: number | null
+  lat_out: number | null
+  lng_out: number | null
 }
 
 const KEY_SEMANA = (lunes: string) => ['fichajes', 'semana', lunes] as const
@@ -120,6 +125,8 @@ export function FichajesView() {
       </header>
 
       <FichajesActivosPanel />
+
+      <FichajesStatsPanel />
 
       <div className="ao-card overflow-hidden p-0">
         <div className="overflow-x-auto">
@@ -235,6 +242,10 @@ function DetalleEmpleadoModal({
         horas: r.horas == null ? null : Number(r.horas),
         fuente: String(r.fuente ?? ''),
         nota: r.nota == null ? null : String(r.nota),
+        lat_in: r.lat_in == null ? null : Number(r.lat_in),
+        lng_in: r.lng_in == null ? null : Number(r.lng_in),
+        lat_out: r.lat_out == null ? null : Number(r.lat_out),
+        lng_out: r.lng_out == null ? null : Number(r.lng_out),
       }))
     },
   })
@@ -305,6 +316,24 @@ function DetalleEmpleadoModal({
                     <span className={f.fuente === 'manual_admin' ? 'text-amber-700' : ''}>
                       {f.fuente === 'manual_admin' ? 'manual' : 'app'}
                     </span>
+                    {f.lat_in != null && f.lng_in != null && (
+                      <>
+                        {' · '}
+                        <a href={`https://www.google.com/maps?q=${f.lat_in},${f.lng_in}`} target="_blank" rel="noreferrer"
+                          className="inline-flex items-center gap-0.5 text-[var(--color-primary-2)] hover:underline" title="Ubicación de entrada">
+                          <MapPin className="h-3 w-3" />entrada
+                        </a>
+                      </>
+                    )}
+                    {f.lat_out != null && f.lng_out != null && (
+                      <>
+                        {' · '}
+                        <a href={`https://www.google.com/maps?q=${f.lat_out},${f.lng_out}`} target="_blank" rel="noreferrer"
+                          className="inline-flex items-center gap-0.5 text-[var(--color-primary-2)] hover:underline" title="Ubicación de salida">
+                          <MapPin className="h-3 w-3" />salida
+                        </a>
+                      </>
+                    )}
                     {f.nota && ` · ${f.nota}`}
                   </div>
                 </div>
