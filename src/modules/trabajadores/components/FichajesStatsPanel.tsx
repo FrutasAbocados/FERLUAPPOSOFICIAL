@@ -149,16 +149,17 @@ export function FichajesStatsPanel() {
               <th className="px-2 py-2 text-right"><CalendarDays className="inline h-3 w-3" /> Días</th>
               <th className="px-2 py-2 text-right">Media/día</th>
               <th className="px-2 py-2 text-center"><Timer className="inline h-3 w-3" /> Entrada</th>
+              <th className="px-2 py-2 text-center">Salida</th>
               <th className="px-2 py-2 text-center">Puntualidad</th>
               <th className="px-4 py-2 text-right">Reparto</th>
             </tr>
           </thead>
           <tbody>
             {stats.isLoading && (
-              <tr><td colSpan={7} className="px-4 py-6 text-center text-[var(--color-ink-3)]">Cargando…</td></tr>
+              <tr><td colSpan={8} className="px-4 py-6 text-center text-[var(--color-ink-3)]">Cargando…</td></tr>
             )}
             {!stats.isLoading && conActividad.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-6 text-center text-[var(--color-ink-3)]">Sin fichajes en este periodo</td></tr>
+              <tr><td colSpan={8} className="px-4 py-6 text-center text-[var(--color-ink-3)]">Sin fichajes en este periodo</td></tr>
             )}
             {conActividad.map(r => (
               <tr key={r.empleado_id} className="border-b border-[var(--color-border)] last:border-0">
@@ -179,6 +180,9 @@ export function FichajesStatsPanel() {
                 <td className="px-2 py-2.5 text-center tabular-nums text-[var(--color-ink-2)]">
                   {r.hora_media_entrada ?? '—'}
                   {r.horario_entrada && <div className="text-[10px] text-[var(--color-ink-3)]">objetivo {r.horario_entrada}</div>}
+                </td>
+                <td className="px-2 py-2.5 text-center tabular-nums text-[var(--color-ink-2)]">
+                  {r.hora_media_salida ?? '—'}
                 </td>
                 <td className="px-2 py-2.5 text-center"><Puntualidad min={r.retraso_medio_min} /></td>
                 <td className="px-4 py-2.5">
