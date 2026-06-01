@@ -9,6 +9,7 @@ import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
+import { FichajesActivosPanel } from './FichajesActivosPanel'
 
 interface SemanaRow {
   empleado_id: string
@@ -117,6 +118,8 @@ export function FichajesView() {
           <Button size="sm" variant="ghost" onClick={() => setAnchor(new Date())}>Hoy</Button>
         </div>
       </header>
+
+      <FichajesActivosPanel />
 
       <div className="ao-card overflow-hidden p-0">
         <div className="overflow-x-auto">

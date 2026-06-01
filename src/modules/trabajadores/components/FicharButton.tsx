@@ -11,23 +11,29 @@ interface FichajeAbierto {
   ts_in: string
 }
 
-function useFichajeHoy(empleadoId: string) {
-  const hoy = format(new Date(), 'yyyy-MM-dd')
+// Pide la ubicación sin bloquear el fichaje: si el empleado deniega el permiso
+// o tarda, seguimos adelante con lat/lng nulos.
+async function pedirGeo(): Promise<{ lat: number; lng: number } | null> {
+  if (!('geolocation' in navigator)) return null
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 },
+    )
+  })
+}
+
+function useFichajeActual(empleadoId: string) {
   return useQuery({
-    queryKey: ['fichar-hoy', empleadoId, hoy] as const,
+    queryKey: ['fichar-hoy', empleadoId] as const,
     refetchInterval: 30_000,
     queryFn: async (): Promise<FichajeAbierto | null> => {
-      const { data, error } = await supabase
-        .from('trabajadores_fichajes')
-        .select('id, ts_in')
-        .eq('empleado_id', empleadoId)
-        .eq('fecha', hoy)
-        .is('ts_out', null)
-        .order('ts_in', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      const { data, error } = await supabase.rpc('trabajadores_fichaje_actual')
       if (error) throw error
-      return data as FichajeAbierto | null
+      const row = (data ?? [])[0] as Record<string, unknown> | undefined
+      if (!row) return null
+      return { id: String(row.id ?? ''), ts_in: String(row.ts_in ?? '') }
     },
   })
 }
@@ -42,8 +48,7 @@ function elapsed(tsIn: string): string {
 
 export function FicharButton({ empleadoId }: { empleadoId: string }) {
   const qc = useQueryClient()
-  const hoy = format(new Date(), 'yyyy-MM-dd')
-  const { data: abierto, isLoading } = useFichajeHoy(empleadoId)
+  const { data: abierto, isLoading } = useFichajeActual(empleadoId)
 
   const [tick, setTick] = useState(0)
   useEffect(() => {
@@ -54,32 +59,38 @@ export function FicharButton({ empleadoId }: { empleadoId: string }) {
 
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ['fichar-hoy', empleadoId] })
+    void qc.invalidateQueries({ queryKey: ['trabajadores', 'fichaje-actual'] })
     void qc.invalidateQueries({ queryKey: ['fichajes'] })
   }
 
   const entrada = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('trabajadores_fichajes').insert({
-        empleado_id: empleadoId,
-        ts_in: new Date().toISOString(),
-        fecha: hoy,
-        fuente: 'app',
+      const geo = await pedirGeo()
+      const { error } = await supabase.rpc('trabajadores_fichaje_abrir', {
+        p_lat: geo?.lat ?? null,
+        p_lng: geo?.lng ?? null,
       })
       if (error) throw error
+      return geo
     },
-    onSuccess: () => {
-      toast({ title: 'Fichaje de entrada registrado', variant: 'success' })
+    onSuccess: (geo) => {
+      toast({
+        title: 'Fichaje de entrada registrado',
+        description: geo ? 'Con ubicación' : 'Sin ubicación',
+        variant: 'success',
+      })
       invalidate()
     },
     onError: (e) => toast({ title: 'Error al fichar', description: e instanceof Error ? e.message : '', variant: 'error' }),
   })
 
   const salida = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('trabajadores_fichajes')
-        .update({ ts_out: new Date().toISOString() })
-        .eq('id', id)
+    mutationFn: async () => {
+      const geo = await pedirGeo()
+      const { error } = await supabase.rpc('trabajadores_fichaje_cerrar', {
+        p_lat: geo?.lat ?? null,
+        p_lng: geo?.lng ?? null,
+      })
       if (error) throw error
     },
     onSuccess: () => {
@@ -105,7 +116,7 @@ export function FicharButton({ empleadoId }: { empleadoId: string }) {
       <button
         type="button"
         disabled={isPending}
-        onClick={() => salida.mutate(abierto.id)}
+        onClick={() => salida.mutate()}
         className="w-full rounded-xl border p-4 text-left transition-all active:scale-[.98]"
         style={{
           background: 'oklch(28% .08 158 / .35)',
