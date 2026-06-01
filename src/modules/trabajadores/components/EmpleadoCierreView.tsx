@@ -3,10 +3,8 @@ import { format } from 'date-fns'
 import {
   CheckCircle2,
   ClipboardCheck,
-  Coins,
   Loader2,
   Plus,
-  Receipt,
   Trash2,
   Truck,
   Wallet,
@@ -15,7 +13,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
-import type { FormaPago, GastoTipo } from '@/modules/cash/lib/repartos-types'
+import type { FormaPago } from '@/modules/cash/lib/repartos-types'
 import type { EmpleadoPropio } from '../lib/useEmpleadoPropio'
 import { useEnviarCierre, useMiCierre } from '../lib/cierre-propio-queries'
 
@@ -31,19 +29,6 @@ type RepartoUI = {
   forma_pago: FormaPago
   importe: number | ''
 }
-
-type GastoUI = {
-  _key: string
-  tipo: GastoTipo
-  concepto: string
-  importe: number | ''
-}
-
-const GASTO_OPTS: { v: GastoTipo; l: string }[] = [
-  { v: 'compras', l: '🛒 Compras' },
-  { v: 'gasolina', l: '⛽ Gasolina' },
-  { v: 'incidencia', l: '⚠️ Incidencia' },
-]
 
 export function EmpleadoCierreView({ empleado }: { empleado: EmpleadoPropio }) {
   const [fecha, setFecha] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'))
@@ -112,16 +97,7 @@ function CierreForm({
 }) {
   const enviar = useEnviarCierre()
 
-  const [horaInicio, setHoraInicio] = useState(initial?.jornada.hora_inicio?.slice(0, 5) ?? '')
-  const [horaFin, setHoraFin] = useState(initial?.jornada.hora_fin?.slice(0, 5) ?? '')
   const [notas, setNotas] = useState(initial?.jornada.notas ?? '')
-  const [billetes, setBilletes] = useState<number | ''>(
-    initial?.jornada.efectivo_billetes != null ? Number(initial.jornada.efectivo_billetes) : '',
-  )
-  const [monedas, setMonedas] = useState<number | ''>(
-    initial?.jornada.efectivo_monedas != null ? Number(initial.jornada.efectivo_monedas) : '',
-  )
-
   const [repartos, setRepartos] = useState<RepartoUI[]>(() =>
     (initial?.lineas ?? []).map((l) => ({
       _key: l.id,
@@ -131,37 +107,22 @@ function CierreForm({
       importe: Number(l.importe),
     })),
   )
-  const [gastos, setGastos] = useState<GastoUI[]>(() =>
-    (initial?.gastos ?? []).map((g) => ({
-      _key: g.id,
-      tipo: g.tipo,
-      concepto: g.concepto,
-      importe: Number(g.importe),
-    })),
-  )
 
   const addReparto = () =>
     setRepartos((p) => [...p, { _key: newKey(), contact_id: null, contact_nombre: '', forma_pago: 'efectivo', importe: '' }])
-  const addGasto = () =>
-    setGastos((p) => [...p, { _key: newKey(), tipo: 'compras', concepto: '', importe: '' }])
 
   const totales = useMemo(() => {
     const num = (v: number | '') => (v === '' ? 0 : Number(v))
     const efectivo = repartos.filter((r) => r.forma_pago === 'efectivo').reduce((s, r) => s + num(r.importe), 0)
     const tarjeta = repartos.filter((r) => r.forma_pago === 'tarjeta').reduce((s, r) => s + num(r.importe), 0)
     const deuda = repartos.filter((r) => r.forma_pago === 'deuda').reduce((s, r) => s + num(r.importe), 0)
-    const totalGastos = gastos.reduce((s, g) => s + num(g.importe), 0)
-    const cajaContada = num(billetes) + num(monedas)
     return {
       efectivo,
       tarjeta,
       deuda,
       total: efectivo + tarjeta + deuda,
-      totalGastos,
-      cajaContada,
-      descuadre: cajaContada - efectivo,
     }
-  }, [repartos, gastos, billetes, monedas])
+  }, [repartos])
 
   const enviado = !!initial?.jornada.enviado_at
 
@@ -169,11 +130,11 @@ function CierreForm({
     try {
       await enviar.mutateAsync({
         fecha,
-        hora_inicio: horaInicio || null,
-        hora_fin: horaFin || null,
+        hora_inicio: null,
+        hora_fin: null,
         notas: notas.trim() || null,
-        efectivo_billetes: billetes === '' ? null : Number(billetes),
-        efectivo_monedas: monedas === '' ? null : Number(monedas),
+        efectivo_billetes: null,
+        efectivo_monedas: null,
         lineas: repartos
           .filter((r) => r.contact_nombre.trim() !== '' || Number(r.importe || 0) > 0)
           .map((r, i) => ({
@@ -181,14 +142,6 @@ function CierreForm({
             contact_nombre: r.contact_nombre.trim(),
             importe: r.importe === '' ? 0 : Number(r.importe),
             forma_pago: r.forma_pago,
-            orden: i,
-          })),
-        gastos: gastos
-          .filter((g) => g.concepto.trim() !== '' || Number(g.importe || 0) > 0)
-          .map((g, i) => ({
-            tipo: g.tipo,
-            concepto: g.concepto.trim(),
-            importe: g.importe === '' ? 0 : Number(g.importe),
             orden: i,
           })),
       })
@@ -200,22 +153,10 @@ function CierreForm({
 
   return (
     <div className="space-y-4 pb-28">
-      {/* Identificación */}
-      <Section icon={<ClipboardCheck className="h-4 w-4" />} title="Fecha y horario" subtitle="Por defecto, hoy">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field label="Fecha">
-            <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
-          </Field>
-          <Field label="Hora inicio">
-            <Input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} />
-          </Field>
-          <Field label="Hora fin">
-            <Input type="time" value={horaFin} onChange={(e) => setHoraFin(e.target.value)} />
-          </Field>
-        </div>
+      <Section icon={<ClipboardCheck className="h-4 w-4" />} title="Fecha del cierre" subtitle="Por defecto, hoy">
+        <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-44" />
       </Section>
 
-      {/* Repartos */}
       <Section icon={<Truck className="h-4 w-4" />} title="Repartos del día" subtitle="Cada entrega realizada">
         {repartos.length === 0 ? (
           <Empty text="Añade tu primer reparto." />
@@ -265,66 +206,6 @@ function CierreForm({
         </Button>
       </Section>
 
-      {/* Gastos */}
-      <Section icon={<Receipt className="h-4 w-4" />} title="Gastos del día" subtitle="Compras, gasolina e incidencias">
-        {gastos.length === 0 ? (
-          <Empty text="Sin gastos. Añade si hubo alguno." />
-        ) : (
-          <ul className="space-y-2">
-            {gastos.map((g) => (
-              <li key={g._key} className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
-                <div className="flex items-center gap-2">
-                  <select
-                    value={g.tipo}
-                    onChange={(e) => setGastos((p) => p.map((x) => (x._key === g._key ? { ...x, tipo: e.target.value as GastoTipo } : x)))}
-                    className="h-9 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs text-[var(--color-ink)] outline-none"
-                  >
-                    {GASTO_OPTS.map((o) => (
-                      <option key={o.v} value={o.v}>{o.l}</option>
-                    ))}
-                  </select>
-                  <Button type="button" variant="ghost" size="icon" aria-label="Quitar gasto" className="ml-auto" onClick={() => setGastos((p) => p.filter((x) => x._key !== g._key))}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <Input
-                    value={g.concepto}
-                    onChange={(e) => setGastos((p) => p.map((x) => (x._key === g._key ? { ...x, concepto: e.target.value } : x)))}
-                    placeholder="Describe el gasto…"
-                    className="flex-1"
-                  />
-                  <ImporteInput
-                    value={g.importe}
-                    onChange={(v) => setGastos((p) => p.map((x) => (x._key === g._key ? { ...x, importe: v } : x)))}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        <Button type="button" variant="ghost" onClick={addGasto} className="mt-2 w-full border border-dashed border-[var(--color-border)]">
-          <Plus className="mr-1 h-4 w-4" /> Añadir gasto
-        </Button>
-      </Section>
-
-      {/* Desglose efectivo */}
-      <Section icon={<Coins className="h-4 w-4" />} title="Desglose de efectivo" subtitle="Lo que llevas en la caja">
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="💵 Billetes (€)">
-            <ImporteInput value={billetes} onChange={setBilletes} full />
-          </Field>
-          <Field label="🪙 Monedas (€)">
-            <ImporteInput value={monedas} onChange={setMonedas} full />
-          </Field>
-        </div>
-        <div className="mt-3 flex items-center justify-between rounded-[var(--radius-md)] bg-[var(--color-primary-soft)] px-3 py-2">
-          <span className="text-xs font-semibold text-[var(--color-ink-2)]">💼 Total efectivo en caja</span>
-          <span className="mono text-base font-bold tabular-nums text-[var(--color-primary-2)]">{euros(totales.cajaContada)}</span>
-        </div>
-      </Section>
-
-      {/* Resumen */}
       <Section icon={<Wallet className="h-4 w-4" />} title="Resumen" subtitle="Calculado automáticamente">
         <div className="grid grid-cols-3 gap-2 text-center">
           <Resumen label="Efectivo" value={euros(totales.efectivo)} tone="success" />
@@ -334,21 +215,6 @@ function CierreForm({
         {totales.deuda > 0 && (
           <p className="mt-2 text-center text-xs text-[var(--color-ink-3)]">Pendiente (deuda): <span className="tabular-nums">{euros(totales.deuda)}</span></p>
         )}
-        <div className="mt-3 flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--color-border)] px-3 py-2">
-          <div>
-            <p className="text-xs font-semibold text-[var(--color-ink-2)]">Descuadre</p>
-            <p className="text-[10px] text-[var(--color-ink-3)]">Caja contada − efectivo cobrado</p>
-          </div>
-          <span
-            className={`mono text-base font-bold tabular-nums ${
-              Math.abs(totales.descuadre) < 0.01
-                ? 'text-[var(--mint)]'
-                : 'text-[var(--coral)]'
-            }`}
-          >
-            {totales.descuadre > 0 ? '+' : ''}{euros(totales.descuadre)}
-          </span>
-        </div>
         <div className="mt-3">
           <Field label="Notas (opcional)">
             <textarea
