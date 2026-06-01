@@ -18,8 +18,9 @@ const EmpleadoCreditoView = lazy(() => import('./components/EmpleadoCreditoView'
 const EmpleadoColabView = lazy(() => import('./components/EmpleadoColabView').then(m => ({ default: m.EmpleadoColabView })))
 const EmpleadoVacacionesView = lazy(() => import('./components/EmpleadoVacacionesView').then(m => ({ default: m.EmpleadoVacacionesView })))
 const EmpleadoCierreView = lazy(() => import('./components/EmpleadoCierreView').then(m => ({ default: m.EmpleadoCierreView })))
+const RuletaPremiosSelfCard = lazy(() => import('./components/RuletaPremiosSelfCard').then(m => ({ default: m.RuletaPremiosSelfCard })))
 
-type Tab = 'dashboard' | 'puntos' | 'vacaciones' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'colab' | 'cierre'
+type Tab = 'dashboard' | 'puntos' | 'premios' | 'vacaciones' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'colab' | 'cierre'
 
 const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'dashboard',     l: 'Dashboard',          Icon: BarChart3 },
@@ -33,7 +34,7 @@ const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'productividad', l: 'Plus productividad', Icon: Construction },
 ]
 
-const TABS_EMPLEADO: Tab[] = ['dashboard', 'cierre', 'puntos', 'vacaciones', 'credito', 'colab']
+const TABS_EMPLEADO: Tab[] = ['dashboard', 'cierre', 'puntos', 'premios', 'vacaciones', 'credito', 'colab']
 const TAB_KEYS = new Set<string>([...TABS.map(t => t.k), ...TABS_EMPLEADO])
 
 const isTab = (v: string | null | undefined): v is Tab =>
@@ -119,10 +120,19 @@ function EmpleadoContent({
         {empTab === 'dashboard'    && <DashboardView modoEmpleado />}
         {empTab === 'cierre'       && (empleado ? <EmpleadoCierreView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'puntos'       && (empleado ? <EmpleadoPuntosView empleado={empleado} /> : <DashboardView modoEmpleado />)}
+        {empTab === 'premios'      && <EmpleadoPremiosView />}
         {empTab === 'credito'      && (empleado ? <EmpleadoCreditoView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'vacaciones'   && (empleado ? <EmpleadoVacacionesView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'colab'        && (empleado ? <EmpleadoColabView empleado={empleado} /> : <DashboardView modoEmpleado />)}
       </Suspense>
+    </div>
+  )
+}
+
+function EmpleadoPremiosView() {
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-5 pb-28 md:px-6 md:py-8">
+      <RuletaPremiosSelfCard />
     </div>
   )
 }

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Check, Gift, Loader2, Power, Plus, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react'
+import { Check, Gift, Loader2, PackageCheck, Power, Plus, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Modal } from '@/shared/components/Modal'
@@ -37,6 +37,54 @@ type ResumenAdmin = {
   ultima_tirada_at: string | null
 }
 
+type CanjeAdmin = {
+  tirada_id: string
+  empleado_id: string
+  empleado_nombre: string
+  motivo: string | null
+  tirada_at: string | null
+  solicitado_at: string | null
+  canje_notas: string | null
+  entregado: boolean
+  entregado_at: string | null
+  premio_id: string
+  premio_nombre: string
+  premio_tipo: Tipo
+  premio_valor: number
+  premio_icono: string | null
+}
+
+type CanjeAdminRow = {
+  tirada_id: string
+  empleado_id: string
+  empleado_nombre: string
+  motivo: string | null
+  tirada_at: string | null
+  solicitado_at: string | null
+  canje_notas: string | null
+  entregado: boolean
+  entregado_at: string | null
+  premio_id: string
+  premio_nombre: string
+  premio_tipo: string
+  premio_valor: number | string | null
+  premio_icono: string | null
+}
+
+type TiradaDetalleRow = {
+  id: string
+  empleado_id: string
+  motivo: string | null
+  otorgado_at: string
+  premio_id: string | null
+  tirada_at: string | null
+  solicitado_at: string | null
+  canje_notas: string | null
+  entregado: boolean
+  entregado_at: string | null
+  premio: { nombre: string; tipo: Tipo; valor: number | string; icono: string | null } | { nombre: string; tipo: Tipo; valor: number | string; icono: string | null }[] | null
+}
+
 type TiradaDetalle = {
   id: string
   empleado_id: string
@@ -49,6 +97,8 @@ type TiradaDetalle = {
   premio_valor: number | null
   premio_icono: string | null
   tirada_at: string | null
+  solicitado_at: string | null
+  canje_notas: string | null
   entregado: boolean
   entregado_at: string | null
 }
@@ -96,6 +146,7 @@ export function RuletaAdminView() {
 
       <ActivaToggle />
       <DarTiradaSection />
+      <CanjesPendientesSection />
       <ResumenSection />
       <CatalogoSection />
       {testOpen && <RuletaModal modoTest onClose={() => setTestOpen(false)} />}
@@ -276,7 +327,127 @@ function DarTiradaSection() {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Resumen empleados (saldo + tiradas + pendientes entrega)
+// 2. Canjes pendientes: premios ganados y solicitados por empleados
+// ---------------------------------------------------------------------------
+function CanjesPendientesSection() {
+  const qc = useQueryClient()
+
+  const { data = [], isLoading } = useQuery({
+    queryKey: ['ruleta', 'canjes-admin'] as const,
+    queryFn: async (): Promise<CanjeAdmin[]> => {
+      const { data, error } = await supabase.rpc('ruleta_canjes_admin')
+      if (error) throw error
+      return ((data ?? []) as CanjeAdminRow[]).map((r) => ({
+        tirada_id: String(r.tirada_id),
+        empleado_id: String(r.empleado_id),
+        empleado_nombre: String(r.empleado_nombre),
+        motivo: r.motivo ? String(r.motivo) : null,
+        tirada_at: r.tirada_at ? String(r.tirada_at) : null,
+        solicitado_at: r.solicitado_at ? String(r.solicitado_at) : null,
+        canje_notas: r.canje_notas ? String(r.canje_notas) : null,
+        entregado: Boolean(r.entregado),
+        entregado_at: r.entregado_at ? String(r.entregado_at) : null,
+        premio_id: String(r.premio_id),
+        premio_nombre: String(r.premio_nombre),
+        premio_tipo: r.premio_tipo as Tipo,
+        premio_valor: Number(r.premio_valor ?? 0),
+        premio_icono: r.premio_icono ? String(r.premio_icono) : null,
+      }))
+    },
+  })
+
+  const marcar = useMutation({
+    mutationFn: async (input: { id: string; entregado: boolean }) => {
+      const { error } = await supabase.rpc('ruleta_marcar_entregado', {
+        p_tirada: input.id,
+        p_entregado: input.entregado,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ruleta'] }),
+    onError: (e) => toast({ title: 'No se pudo actualizar', description: e instanceof Error ? e.message : '', variant: 'error' }),
+  })
+
+  const pendientes = data.filter((c) => !c.entregado)
+  const solicitados = pendientes.filter((c) => c.solicitado_at).length
+
+  return (
+    <section className="mb-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <PackageCheck className="h-4 w-4 text-emerald-600" />
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--color-ink)]">Canjes de premios</h2>
+            <p className="text-xs text-[var(--color-ink-3)]">
+              {solicitados} pedido{solicitados === 1 ? '' : 's'} por empleados · {pendientes.length} pendiente{pendientes.length === 1 ? '' : 's'} de entregar
+            </p>
+          </div>
+        </div>
+        <KPI label="Pendientes" value={pendientes.length} tone={pendientes.length > 0 ? 'rose' : 'neutral'} />
+      </div>
+
+      {isLoading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
+      {!isLoading && pendientes.length === 0 && (
+        <p className="rounded-md border border-dashed border-[var(--color-border)] px-3 py-4 text-center text-sm text-[var(--color-ink-3)]">
+          No hay premios pendientes de entregar.
+        </p>
+      )}
+      {pendientes.length > 0 && (
+        <ul className="space-y-2">
+          {pendientes.map((c) => (
+            <li
+              key={c.tirada_id}
+              className={`grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-md border px-3 py-2 text-sm ${
+                c.solicitado_at
+                  ? 'border-emerald-300 bg-[rgba(16,185,129,.08)]'
+                  : 'border-[var(--color-border)]'
+              }`}
+            >
+              <span className="text-2xl">{c.premio_icono ?? '🎁'}</span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-semibold text-[var(--color-ink)]">{c.empleado_nombre}</span>
+                  <span className="text-[var(--color-ink-3)]">·</span>
+                  <span className="font-medium text-[var(--color-ink)]">{c.premio_nombre}</span>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${TIPO_COLOR[c.premio_tipo]}`}>
+                    {TIPO_LABEL[c.premio_tipo]}
+                    {c.premio_tipo === 'puntos' && c.premio_valor ? ` · +${c.premio_valor}` : ''}
+                    {c.premio_tipo === 'euros' && c.premio_valor ? ` · ${euros(c.premio_valor)}` : ''}
+                  </span>
+                  {c.solicitado_at ? (
+                    <span className="rounded-full bg-[var(--mint-glow)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--mint)]">
+                      pedido {format(new Date(c.solicitado_at), 'd LLL HH:mm', { locale: es })}
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-[rgba(255,255,255,.07)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-ink-3)]">
+                      ganado sin pedir
+                    </span>
+                  )}
+                </div>
+                <div className="truncate text-[11px] text-[var(--color-ink-3)]">
+                  {c.motivo ? <>«{c.motivo}» · </> : null}
+                  {c.tirada_at ? <>ganado {format(new Date(c.tirada_at), 'd LLL', { locale: es })}</> : 'sin fecha de tirada'}
+                  {c.canje_notas ? <> · {c.canje_notas}</> : null}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => marcar.mutate({ id: c.tirada_id, entregado: true })}
+                disabled={marcar.isPending}
+                className="h-8"
+              >
+                {marcar.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Check className="mr-1 h-3.5 w-3.5" /> Entregado</>}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// 3. Resumen empleados (saldo + tiradas + pendientes entrega)
 // ---------------------------------------------------------------------------
 function ResumenSection() {
   const [verEmpleadoId, setVerEmpleadoId] = useState<string | null>(null)
@@ -391,13 +562,13 @@ function TiradasModal({
     queryFn: async (): Promise<TiradaDetalle[]> => {
       const { data, error } = await supabase
         .from('trabajadores_ruleta_tiradas')
-        .select('id, empleado_id, motivo, otorgado_at, premio_id, tirada_at, entregado, entregado_at, premio:trabajadores_ruleta_premios(nombre, tipo, valor, icono)')
+        .select('id, empleado_id, motivo, otorgado_at, premio_id, tirada_at, solicitado_at, canje_notas, entregado, entregado_at, premio:trabajadores_ruleta_premios(nombre, tipo, valor, icono)')
         .eq('empleado_id', empleadoId)
         .order('otorgado_at', { ascending: false })
       if (error) throw error
-      return (data ?? []).map((r) => {
+      return ((data ?? []) as TiradaDetalleRow[]).map((r) => {
         // PostgREST embebido: puede venir como array o como objeto según relación
-        const rawPremio = (r as { premio: { nombre: string; tipo: Tipo; valor: number; icono: string | null } | { nombre: string; tipo: Tipo; valor: number; icono: string | null }[] | null }).premio
+        const rawPremio = r.premio
         const premio = Array.isArray(rawPremio) ? (rawPremio[0] ?? null) : rawPremio
         return {
           id: String(r.id),
@@ -411,6 +582,8 @@ function TiradasModal({
           premio_valor: premio ? Number(premio.valor) : null,
           premio_icono: premio?.icono ?? null,
           tirada_at: r.tirada_at ? String(r.tirada_at) : null,
+          solicitado_at: r.solicitado_at ? String(r.solicitado_at) : null,
+          canje_notas: r.canje_notas ? String(r.canje_notas) : null,
           entregado: Boolean(r.entregado),
           entregado_at: r.entregado_at ? String(r.entregado_at) : null,
         }
@@ -489,6 +662,7 @@ function TiradasModal({
                     {t.motivo ? <>«{t.motivo}» · </> : null}
                     Otorgada {format(new Date(t.otorgado_at), "d LLL HH:mm", { locale: es })}
                     {t.tirada_at && <> · tirada {format(new Date(t.tirada_at), "d LLL", { locale: es })}</>}
+                    {t.solicitado_at && <> · pedido {format(new Date(t.solicitado_at), "d LLL HH:mm", { locale: es })}</>}
                     {t.entregado && t.entregado_at && <> · entregado {format(new Date(t.entregado_at), "d LLL", { locale: es })}</>}
                   </div>
                 </div>
@@ -530,7 +704,7 @@ function TiradasModal({
 }
 
 // ---------------------------------------------------------------------------
-// 3. Catálogo de premios (CRUD)
+// 4. Catálogo de premios (CRUD)
 // ---------------------------------------------------------------------------
 function CatalogoSection() {
   const qc = useQueryClient()

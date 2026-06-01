@@ -21,6 +21,7 @@ import { PanelEmpresa } from '@/modules/dashboard/components/PanelEmpresa'
 import { NotificacionesPanel } from '@/modules/dashboard/components/NotificacionesPanel'
 import { PvpSugeridoCard } from '@/modules/dashboard/components/PvpSugeridoCard'
 import { FichajeCard } from '@/modules/trabajadores/components/FichajeCard'
+import { RuletaPremiosSelfCard } from '@/modules/trabajadores/components/RuletaPremiosSelfCard'
 import { RuletaSelfCard } from '@/modules/trabajadores/components/RuletaSelfCard'
 import {
   useClientesProgramaPendientes, useClientesRiesgoFuga, useCostesSubiendo,
@@ -333,6 +334,7 @@ function HomeEmpleado() {
         <NotificacionesPanel />
         <FichajeCard />
         <RuletaSelfCard />
+        <RuletaPremiosSelfCard compact />
 
         <section>
           <h2 className="label-caps mb-3">Tus módulos</h2>
