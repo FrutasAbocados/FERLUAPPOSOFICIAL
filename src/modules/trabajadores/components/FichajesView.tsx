@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { addDays, format, parseISO, startOfWeek, subWeeks, addWeeks } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, MapPin, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Map as MapIcon, MapPin, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -11,6 +11,8 @@ import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
 import { FichajesActivosPanel } from './FichajesActivosPanel'
 import { FichajesStatsPanel } from './FichajesStatsPanel'
+
+const FichajeMiniMapa = lazy(() => import('./FichajeMiniMapa').then(m => ({ default: m.FichajeMiniMapa })))
 
 interface SemanaRow {
   empleado_id: string
@@ -255,6 +257,25 @@ function DetalleEmpleadoModal({
     [lista.data],
   )
 
+  // Agrupado por día (lista llega ordenada ts_in desc → días desc, dentro desc)
+  const porDia = useMemo(() => {
+    const map = new Map<string, FichajeMes[]>()
+    for (const f of lista.data ?? []) {
+      const arr = map.get(f.fecha) ?? []
+      arr.push(f)
+      map.set(f.fecha, arr)
+    }
+    return [...map.entries()]
+  }, [lista.data])
+
+  const [mapaAbierto, setMapaAbierto] = useState<Set<string>>(new Set())
+  const toggleMapa = (id: string) =>
+    setMapaAbierto(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+
   const borrar = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.rpc('trabajadores_fichaje_admin_borrar', { p_id: id })
@@ -299,60 +320,90 @@ function DetalleEmpleadoModal({
 
         <div className="max-h-[60vh] overflow-y-auto">
           {lista.isLoading && <p className="px-5 py-4 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
-          {!lista.isLoading && (lista.data ?? []).length === 0 && (
+          {!lista.isLoading && porDia.length === 0 && (
             <p className="px-5 py-4 text-sm text-[var(--color-ink-3)]">Sin fichajes este mes</p>
           )}
-          <ul className="divide-y divide-[var(--color-border)]">
-            {(lista.data ?? []).map((f) => (
-              <li key={f.id} className="flex items-center gap-3 px-5 py-2.5">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm tabular-nums text-[var(--color-ink)]">
-                    {format(parseISO(f.ts_in), "d LLL · HH:mm", { locale: es, })}
-                    {' → '}
-                    {f.ts_out ? format(parseISO(f.ts_out), 'HH:mm', { locale: es }) : <span className="text-emerald-700">EN</span>}
-                  </div>
-                  <div className="text-xs text-[var(--color-ink-3)] tabular-nums">
-                    {f.horas != null ? `${fmtHoras(f.horas)} · ` : ''}
-                    <span className={f.fuente === 'manual_admin' ? 'text-amber-700' : ''}>
-                      {f.fuente === 'manual_admin' ? 'manual' : 'app'}
-                    </span>
-                    {f.lat_in != null && f.lng_in != null && (
-                      <>
-                        {' · '}
-                        <a href={`https://www.google.com/maps?q=${f.lat_in},${f.lng_in}`} target="_blank" rel="noreferrer"
-                          className="inline-flex items-center gap-0.5 text-[var(--color-primary-2)] hover:underline" title="Ubicación de entrada">
-                          <MapPin className="h-3 w-3" />entrada
-                        </a>
-                      </>
-                    )}
-                    {f.lat_out != null && f.lng_out != null && (
-                      <>
-                        {' · '}
-                        <a href={`https://www.google.com/maps?q=${f.lat_out},${f.lng_out}`} target="_blank" rel="noreferrer"
-                          className="inline-flex items-center gap-0.5 text-[var(--color-primary-2)] hover:underline" title="Ubicación de salida">
-                          <MapPin className="h-3 w-3" />salida
-                        </a>
-                      </>
-                    )}
-                    {f.nota && ` · ${f.nota}`}
-                  </div>
+          {porDia.map(([fecha, items]) => {
+            const totalDia = items.reduce((s, f) => s + (f.horas ?? 0), 0)
+            return (
+              <div key={fecha} className="mb-1">
+                <div className="sticky top-0 z-[1] flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-2)] capitalize">
+                    {format(parseISO(fecha), "EEEE d 'de' LLLL", { locale: es })}
+                  </span>
+                  <span className="text-xs tabular-nums text-[var(--color-ink-3)]">
+                    {fmtHoras(totalDia)} · {items.length} fichaje{items.length > 1 ? 's' : ''}
+                  </span>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => onEditar(f)}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={async () => {
-                    const ok = await confirm({ title: '¿Borrar fichaje?', description: 'Esta acción no se puede deshacer.', confirmLabel: 'Borrar' })
-                    if (ok) borrar.mutate(f.id)
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5 text-rose-600" />
-                </Button>
-              </li>
-            ))}
-          </ul>
+                <ul className="space-y-1.5 px-3 py-2">
+                  {items.map((f) => {
+                    const tieneGeo = (f.lat_in != null && f.lng_in != null) || (f.lat_out != null && f.lng_out != null)
+                    const open = mapaAbierto.has(f.id)
+                    const horaIn = format(parseISO(f.ts_in), 'HH:mm', { locale: es })
+                    const horaOut = f.ts_out ? format(parseISO(f.ts_out), 'HH:mm', { locale: es }) : null
+                    return (
+                      <li key={f.id} className="rounded-lg border border-[var(--color-border)]">
+                        <div className="flex items-center gap-2 px-3 py-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm tabular-nums text-[var(--color-ink)]">
+                              {horaIn}{' → '}{horaOut ?? <span className="font-semibold text-emerald-600">EN CURSO</span>}
+                              {f.horas != null && <span className="ml-2 text-[var(--color-ink-3)]">· {fmtHoras(f.horas)}</span>}
+                            </div>
+                            <div className="text-[11px] text-[var(--color-ink-3)]">
+                              <span className={f.fuente === 'manual_admin' ? 'text-amber-600' : ''}>
+                                {f.fuente === 'manual_admin' ? 'manual' : 'app'}
+                              </span>
+                              {tieneGeo
+                                ? <span className="ml-1 inline-flex items-center gap-0.5 text-[var(--mint)]"><MapPin className="h-3 w-3" />con ubicación</span>
+                                : <span className="ml-1">· sin ubicación</span>}
+                              {f.nota && <span> · {f.nota}</span>}
+                            </div>
+                          </div>
+                          {tieneGeo && (
+                            <Button size="sm" variant={open ? 'primary' : 'outline'} onClick={() => toggleMapa(f.id)} title="Ver en mapa">
+                              <MapIcon className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" onClick={() => onEditar(f)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={async () => {
+                              const ok = await confirm({ title: '¿Borrar fichaje?', description: 'Esta acción no se puede deshacer.', confirmLabel: 'Borrar' })
+                              if (ok) borrar.mutate(f.id)
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                          </Button>
+                        </div>
+                        {open && (
+                          <div className="px-3 pb-3">
+                            <Suspense fallback={<div className="flex h-[180px] items-center justify-center rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-ink-3)]">Cargando mapa…</div>}>
+                              <FichajeMiniMapa latIn={f.lat_in} lngIn={f.lng_in} latOut={f.lat_out} lngOut={f.lng_out} horaIn={horaIn} horaOut={horaOut ?? undefined} />
+                            </Suspense>
+                            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[var(--color-ink-3)]">
+                              {f.lat_in != null && f.lng_in != null && (
+                                <a href={`https://www.google.com/maps?q=${f.lat_in},${f.lng_in}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">
+                                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> entrada en Google Maps
+                                </a>
+                              )}
+                              {f.lat_out != null && f.lng_out != null && (
+                                <a href={`https://www.google.com/maps?q=${f.lat_out},${f.lng_out}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">
+                                  <span className="h-2 w-2 rounded-full bg-rose-500" /> salida en Google Maps
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )
+          })}
         </div>
     </Modal>
   )
