@@ -7,8 +7,34 @@ export type Jornada = {
   hora_inicio: string | null
   hora_fin: string | null
   notas: string | null
+  origen: 'admin' | 'empleado'
+  enviado_at: string | null
+  revisado: boolean
+  revisado_at: string | null
+  efectivo_billetes: number | null
+  efectivo_monedas: number | null
   created_at: string
   updated_at: string
+}
+
+export type GastoTipo = 'compras' | 'gasolina' | 'incidencia'
+
+export type JornadaGasto = {
+  id: string
+  jornada_id: string
+  tipo: GastoTipo
+  concepto: string
+  importe: number
+  orden: number
+  gasto_variable_id: string | null
+  created_at: string
+}
+
+export type GastoInput = {
+  tipo: GastoTipo
+  concepto: string
+  importe: number
+  orden: number
 }
 
 export type JornadaLinea = {

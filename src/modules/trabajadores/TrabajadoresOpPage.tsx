@@ -17,8 +17,9 @@ const EmpleadoPuntosView = lazy(() => import('./components/EmpleadoPuntosView').
 const EmpleadoCreditoView = lazy(() => import('./components/EmpleadoCreditoView').then(m => ({ default: m.EmpleadoCreditoView })))
 const EmpleadoColabView = lazy(() => import('./components/EmpleadoColabView').then(m => ({ default: m.EmpleadoColabView })))
 const EmpleadoVacacionesView = lazy(() => import('./components/EmpleadoVacacionesView').then(m => ({ default: m.EmpleadoVacacionesView })))
+const EmpleadoCierreView = lazy(() => import('./components/EmpleadoCierreView').then(m => ({ default: m.EmpleadoCierreView })))
 
-type Tab = 'dashboard' | 'puntos' | 'vacaciones' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'colab'
+type Tab = 'dashboard' | 'puntos' | 'vacaciones' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'colab' | 'cierre'
 
 const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'dashboard',     l: 'Dashboard',          Icon: BarChart3 },
@@ -32,7 +33,7 @@ const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'productividad', l: 'Plus productividad', Icon: Construction },
 ]
 
-const TABS_EMPLEADO: Tab[] = ['dashboard', 'puntos', 'vacaciones', 'credito', 'colab']
+const TABS_EMPLEADO: Tab[] = ['dashboard', 'cierre', 'puntos', 'vacaciones', 'credito', 'colab']
 const TAB_KEYS = new Set<string>([...TABS.map(t => t.k), ...TABS_EMPLEADO])
 
 const isTab = (v: string | null | undefined): v is Tab =>
@@ -116,6 +117,7 @@ function EmpleadoContent({
 
       <Suspense fallback={<TabFallback />}>
         {empTab === 'dashboard'    && <DashboardView modoEmpleado />}
+        {empTab === 'cierre'       && (empleado ? <EmpleadoCierreView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'puntos'       && (empleado ? <EmpleadoPuntosView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'credito'      && (empleado ? <EmpleadoCreditoView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'vacaciones'   && (empleado ? <EmpleadoVacacionesView empleado={empleado} /> : <DashboardView modoEmpleado />)}

@@ -155,8 +155,15 @@ function JornadaCard({
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <p className="text-base font-semibold text-[var(--color-ink)]">
+          <p className="flex items-center gap-2 text-base font-semibold text-[var(--color-ink)]">
             {empleadoNombre}
+            {jornada.origen === 'empleado' && (
+              jornada.revisado ? (
+                <span className="rounded-full bg-[var(--mint)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--mint)]">✓ Revisado</span>
+              ) : (
+                <span className="rounded-full bg-[var(--coral)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--coral)]">⏳ Pendiente revisar</span>
+              )
+            )}
           </p>
           <p className="text-xs text-[var(--color-ink-3)]">
             {horas} · {stats.count} reparto{stats.count === 1 ? '' : 's'}

@@ -4,6 +4,7 @@ import type {
   ContactoOpt,
   EmpleadoOpt,
   Jornada,
+  JornadaGasto,
   JornadaLinea,
   LineaInput,
 } from './repartos-types'
@@ -191,6 +192,40 @@ export function useBorrarJornada() {
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
       const { error } = await supabase.from('repartos_jornada').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['repartos'] })
+    },
+  })
+}
+
+// ── Gastos de una jornada (cierre del repartidor) ───────────────────────
+export function useJornadaGastos(jornadaId: string | null) {
+  return useQuery({
+    queryKey: ['repartos', 'jornada-gastos', jornadaId] as const,
+    enabled: !!jornadaId,
+    queryFn: async (): Promise<JornadaGasto[]> => {
+      if (!jornadaId) return []
+      const { data, error } = await supabase
+        .from('repartos_jornada_gastos')
+        .select('*')
+        .eq('jornada_id', jornadaId)
+        .order('orden', { ascending: true })
+      if (error) throw error
+      return (data ?? []) as JornadaGasto[]
+    },
+  })
+}
+
+// ── Aprobar/revisar cierre del repartidor (admin) ───────────────────────
+export function useRevisarCierre() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (jornadaId: string): Promise<void> => {
+      const { error } = await supabase.rpc('repartos_jornada_revisar', {
+        p_jornada_id: jornadaId,
+      })
       if (error) throw error
     },
     onSuccess: () => {

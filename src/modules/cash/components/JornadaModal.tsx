@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Loader2, Search, Trash2, X } from 'lucide-react'
+import { CheckCircle2, Loader2, Search, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { confirm } from '@/shared/lib/confirm'
@@ -13,7 +13,9 @@ import {
   useCrearJornada,
   useEmpleadosActivos,
   useGuardarLineas,
+  useJornadaGastos,
   useJornadaLineas,
+  useRevisarCierre,
 } from '../lib/repartos-queries'
 import type {
   ContactoOpt,
@@ -80,6 +82,9 @@ function JornadaForm({
   const actualizar = useActualizarJornada()
   const borrar = useBorrarJornada()
   const guardarLineas = useGuardarLineas()
+  const revisar = useRevisarCierre()
+  const esEmpleado = jornada?.origen === 'empleado'
+  const gastos = useJornadaGastos(esEmpleado ? jornada?.id ?? null : null)
 
   const [empleadoId, setEmpleadoId] = useState<string>(jornada?.empleado_id ?? empleadoIdInicial ?? '')
   const [horaInicio, setHoraInicio] = useState<string>(jornada?.hora_inicio?.slice(0, 5) ?? '')
@@ -160,7 +165,7 @@ function JornadaForm({
   }, [horaInicio, horaFin])
 
   const guardando =
-    crear.isPending || actualizar.isPending || guardarLineas.isPending || borrar.isPending
+    crear.isPending || actualizar.isPending || guardarLineas.isPending || borrar.isPending || revisar.isPending
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -193,6 +198,42 @@ function JornadaForm({
       onClose()
     } catch (err) {
       toast({ title: 'No se pudo guardar la jornada', description: err instanceof Error ? err.message : '', variant: 'error' })
+    }
+  }
+
+  const onAprobar = async () => {
+    if (!jornada) return
+    const ok = await confirm({
+      title: '¿Aprobar el cierre del repartidor?',
+      description: 'Se marcará como revisado y los gastos pasarán al módulo Gastos. El repartidor ya no podrá modificarlo.',
+      confirmLabel: 'Aprobar',
+    })
+    if (!ok) return
+    try {
+      // Guardar primero cualquier corrección de líneas hecha por admin
+      await actualizar.mutateAsync({
+        id: jornada.id,
+        fecha,
+        empleado_id: empleadoId,
+        hora_inicio: horaInicio || null,
+        hora_fin: horaFin || null,
+        notas: notas.trim() || null,
+      })
+      await guardarLineas.mutateAsync({
+        jornadaId: jornada.id,
+        lineas: lineas.map((l, i) => ({
+          contact_id: l.contact_id,
+          contact_nombre: l.contact_nombre,
+          importe: l.importe,
+          forma_pago: l.forma_pago,
+          orden: i,
+        })),
+      })
+      await revisar.mutateAsync(jornada.id)
+      toast({ title: '✅ Cierre aprobado', description: 'Gastos enviados al módulo Gastos.', variant: 'success' })
+      onClose()
+    } catch (err) {
+      toast({ title: 'No se pudo aprobar el cierre', description: err instanceof Error ? err.message : '', variant: 'error' })
     }
   }
 
@@ -330,6 +371,45 @@ function JornadaForm({
             )}
           </div>
 
+          {esEmpleado && (
+            <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[rgba(255,255,255,.02)] p-3">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+                Cierre enviado por el repartidor
+              </h3>
+              {/* Gastos reportados */}
+              {(gastos.data ?? []).length > 0 ? (
+                <ul className="mb-3 divide-y divide-[var(--color-border)] rounded-[var(--radius-md)] border border-[var(--color-border)]">
+                  {(gastos.data ?? []).map((g) => (
+                    <li key={g.id} className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
+                      <span className="truncate text-[var(--color-ink-2)]">
+                        {g.tipo === 'gasolina' ? '⛽' : g.tipo === 'incidencia' ? '⚠️' : '🛒'} {g.concepto || `(${g.tipo})`}
+                        {g.gasto_variable_id && <span className="ml-1 text-[10px] text-[var(--mint)]">· en Gastos</span>}
+                      </span>
+                      <span className="mono tabular-nums text-[var(--color-ink)]">{euros(Number(g.importe))}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mb-3 text-xs text-[var(--color-ink-3)]">Sin gastos reportados.</p>
+              )}
+              {/* Cuadre de caja */}
+              {(() => {
+                const billetes = Number(jornada?.efectivo_billetes ?? 0)
+                const monedas = Number(jornada?.efectivo_monedas ?? 0)
+                const contado = billetes + monedas
+                const descuadre = contado - totales.efectivo
+                const cuadra = Math.abs(descuadre) < 0.01
+                return (
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <Total label="Caja contada" value={euros(contado)} />
+                    <Total label="Efectivo cobrado" value={euros(totales.efectivo)} tone="success" />
+                    <Total label="Descuadre" value={`${descuadre > 0 ? '+' : ''}${euros(descuadre)}`} tone={cuadra ? 'success' : 'danger'} />
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
               Notas
@@ -375,6 +455,12 @@ function JornadaForm({
                 {guardando ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
                 Guardar
               </Button>
+              {esEmpleado && !jornada?.revisado && (
+                <Button type="button" onClick={onAprobar} disabled={guardando || revisar.isPending} className="bg-[var(--mint)] text-white hover:opacity-90">
+                  {revisar.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}
+                  Aprobar
+                </Button>
+              )}
             </div>
           </div>
         </footer>
