@@ -101,7 +101,7 @@ export function FichajesView() {
 
   const [detalleEmp, setDetalleEmp] = useState<{ id: string; nombre: string } | null>(null)
   const [editing, setEditing] = useState<FichajeMes | null>(null)
-  const [creating, setCreating] = useState<{ empleado_id: string; nombre: string } | null>(null)
+  const [creating, setCreating] = useState<{ empleado_id: string; nombre: string; fecha?: string } | null>(null)
 
   return (
     <div className="ao-page space-y-4 py-5 md:py-6">
@@ -194,7 +194,7 @@ export function FichajesView() {
           empleadoNombre={detalleEmp.nombre}
           onClose={() => setDetalleEmp(null)}
           onEditar={(f) => setEditing(f)}
-          onCrear={() => setCreating({ empleado_id: detalleEmp.id, nombre: detalleEmp.nombre })}
+          onCrear={(fecha) => setCreating({ empleado_id: detalleEmp.id, nombre: detalleEmp.nombre, fecha })}
         />
       )}
 
@@ -209,6 +209,7 @@ export function FichajesView() {
         <CrearFichajeModal
           empleadoId={creating.empleado_id}
           empleadoNombre={creating.nombre}
+          fechaInicial={creating.fecha}
           onClose={() => setCreating(null)}
         />
       )}
@@ -223,7 +224,7 @@ function DetalleEmpleadoModal({
   empleadoNombre: string
   onClose: () => void
   onEditar: (f: FichajeMes) => void
-  onCrear: () => void
+  onCrear: (fecha?: string) => void
 }) {
   const qc = useQueryClient()
   const [mes, setMes] = useState<Date>(new Date())
@@ -313,10 +314,14 @@ function DetalleEmpleadoModal({
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
-          <Button size="sm" onClick={onCrear}>
+          <Button size="sm" onClick={() => onCrear()}>
             <Plus className="h-3.5 w-3.5" /> Añadir fichaje
           </Button>
         </div>
+
+        <p className="border-b border-[var(--color-border)] bg-[var(--color-surface-2)] px-5 py-1.5 text-[11px] text-[var(--color-ink-3)]">
+          Corrección manual: puedes añadir un fichaje en cualquier día (botón <Plus className="inline h-3 w-3" /> de cada día) o editar/borrar los existentes. Los cambios quedan marcados como «manual».
+        </p>
 
         <div className="max-h-[60vh] overflow-y-auto">
           {lista.isLoading && <p className="px-5 py-4 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
@@ -331,9 +336,19 @@ function DetalleEmpleadoModal({
                   <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-2)] capitalize">
                     {format(parseISO(fecha), "EEEE d 'de' LLLL", { locale: es })}
                   </span>
-                  <span className="text-xs tabular-nums text-[var(--color-ink-3)]">
-                    {fmtHoras(totalDia)} · {items.length} fichaje{items.length > 1 ? 's' : ''}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs tabular-nums text-[var(--color-ink-3)]">
+                      {fmtHoras(totalDia)} · {items.length} fichaje{items.length > 1 ? 's' : ''}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onCrear(fecha)}
+                      title="Añadir un fichaje manual en este día"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-primary-2)] hover:bg-[var(--color-primary-soft)]"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
                 <ul className="space-y-1.5 px-3 py-2">
                   {items.map((f) => {
@@ -409,14 +424,15 @@ function DetalleEmpleadoModal({
   )
 }
 
-function CrearFichajeModal({ empleadoId, empleadoNombre, onClose }: {
+function CrearFichajeModal({ empleadoId, empleadoNombre, fechaInicial, onClose }: {
   empleadoId: string
   empleadoNombre: string
+  fechaInicial?: string
   onClose: () => void
 }) {
   const qc = useQueryClient()
   const today = format(new Date(), 'yyyy-MM-dd')
-  const [fecha, setFecha] = useState<string>(today)
+  const [fecha, setFecha] = useState<string>(fechaInicial ?? today)
   const [tsIn, setTsIn] = useState<string>('06:30')
   const [tsOut, setTsOut] = useState<string>('14:00')
   const [nota, setNota] = useState('')

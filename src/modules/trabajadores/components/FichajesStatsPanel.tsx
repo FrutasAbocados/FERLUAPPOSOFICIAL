@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { startOfMonth, startOfWeek, format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { BarChart3, Clock, CalendarDays, Timer } from 'lucide-react'
+import { BarChart3, Clock, CalendarDays, Timer, FileDown, Loader2 } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
+import { toast } from '@/shared/lib/toast'
+import { imprimirRegistroJornada, type FichajeExport } from '../lib/registroJornadaPdf'
 
 interface StatRow {
   empleado_id: string
@@ -85,6 +87,33 @@ export function FichajesStatsPanel() {
     },
   })
 
+  const [exportando, setExportando] = useState(false)
+  async function exportarPdf() {
+    setExportando(true)
+    try {
+      const { data, error } = await supabase.rpc('trabajadores_fichajes_export', { p_desde: desde, p_hasta: hasta })
+      if (error) throw error
+      const filas = (data ?? []).map((r: Record<string, unknown>): FichajeExport => ({
+        empleado_id: String(r.empleado_id ?? ''),
+        empleado_nombre: String(r.empleado_nombre ?? ''),
+        ts_in: String(r.ts_in ?? ''),
+        ts_out: r.ts_out == null ? null : String(r.ts_out),
+        fecha: String(r.fecha ?? ''),
+        horas: r.horas == null ? null : Number(r.horas),
+        fuente: String(r.fuente ?? ''),
+      }))
+      if (filas.length === 0) {
+        toast({ title: 'Sin fichajes en el periodo', description: 'No hay nada que exportar.', variant: 'error' })
+        return
+      }
+      imprimirRegistroJornada(filas, desde, hasta)
+    } catch (e) {
+      toast({ title: 'No se pudo exportar', description: e instanceof Error ? e.message : '', variant: 'error' })
+    } finally {
+      setExportando(false)
+    }
+  }
+
   const rows = stats.data ?? []
   const conActividad = rows.filter(r => r.num_fichajes > 0)
   const maxHoras = useMemo(() => Math.max(1, ...conActividad.map(r => r.total_horas)), [conActividad])
@@ -122,6 +151,16 @@ export function FichajesStatsPanel() {
               {p.l}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={exportarPdf}
+            disabled={exportando}
+            title="Exportar Registro de Jornada (PDF para Hacienda / Inspección / gestoría)"
+            className="ml-1 inline-flex items-center gap-1.5 rounded-md bg-[var(--color-primary)] px-2.5 py-1 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+          >
+            {exportando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
+            PDF Hacienda
+          </button>
         </div>
       </header>
 
