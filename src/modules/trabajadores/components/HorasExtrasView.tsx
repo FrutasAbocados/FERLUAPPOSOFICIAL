@@ -2,9 +2,8 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO, startOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Banknote, CalendarOff, Check, Clock4, Plus, Trash2, X } from 'lucide-react'
+import { Banknote, CalendarOff, Check, Clock4, Inbox, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/shared/auth/useAuth'
-import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
@@ -14,6 +13,7 @@ import { confirm } from '@/shared/lib/confirm'
 
 type Modo = 'pago' | 'horas' | 'dias_vac'
 type Estado = 'pendiente' | 'liquidado'
+type Aprobacion = 'solicitado' | 'aprobado' | 'rechazado'
 
 type Resumen = {
   empleado_id: string
@@ -34,9 +34,11 @@ type Item = {
   empleado_nombre: string
   fecha: string
   horas: number
-  modo: Modo
+  modo: Modo | null
   estado: Estado
+  aprobacion: Aprobacion
   motivo: string | null
+  motivo_rechazo: string | null
   fecha_liquidado: string | null
   importe_eur: number
   dias_vac_eq: number
@@ -55,6 +57,10 @@ const MODO_LABEL: Record<Modo, string> = {
 }
 
 function num(v: unknown) { return Number(v ?? 0) }
+
+function mapItem(r: Item): Item {
+  return { ...r, horas: num(r.horas), importe_eur: num(r.importe_eur), dias_vac_eq: num(r.dias_vac_eq) }
+}
 
 function useEmpleados() {
   return useQuery({
@@ -99,34 +105,46 @@ function useLista(mesISO: string, empleadoId: string | null) {
       const { data, error } = await supabase.rpc('trabajadores_horas_extras_lista_mes', {
         p_mes: mesISO,
         p_empleado: empleadoId,
+        p_aprobacion: 'aprobado',
       })
       if (error) throw error
-      return (data ?? []).map((r: Item) => ({
-        ...r,
-        horas: num(r.horas),
-        importe_eur: num(r.importe_eur),
-        dias_vac_eq: num(r.dias_vac_eq),
-      }))
+      return (data ?? []).map((r: Item) => mapItem(r))
     },
   })
 }
 
-function useCrear() {
+function useSolicitudes(mesISO: string) {
+  return useQuery({
+    queryKey: ['he-solicitudes', mesISO] as const,
+    queryFn: async (): Promise<Item[]> => {
+      const { data, error } = await supabase.rpc('trabajadores_horas_extras_lista_mes', {
+        p_mes: mesISO,
+        p_empleado: null,
+        p_aprobacion: 'solicitado',
+      })
+      if (error) throw error
+      return (data ?? []).map((r: Item) => mapItem(r))
+    },
+  })
+}
+
+function useResolver() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { empleado_id: string; fecha: string; horas: number; modo: Modo; motivo: string | null }) => {
-      const { data: u } = await supabase.auth.getUser()
-      const { error } = await supabase.from('trabajadores_horas_extras').insert({
-        empleado_id: input.empleado_id,
-        fecha: input.fecha,
-        horas: input.horas,
-        modo: input.modo,
-        motivo: input.motivo,
-        creado_por: u.user?.id ?? null,
+    mutationFn: async (input: { id: string; aprobar: boolean; modo?: Modo; motivo_rechazo?: string | null }) => {
+      const { error } = await supabase.rpc('trabajadores_horas_extras_resolver', {
+        p_id: input.id,
+        p_aprobar: input.aprobar,
+        p_modo: input.modo ?? null,
+        p_motivo_rechazo: input.motivo_rechazo ?? null,
       })
       if (error) throw error
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['he-'] }); qc.invalidateQueries({ queryKey: ['he-resumen'] }); qc.invalidateQueries({ queryKey: ['he-lista'] }) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['he-solicitudes'] })
+      qc.invalidateQueries({ queryKey: ['he-resumen'] })
+      qc.invalidateQueries({ queryKey: ['he-lista'] })
+    },
   })
 }
 
@@ -163,13 +181,14 @@ export function HorasExtrasView() {
   const isAdmin = profile?.role === 'admin_full' || profile?.role === 'admin_op'
   const [mes, setMes] = useState<Date>(startOfMonth(new Date()))
   const mesISO = format(mes, 'yyyy-MM-dd')
-  const [showForm, setShowForm] = useState(false)
   const [empleadoFiltro, setEmpleadoFiltro] = useState<string>('')
 
   const { data: empleados } = useEmpleados()
   const { data: resumen } = useResumen(mesISO)
+  const { data: solicitudes } = useSolicitudes(mesISO)
   const { data: lista, isLoading } = useLista(mesISO, empleadoFiltro || null)
   const togglEstado = useTogglEstado()
+  const resolver = useResolver()
   const borrar = useBorrar()
 
   const totalImportePend = useMemo(
@@ -202,7 +221,7 @@ export function HorasExtrasView() {
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Trabajadores</p>
           <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">Horas extras</h1>
           <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">
-            Compensación a elegir: pago 10€/h · horas libres (1:1) · días vacaciones (1 día = 7 h).
+            Las pide cada trabajador. Apruébalas eligiendo compensación: pago 10€/h · horas libres (1:1) · días vacaciones (1 día = 7 h).
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -213,6 +232,41 @@ export function HorasExtrasView() {
           <Button size="sm" variant="outline" onClick={() => setMes((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}>+</Button>
         </div>
       </header>
+
+      {/* Bandeja de solicitudes de los trabajadores */}
+      <div className="ao-card mb-5 overflow-hidden p-0">
+        <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-2.5">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--color-ink)]">
+            <Inbox className="h-4 w-4 text-[var(--color-primary-2)]" /> Solicitudes pendientes
+          </h2>
+          {solicitudes && solicitudes.length > 0 && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold tabular-nums text-amber-800">
+              {solicitudes.length}
+            </span>
+          )}
+        </div>
+        {(!solicitudes || solicitudes.length === 0) ? (
+          <p className="px-4 py-4 text-sm text-[var(--color-ink-3)]">No hay peticiones por revisar este mes.</p>
+        ) : (
+          <ul className="divide-y divide-[var(--color-border)]">
+            {solicitudes.map((it) => (
+              <SolicitudRow
+                key={it.id}
+                it={it}
+                pending={resolver.isPending}
+                onAprobar={(modo) => resolver.mutate(
+                  { id: it.id, aprobar: true, modo },
+                  { onError: (e) => toast({ title: 'No se pudo aprobar', description: e instanceof Error ? e.message : '', variant: 'error' }) },
+                )}
+                onRechazar={(motivo) => resolver.mutate(
+                  { id: it.id, aprobar: false, motivo_rechazo: motivo },
+                  { onError: (e) => toast({ title: 'No se pudo rechazar', description: e instanceof Error ? e.message : '', variant: 'error' }) },
+                )}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
 
       {/* KPIs por trabajador */}
       <div className="ao-card mb-5 p-4">
@@ -248,11 +302,7 @@ export function HorasExtrasView() {
             {empleados?.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
           </select>
         </div>
-        {isAdmin && (
-          <Button size="sm" variant="primary" onClick={() => setShowForm(true)}>
-            <Plus className="mr-1 h-3.5 w-3.5" /> Nueva
-          </Button>
-        )}
+        <span className="text-xs text-[var(--color-ink-3)]">Horas extras aprobadas</span>
       </div>
 
       {isLoading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
@@ -270,7 +320,7 @@ export function HorasExtrasView() {
                 it.estado === 'liquidado' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
               }`}>{it.estado}</span>
               <div className="min-w-0">
-                <div className="truncate text-[var(--color-ink)]"><strong>{it.empleado_nombre}</strong> · {it.horas} h · {MODO_LABEL[it.modo]}</div>
+                <div className="truncate text-[var(--color-ink)]"><strong>{it.empleado_nombre}</strong> · {it.horas} h{it.modo && ` · ${MODO_LABEL[it.modo]}`}</div>
                 <div className="text-[11px] text-[var(--color-ink-3)]">
                   <span className="capitalize">{fmtFechaCorta(it.fecha)}</span>
                   {it.modo === 'pago'     && ` → ${eur(it.importe_eur)}`}
@@ -300,11 +350,81 @@ export function HorasExtrasView() {
           ))}
         </ul>
       )}
-
-      {showForm && empleados && (
-        <NuevaModal empleados={empleados} onClose={() => setShowForm(false)} />
-      )}
     </div>
+  )
+}
+
+function SolicitudRow({
+  it, pending, onAprobar, onRechazar,
+}: {
+  it: Item
+  pending: boolean
+  onAprobar: (modo: Modo) => void
+  onRechazar: (motivo: string | null) => void
+}) {
+  const [modo, setModo] = useState<Modo>('pago')
+  const [rechazando, setRechazando] = useState(false)
+  const [motivoRech, setMotivoRech] = useState('')
+
+  return (
+    <li className="px-4 py-3 text-sm">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[var(--color-ink)]"><strong>{it.empleado_nombre}</strong> · {it.horas} h</div>
+          <div className="text-[11px] text-[var(--color-ink-3)]">
+            <span className="capitalize">{fmtFechaCorta(it.fecha)}</span>
+            {it.motivo && <span> · {it.motivo}</span>}
+          </div>
+        </div>
+        <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800">
+          solicitado
+        </span>
+      </div>
+
+      {!rechazando ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-3 gap-1">
+            {(['pago', 'horas', 'dias_vac'] as Modo[]).map((m) => (
+              <button key={m} type="button" onClick={() => setModo(m)}
+                className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${
+                  modo === m
+                    ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]'
+                    : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-ink-2)] hover:border-[var(--color-primary)]'
+                }`}>
+                {MODO_LABEL[m]}
+              </button>
+            ))}
+          </div>
+          <span className="text-[11px] text-[var(--color-ink-3)]">
+            {modo === 'pago'     && `→ ${eur(it.horas * 10)}`}
+            {modo === 'horas'    && `→ ${it.horas} h libres`}
+            {modo === 'dias_vac' && `→ ${(it.horas / 7).toFixed(2)} día(s)`}
+          </span>
+          <div className="ml-auto flex gap-1.5">
+            <Button size="sm" variant="primary" disabled={pending} onClick={() => onAprobar(modo)}>
+              <Check className="mr-1 h-3.5 w-3.5" /> Aprobar
+            </Button>
+            <Button size="sm" variant="ghost" disabled={pending} onClick={() => setRechazando(true)}
+              className="text-red-600 hover:bg-red-50">
+              <X className="mr-1 h-3.5 w-3.5" /> Rechazar
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Input value={motivoRech} onChange={(e) => setMotivoRech(e.target.value)}
+            placeholder="Motivo del rechazo (opcional)" className="h-9 min-w-[180px] flex-1" />
+          <div className="ml-auto flex gap-1.5">
+            <Button size="sm" variant="ghost" disabled={pending} onClick={() => setRechazando(false)}>Cancelar</Button>
+            <Button size="sm" variant="primary" disabled={pending}
+              onClick={() => onRechazar(motivoRech.trim() || null)}
+              className="bg-red-600 hover:bg-red-700">
+              Confirmar rechazo
+            </Button>
+          </div>
+        </div>
+      )}
+    </li>
   )
 }
 
@@ -317,85 +437,5 @@ function KpiMini({ icon, label, main, sub }: { icon: React.ReactNode; label: str
       <div className="font-display text-sm font-bold tabular-nums text-[var(--color-ink)]">{main}</div>
       <div className="text-[10px] text-[var(--color-ink-3)]">{sub}</div>
     </div>
-  )
-}
-
-function NuevaModal({ empleados, onClose }: { empleados: EmpleadoOpt[]; onClose: () => void }) {
-  const [empleadoId, setEmpleadoId] = useState<string>(empleados[0]?.id ?? '')
-  const [fecha, setFecha] = useState(format(new Date(), 'yyyy-MM-dd'))
-  const [horas, setHoras] = useState<number>(1)
-  const [modo, setModo] = useState<Modo>('pago')
-  const [motivo, setMotivo] = useState('')
-  const crear = useCrear()
-
-  const submit = () => {
-    if (!empleadoId || horas <= 0) {
-      toast({ title: 'Faltan datos', variant: 'error' })
-      return
-    }
-    crear.mutate(
-      { empleado_id: empleadoId, fecha, horas, modo, motivo: motivo.trim() || null },
-      {
-        onSuccess: () => { toast({ title: 'Horas extras registradas', variant: 'success' }); onClose() },
-        onError: (e) => toast({ title: 'No se pudo guardar', description: e instanceof Error ? e.message : '', variant: 'error' }),
-      },
-    )
-  }
-
-  return (
-    <Modal onClose={onClose} size="sm">
-        <div className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
-          <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">Nuevas horas extras</h2>
-          <Button size="sm" variant="ghost" onClick={onClose}><X className="h-4 w-4" /></Button>
-        </div>
-        <div className="space-y-3 px-5 py-4">
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Trabajador</label>
-            <select value={empleadoId} onChange={(e) => setEmpleadoId(e.target.value)} className="h-9 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-sm">
-              {empleados.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Fecha</label>
-              <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="h-9" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Horas</label>
-              <Input type="number" min={0.5} max={24} step={0.5} value={horas} onChange={(e) => setHoras(Number(e.target.value))} className="h-9" />
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Compensación</label>
-            <div className="grid grid-cols-3 gap-1">
-              {(['pago', 'horas', 'dias_vac'] as Modo[]).map((m) => (
-                <button key={m} onClick={() => setModo(m)}
-                  className={`rounded-md border px-2 py-2 text-xs font-semibold transition ${
-                    modo === m
-                      ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]'
-                      : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-ink-2)] hover:border-[var(--color-primary)]'
-                  }`}>
-                  {MODO_LABEL[m]}
-                </button>
-              ))}
-            </div>
-            <p className="mt-1 text-[11px] text-[var(--color-ink-3)]">
-              {modo === 'pago'     && `→ ${eur(horas * 10)} a pagar`}
-              {modo === 'horas'    && `→ ${horas} h libres a compensar (1:1)`}
-              {modo === 'dias_vac' && `→ ${(horas / 7).toFixed(2)} día(s) extra de vacaciones`}
-            </p>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Motivo (opcional)</label>
-            <Input type="text" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej: cierre tarde, sustitución, etc." className="h-9" />
-          </div>
-        </div>
-        <div className="flex justify-end gap-2 border-t border-[var(--color-border)] px-5 py-3">
-          <Button size="sm" variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" variant="primary" disabled={crear.isPending} onClick={submit}>
-            {crear.isPending ? 'Guardando…' : 'Guardar'}
-          </Button>
-        </div>
-    </Modal>
   )
 }

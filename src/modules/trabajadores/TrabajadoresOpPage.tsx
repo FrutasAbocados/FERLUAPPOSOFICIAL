@@ -18,6 +18,7 @@ const EmpleadoCreditoView = lazy(() => import('./components/EmpleadoCreditoView'
 const EmpleadoColabView = lazy(() => import('./components/EmpleadoColabView').then(m => ({ default: m.EmpleadoColabView })))
 const EmpleadoVacacionesView = lazy(() => import('./components/EmpleadoVacacionesView').then(m => ({ default: m.EmpleadoVacacionesView })))
 const EmpleadoCierreView = lazy(() => import('./components/EmpleadoCierreView').then(m => ({ default: m.EmpleadoCierreView })))
+const EmpleadoHorasExtrasView = lazy(() => import('./components/EmpleadoHorasExtrasView').then(m => ({ default: m.EmpleadoHorasExtrasView })))
 const RuletaPremiosSelfCard = lazy(() => import('./components/RuletaPremiosSelfCard').then(m => ({ default: m.RuletaPremiosSelfCard })))
 
 type Tab = 'dashboard' | 'puntos' | 'premios' | 'vacaciones' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'colab' | 'cierre'
@@ -34,7 +35,7 @@ const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'productividad', l: 'Plus productividad', Icon: Construction },
 ]
 
-const TABS_EMPLEADO: Tab[] = ['dashboard', 'cierre', 'puntos', 'premios', 'vacaciones', 'credito', 'colab']
+const TABS_EMPLEADO: Tab[] = ['dashboard', 'cierre', 'puntos', 'premios', 'vacaciones', 'horas_extras', 'credito', 'colab']
 const TAB_KEYS = new Set<string>([...TABS.map(t => t.k), ...TABS_EMPLEADO])
 
 const isTab = (v: string | null | undefined): v is Tab =>
@@ -123,6 +124,7 @@ function EmpleadoContent({
         {empTab === 'premios'      && <EmpleadoPremiosView />}
         {empTab === 'credito'      && (empleado ? <EmpleadoCreditoView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'vacaciones'   && (empleado ? <EmpleadoVacacionesView empleado={empleado} /> : <DashboardView modoEmpleado />)}
+        {empTab === 'horas_extras' && (empleado ? <EmpleadoHorasExtrasView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'colab'        && (empleado ? <EmpleadoColabView empleado={empleado} /> : <DashboardView modoEmpleado />)}
       </Suspense>
     </div>
