@@ -18,6 +18,8 @@ const TrabajadoresOpPage = lazy(() => import('@/modules/trabajadores/Trabajadore
 const CobrosPage        = lazy(() => import('@/modules/cobros/CobrosPage').then(m => ({ default: m.CobrosPage })))
 const AgentePage        = lazy(() => import('@/modules/agente/AgentePage').then(m => ({ default: m.AgentePage })))
 const TrabajadoresPage  = lazy(() => import('@/modules/trabajadores/TrabajadoresPage').then(m => ({ default: m.TrabajadoresPage })))
+const NominasPage       = lazy(() => import('@/modules/nominas/NominasPage').then(m => ({ default: m.NominasPage })))
+const CondicionesPage   = lazy(() => import('@/modules/condiciones/CondicionesPage').then(m => ({ default: m.CondicionesPage })))
 const SueldosPage       = lazy(() => import('@/modules/sueldos/SueldosPage').then(m => ({ default: m.SueldosPage })))
 const PedidosWaPage     = lazy(() => import('@/modules/pedidos-wa/PedidosWaPage').then(m => ({ default: m.PedidosWaPage })))
 const GastosPage        = lazy(() => import('@/modules/gastos/GastosPage').then(m => ({ default: m.GastosPage })))
@@ -79,6 +81,12 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute module="bbdd_trabajadores" />}>
                     <Route path="bbdd-trabajadores" element={<Suspense fallback={<PageFallback />}><TrabajadoresPage /></Suspense>} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="nominas" />}>
+                    <Route path="nominas" element={<Suspense fallback={<PageFallback />}><NominasPage /></Suspense>} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="condiciones" />}>
+                    <Route path="condiciones" element={<Suspense fallback={<PageFallback />}><CondicionesPage /></Suspense>} />
                   </Route>
                   <Route element={<ProtectedRoute module="sueldos" />}>
                     <Route path="sueldos" element={<Suspense fallback={<PageFallback />}><SueldosPage /></Suspense>} />

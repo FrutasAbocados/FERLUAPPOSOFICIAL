@@ -10,11 +10,13 @@ import {
   ChevronRight,
   Command,
   Contact,
+  FileText,
   HandCoins,
   Home,
   LogOut,
   MessageSquare,
   Receipt,
+  ScrollText,
   Users,
   UsersRound,
   Vault,
@@ -46,6 +48,8 @@ const MODULES: ModuleNav[] = [
 const EQUIPO: ModuleNav[] = [
   { key: 'trabajadores',      label: 'Trabajadores', to: '/trabajadores',      icon: CheckSquare },
   { key: 'bbdd_trabajadores', label: 'BBDD',         to: '/bbdd-trabajadores', icon: Users },
+  { key: 'nominas',           label: 'Nóminas',      to: '/nominas',           icon: FileText },
+  { key: 'condiciones',       label: 'Condiciones',  to: '/condiciones',       icon: ScrollText },
 ]
 
 const SOCIOS: ModuleNav[] = [
@@ -64,6 +68,8 @@ const PRELOADERS: Record<string, () => void> = {
   '/tesoreria':        () => { void import('@/modules/tesoreria/TesoreriaPage') },
   '/trabajadores':     () => { void import('@/modules/trabajadores/TrabajadoresOpPage') },
   '/bbdd-trabajadores':() => { void import('@/modules/trabajadores/TrabajadoresPage') },
+  '/nominas':          () => { void import('@/modules/nominas/NominasPage') },
+  '/condiciones':      () => { void import('@/modules/condiciones/CondicionesPage') },
   '/sueldos':          () => { void import('@/modules/sueldos/SueldosPage') },
 }
 
