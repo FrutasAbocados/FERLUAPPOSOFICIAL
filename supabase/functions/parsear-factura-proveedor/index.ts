@@ -7,7 +7,7 @@
 // Body: { pdf_base64: string, filename?: string }
 // Returns:
 //   {
-//     proveedor_detectado: 'alcalde' | 'abasthosur' | 'otro',
+//     proveedor_detectado: 'alcalde' | 'abasthosur' | 'agroejido' | 'otro',
 //     proveedor_nombre: string,
 //     num_factura: string,
 //     fecha: string,                // YYYY-MM-DD
@@ -48,6 +48,7 @@ REGLAS ABSOLUTAS:
 2. Detecta el proveedor:
    - Si pone "ABASTHOSUR" o NIF "A-29076759" → "abasthosur".
    - Si pone "FRUTAS PEREZ ALCALDE" o NIF "B-92.906.189" → "alcalde".
+   - Si pone "AGROEJIDO" o "SUBASTAS" (El Ejido/Berja/Dalías) o NIF "A-04007530" → "agroejido".
    - En cualquier otro caso → "otro".
 3. Fecha en formato ISO YYYY-MM-DD. Si la factura dice "06-05-2026" o "06/05/2026" devuelve "2026-05-06".
 4. Números: punto decimal, sin separadores de miles. "1.234,56" → 1234.56.
@@ -100,8 +101,21 @@ ALCALDE / FRUTAS PEREZ ALCALDE (columnas: Trazab/Lote | Articulo | ENV | Bultos 
 - notas: incluye "ENV=<env>, Bultos=<n>, Tara=<n>" si Tara > 0 o si Bultos != K.Netos.
 - IGNORA filas de "Totales" / "Importe Bruto" / "Base Imponible" del pie.
 
-CABECERA (ambos proveedores):
-- num_factura: ABASTHOSUR usa "FACTURA: 50011191"; Alcalde usa "N.Fra. 1873/X6".
+AGROEJIDO / SUBASTAS (es un ALBARÁN; columnas: BULTOS | GÉNEROS | CANTIDAD | PRECIO | IMPORTE):
+- Es un albarán de subasta de fruta/verdura. Una sola tabla de líneas en el centro.
+- descripcion = GÉNEROS literal (ej. "BERENJENA NEGRA 1º", "TOMATE PERA 1º"). Las primeras filas pueden ser cargos de envase con nombre de tipo de caja ("PETIT SUISSE", "QUENTAR", "TURIA"): INCLÚYELAS como líneas normales — tienen PRECIO e IMPORTE y suman al total.
+- cantidad = columna CANTIDAD (el número del centro, ej. 200, 226, 519). NO uses BULTOS.
+- precio_unitario = columna PRECIO (ej. 0,762).
+- importe = columna IMPORTE (ej. 152,46).
+- unidad = "kg" para los géneros de fruta/verdura (se factura por kilo neto); "unidad" para las filas de envase (PETIT SUISSE, QUENTAR, TURIA).
+- codigo_proveedor = null (no hay código de artículo).
+- iva_pct = el % I.V.A. del recuadro "CUOTA TRIBUTARIA" (normalmente 4 para todas las líneas).
+- notas = si bajo una línea aparece "Partidas no certificadas: 25/194.905", ponlo aquí (ej. "Partida 25/194.905"); en caso contrario null.
+- IGNORA POR COMPLETO el recuadro inferior izquierdo "Envase | Retira | Saldo Act." (es el saldo de cascos/envases retornables, suele traer números NEGATIVOS como "PETIT SUISSE -100") — NO son líneas de compra. Ignora también "MATRICULAS", la fila de totales (BULTOS=160, CANTIDAD=1.228) y las "CONDICIONES DE COMPRA-VENTA".
+- VALIDACIÓN: cantidad × precio_unitario ≈ importe (tolerancia 0.05€). La suma de importes de líneas ≈ BASE IMPONIBLE.
+
+CABECERA (todos los proveedores):
+- num_factura: ABASTHOSUR usa "FACTURA: 50011191"; Alcalde usa "N.Fra. 1873/X6"; AGROEJIDO usa el "Nº.ALBARÁN" (ej. "AS25 / 46858" → "AS25/46858").
 - total_bruto = importe bruto antes de IVA.
 - total_iva = suma del IVA.
 - total = total final con IVA.

@@ -95,7 +95,7 @@ export type Abreviatura = {
 
 // ─── Compras a proveedores ───────────────────────────────────────────────────
 
-export type ProveedorDetectado = 'alcalde' | 'abasthosur' | 'otro'
+export type ProveedorDetectado = 'alcalde' | 'abasthosur' | 'agroejido' | 'otro'
 
 export type CompraLineaExtraida = {
   orden: number
@@ -158,6 +158,7 @@ export type CompraLineaDB = {
 export const PROVEEDOR_HOLDED_ID: Record<Exclude<ProveedorDetectado, 'otro'>, string> = {
   alcalde:    '6923e68c528c6c69df09b578',
   abasthosur: '6980edf440e80f35360b88ed',
+  agroejido:  '6995d3740c1522995e0b7ee6', // AGROEJIDO SOCIEDAD ANONIMA (CIF A-04007530)
 }
 
 export const UNIDAD_LABEL: Record<Unidad, string> = {

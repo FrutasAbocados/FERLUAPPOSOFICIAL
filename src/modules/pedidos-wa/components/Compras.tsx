@@ -261,7 +261,7 @@ export function Compras() {
             <>
               <Upload className="h-7 w-7 text-[var(--color-ink-2)]" />
               <div className="text-sm font-medium">Suelta aquí el PDF de la factura</div>
-              <div className="text-xs text-[var(--color-ink-2)]">Alcalde · Abasthosur · otros</div>
+              <div className="text-xs text-[var(--color-ink-2)]">Alcalde · Abasthosur · Agroejido · otros</div>
             </>
           )}
           <input
@@ -602,6 +602,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function detectadoLabel(p: ProveedorDetectado): string {
   if (p === 'alcalde')    return 'Alcalde · auto-detectado'
   if (p === 'abasthosur') return 'Abasthosur · auto-detectado'
+  if (p === 'agroejido')  return 'Agroejido · auto-detectado'
   return 'Proveedor no detectado'
 }
 
