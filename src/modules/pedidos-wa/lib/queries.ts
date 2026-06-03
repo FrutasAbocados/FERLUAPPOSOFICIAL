@@ -22,6 +22,10 @@ const KEYS = {
   pedido:          (id: string) => ['pedidos_wa', 'pedido', id] as const,
   inventario:      (fecha: string) => ['pedidos_wa', 'inventario', fecha] as const,
   cotejo:          (fecha: string) => ['pedidos_wa', 'cotejo', fecha] as const,
+  compraOperativa: (fecha: string) => ['pedidos_wa', 'compra-operativa', fecha] as const,
+  faltasSugeridas: (fecha: string) => ['pedidos_wa', 'faltas-sugeridas', fecha] as const,
+  rutaConfig:      (fecha: string) => ['pedidos_wa', 'ruta-config', fecha] as const,
+  rutaExtras:      (fecha: string) => ['pedidos_wa', 'ruta-extras', fecha] as const,
   kgPorCaja:       ['pedidos_wa', 'kg_por_caja'] as const,
   holdedLogs:      (fecha: string) => ['pedidos_wa', 'holded_logs', fecha] as const,
   comprasMes:      (yyyymm: string) => ['pedidos_wa', 'compras', yyyymm] as const,
@@ -205,6 +209,7 @@ export function useReasignarPedido() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
       qc.invalidateQueries({ queryKey: KEYS.holdedLogs(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.faltasSugeridas(vars.fecha) })
     },
   })
 }
@@ -235,6 +240,7 @@ export function useReemitirBorrador() {
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.faltasSugeridas(vars.fecha) })
     },
   })
 }
@@ -751,6 +757,8 @@ export function useActualizarLineaPedido() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
       qc.invalidateQueries({ queryKey: KEYS.cotejo(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.compraOperativa(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.faltasSugeridas(vars.fecha) })
     },
   })
 }
@@ -768,6 +776,8 @@ export function useEliminarLineaPedido() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
       qc.invalidateQueries({ queryKey: KEYS.cotejo(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.compraOperativa(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.faltasSugeridas(vars.fecha) })
     },
   })
 }
@@ -815,6 +825,8 @@ export function useAgregarLineaPedido() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
       qc.invalidateQueries({ queryKey: KEYS.cotejo(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.compraOperativa(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.faltasSugeridas(vars.fecha) })
     },
   })
 }
@@ -910,6 +922,8 @@ export function useGuardarInventario() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.inventario(vars.fecha) })
       qc.invalidateQueries({ queryKey: KEYS.cotejo(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.compraOperativa(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.faltasSugeridas(vars.fecha) })
     },
   })
 }
@@ -927,6 +941,8 @@ export function useEliminarInventario() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.inventario(vars.fecha) })
       qc.invalidateQueries({ queryKey: KEYS.cotejo(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.compraOperativa(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.faltasSugeridas(vars.fecha) })
     },
   })
 }
@@ -963,6 +979,201 @@ export function useCotejoDelDia(fecha: string) {
         a_comprar_cajas:   r.a_comprar_cajas == null ? null : Number(r.a_comprar_cajas),
       }))
     },
+  })
+}
+
+export type ProveedorCompra = 'alcalde' | 'abasthosur' | 'mercado' | 'otro'
+
+export type CompraOperativaFila = CotejoFila & {
+  producto_key: string
+  proveedor: ProveedorCompra
+  proveedor_fuente: 'manual' | 'historico' | 'default'
+  unidad_compra: string
+  contenido_compra: number
+  cantidad_compra: number
+}
+
+export function useCompraOperativa(fecha: string) {
+  return useQuery({
+    queryKey: KEYS.compraOperativa(fecha),
+    queryFn: async (): Promise<CompraOperativaFila[]> => {
+      const { data, error } = await supabase.rpc('pedidos_wa_compra_operativa', { p_fecha: fecha })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        producto:          String(r.producto ?? ''),
+        producto_key:      String(r.producto_key ?? ''),
+        unidad:            String(r.unidad ?? ''),
+        pedido_total:      Number(r.pedido_total ?? 0),
+        inventario:        Number(r.inventario ?? 0),
+        a_comprar:         Number(r.a_comprar ?? 0),
+        sobra:             Number(r.sobra ?? 0),
+        kg_por_caja:       r.kg_por_caja == null ? null : Number(r.kg_por_caja),
+        pedido_cajas:      r.pedido_cajas == null ? null : Number(r.pedido_cajas),
+        inventario_cajas:  r.inventario_cajas == null ? null : Number(r.inventario_cajas),
+        a_comprar_cajas:   r.a_comprar_cajas == null ? null : Number(r.a_comprar_cajas),
+        proveedor:         String(r.proveedor ?? 'alcalde') as ProveedorCompra,
+        proveedor_fuente:  String(r.proveedor_fuente ?? 'default') as CompraOperativaFila['proveedor_fuente'],
+        unidad_compra:     String(r.unidad_compra ?? r.unidad ?? ''),
+        contenido_compra:  Number(r.contenido_compra ?? 1),
+        cantidad_compra:   Number(r.cantidad_compra ?? r.a_comprar ?? 0),
+      }))
+    },
+  })
+}
+
+export function useActualizarProveedorCompra() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { fecha: string; producto_key: string; proveedor: ProveedorCompra }) => {
+      const { error } = await supabase
+        .from('pedidos_wa_producto_proveedor')
+        .upsert({ producto_key: input.producto_key, proveedor: input.proveedor }, { onConflict: 'producto_key' })
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.compraOperativa(vars.fecha) })
+    },
+  })
+}
+
+export function useActualizarFormatoCompra() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      fecha: string
+      producto_key: string
+      unidad_base: string
+      unidad_compra: string
+      contenido: number
+    }) => {
+      const { error } = await supabase
+        .from('pedidos_wa_formatos_compra')
+        .upsert({
+          producto_key: input.producto_key,
+          unidad_base: input.unidad_base,
+          unidad_compra: input.unidad_compra.trim(),
+          contenido: input.contenido,
+        }, { onConflict: 'producto_key,unidad_base' })
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.compraOperativa(vars.fecha) })
+    },
+  })
+}
+
+export type FaltaSugerida = { pedido_id: string; faltas_sugeridas: string }
+
+export function useFaltasSugeridas(fecha: string) {
+  return useQuery({
+    queryKey: KEYS.faltasSugeridas(fecha),
+    queryFn: async (): Promise<FaltaSugerida[]> => {
+      const { data, error } = await supabase.rpc('pedidos_wa_faltas_sugeridas', { p_fecha: fecha })
+      if (error) throw error
+      return (data ?? []) as FaltaSugerida[]
+    },
+  })
+}
+
+export function useAplicarFaltasSugeridas() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { fecha: string; faltas: FaltaSugerida[] }) => {
+      const pedidos = await supabase.from('pedidos_wa').select('id').eq('fecha', input.fecha)
+      if (pedidos.error) throw pedidos.error
+      const sugeridas = new Map(input.faltas.map((f) => [f.pedido_id, f.faltas_sugeridas]))
+      await Promise.all((pedidos.data ?? []).map(async (p) => {
+        const { error } = await supabase
+          .from('pedidos_wa')
+          .update({ faltas: sugeridas.get(p.id) ?? null })
+          .eq('id', p.id)
+        if (error) throw error
+      }))
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
+    },
+  })
+}
+
+export type RutaConfig = {
+  fecha: string
+  repartidor: Repartidor
+  salida: 'PRIMERA' | 'SEGUNDA'
+  vehiculo: string | null
+}
+
+export type RutaExtra = {
+  id: string
+  fecha: string
+  repartidor: Repartidor
+  salida: 'PRIMERA' | 'SEGUNDA'
+  orden: number
+  cliente: string
+  horario: string | null
+  factura: string | null
+  pedido: string | null
+  faltas: string | null
+}
+
+export function useRutaConfig(fecha: string) {
+  return useQuery({
+    queryKey: KEYS.rutaConfig(fecha),
+    queryFn: async (): Promise<RutaConfig[]> => {
+      const { data, error } = await supabase.from('pedidos_wa_ruta_config').select('*').eq('fecha', fecha)
+      if (error) throw error
+      return (data ?? []) as RutaConfig[]
+    },
+  })
+}
+
+export function useGuardarRutaConfig() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: RutaConfig) => {
+      const { error } = await supabase.from('pedidos_wa_ruta_config').upsert(input, { onConflict: 'fecha,repartidor,salida' })
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: KEYS.rutaConfig(vars.fecha) }),
+  })
+}
+
+export function useRutaExtras(fecha: string) {
+  return useQuery({
+    queryKey: KEYS.rutaExtras(fecha),
+    queryFn: async (): Promise<RutaExtra[]> => {
+      const { data, error } = await supabase
+        .from('pedidos_wa_ruta_extras')
+        .select('*')
+        .eq('fecha', fecha)
+        .order('orden', { ascending: true })
+      if (error) throw error
+      return (data ?? []) as RutaExtra[]
+    },
+  })
+}
+
+export function useGuardarRutaExtra() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: Partial<RutaExtra> & Pick<RutaExtra, 'fecha' | 'repartidor' | 'salida'>) => {
+      const { error } = input.id
+        ? await supabase.from('pedidos_wa_ruta_extras').update(input).eq('id', input.id)
+        : await supabase.from('pedidos_wa_ruta_extras').insert(input)
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: KEYS.rutaExtras(vars.fecha) }),
+  })
+}
+
+export function useEliminarRutaExtra() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { id: string; fecha: string }) => {
+      const { error } = await supabase.from('pedidos_wa_ruta_extras').delete().eq('id', input.id)
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: KEYS.rutaExtras(vars.fecha) }),
   })
 }
 
@@ -1024,6 +1235,8 @@ export function useUpsertFactorKgCaja() {
       qc.invalidateQueries({ queryKey: KEYS.kgPorCaja })
       // Invalidar todos los cotejos (afecta a TODOS los días)
       qc.invalidateQueries({ queryKey: ['pedidos_wa', 'cotejo'] })
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'compra-operativa'] })
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'faltas-sugeridas'] })
     },
   })
 }
@@ -1041,6 +1254,8 @@ export function useEliminarFactorKgCaja() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.kgPorCaja })
       qc.invalidateQueries({ queryKey: ['pedidos_wa', 'cotejo'] })
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'compra-operativa'] })
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'faltas-sugeridas'] })
     },
   })
 }
@@ -1339,6 +1554,119 @@ export function useSubirPedidoAHolded() {
         qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
         qc.invalidateQueries({ queryKey: KEYS.holdedLogs(vars.fecha) })
       }
+    },
+  })
+}
+
+// ─── Mapeo de costes (compras sin product_id -> producto + factor) ───────────
+
+export type CompraSinMapear = {
+  nombre_compra:    string
+  lineas:           number
+  gasto_eur:        number
+  coste_ud_mediano: number
+  provs:            number
+}
+
+export function useComprasSinMapear() {
+  return useQuery({
+    queryKey: ['pedidos_wa', 'compras_sin_mapear'] as const,
+    queryFn: async (): Promise<CompraSinMapear[]> => {
+      const { data, error } = await supabase.rpc('manager_compras_sin_mapear')
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        nombre_compra:    String(r.nombre_compra),
+        lineas:           Number(r.lineas ?? 0),
+        gasto_eur:        Number(r.gasto_eur ?? 0),
+        coste_ud_mediano: Number(r.coste_ud_mediano ?? 0),
+        provs:            Number(r.provs ?? 0),
+      }))
+    },
+    staleTime: 30_000,
+  })
+}
+
+export type CompraAlias = {
+  nombre_compra_norm: string
+  holded_product_id:  string
+  producto:           string | null
+  factor_unidad:      number
+  coste_fijo:         number | null
+  coste_resultante:   number | null
+  gasto_eur:          number | null
+  activo:             boolean
+}
+
+export function useComprasAlias() {
+  return useQuery({
+    queryKey: ['pedidos_wa', 'compras_alias'] as const,
+    queryFn: async (): Promise<CompraAlias[]> => {
+      const { data, error } = await supabase.rpc('manager_compra_alias_list')
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        nombre_compra_norm: String(r.nombre_compra_norm),
+        holded_product_id:  String(r.holded_product_id),
+        producto:           r.producto == null ? null : String(r.producto),
+        factor_unidad:      Number(r.factor_unidad ?? 1),
+        coste_fijo:         r.coste_fijo == null ? null : Number(r.coste_fijo),
+        coste_resultante:   r.coste_resultante == null ? null : Number(r.coste_resultante),
+        gasto_eur:          r.gasto_eur == null ? null : Number(r.gasto_eur),
+        activo:             Boolean(r.activo),
+      }))
+    },
+    staleTime: 30_000,
+  })
+}
+
+export type CompraAliasInput = {
+  nombre_compra_norm: string
+  holded_product_id:  string
+  factor_unidad?:     number
+  coste_fijo?:        number | null
+  nota?:              string
+}
+
+export function useUpsertCompraAlias() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: CompraAliasInput) => {
+      const { error } = await supabase
+        .from('manager_compra_alias')
+        .upsert({
+          nombre_compra_norm: input.nombre_compra_norm.toLowerCase().trim(),
+          holded_product_id:  input.holded_product_id,
+          factor_unidad:      input.factor_unidad ?? 1,
+          coste_fijo:         input.coste_fijo ?? null,
+          nota:               input.nota ?? 'mapeo manual app',
+          activo:             true,
+        }, { onConflict: 'nombre_compra_norm' })
+      if (error) throw error
+      // Recalcular coste al instante para que el margen se corrija ya
+      const { error: e2 } = await supabase.rpc('manager_refresh_coste_alias')
+      if (e2) throw e2
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'compras_sin_mapear'] })
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'compras_alias'] })
+    },
+  })
+}
+
+export function useDeleteCompraAlias() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (nombre_compra_norm: string) => {
+      const { error } = await supabase
+        .from('manager_compra_alias')
+        .delete()
+        .eq('nombre_compra_norm', nombre_compra_norm)
+      if (error) throw error
+      const { error: e2 } = await supabase.rpc('manager_refresh_coste_alias')
+      if (e2) throw e2
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'compras_sin_mapear'] })
+      qc.invalidateQueries({ queryKey: ['pedidos_wa', 'compras_alias'] })
     },
   })
 }

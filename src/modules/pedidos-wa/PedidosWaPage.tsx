@@ -1,18 +1,19 @@
 import { lazy, Suspense, useState } from 'react'
 import { PageTopbar } from '@/shared/components/PageTopbar'
-import { FileText, Package, Repeat, ShoppingCart, Truck, Users, Zap } from 'lucide-react'
+import { Coins, FileText, Package, Repeat, ShoppingCart, Truck, Users, Zap } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 
 const CapturaRapida = lazy(() => import('./components/CapturaRapida').then(m => ({ default: m.CapturaRapida })))
 const Compra = lazy(() => import('./components/Compra').then(m => ({ default: m.Compra })))
 const Compras = lazy(() => import('./components/Compras').then(m => ({ default: m.Compras })))
+const MapeoCostes = lazy(() => import('./components/MapeoCostes').then(m => ({ default: m.MapeoCostes })))
 const HojaRuta = lazy(() => import('./components/HojaRuta').then(m => ({ default: m.HojaRuta })))
 const ListaClientes = lazy(() => import('./components/ListaClientes').then(m => ({ default: m.ListaClientes })))
 const ListaPedidosHoy = lazy(() => import('./components/ListaPedidosHoy').then(m => ({ default: m.ListaPedidosHoy })))
 const Productos = lazy(() => import('./components/Productos').then(m => ({ default: m.Productos })))
 const Recurrentes = lazy(() => import('./components/Recurrentes').then(m => ({ default: m.Recurrentes })))
 
-type Tab = 'captura' | 'hoy' | 'compra' | 'compras-prov' | 'ruta' | 'clientes' | 'productos' | 'recurrentes'
+type Tab = 'captura' | 'hoy' | 'compra' | 'compras-prov' | 'mapeo-costes' | 'ruta' | 'clientes' | 'productos' | 'recurrentes'
 
 export function PedidosWaPage() {
   const [tab, setTab] = useState<Tab>('captura')
@@ -37,6 +38,9 @@ export function PedidosWaPage() {
           <TabBtn active={tab === 'compras-prov'} onClick={() => setTab('compras-prov')}>
             <FileText className="h-3.5 w-3.5" /> Facturas prov
           </TabBtn>
+          <TabBtn active={tab === 'mapeo-costes'} onClick={() => setTab('mapeo-costes')}>
+            <Coins className="h-3.5 w-3.5" /> Mapeo costes
+          </TabBtn>
           <TabBtn active={tab === 'ruta'}  onClick={() => setTab('ruta')}>
             <Truck className="h-3.5 w-3.5" /> Hoja de ruta
           </TabBtn>
@@ -59,6 +63,7 @@ export function PedidosWaPage() {
           {tab === 'hoy'          && <ListaPedidosHoy />}
           {tab === 'compra'       && <Compra />}
           {tab === 'compras-prov' && <Compras />}
+          {tab === 'mapeo-costes' && <MapeoCostes />}
           {tab === 'ruta'         && <HojaRuta />}
           {tab === 'clientes'     && <ListaClientes />}
           {tab === 'productos'    && <Productos />}
