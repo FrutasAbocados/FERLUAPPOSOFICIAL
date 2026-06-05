@@ -13,6 +13,9 @@ import type { ProductoListItem } from '../lib/types'
 import {
   useCosteManual, useDeleteCosteManual,
   useProductoClientes, useProductoCompras, useProductoHistorico, useSetCosteManual,
+  useCosteManualNombre, useDeleteCosteManualNombre,
+  useProductoClientesNombre, useProductoComprasNombre, useProductoHistoricoNombre,
+  useSetCosteManualNombre,
 } from '../lib/queries'
 
 const eur = eurosOrDash
@@ -27,34 +30,61 @@ interface Props {
 }
 
 export function ProductoDetalleModal({ producto, period, onClose }: Props) {
-  const clientes = useProductoClientes(producto.product_id, period)
-  const compras = useProductoCompras(producto.product_id)
-  const historico = useProductoHistorico(producto.product_id, 12)
-  const costeManual = useCosteManual(producto.product_id)
+  // Productos de facturas PDF de proveedor no tienen product_id → todo va por nombre.
+  const pid = producto.product_id
+  const byName = !pid
+  const nombre = producto.nombre
+
+  const clientesId = useProductoClientes(pid, period)
+  const clientesNm = useProductoClientesNombre(byName ? nombre : null, period)
+  const clientes = byName ? clientesNm : clientesId
+
+  const comprasId = useProductoCompras(pid)
+  const comprasNm = useProductoComprasNombre(byName ? nombre : null)
+  const compras = byName ? comprasNm : comprasId
+
+  const historicoId = useProductoHistorico(pid, 12)
+  const historicoNm = useProductoHistoricoNombre(byName ? nombre : null, 12)
+  const historico = byName ? historicoNm : historicoId
+
+  const costeManual = useCosteManual(pid)
+  const costeManualNm = useCosteManualNombre(byName ? nombre : null)
   const setCoste = useSetCosteManual()
   const delCoste = useDeleteCosteManual()
+  const setCosteNm = useSetCosteManualNombre()
+  const delCosteNm = useDeleteCosteManualNombre()
 
   const today = format(new Date(), 'yyyy-MM-dd')
   const [costeDraft, setCosteDraft] = useState({ coste: '', nota: '', fecha_desde: today })
 
   const guardarCoste = async () => {
     const v = Number(costeDraft.coste.replace(',', '.'))
-    if (!producto.product_id || !Number.isFinite(v) || v < 0 || !costeDraft.fecha_desde) return
+    if (!Number.isFinite(v) || v < 0) return
     try {
-      await setCoste.mutateAsync({
-        product_id:  producto.product_id,
-        fecha_desde: costeDraft.fecha_desde,
-        coste_eur:   v,
-        nota:        costeDraft.nota.trim() || null,
-      })
+      if (byName) {
+        await setCosteNm.mutateAsync({ nombre, coste_eur: v, nota: costeDraft.nota.trim() || null })
+      } else {
+        if (!costeDraft.fecha_desde) return
+        await setCoste.mutateAsync({
+          product_id:  pid!,
+          fecha_desde: costeDraft.fecha_desde,
+          coste_eur:   v,
+          nota:        costeDraft.nota.trim() || null,
+        })
+      }
       setCosteDraft({ coste: '', nota: '', fecha_desde: today })
     } catch (e) { toast({ title: 'No se pudo guardar', description: e instanceof Error ? e.message : '', variant: 'error' }) }
   }
   const quitarCoste = async (fecha_desde: string) => {
-    if (!producto.product_id) return
-    try { await delCoste.mutateAsync({ product_id: producto.product_id, fecha_desde }) }
+    if (!pid) return
+    try { await delCoste.mutateAsync({ product_id: pid, fecha_desde }) }
     catch (e) { toast({ title: 'No se pudo quitar', description: e instanceof Error ? e.message : '', variant: 'error' }) }
   }
+  const quitarCosteNombre = async () => {
+    try { await delCosteNm.mutateAsync({ nombre }) }
+    catch (e) { toast({ title: 'No se pudo quitar', description: e instanceof Error ? e.message : '', variant: 'error' }) }
+  }
+  const guardandoCoste = setCoste.isPending || setCosteNm.isPending
 
   const chartData = (compras.data ?? [])
     .filter(c => c.fecha && c.precio_unit != null)
@@ -103,22 +133,24 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
           <Tile label="Última venta" value={fmt(producto.ultima_venta)} />
         </div>
 
-        {/* Override coste manual con fecha efectiva */}
+        {/* Override coste manual */}
         <section className="border-b border-[var(--color-border)] bg-[color:rgba(245,158,11,0.06)] px-5 py-4">
           <h3 className="text-sm font-semibold text-[var(--color-ink)]">
             Coste manual (override)
-            {(costeManual.data ?? []).length > 0 && (
+            {!byName && (costeManual.data ?? []).length > 0 && (
               <span className="ml-2 rounded-full bg-[oklch(92%_.08_82_/_0.85)] px-2 py-0.5 text-xs text-[var(--color-primary)] dark:bg-[oklch(28%_.08_72_/_0.42)]">
                 {(costeManual.data ?? []).length} entrada{(costeManual.data ?? []).length > 1 ? 's' : ''}
               </span>
             )}
           </h3>
           <p className="mt-0.5 text-xs text-[var(--color-ink-3)]">
-            El coste vigente en cada venta es el override más reciente con fecha ≤ fecha de la venta. El histórico queda intacto.
+            {byName
+              ? 'Este producto no está enlazado a Holded (entra por factura PDF). El coste se fija por nombre y manda sobre cualquier cálculo automático.'
+              : 'El coste vigente en cada venta es el override más reciente con fecha ≤ fecha de la venta. El histórico queda intacto.'}
           </p>
 
-          {/* Historial de overrides */}
-          {(costeManual.data ?? []).length > 0 && (
+          {/* Modo product_id: historial de overrides con fecha */}
+          {!byName && (costeManual.data ?? []).length > 0 && (
             <ul className="mt-2 space-y-1">
               {(costeManual.data ?? []).map(row => (
                 <li key={row.fecha_desde} className="flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm">
@@ -138,17 +170,35 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
             </ul>
           )}
 
-          {/* Formulario nuevo override */}
-          <div className="mt-2 flex flex-wrap items-end gap-2">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Desde</label>
-              <Input
-                type="date"
-                value={costeDraft.fecha_desde}
-                onChange={(e) => setCosteDraft(p => ({ ...p, fecha_desde: e.target.value }))}
-                className="h-9 w-36"
-              />
+          {/* Modo nombre: valor único vigente */}
+          {byName && costeManualNm.data && (
+            <div className="mt-2 flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm">
+              <span className="font-medium tabular-nums text-[var(--color-ink)]">{eur(costeManualNm.data.coste_eur)}/ud</span>
+              {costeManualNm.data.nota && <span className="flex-1 truncate text-xs text-[var(--color-ink-3)]">{costeManualNm.data.nota}</span>}
+              <button
+                type="button"
+                onClick={quitarCosteNombre}
+                disabled={delCosteNm.isPending}
+                className="ml-auto text-xs text-[var(--coral)] hover:underline disabled:opacity-40"
+              >
+                Quitar
+              </button>
             </div>
+          )}
+
+          {/* Formulario nuevo coste */}
+          <div className="mt-2 flex flex-wrap items-end gap-2">
+            {!byName && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Desde</label>
+                <Input
+                  type="date"
+                  value={costeDraft.fecha_desde}
+                  onChange={(e) => setCosteDraft(p => ({ ...p, fecha_desde: e.target.value }))}
+                  className="h-9 w-36"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Coste €/ud</label>
               <Input
@@ -167,8 +217,8 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
                 className="h-9"
               />
             </div>
-            <Button size="sm" onClick={guardarCoste} disabled={!costeDraft.coste || !costeDraft.fecha_desde || setCoste.isPending}>
-              {setCoste.isPending ? 'Guardando…' : 'Añadir override'}
+            <Button size="sm" onClick={guardarCoste} disabled={!costeDraft.coste || (!byName && !costeDraft.fecha_desde) || guardandoCoste}>
+              {guardandoCoste ? 'Guardando…' : byName ? (costeManualNm.data ? 'Actualizar coste' : 'Fijar coste') : 'Añadir override'}
             </Button>
           </div>
         </section>

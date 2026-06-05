@@ -6,32 +6,39 @@ import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { toast } from '@/shared/lib/toast'
 import { errorMessage } from '@/shared/lib/errors'
-import { useSetCosteManual } from '../lib/queries'
+import type { ProductoListItem } from '../lib/types'
+import { useSetCosteManual, useSetCosteManualNombre } from '../lib/queries'
 
 type Props = {
-  productId: string
-  productNombre: string
-  costeActual?: number | null
+  producto: ProductoListItem
   onClose: () => void
 }
 
 /** Modal mínimo para asignar coste manual desde la lista, sin abrir el detalle completo. */
-export function CosteManualQuickFix({ productId, productNombre, costeActual, onClose }: Props) {
+export function CosteManualQuickFix({ producto, onClose }: Props) {
+  const byName = !producto.product_id
+  const productNombre = producto.nombre
   const today = new Date().toISOString().slice(0, 10)
-  const [valor, setValor] = useState<string>(costeActual != null ? String(costeActual) : '')
+  const [valor, setValor] = useState<string>(producto.coste_unidad != null ? String(producto.coste_unidad) : '')
   const [nota, setNota] = useState('')
   const [fechaDesde, setFechaDesde] = useState(today)
-  const set = useSetCosteManual()
+  const setId = useSetCosteManual()
+  const setNombre = useSetCosteManualNombre()
+  const pending = setId.isPending || setNombre.isPending
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const n = Number(valor)
+    const n = Number(valor.replace(',', '.'))
     if (!Number.isFinite(n) || n <= 0) {
       toast({ title: 'Coste inválido', variant: 'error' })
       return
     }
     try {
-      await set.mutateAsync({ product_id: productId, fecha_desde: fechaDesde, coste_eur: n, nota: nota || null })
+      if (byName) {
+        await setNombre.mutateAsync({ nombre: productNombre, coste_eur: n, nota: nota || null })
+      } else {
+        await setId.mutateAsync({ product_id: producto.product_id!, fecha_desde: fechaDesde, coste_eur: n, nota: nota || null })
+      }
       toast({ title: 'Coste asignado', variant: 'success' })
       onClose()
     } catch (e: unknown) {
@@ -52,18 +59,22 @@ export function CosteManualQuickFix({ productId, productNombre, costeActual, onC
           <div className="rounded-md bg-[var(--color-surface-2)] px-3 py-2 text-xs text-[var(--color-ink-2)]">
             <div className="font-semibold text-[var(--color-ink)]">{productNombre}</div>
             <div className="mt-0.5 text-[10px] text-[var(--color-ink-3)]">
-              Anula el cálculo automático (media 4 últimas compras). De aquí en adelante el sistema usa este coste.
+              {byName
+                ? 'Producto sin enlace a Holded (factura PDF). Se fija el coste por nombre y manda sobre el cálculo automático.'
+                : 'Anula el cálculo automático (media 4 últimas compras). De aquí en adelante el sistema usa este coste.'}
             </div>
           </div>
-          <div>
-            <Label htmlFor="fecha_desde">Vigente desde</Label>
-            <Input
-              id="fecha_desde"
-              type="date"
-              value={fechaDesde}
-              onChange={(e) => setFechaDesde(e.target.value)}
-            />
-          </div>
+          {!byName && (
+            <div>
+              <Label htmlFor="fecha_desde">Vigente desde</Label>
+              <Input
+                id="fecha_desde"
+                type="date"
+                value={fechaDesde}
+                onChange={(e) => setFechaDesde(e.target.value)}
+              />
+            </div>
+          )}
           <div>
             <Label htmlFor="coste">Coste por unidad (€)</Label>
             <Input
@@ -83,7 +94,7 @@ export function CosteManualQuickFix({ productId, productNombre, costeActual, onC
         </div>
         <footer className="flex justify-end gap-2 border-t border-[var(--color-border)] px-4 py-3">
           <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" disabled={set.isPending}>Guardar</Button>
+          <Button type="submit" disabled={pending}>Guardar</Button>
         </footer>
       </form>
     </Modal>

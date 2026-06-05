@@ -30,7 +30,7 @@ export function ProductosView({ period }: Props) {
   const [soloSinCoste, setSoloSinCoste] = useState(false)
 
   const sinCosteCount = useMemo(
-    () => (data ?? []).filter((r) => r.coste_unidad == null && r.product_id).length,
+    () => (data ?? []).filter((r) => r.coste_unidad == null).length,
     [data],
   )
 
@@ -38,7 +38,7 @@ export function ProductosView({ period }: Props) {
     let rows = data ?? []
     const qq = q.trim().toLowerCase()
     if (qq) rows = rows.filter(r => r.nombre.toLowerCase().includes(qq))
-    if (soloSinCoste) rows = rows.filter(r => r.coste_unidad == null && r.product_id)
+    if (soloSinCoste) rows = rows.filter(r => r.coste_unidad == null)
     rows = [...rows].sort((a, b) => {
       switch (sortKey) {
         case 'ventas':     return b.ventas - a.ventas
@@ -127,19 +127,15 @@ export function ProductosView({ period }: Props) {
                 <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">{p.margen_pct == null ? '—' : `${p.margen_pct.toFixed(0)}%`}</div>
                 <div className="hidden text-right tabular-nums md:block">
                   {p.coste_unidad == null ? (
-                    p.product_id ? (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setQuickFix(p) }}
-                        className="inline-flex items-center gap-1 rounded-full bg-[oklch(30%_.12_25_/_0.12)] px-2 py-0.5 text-[10px] font-semibold text-[var(--coral)] hover:bg-[oklch(30%_.12_25_/_0.18)]"
-                        title="Asignar coste manual"
-                      >
-                        <Wand2 className="h-3 w-3" />
-                        Asignar
-                      </button>
-                    ) : (
-                      <span className="text-[var(--color-ink-3)]">—</span>
-                    )
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setQuickFix(p) }}
+                      className="inline-flex items-center gap-1 rounded-full bg-[oklch(30%_.12_25_/_0.12)] px-2 py-0.5 text-[10px] font-semibold text-[var(--coral)] hover:bg-[oklch(30%_.12_25_/_0.18)]"
+                      title="Asignar coste manual"
+                    >
+                      <Wand2 className="h-3 w-3" />
+                      Asignar
+                    </button>
                   ) : (
                     <span className="text-[var(--color-ink-3)]">{p.coste_unidad.toFixed(2)}€</span>
                   )}
@@ -158,17 +154,12 @@ export function ProductosView({ period }: Props) {
         </ul>
       </div>
 
-      {selected && selected.product_id && (
+      {selected && (
         <ProductoDetalleModal producto={selected} period={period} onClose={() => setSelected(null)} />
       )}
 
-      {quickFix && quickFix.product_id && (
-        <CosteManualQuickFix
-          productId={quickFix.product_id}
-          productNombre={quickFix.nombre}
-          costeActual={quickFix.coste_unidad}
-          onClose={() => setQuickFix(null)}
-        />
+      {quickFix && (
+        <CosteManualQuickFix producto={quickFix} onClose={() => setQuickFix(null)} />
       )}
     </div>
   )

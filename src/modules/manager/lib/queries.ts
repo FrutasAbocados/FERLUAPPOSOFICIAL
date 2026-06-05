@@ -498,6 +498,120 @@ export function useDeleteCosteManual() {
   })
 }
 
+// ── Detalle de producto POR NOMBRE (productos sin product_id: facturas PDF) ──
+export function useProductoClientesNombre(nombre: string | null, period: Period) {
+  return useQuery({
+    queryKey: ['manager', 'producto-nombre', nombre, 'clientes', periodKey(period)] as const,
+    enabled: !!nombre,
+    queryFn: async (): Promise<ProductoCliente[]> => {
+      if (!nombre) return []
+      const { data, error } = await supabase.rpc('manager_producto_clientes_nombre', {
+        p_nombre: nombre, p_from: period.from, p_to: period.to, p_limit: 30,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        contact_name_canon: String(r.contact_name_canon ?? '(sin contacto)'),
+        veces:              Number(r.veces ?? 0),
+        unidades:           Number(r.unidades ?? 0),
+        ventas_subtotal:    Number(r.ventas_subtotal ?? 0),
+        margen:             Number(r.margen ?? 0),
+        margen_pct:         r.margen_pct == null ? null : Number(r.margen_pct),
+        ultima_compra:      r.ultima_compra == null ? null : String(r.ultima_compra),
+      }))
+    },
+  })
+}
+
+export function useProductoHistoricoNombre(nombre: string | null, meses = 12) {
+  return useQuery({
+    queryKey: ['manager', 'producto-nombre', nombre, 'historico', meses] as const,
+    enabled: !!nombre,
+    queryFn: async (): Promise<ProductoHistoricoMes[]> => {
+      if (!nombre) return []
+      const { data, error } = await supabase.rpc('manager_producto_historico_nombre', {
+        p_nombre: nombre, p_meses: meses,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        mes:                  String(r.mes ?? ''),
+        unidades_vendidas:    Number(r.unidades_vendidas ?? 0),
+        ventas:               Number(r.ventas ?? 0),
+        precio_venta_medio:   r.precio_venta_medio == null ? null : Number(r.precio_venta_medio),
+        unidades_compradas:   Number(r.unidades_compradas ?? 0),
+        compras:              Number(r.compras ?? 0),
+        precio_compra_medio:  r.precio_compra_medio == null ? null : Number(r.precio_compra_medio),
+      }))
+    },
+  })
+}
+
+export function useProductoComprasNombre(nombre: string | null) {
+  return useQuery({
+    queryKey: ['manager', 'producto-nombre', nombre, 'compras'] as const,
+    enabled: !!nombre,
+    queryFn: async (): Promise<ProductoCompra[]> => {
+      if (!nombre) return []
+      const { data, error } = await supabase.rpc('manager_producto_compras_nombre', {
+        p_nombre: nombre, p_limit: 60,
+      })
+      if (error) throw error
+      return (data ?? []) as ProductoCompra[]
+    },
+  })
+}
+
+// ── Coste manual POR NOMBRE (un valor por nombre, sin histórico de fechas) ──
+export interface CosteManualNombreRow {
+  nombre_norm: string
+  coste_eur: number
+  nota: string | null
+  updated_at: string | null
+}
+
+export function useCosteManualNombre(nombre: string | null) {
+  return useQuery({
+    queryKey: ['manager', 'producto-nombre', nombre, 'costeManual'] as const,
+    enabled: !!nombre,
+    queryFn: async (): Promise<CosteManualNombreRow | null> => {
+      if (!nombre) return null
+      const { data, error } = await supabase.rpc('manager_coste_manual_nombre_get', { p_nombre: nombre })
+      if (error) throw error
+      const row = (data ?? [])[0] as Record<string, unknown> | undefined
+      if (!row) return null
+      return {
+        nombre_norm: String(row.nombre_norm ?? ''),
+        coste_eur:   Number(row.coste_eur ?? 0),
+        nota:        row.nota == null ? null : String(row.nota),
+        updated_at:  row.updated_at == null ? null : String(row.updated_at),
+      }
+    },
+  })
+}
+
+export function useSetCosteManualNombre() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { nombre: string; coste_eur: number; nota?: string | null }) => {
+      const { error } = await supabase.rpc('manager_set_coste_nombre', {
+        p_nombre: input.nombre, p_coste: input.coste_eur, p_nota: input.nota ?? null,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manager'] }) },
+  })
+}
+
+export function useDeleteCosteManualNombre() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { nombre: string }) => {
+      const { error } = await supabase.rpc('manager_delete_coste_nombre', { p_nombre: input.nombre })
+      if (error) throw error
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manager'] }) },
+  })
+}
+
 // ── Facturas / Albaranes ──────────────────────────────────────────────────
 export interface FacturaFiltros {
   tipo?: 'VENTA' | 'COMPRA' | null
