@@ -176,6 +176,12 @@ function JornadaCard({
           <Mini label="Deuda" value={euros(stats.deuda)} />
         </div>
       </div>
+      {jornada.notas && (
+        <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[rgba(255,255,255,.025)] p-3">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Nota</p>
+          <p className="whitespace-pre-wrap text-base leading-relaxed text-[var(--color-ink)]">{jornada.notas}</p>
+        </div>
+      )}
     </button>
   )
 }

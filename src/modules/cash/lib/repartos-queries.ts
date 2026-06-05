@@ -3,6 +3,7 @@ import { supabase } from '@/shared/lib/supabase'
 import type {
   ContactoOpt,
   EmpleadoOpt,
+  GastoInput,
   Jornada,
   JornadaGasto,
   JornadaLinea,
@@ -307,6 +308,29 @@ export function useGuardarLineas() {
       }))
       const { error: errIns } = await supabase.from('repartos_jornada_lineas').insert(rows)
       if (errIns) throw errIns
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['repartos'] })
+    },
+  })
+}
+
+// ── Reemplazar gastos de una jornada (admin, RPC security definer) ───────
+export function useGuardarGastos() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      jornadaId,
+      gastos,
+    }: {
+      jornadaId: string
+      gastos: GastoInput[]
+    }): Promise<void> => {
+      const { error } = await supabase.rpc('repartos_jornada_gastos_guardar', {
+        p_jornada_id: jornadaId,
+        p_gastos: gastos,
+      })
+      if (error) throw error
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['repartos'] })

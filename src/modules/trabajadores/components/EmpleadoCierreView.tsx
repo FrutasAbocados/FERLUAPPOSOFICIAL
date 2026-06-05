@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   Loader2,
   Plus,
+  Receipt,
   Trash2,
   Truck,
   Wallet,
@@ -13,7 +14,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
-import type { FormaPago } from '@/modules/cash/lib/repartos-types'
+import type { FormaPago, GastoTipo } from '@/modules/cash/lib/repartos-types'
 import type { EmpleadoPropio } from '../lib/useEmpleadoPropio'
 import { useEnviarCierre, useMiCierre } from '../lib/cierre-propio-queries'
 
@@ -29,6 +30,19 @@ type RepartoUI = {
   forma_pago: FormaPago
   importe: number | ''
 }
+
+type GastoUI = {
+  _key: string
+  tipo: GastoTipo
+  concepto: string
+  importe: number | ''
+}
+
+const GASTO_TIPOS: { tipo: GastoTipo; label: string; emoji: string }[] = [
+  { tipo: 'gasolina', label: 'Gasolina', emoji: '⛽' },
+  { tipo: 'compras', label: 'Compras', emoji: '🛒' },
+  { tipo: 'incidencia', label: 'Incidencia', emoji: '⚠️' },
+]
 
 export function EmpleadoCierreView({ empleado }: { empleado: EmpleadoPropio }) {
   const [fecha, setFecha] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'))
@@ -107,9 +121,20 @@ function CierreForm({
       importe: Number(l.importe),
     })),
   )
+  const [gastos, setGastos] = useState<GastoUI[]>(() =>
+    (initial?.gastos ?? []).map((g) => ({
+      _key: g.id,
+      tipo: g.tipo,
+      concepto: g.concepto,
+      importe: Number(g.importe),
+    })),
+  )
 
   const addReparto = () =>
     setRepartos((p) => [...p, { _key: newKey(), contact_id: null, contact_nombre: '', forma_pago: 'efectivo', importe: '' }])
+
+  const addGasto = () =>
+    setGastos((p) => [...p, { _key: newKey(), tipo: 'gasolina', concepto: '', importe: '' }])
 
   const totales = useMemo(() => {
     const num = (v: number | '') => (v === '' ? 0 : Number(v))
@@ -123,6 +148,11 @@ function CierreForm({
       total: efectivo + tarjeta + deuda,
     }
   }, [repartos])
+
+  const totalGastos = useMemo(
+    () => gastos.reduce((s, g) => s + (g.importe === '' ? 0 : Number(g.importe)), 0),
+    [gastos],
+  )
 
   const enviado = !!initial?.jornada.enviado_at
 
@@ -142,6 +172,14 @@ function CierreForm({
             contact_nombre: r.contact_nombre.trim(),
             importe: r.importe === '' ? 0 : Number(r.importe),
             forma_pago: r.forma_pago,
+            orden: i,
+          })),
+        gastos: gastos
+          .filter((g) => Number(g.importe || 0) > 0)
+          .map((g, i) => ({
+            tipo: g.tipo,
+            concepto: g.concepto.trim(),
+            importe: g.importe === '' ? 0 : Number(g.importe),
             orden: i,
           })),
       })
@@ -206,6 +244,55 @@ function CierreForm({
         </Button>
       </Section>
 
+      <Section icon={<Receipt className="h-4 w-4" />} title="Gastos del día" subtitle="Gasolina, compras, incidencias… (se pagan de la caja)">
+        {gastos.length === 0 ? (
+          <Empty text="Sin gastos. Añade uno si has pagado algo de la ruta." />
+        ) : (
+          <ul className="space-y-2">
+            {gastos.map((g) => (
+              <li key={g._key} className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-1 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
+                    {GASTO_TIPOS.map((t) => (
+                      <button
+                        key={t.tipo}
+                        type="button"
+                        onClick={() => setGastos((p) => p.map((x) => (x._key === g._key ? { ...x, tipo: t.tipo } : x)))}
+                        className={`flex-1 px-2 py-1.5 text-xs font-medium transition ${
+                          g.tipo === t.tipo
+                            ? 'bg-[var(--color-primary)] text-white'
+                            : 'bg-[var(--color-surface)] text-[var(--color-ink-2)]'
+                        }`}
+                      >
+                        {t.emoji} {t.label}
+                      </button>
+                    ))}
+                  </div>
+                  <Button type="button" variant="ghost" size="icon" aria-label="Quitar gasto" onClick={() => setGastos((p) => p.filter((x) => x._key !== g._key))}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <Input
+                    value={g.concepto}
+                    onChange={(e) => setGastos((p) => p.map((x) => (x._key === g._key ? { ...x, concepto: e.target.value } : x)))}
+                    placeholder="Concepto (opcional)"
+                    className="flex-1"
+                  />
+                  <ImporteInput
+                    value={g.importe}
+                    onChange={(v) => setGastos((p) => p.map((x) => (x._key === g._key ? { ...x, importe: v } : x)))}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Button type="button" variant="ghost" onClick={addGasto} className="mt-2 w-full border border-dashed border-[var(--color-border)]">
+          <Plus className="mr-1 h-4 w-4" /> Añadir gasto
+        </Button>
+      </Section>
+
       <Section icon={<Wallet className="h-4 w-4" />} title="Resumen" subtitle="Calculado automáticamente">
         <div className="grid grid-cols-3 gap-2 text-center">
           <Resumen label="Efectivo" value={euros(totales.efectivo)} tone="success" />
@@ -214,6 +301,12 @@ function CierreForm({
         </div>
         {totales.deuda > 0 && (
           <p className="mt-2 text-center text-xs text-[var(--color-ink-3)]">Pendiente (deuda): <span className="tabular-nums">{euros(totales.deuda)}</span></p>
+        )}
+        {totalGastos > 0 && (
+          <div className="mt-2 grid grid-cols-2 gap-2 text-center">
+            <Resumen label="Gastos" value={euros(totalGastos)} tone="danger" />
+            <Resumen label="Efectivo neto" value={euros(totales.efectivo - totalGastos)} />
+          </div>
         )}
         <div className="mt-3">
           <Field label="Notas (opcional)">
@@ -294,11 +387,13 @@ function Empty({ text }: { text: string }) {
   )
 }
 
-function Resumen({ label, value, tone }: { label: string; value: string; tone?: 'success' }) {
+function Resumen({ label, value, tone }: { label: string; value: string; tone?: 'success' | 'danger' }) {
+  const toneCls =
+    tone === 'success' ? 'text-[var(--mint)]' : tone === 'danger' ? 'text-[var(--coral)]' : 'text-[var(--color-ink)]'
   return (
     <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-2">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">{label}</p>
-      <p className={`mono mt-0.5 text-sm font-bold tabular-nums ${tone === 'success' ? 'text-[var(--mint)]' : 'text-[var(--color-ink)]'}`}>{value}</p>
+      <p className={`mono mt-0.5 text-sm font-bold tabular-nums ${toneCls}`}>{value}</p>
     </div>
   )
 }

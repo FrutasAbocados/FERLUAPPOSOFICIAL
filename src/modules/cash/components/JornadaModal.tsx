@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCircle2, Loader2, Search, Trash2, X } from 'lucide-react'
+import { CheckCircle2, Loader2, Plus, Receipt, Search, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { confirm } from '@/shared/lib/confirm'
@@ -12,19 +12,31 @@ import {
   useBuscarContactos,
   useCrearJornada,
   useEmpleadosActivos,
+  useGuardarGastos,
   useGuardarLineas,
+  useJornadaGastos,
   useJornadaLineas,
   useRevisarCierre,
 } from '../lib/repartos-queries'
 import type {
   ContactoOpt,
   FormaPago,
+  GastoInput,
+  GastoTipo,
   Jornada,
+  JornadaGasto,
   JornadaLinea,
   LineaInput,
 } from '../lib/repartos-types'
 
 type LineaUI = LineaInput & { _key: string; _loading?: boolean }
+type GastoUI = { _key: string; tipo: GastoTipo; concepto: string; importe: number | '' }
+
+const GASTO_TIPOS: { tipo: GastoTipo; label: string }[] = [
+  { tipo: 'gasolina', label: '⛽ Gasolina' },
+  { tipo: 'compras', label: '🛒 Compras' },
+  { tipo: 'incidencia', label: '⚠️ Incidencia' },
+]
 
 type Props = {
   fecha: string
@@ -42,8 +54,12 @@ export function JornadaModal({ fecha, jornada, onClose, empleadoIdInicial }: Pro
   // Para edición, esperamos a tener las líneas antes de montar el form.
   // Así el form usa useState lazy y no necesita useEffect de hidratación.
   const lineasExistentes = useJornadaLineas(jornada?.id ?? null)
+  const gastosExistentes = useJornadaGastos(jornada?.id ?? null)
 
-  if (jornada && (lineasExistentes.isLoading || !lineasExistentes.data)) {
+  if (
+    jornada &&
+    (lineasExistentes.isLoading || !lineasExistentes.data || gastosExistentes.isLoading || !gastosExistentes.data)
+  ) {
     return (
       <ModalShell onClose={onClose} fecha={fecha} title="Editar jornada">
         <div className="flex items-center justify-center gap-2 p-12 text-sm text-[var(--color-ink-3)]">
@@ -55,6 +71,7 @@ export function JornadaModal({ fecha, jornada, onClose, empleadoIdInicial }: Pro
   }
 
   const initialLineas: JornadaLinea[] = jornada ? lineasExistentes.data ?? [] : []
+  const initialGastos: JornadaGasto[] = jornada ? gastosExistentes.data ?? [] : []
 
   return (
     <JornadaForm
@@ -62,6 +79,7 @@ export function JornadaModal({ fecha, jornada, onClose, empleadoIdInicial }: Pro
       fecha={fecha}
       jornada={jornada}
       initialLineas={initialLineas}
+      initialGastos={initialGastos}
       onClose={onClose}
       empleadoIdInicial={empleadoIdInicial}
     />
@@ -72,15 +90,17 @@ function JornadaForm({
   fecha,
   jornada,
   initialLineas,
+  initialGastos,
   onClose,
   empleadoIdInicial,
-}: Props & { initialLineas: JornadaLinea[] }) {
+}: Props & { initialLineas: JornadaLinea[]; initialGastos: JornadaGasto[] }) {
   const empleados = useEmpleadosActivos()
 
   const crear = useCrearJornada()
   const actualizar = useActualizarJornada()
   const borrar = useBorrarJornada()
   const guardarLineas = useGuardarLineas()
+  const guardarGastos = useGuardarGastos()
   const revisar = useRevisarCierre()
   const esEmpleado = jornada?.origen === 'empleado'
 
@@ -98,6 +118,29 @@ function JornadaForm({
       orden: l.orden,
     })),
   )
+  const [gastos, setGastos] = useState<GastoUI[]>(() =>
+    initialGastos.map((g) => ({
+      _key: g.id,
+      tipo: g.tipo,
+      concepto: g.concepto,
+      importe: Number(g.importe),
+    })),
+  )
+
+  const gastosPayload = (): GastoInput[] =>
+    gastos
+      .filter((g) => Number(g.importe || 0) > 0)
+      .map((g, i) => ({
+        tipo: g.tipo,
+        concepto: g.concepto.trim(),
+        importe: g.importe === '' ? 0 : Number(g.importe),
+        orden: i,
+      }))
+
+  const totalGastos = gastos.reduce((s, g) => s + (g.importe === '' ? 0 : Number(g.importe)), 0)
+
+  const addGasto = () =>
+    setGastos((p) => [...p, { _key: newKey(), tipo: 'gasolina', concepto: '', importe: '' }])
 
   const addLinea = async (c: ContactoOpt) => {
     const key = newKey()
@@ -163,7 +206,12 @@ function JornadaForm({
   }, [horaInicio, horaFin])
 
   const guardando =
-    crear.isPending || actualizar.isPending || guardarLineas.isPending || borrar.isPending || revisar.isPending
+    crear.isPending ||
+    actualizar.isPending ||
+    guardarLineas.isPending ||
+    guardarGastos.isPending ||
+    borrar.isPending ||
+    revisar.isPending
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -193,6 +241,7 @@ function JornadaForm({
           orden: i,
         })),
       })
+      await guardarGastos.mutateAsync({ jornadaId: id, gastos: gastosPayload() })
       onClose()
     } catch (err) {
       toast({ title: 'No se pudo guardar la jornada', description: err instanceof Error ? err.message : '', variant: 'error' })
@@ -227,6 +276,7 @@ function JornadaForm({
           orden: i,
         })),
       })
+      await guardarGastos.mutateAsync({ jornadaId: jornada.id, gastos: gastosPayload() })
       await revisar.mutateAsync(jornada.id)
       toast({ title: '✅ Cierre aprobado', description: 'Jornada marcada como revisada.', variant: 'success' })
       onClose()
@@ -370,14 +420,76 @@ function JornadaForm({
           </div>
 
           <div>
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
+                <Receipt className="h-3.5 w-3.5" /> Gastos ({gastos.length})
+              </h3>
+              {totalGastos > 0 && (
+                <span className="text-xs font-semibold tabular-nums text-[var(--coral)]">−{euros(totalGastos)}</span>
+              )}
+            </div>
+            {gastos.length === 0 ? (
+              <p className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] bg-[rgba(255,255,255,.025)] p-4 text-center text-xs text-[var(--color-ink-3)]">
+                Sin gastos. Pulsa “Añadir gasto” si el repartidor pagó algo de la caja.
+              </p>
+            ) : (
+              <ul className="divide-y divide-[var(--color-border)] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+                {gastos.map((g) => (
+                  <li key={g._key} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 px-3 py-2 text-sm">
+                    <select
+                      value={g.tipo}
+                      onChange={(ev) =>
+                        setGastos((p) => p.map((x) => (x._key === g._key ? { ...x, tipo: ev.target.value as GastoTipo } : x)))
+                      }
+                      className="h-8 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs text-[var(--color-ink)] outline-none"
+                    >
+                      {GASTO_TIPOS.map((t) => (
+                        <option key={t.tipo} value={t.tipo}>{t.label}</option>
+                      ))}
+                    </select>
+                    <Input
+                      value={g.concepto}
+                      onChange={(ev) =>
+                        setGastos((p) => p.map((x) => (x._key === g._key ? { ...x, concepto: ev.target.value } : x)))
+                      }
+                      placeholder="Concepto"
+                      className="h-8"
+                    />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={g.importe === '' ? '' : g.importe}
+                      onChange={(ev) =>
+                        setGastos((p) => p.map((x) => (x._key === g._key ? { ...x, importe: ev.target.value === '' ? '' : Number(ev.target.value) } : x)))
+                      }
+                      placeholder="0,00"
+                      className="h-8 w-24 text-right"
+                    />
+                    <Button type="button" variant="ghost" size="icon" onClick={() => setGastos((p) => p.filter((x) => x._key !== g._key))} aria-label="Quitar gasto">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Button type="button" variant="ghost" onClick={addGasto} className="mt-2 w-full border border-dashed border-[var(--color-border)]">
+              <Plus className="mr-1 h-4 w-4" /> Añadir gasto
+            </Button>
+            <p className="mt-1.5 text-[11px] text-[var(--color-ink-3)]">
+              Al aprobar el cierre, los gastos se registran como salida en Tesorería y en el módulo Gastos.
+            </p>
+          </div>
+
+          <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
-              Notas
+              Notas {esEmpleado && <span className="ml-1 normal-case text-[var(--color-ink-3)]">(del repartidor)</span>}
             </label>
             <textarea
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
-              rows={2}
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition-colors focus-visible:border-[var(--color-primary)]"
+              rows={4}
+              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-base leading-relaxed text-[var(--color-ink)] outline-none transition-colors focus-visible:border-[var(--color-primary)]"
               placeholder="Incidencias, devoluciones, etc."
             />
           </div>

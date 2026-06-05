@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import type {
+  GastoInput,
   Jornada,
+  JornadaGasto,
   JornadaLinea,
   LineaInput,
 } from '@/modules/cash/lib/repartos-types'
@@ -9,6 +11,7 @@ import type {
 export type MiCierre = {
   jornada: Jornada
   lineas: JornadaLinea[]
+  gastos: JornadaGasto[]
 } | null
 
 // ── Cierre propio del repartidor para una fecha (origen='empleado') ──────
@@ -34,9 +37,18 @@ export function useMiCierre(empleadoId: string | undefined, fecha: string) {
         .eq('jornada_id', jornada.id)
         .order('orden', { ascending: true })
       if (e2) throw e2
+
+      const { data: gastos, error: e3 } = await supabase
+        .from('repartos_jornada_gastos')
+        .select('*')
+        .eq('jornada_id', jornada.id)
+        .order('orden', { ascending: true })
+      if (e3) throw e3
+
       return {
         jornada,
         lineas: (lineas ?? []) as JornadaLinea[],
+        gastos: (gastos ?? []) as JornadaGasto[],
       }
     },
   })
@@ -51,6 +63,7 @@ export type EnviarCierreInput = {
   efectivo_billetes: number | null
   efectivo_monedas: number | null
   lineas: LineaInput[]
+  gastos: GastoInput[]
 }
 
 export function useEnviarCierre() {
@@ -65,7 +78,7 @@ export function useEnviarCierre() {
         p_efectivo_billetes: input.efectivo_billetes,
         p_efectivo_monedas: input.efectivo_monedas,
         p_lineas: input.lineas,
-        p_gastos: [],
+        p_gastos: input.gastos,
       })
       if (error) throw error
       return data as string
