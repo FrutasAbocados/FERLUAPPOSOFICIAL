@@ -47,18 +47,22 @@ import {
 } from '../lib/types'
 import { exportarHojaRuta } from '../lib/exportacion/excel'
 import { imprimirHojaRuta } from '../lib/exportacion/print'
-import { useActualizarPedido, usePedidosDelDia, useReasignarPedido, useReordenarRuta } from '../lib/queries'
+import {
+  useActualizarPedido,
+  useCompraOperativa,
+  useEliminarRutaExtra,
+  useGuardarRutaConfig,
+  useGuardarRutaExtra,
+  usePedidosDelDia,
+  useReasignarPedido,
+  useReordenarRuta,
+  useRutaConfig,
+  useRutaExtras,
+  type RutaConfig,
+  type RutaExtra,
+} from '../lib/queries'
 
 const REPARTIDOR_ORDER: Repartidor[] = ['TORRES', 'GERMAN', 'RAUL', 'ALEX']
-
-type ManualRouteLine = {
-  id: string
-  cliente: string
-  horario: string
-  factura: string
-  pedido: string
-  faltas: string
-}
 
 // Paletas por repartidor: header saturado + fondo de columna sutil + acentos.
 const PALETA: Record<Repartidor, {
@@ -107,6 +111,9 @@ export function HojaRuta() {
   const fechaIso = format(getBusinessDate(), 'yyyy-MM-dd')
   const titulo = format(getBusinessDate(), "EEEE d 'de' MMMM", { locale: es })
   const { data: pedidos, isLoading, error } = usePedidosDelDia(fechaIso)
+  const { data: rutaConfig = [] } = useRutaConfig(fechaIso)
+  const { data: rutaExtras = [] } = useRutaExtras(fechaIso)
+  const { data: compraOperativa = [] } = useCompraOperativa(fechaIso)
   const [vista, setVista] = useState<'tabla' | 'tarjetas'>('tabla')
 
   const [colapsadas, setColapsadas] = useState<Record<Repartidor, boolean>>({
@@ -239,7 +246,7 @@ export function HojaRuta() {
       return
     }
     try {
-      await exportarHojaRuta(pedidos ?? [], fechaIso)
+      await exportarHojaRuta(pedidos ?? [], fechaIso, rutaConfig, rutaExtras, compraOperativa)
       toast({ title: 'Excel descargado', variant: 'success' })
     } catch (e) {
       toast({ title: 'Error exportando', description: (e as Error).message, variant: 'error' })
@@ -324,7 +331,7 @@ export function HojaRuta() {
         </div>
       ) : (
         vista === 'tabla' ? (
-          <HojaRutaTabla grupos={grupos} fecha={fechaIso} />
+          <HojaRutaTabla grupos={grupos} fecha={fechaIso} configs={rutaConfig} extras={rutaExtras} />
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={onDragEnd}>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
@@ -349,12 +356,16 @@ export function HojaRuta() {
 function HojaRutaTabla({
   grupos,
   fecha,
+  configs,
+  extras,
 }: {
   grupos: Array<{ repartidor: Repartidor; pedidos: Pedido[] }>
   fecha: string
+  configs: RutaConfig[]
+  extras: RutaExtra[]
 }) {
   const sections = useMemo(() => {
-    const out: Array<{ key: string; label: string; repartidor: Repartidor; pedidos: Pedido[] }> = []
+    const out: Array<{ key: string; label: string; repartidor: Repartidor; salida: 'PRIMERA' | 'SEGUNDA'; pedidos: Pedido[] }> = []
     for (const g of grupos) {
       if (g.pedidos.length === 0) continue
       const primera = g.pedidos.filter((p) => (p.override_salida ?? p.cliente?.salida ?? 'PRIMERA') !== 'SEGUNDA')
@@ -364,6 +375,7 @@ function HojaRutaTabla({
           key: `${g.repartidor}-primera`,
           label: `Salida del campo · ${REPARTIDOR_LABEL[g.repartidor]}`,
           repartidor: g.repartidor,
+          salida: 'PRIMERA',
           pedidos: primera,
         })
       }
@@ -372,6 +384,7 @@ function HojaRutaTabla({
           key: `${g.repartidor}-segunda`,
           label: `Segunda salida · ${REPARTIDOR_LABEL[g.repartidor]}`,
           repartidor: g.repartidor,
+          salida: 'SEGUNDA',
           pedidos: segunda,
         })
       }
@@ -395,7 +408,7 @@ function HojaRutaTabla({
         </thead>
         <tbody>
           {sections.map((s) => (
-            <TableSection key={`${fecha}-${s.key ?? s.repartidor}`} section={s} fecha={fecha} />
+            <TableSection key={`${fecha}-${s.key ?? s.repartidor}`} section={s} fecha={fecha} configs={configs} extras={extras} />
           ))}
         </tbody>
       </table>
@@ -406,62 +419,43 @@ function HojaRutaTabla({
 function TableSection({
   section,
   fecha,
+  configs,
+  extras,
 }: {
-  section: { key?: string; label: string; repartidor: Repartidor; pedidos: Pedido[] }
+  section: { key?: string; label: string; repartidor: Repartidor; salida: 'PRIMERA' | 'SEGUNDA'; pedidos: Pedido[] }
   fecha: string
+  configs: RutaConfig[]
+  extras: RutaExtra[]
 }) {
-  const storageKey = `abocados:hoja-ruta:vehiculo:${fecha}:${section.repartidor}`
-  const manualStorageKey = `abocados:hoja-ruta:manual:${fecha}:${section.key ?? section.repartidor}`
-  const [vehiculo, setVehiculo] = useState(() => window.localStorage.getItem(storageKey) ?? '')
-  const [manuales, setManuales] = useState<ManualRouteLine[]>(() => {
-    try {
-      const raw = window.localStorage.getItem(manualStorageKey)
-      return raw ? JSON.parse(raw) as ManualRouteLine[] : []
-    } catch {
-      return []
-    }
-  })
+  const config = configs.find((row) => row.repartidor === section.repartidor && row.salida === section.salida)
+  const manuales = extras.filter((row) => row.repartidor === section.repartidor && row.salida === section.salida)
+  const [vehiculo, setVehiculo] = useState(config?.vehiculo ?? '')
+  const guardarConfig = useGuardarRutaConfig()
+  const guardarExtra = useGuardarRutaExtra()
+  const eliminarExtra = useEliminarRutaExtra()
 
-  const guardarVehiculo = (valor: string) => {
-    setVehiculo(valor)
-    if (valor.trim()) {
-      window.localStorage.setItem(storageKey, valor)
-    } else {
-      window.localStorage.removeItem(storageKey)
-    }
-  }
+  useEffect(() => setVehiculo(config?.vehiculo ?? ''), [config?.vehiculo])
 
-  const guardarManuales = (next: ManualRouteLine[]) => {
-    setManuales(next)
-    if (next.length > 0) {
-      window.localStorage.setItem(manualStorageKey, JSON.stringify(next))
-    } else {
-      window.localStorage.removeItem(manualStorageKey)
-    }
+  const guardarVehiculo = () => {
+    const valor = vehiculo.trim()
+    if (valor === (config?.vehiculo ?? '')) return
+    guardarConfig.mutate(
+      { fecha, repartidor: section.repartidor, salida: section.salida, vehiculo: valor || null },
+      { onError: (e: Error) => toast({ title: 'Error guardando vehículo', description: e.message, variant: 'error' }) },
+    )
   }
 
   const añadirLinea = () => {
-    guardarManuales([
-      ...manuales,
+    guardarExtra.mutate(
       {
-        id: crearIdManual(),
+        fecha,
+        repartidor: section.repartidor,
+        salida: section.salida,
+        orden: manuales.length + 1,
         cliente: '',
-        horario: '',
-        factura: '',
-        pedido: '',
-        faltas: '',
       },
-    ])
-  }
-
-  const actualizarLinea = (id: string, patch: Partial<ManualRouteLine>) => {
-    guardarManuales(manuales.map((linea) => (
-      linea.id === id ? { ...linea, ...patch } : linea
-    )))
-  }
-
-  const eliminarLinea = (id: string) => {
-    guardarManuales(manuales.filter((linea) => linea.id !== id))
+      { onError: (e: Error) => toast({ title: 'Error añadiendo línea', description: e.message, variant: 'error' }) },
+    )
   }
 
   return (
@@ -477,7 +471,8 @@ function TableSection({
               <span>Vehículo</span>
               <input
                 value={vehiculo}
-                onChange={(e) => guardarVehiculo(e.target.value)}
+                onChange={(e) => setVehiculo(e.target.value)}
+                onBlur={guardarVehiculo}
                 className="min-w-0 flex-1 bg-transparent text-center font-display text-sm font-bold uppercase outline-none"
                 placeholder="MASTER"
               />
@@ -488,7 +483,8 @@ function TableSection({
         <td className="border border-black/50 bg-[var(--color-surface-3,#a3a3a3)] px-2 py-1.5 text-center">
           <input
             value={vehiculo}
-            onChange={(e) => guardarVehiculo(e.target.value)}
+            onChange={(e) => setVehiculo(e.target.value)}
+            onBlur={guardarVehiculo}
             className="w-full rounded border border-black/20 bg-white/80 px-2 py-1 text-center font-display text-sm font-bold uppercase text-black outline-none focus:border-[var(--mint)] dark:bg-black/20 dark:text-[var(--color-ink)]"
             placeholder="Vehículo"
           />
@@ -512,8 +508,14 @@ function TableSection({
           key={linea.id}
           linea={linea}
           repartidor={section.repartidor}
-          onChange={(patch) => actualizarLinea(linea.id, patch)}
-          onDelete={() => eliminarLinea(linea.id)}
+          onSave={(patch) => guardarExtra.mutate(
+            { ...linea, ...patch },
+            { onError: (e: Error) => toast({ title: 'Error guardando línea', description: e.message, variant: 'error' }) },
+          )}
+          onDelete={() => eliminarExtra.mutate(
+            { id: linea.id, fecha },
+            { onError: (e: Error) => toast({ title: 'Error eliminando línea', description: e.message, variant: 'error' }) },
+          )}
         />
       ))}
     </>
@@ -523,28 +525,39 @@ function TableSection({
 function ManualRouteTableRow({
   linea,
   repartidor,
-  onChange,
+  onSave,
   onDelete,
 }: {
-  linea: ManualRouteLine
+  linea: RutaExtra
   repartidor: Repartidor
-  onChange: (patch: Partial<ManualRouteLine>) => void
+  onSave: (patch: Partial<RutaExtra>) => void
   onDelete: () => void
 }) {
+  const [draft, setDraft] = useState(linea)
+  useEffect(() => setDraft(linea), [linea])
+
+  const cambiar = (patch: Partial<RutaExtra>) => setDraft((prev) => ({ ...prev, ...patch }))
+  const guardar = (field: keyof Pick<RutaExtra, 'cliente' | 'horario' | 'factura' | 'pedido' | 'faltas'>) => {
+    if (draft[field] === linea[field]) return
+    onSave({ [field]: draft[field] })
+  }
+
   return (
     <tr className="align-middle bg-[oklch(95%_.04_85)] dark:bg-[oklch(24%_.05_85_/_0.45)]">
       <td className="border border-black/50 px-2 py-2 text-center">
         <input
-          value={linea.cliente}
-          onChange={(e) => onChange({ cliente: e.target.value })}
+          value={draft.cliente}
+          onChange={(e) => cambiar({ cliente: e.target.value })}
+          onBlur={() => guardar('cliente')}
           className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-center font-display text-base font-bold uppercase text-[var(--ink)] focus:border-[var(--mint)] focus:outline-none"
           placeholder="Cliente"
         />
       </td>
       <td className="border border-black/50 px-2 py-2 text-center">
         <input
-          value={linea.horario}
-          onChange={(e) => onChange({ horario: e.target.value })}
+          value={draft.horario ?? ''}
+          onChange={(e) => cambiar({ horario: e.target.value })}
+          onBlur={() => guardar('horario')}
           className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-center font-display text-base font-bold tabular-nums text-[var(--ink)] focus:border-[var(--mint)] focus:outline-none"
           placeholder="—:—"
           inputMode="numeric"
@@ -552,16 +565,18 @@ function ManualRouteTableRow({
       </td>
       <td className="border border-black/50 px-2 py-2 text-center">
         <input
-          value={linea.factura}
-          onChange={(e) => onChange({ factura: e.target.value })}
+          value={draft.factura ?? ''}
+          onChange={(e) => cambiar({ factura: e.target.value })}
+          onBlur={() => guardar('factura')}
           className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-center font-display text-base font-bold uppercase text-[var(--ink)] focus:border-[var(--mint)] focus:outline-none"
           placeholder="Factura"
         />
       </td>
       <td className="border border-black/50 px-2 py-2">
         <textarea
-          value={linea.pedido}
-          onChange={(e) => onChange({ pedido: e.target.value })}
+          value={draft.pedido ?? ''}
+          onChange={(e) => cambiar({ pedido: e.target.value })}
+          onBlur={() => guardar('pedido')}
           rows={2}
           className="min-h-[46px] w-full resize-y rounded border border-transparent bg-transparent px-1 py-1 text-center text-[15px] font-semibold leading-snug text-[var(--ink)] focus:border-[var(--mint)] focus:outline-none"
           placeholder="Pedido manual..."
@@ -569,8 +584,9 @@ function ManualRouteTableRow({
       </td>
       <td className="border border-black/50 px-2 py-2">
         <textarea
-          value={linea.faltas}
-          onChange={(e) => onChange({ faltas: e.target.value })}
+          value={draft.faltas ?? ''}
+          onChange={(e) => cambiar({ faltas: e.target.value })}
+          onBlur={() => guardar('faltas')}
           rows={2}
           className="min-h-[42px] w-full resize-y rounded border border-transparent bg-transparent px-1 py-1 text-center text-sm leading-snug text-[var(--ink)] focus:border-[var(--mint)] focus:outline-none"
           placeholder="Faltas..."
@@ -1190,13 +1206,6 @@ function resumenPedidoPlano(p: Pedido): string {
     partes.push(`${sec}${qty} ${unit} ${l.producto_normalizado}${nota}${gratis}`)
   }
   return partes.join(' / ')
-}
-
-function crearIdManual(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID()
-  }
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
 // Acepta '8', '8:30', '08:30', '8.30', '0830', '830' → 'HH:MM'. null si no parsea.

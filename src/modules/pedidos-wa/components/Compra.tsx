@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
@@ -25,16 +25,22 @@ import { exportarCompra } from '../lib/exportacion/excel'
 import { UnificacionProductos } from './UnificacionProductos'
 import { parsearPedido } from '../lib/parser'
 import {
-  useCotejoDelDia,
+  useActualizarProveedorCompra,
+  useActualizarFormatoCompra,
+  useAplicarFaltasSugeridas,
+  useCompraOperativa,
   useEliminarFactorKgCaja,
   useEliminarInventario,
   useFactoresKgCaja,
+  useFaltasSugeridas,
   useGuardarInventario,
   useInventarioDelDia,
   usePedidosDelDia,
   useUpsertFactorKgCaja,
+  type CompraOperativaFila,
   type CotejoFila,
   type KgPorCajaRow,
+  type ProveedorCompra,
 } from '../lib/queries'
 
 // Convierte líneas de formato "* Producto: N unidad" al formato estándar del
@@ -57,10 +63,14 @@ export function Compra() {
   const titulo = format(getBusinessDate(), "EEEE d 'de' MMMM", { locale: es })
 
   const inv = useInventarioDelDia(fechaIso)
-  const cotejo = useCotejoDelDia(fechaIso)
+  const compraOperativa = useCompraOperativa(fechaIso)
+  const faltasSugeridas = useFaltasSugeridas(fechaIso)
   const pedidos = usePedidosDelDia(fechaIso)
   const guardar = useGuardarInventario()
   const eliminar = useEliminarInventario()
+  const aplicarFaltas = useAplicarFaltasSugeridas()
+  const actualizarProveedor = useActualizarProveedorCompra()
+  const actualizarFormato = useActualizarFormatoCompra()
 
   const textoSource = inv.data?.fecha ?? fechaIso
   const textoInicial = inv.data?.texto_original ?? ''
@@ -79,7 +89,7 @@ export function Compra() {
 
   const totalPedidos   = pedidos.data?.length ?? 0
   const tieneInventario = !!inv.data
-  const filas = cotejo.data ?? []
+  const filas = compraOperativa.data ?? []
 
   const aComprar = filas.filter(f => f.a_comprar > 0)
   const sobra    = filas.filter(f => f.sobra > 0 && f.a_comprar === 0)
@@ -146,13 +156,42 @@ export function Compra() {
       toast({ title: 'Nada que comprar', variant: 'success' })
       return
     }
-    const lineas = aComprar.map(f => formateaLineaCompra(f))
+    const lineas = agruparPorProveedor(aComprar).flatMap((grupo) => [
+      `--- ${PROVEEDOR_LABEL[grupo.proveedor].toUpperCase()} ---`,
+      ...grupo.filas.map(f => formateaLineaCompra(f)),
+      '',
+    ])
     const txt = lineas.join('\n')
     try {
       await navigator.clipboard.writeText(txt)
       toast({ title: `${aComprar.length} líneas copiadas`, variant: 'success' })
     } catch {
       toast({ title: 'No se pudo copiar', description: 'Selecciona y copia manualmente.', variant: 'error' })
+    }
+  }
+
+  const copiarProveedor = async (proveedor: ProveedorCompra, filasProveedor: CompraOperativaFila[]) => {
+    const txt = mensajeProveedor(proveedor, filasProveedor)
+    try {
+      await navigator.clipboard.writeText(txt)
+      toast({ title: `Mensaje para ${PROVEEDOR_LABEL[proveedor]} copiado`, variant: 'success' })
+    } catch {
+      toast({ title: 'No se pudo copiar', description: 'Selecciona y copia manualmente.', variant: 'error' })
+    }
+  }
+
+  const onAplicarFaltas = async () => {
+    const ok = await confirm({
+      title: '¿Aplicar faltas sugeridas a la hoja de ruta?',
+      description: 'Se recalculan siguiendo el orden actual de reparto. Podrás corregir cualquier línea manualmente después.',
+      confirmLabel: 'Aplicar faltas',
+    })
+    if (!ok) return
+    try {
+      await aplicarFaltas.mutateAsync({ fecha: fechaIso, faltas: faltasSugeridas.data ?? [] })
+      toast({ title: 'Faltas aplicadas a la hoja de ruta', variant: 'success' })
+    } catch (e) {
+      toast({ title: 'Error aplicando faltas', description: e instanceof Error ? e.message : 'Inesperado', variant: 'error' })
     }
   }
 
@@ -236,13 +275,13 @@ export function Compra() {
         <div className="ao-card border-dashed p-8 text-center text-sm text-[var(--ink-mute)]">
           No hay pedidos para hoy todavía. Pasa por la pestaña Captura para añadirlos.
         </div>
-      ) : cotejo.isLoading ? (
+      ) : compraOperativa.isLoading ? (
         <div className="flex items-center gap-2 text-sm text-[var(--color-ink-3)]">
           <Loader2 className="h-4 w-4 animate-spin" /> Cotejando…
         </div>
-      ) : cotejo.error ? (
+      ) : compraOperativa.error ? (
         <div className="rounded-md border border-[oklch(70%_.18_25_/_0.28)] bg-[oklch(30%_.12_25_/_0.18)] p-3 text-sm text-[var(--coral)]">
-          Error: {(cotejo.error as Error).message}
+          Error: {(compraOperativa.error as Error).message}
         </div>
       ) : (
         <>
@@ -268,6 +307,18 @@ export function Compra() {
             />
           </div>
 
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={onAplicarFaltas}
+              disabled={aplicarFaltas.isPending || faltasSugeridas.isLoading}
+            >
+              {aplicarFaltas.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              Aplicar faltas a ruta
+            </Button>
+          </div>
+
           {/* Lista de compra */}
           {aComprar.length > 0 && (
             <Bloque
@@ -288,7 +339,41 @@ export function Compra() {
                 </div>
               }
             >
-              <Tabla filas={aComprar} columna="a_comprar" />
+              <div className="divide-y divide-[var(--line)]">
+                {agruparPorProveedor(aComprar).map((grupo) => (
+                  <div key={grupo.proveedor}>
+                    <div className="flex items-center justify-between gap-2 bg-[rgba(255,255,255,.025)] px-3 py-2 text-xs font-bold uppercase tracking-wide text-[var(--ink)]">
+                      <span>{PROVEEDOR_LABEL[grupo.proveedor]} · {grupo.filas.length}</span>
+                      <Button size="sm" variant="ghost" onClick={() => copiarProveedor(grupo.proveedor, grupo.filas)} className="h-7 text-xs normal-case">
+                        <ClipboardCopy className="h-3.5 w-3.5" /> Copiar WhatsApp
+                      </Button>
+                    </div>
+                    <Tabla
+                      filas={grupo.filas}
+                      columna="a_comprar"
+                      mostrarProveedor
+                      onProveedorChange={(fila, proveedor) => {
+                        actualizarProveedor.mutate(
+                          { fecha: fechaIso, producto_key: fila.producto_key, proveedor },
+                          { onError: (e: Error) => toast({ title: 'Error guardando proveedor', description: e.message, variant: 'error' }) },
+                        )
+                      }}
+                      onFormatoChange={(fila, unidadCompra, contenido) => {
+                        actualizarFormato.mutate(
+                          {
+                            fecha: fechaIso,
+                            producto_key: fila.producto_key,
+                            unidad_base: fila.unidad,
+                            unidad_compra: unidadCompra,
+                            contenido,
+                          },
+                          { onError: (e: Error) => toast({ title: 'Error guardando formato', description: e.message, variant: 'error' }) },
+                        )
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
             </Bloque>
           )}
 
@@ -393,10 +478,13 @@ function Bloque({
 }
 
 function Tabla({
-  filas, columna,
+  filas, columna, mostrarProveedor = false, onProveedorChange, onFormatoChange,
 }: {
   filas: CotejoFila[]
   columna: 'a_comprar' | 'sobra' | 'pedido'
+  mostrarProveedor?: boolean
+  onProveedorChange?: (fila: CompraOperativaFila, proveedor: ProveedorCompra) => void
+  onFormatoChange?: (fila: CompraOperativaFila, unidadCompra: string, contenido: number) => void
 }) {
   return (
     <div className="overflow-x-auto">
@@ -411,11 +499,20 @@ function Tabla({
                 : columna === 'sobra'  ? 'Sobra'
                 : 'Cubre'}
             </th>
+            {mostrarProveedor && <th className="px-3 py-2 text-left font-medium">Proveedor</th>}
+            {mostrarProveedor && <th className="px-3 py-2 text-left font-medium">Formato compra</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--color-border)]">
           {filas.map((f, i) => (
-            <FilaRow key={`${f.producto}|${f.unidad}|${i}`} fila={f} columna={columna} />
+            <FilaRow
+              key={`${f.producto}|${f.unidad}|${i}`}
+              fila={f}
+              columna={columna}
+              mostrarProveedor={mostrarProveedor}
+              onProveedorChange={onProveedorChange}
+              onFormatoChange={onFormatoChange}
+            />
           ))}
         </tbody>
       </table>
@@ -423,7 +520,15 @@ function Tabla({
   )
 }
 
-function FilaRow({ fila, columna }: { fila: CotejoFila; columna: 'a_comprar' | 'sobra' | 'pedido' }) {
+function FilaRow({
+  fila, columna, mostrarProveedor, onProveedorChange, onFormatoChange,
+}: {
+  fila: CotejoFila
+  columna: 'a_comprar' | 'sobra' | 'pedido'
+  mostrarProveedor: boolean
+  onProveedorChange?: (fila: CompraOperativaFila, proveedor: ProveedorCompra) => void
+  onFormatoChange?: (fila: CompraOperativaFila, unidadCompra: string, contenido: number) => void
+}) {
   const valorPrincipal =
     columna === 'a_comprar' ? fila.a_comprar
     : columna === 'sobra'   ? fila.sobra
@@ -455,8 +560,36 @@ function FilaRow({ fila, columna }: { fila: CotejoFila; columna: 'a_comprar' | '
         columna === 'sobra'     && 'text-[var(--sky)]',
         columna === 'pedido'    && 'text-[var(--mint)]',
       )}>
-        {formatCantidad(valorPrincipal, fila.unidad, cajasPrincipal)}
+        {columna === 'a_comprar' && esCompraOperativa(fila)
+          ? `${formatNum(fila.cantidad_compra)} ${fila.unidad_compra}`
+          : formatCantidad(valorPrincipal, fila.unidad, cajasPrincipal)}
+        {columna === 'a_comprar' && esCompraOperativa(fila) && (
+          <div className="text-[10px] font-normal text-[var(--ink-mute)]">
+            necesidad: {formatCantidad(fila.a_comprar, fila.unidad, fila.a_comprar_cajas)}
+          </div>
+        )}
       </td>
+      {mostrarProveedor && esCompraOperativa(fila) && (
+        <td className="px-3 py-2">
+          <select
+            value={fila.proveedor}
+            onChange={(e) => onProveedorChange?.(fila, e.target.value as ProveedorCompra)}
+            className="rounded border border-[var(--line)] bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--ink)]"
+          >
+            {PROVEEDOR_ORDER.map((proveedor) => (
+              <option key={proveedor} value={proveedor}>{PROVEEDOR_LABEL[proveedor]}</option>
+            ))}
+          </select>
+          <div className="mt-1 text-[9px] uppercase tracking-wide text-[var(--ink-mute)]">
+            {fila.proveedor_fuente === 'manual' ? 'asignado' : fila.proveedor_fuente === 'historico' ? 'histórico' : 'por defecto'}
+          </div>
+        </td>
+      )}
+      {mostrarProveedor && esCompraOperativa(fila) && (
+        <td className="px-3 py-2">
+          <FormatoCompraEditor fila={fila} onSave={onFormatoChange} />
+        </td>
+      )}
     </tr>
   )
 }
@@ -483,10 +616,94 @@ function formatNum(n: number | null | undefined): string {
 }
 
 function formateaLineaCompra(f: CotejoFila): string {
+  if (esCompraOperativa(f)) {
+    const base = f.cantidad_compra !== f.a_comprar || f.unidad_compra !== f.unidad
+      ? ` (${formatNum(f.a_comprar)} ${f.unidad} necesarios)`
+      : ''
+    return `${formatNum(f.cantidad_compra)} ${f.unidad_compra}${base} · ${f.producto}`
+  }
   if (f.unidad === 'kg' && f.a_comprar_cajas != null) {
     return `${formatNum(f.a_comprar_cajas)} cajas (${formatNum(f.a_comprar)} kg) · ${f.producto}`
   }
   return `${formatNum(f.a_comprar)} ${f.unidad} · ${f.producto}`
+}
+
+function mensajeProveedor(proveedor: ProveedorCompra, filas: CompraOperativaFila[]): string {
+  return [
+    `Buenos días, pedido para ${PROVEEDOR_LABEL[proveedor]}:`,
+    '',
+    ...filas.map(formateaLineaCompra),
+    '',
+    'Gracias.',
+  ].join('\n')
+}
+
+const PROVEEDOR_ORDER: ProveedorCompra[] = ['alcalde', 'abasthosur', 'mercado', 'otro']
+const PROVEEDOR_LABEL: Record<ProveedorCompra, string> = {
+  alcalde: 'Alcalde',
+  abasthosur: 'Abasthosur',
+  mercado: 'Mercado',
+  otro: 'Otro',
+}
+
+function esCompraOperativa(fila: CotejoFila): fila is CompraOperativaFila {
+  return 'producto_key' in fila && 'proveedor' in fila
+}
+
+function agruparPorProveedor(filas: CompraOperativaFila[]) {
+  return PROVEEDOR_ORDER
+    .map((proveedor) => ({ proveedor, filas: filas.filter((fila) => fila.proveedor === proveedor) }))
+    .filter((grupo) => grupo.filas.length > 0)
+}
+
+function FormatoCompraEditor({
+  fila, onSave,
+}: {
+  fila: CompraOperativaFila
+  onSave?: (fila: CompraOperativaFila, unidadCompra: string, contenido: number) => void
+}) {
+  const [unidad, setUnidad] = useState(fila.unidad_compra)
+  const [contenido, setContenido] = useState(String(fila.contenido_compra))
+
+  useEffect(() => {
+    setUnidad(fila.unidad_compra)
+    setContenido(String(fila.contenido_compra))
+  }, [fila.unidad_compra, fila.contenido_compra])
+
+  const guardar = () => {
+    const valor = Number(contenido)
+    if (!unidad.trim() || !Number.isFinite(valor) || valor <= 0) {
+      setUnidad(fila.unidad_compra)
+      setContenido(String(fila.contenido_compra))
+      toast({ title: 'Formato inválido', description: 'Indica unidad y contenido mayor que cero.', variant: 'error' })
+      return
+    }
+    if (unidad.trim() === fila.unidad_compra && valor === fila.contenido_compra) return
+    onSave?.(fila, unidad.trim(), valor)
+  }
+
+  return (
+    <div className="flex min-w-[190px] items-center gap-1">
+      <input
+        value={unidad}
+        onChange={(e) => setUnidad(e.target.value)}
+        onBlur={guardar}
+        className="w-20 rounded border border-[var(--line)] bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--ink)]"
+        placeholder="caja"
+      />
+      <span className="text-[10px] text-[var(--ink-mute)]">de</span>
+      <input
+        value={contenido}
+        onChange={(e) => setContenido(e.target.value)}
+        onBlur={guardar}
+        type="number"
+        min="0.01"
+        step="0.01"
+        className="w-16 rounded border border-[var(--line)] bg-[var(--surface-2)] px-2 py-1 text-right text-xs tabular-nums text-[var(--ink)]"
+      />
+      <span className="text-[10px] text-[var(--ink-mute)]">{fila.unidad}</span>
+    </div>
+  )
 }
 
 // ===== Editor de factores kg/caja =====

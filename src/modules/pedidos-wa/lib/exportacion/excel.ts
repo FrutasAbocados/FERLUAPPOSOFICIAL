@@ -5,6 +5,7 @@ import {
   type Pedido,
   type Repartidor,
 } from '../types'
+import type { CompraOperativaFila, RutaConfig, RutaExtra } from '../queries'
 
 const REPARTIDOR_ORDER: Repartidor[] = ['TORRES', 'GERMAN', 'RAUL', 'ALEX']
 
@@ -58,13 +59,16 @@ function ordenSalida(s: string | null | undefined): number {
 
 function ordenarPedidos(pedidos: Pedido[]): Pedido[] {
   return [...pedidos].sort((a, b) => {
-    const ra = REPARTIDOR_ORDER.indexOf(a.cliente?.repartidor ?? 'ALEX')
-    const rb = REPARTIDOR_ORDER.indexOf(b.cliente?.repartidor ?? 'ALEX')
+    const ra = REPARTIDOR_ORDER.indexOf(a.override_repartidor ?? a.cliente?.repartidor ?? 'ALEX')
+    const rb = REPARTIDOR_ORDER.indexOf(b.override_repartidor ?? b.cliente?.repartidor ?? 'ALEX')
     if (ra !== rb) return ra - rb
-    const sa = ordenSalida(a.cliente?.salida)
-    const sb = ordenSalida(b.cliente?.salida)
+    const sa = ordenSalida(a.override_salida ?? a.cliente?.salida)
+    const sb = ordenSalida(b.override_salida ?? b.cliente?.salida)
     if (sa !== sb) return sa - sb
-    return (a.cliente?.horario ?? '').localeCompare(b.cliente?.horario ?? '')
+    if (a.override_orden != null || b.override_orden != null) {
+      return (a.override_orden ?? Number.MAX_SAFE_INTEGER) - (b.override_orden ?? Number.MAX_SAFE_INTEGER)
+    }
+    return (a.override_horario ?? a.cliente?.horario ?? '').localeCompare(b.override_horario ?? b.cliente?.horario ?? '')
   })
 }
 
@@ -117,7 +121,13 @@ function styleRow(row: ExcelJS.Row, kind: RowKind, altBg: boolean) {
 }
 
 // ── Construir una hoja ────────────────────────────────────────────────────────
-function buildSheet(wb: ExcelJS.Workbook, sheetName: string, pedidos: Pedido[]) {
+function buildSheet(
+  wb: ExcelJS.Workbook,
+  sheetName: string,
+  pedidos: Pedido[],
+  configs: RutaConfig[],
+  extras: RutaExtra[],
+) {
   const ws = wb.addWorksheet(sheetName, {
     pageSetup: {
       paperSize:   9,  // A4
@@ -135,76 +145,108 @@ function buildSheet(wb: ExcelJS.Workbook, sheetName: string, pedidos: Pedido[]) 
     { key: 'factura',   width: 9  },
     { key: 'pedido',    width: 52 },
     { key: 'faltas',    width: 28 },
+    { key: 'vehiculo',  width: 12 },
     { key: 'reparto',   width: 10 },
   ]
 
   // Cabecera
-  const headerRow = ws.addRow(['CLIENTE', 'HORARIO', 'FACTURA', 'PEDIDO', 'FALTAS', 'REPARTO'])
+  const headerRow = ws.addRow(['CLIENTE', 'HORARIO', 'FACTURA', 'PEDIDO', 'FALTAS', 'VEHÍCULO', 'REPARTO'])
   styleRow(headerRow, 'header', false)
 
   let altBg = false
-  let prevRep: Repartidor | null = null
-  let prevSalida: string | null | undefined = undefined
+  for (const rep of REPARTIDOR_ORDER) {
+    for (const salida of ['PRIMERA', 'SEGUNDA'] as const) {
+      const pedidosSeccion = pedidos.filter((p) => (
+        (p.override_repartidor ?? p.cliente?.repartidor) === rep &&
+        (p.override_salida ?? p.cliente?.salida ?? 'PRIMERA') === salida
+      ))
+      const extrasSeccion = extras.filter((extra) => extra.repartidor === rep && extra.salida === salida)
+      if (pedidosSeccion.length === 0 && extrasSeccion.length === 0) continue
 
-  for (const p of pedidos) {
-    const rep = p.cliente?.repartidor ?? null
-    const salida = p.cliente?.salida ?? null
-
-    if (rep && rep !== prevRep) {
-      if (prevRep !== null) {
-        const sepRow = ws.addRow(['', '', '', '', '', ''])
-        styleRow(sepRow, 'section', false)
-        sepRow.height = 6
-      }
-      const label = `── ${REPARTIDOR_LABEL[rep as Repartidor]} ──`
-      const secRow = ws.addRow([label, '', '', '', '', ''])
-      ws.mergeCells(secRow.number, 1, secRow.number, 6)
-      styleRow(secRow, 'section', false)
+      const vehiculo = configs.find((config) => config.repartidor === rep && config.salida === salida)?.vehiculo ?? ''
+      const label = `${salida === 'SEGUNDA' ? 'SEGUNDA SALIDA' : 'SALIDA DEL CAMPO'} · ${REPARTIDOR_LABEL[rep]}${vehiculo ? ` · ${vehiculo}` : ''}`
+      const secRow = ws.addRow([label, '', '', '', '', '', ''])
+      ws.mergeCells(secRow.number, 1, secRow.number, 7)
+      styleRow(secRow, salida === 'SEGUNDA' ? 'salida' : 'section', false)
       altBg = false
-      prevSalida = undefined
-    }
 
-    if (
-      (rep === 'GERMAN' || rep === 'RAUL') &&
-      salida === 'SEGUNDA' &&
-      prevSalida !== 'SEGUNDA' &&
-      prevSalida !== undefined
-    ) {
-      const salRow = ws.addRow(['', '', '', 'Segunda salida', '', ''])
-      ws.mergeCells(salRow.number, 1, salRow.number, 6)
-      styleRow(salRow, 'salida', false)
+      for (const p of pedidosSeccion) {
+        const c = p.cliente
+        const dataRow = ws.addRow([
+          c?.nombre ?? '—',
+          p.override_horario ?? c?.horario ?? '',
+          c?.tipo_factura ?? '',
+          resumenPedido(p),
+          p.faltas ?? '',
+          vehiculo,
+          REPARTIDOR_LABEL[rep],
+        ])
+        styleRow(dataRow, 'data', altBg)
+        altBg = !altBg
+      }
+      for (const extra of extrasSeccion) {
+        const dataRow = ws.addRow([
+          extra.cliente,
+          extra.horario ?? '',
+          extra.factura ?? '',
+          extra.pedido ?? '',
+          extra.faltas ?? '',
+          vehiculo,
+          REPARTIDOR_LABEL[rep],
+        ])
+        styleRow(dataRow, 'data', altBg)
+        altBg = !altBg
+      }
     }
-
-    const c = p.cliente
-    const dataRow = ws.addRow([
-      c?.nombre ?? '—',
-      c?.horario ?? '',
-      c?.tipo_factura ?? '',
-      resumenPedido(p),
-      p.faltas ?? '',
-      c ? REPARTIDOR_LABEL[c.repartidor] : '',
-    ])
-    styleRow(dataRow, 'data', altBg)
-    altBg = !altBg
-    prevRep = rep
-    prevSalida = salida
   }
 }
 
+function buildCompraSheet(wb: ExcelJS.Workbook, proveedor: string, filas: CompraOperativaFila[]) {
+  const ws = wb.addWorksheet(`COMPRA ${proveedor.toUpperCase()}`)
+  ws.columns = [
+    { key: 'producto', width: 30 },
+    { key: 'cantidad', width: 16 },
+    { key: 'unidad', width: 12 },
+    { key: 'necesidad', width: 20 },
+  ]
+  const header = ws.addRow(['PRODUCTO', 'PEDIR', 'FORMATO', 'NECESIDAD BASE'])
+  styleRow(header, 'header', false)
+  filas.forEach((fila, index) => {
+    const row = ws.addRow([
+      fila.producto,
+      fila.cantidad_compra,
+      fila.unidad_compra,
+      `${formatN(fila.a_comprar)} ${fila.unidad}`,
+    ])
+    styleRow(row, 'data', index % 2 === 1)
+  })
+}
+
 // ── Export principal ─────────────────────────────────────────────────────────
-export async function exportarHojaRuta(pedidos: Pedido[], fechaIso: string) {
+export async function exportarHojaRuta(
+  pedidos: Pedido[],
+  fechaIso: string,
+  configs: RutaConfig[] = [],
+  extras: RutaExtra[] = [],
+  compra: CompraOperativaFila[] = [],
+) {
   const { default: ExcelJSRuntime } = await import('exceljs')
   const ordenados = ordenarPedidos(pedidos)
   const wb = new ExcelJSRuntime.Workbook()
   wb.creator = 'Abocados OS'
   wb.created = new Date()
 
-  buildSheet(wb, 'COMPLETA', ordenados)
+  buildSheet(wb, 'RUTA COMPLETA', ordenados, configs, extras)
 
   for (const rep of REPARTIDOR_ORDER) {
-    const subset = ordenados.filter(p => p.cliente?.repartidor === rep)
+    const subset = ordenados.filter(p => (p.override_repartidor ?? p.cliente?.repartidor) === rep)
     if (subset.length === 0) continue
-    buildSheet(wb, REPARTIDOR_LABEL[rep].toUpperCase(), subset)
+    buildSheet(wb, REPARTIDOR_LABEL[rep].toUpperCase(), subset, configs, extras.filter((extra) => extra.repartidor === rep))
+  }
+
+  for (const proveedor of ['alcalde', 'abasthosur', 'mercado', 'otro']) {
+    const filas = compra.filter((fila) => fila.a_comprar > 0 && fila.proveedor === proveedor)
+    if (filas.length > 0) buildCompraSheet(wb, proveedor, filas)
   }
 
   const buffer = await wb.xlsx.writeBuffer()
@@ -214,7 +256,7 @@ export async function exportarHojaRuta(pedidos: Pedido[], fechaIso: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `ruta-${fechaIso}.xlsx`
+  a.download = `parte-operativo-${fechaIso}.xlsx`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -229,6 +271,8 @@ export type CompraFila = {
   inventario_cajas: number | null
   a_comprar_cajas: number | null
   kg_por_caja: number | null
+  cantidad_compra?: number
+  unidad_compra?: string
 }
 
 export async function exportarCompra(filas: CompraFila[], fechaIso: string) {
@@ -237,7 +281,8 @@ export async function exportarCompra(filas: CompraFila[], fechaIso: string) {
     'PRODUCTO', 'UNIDAD',
     'PEDIDO', 'PEDIDO (cajas)',
     'INVENTARIO', 'INVENTARIO (cajas)',
-    'A COMPRAR', 'A COMPRAR (cajas)',
+    'NECESIDAD BASE', 'A COMPRAR (cajas)',
+    'PEDIR', 'FORMATO',
     'kg/caja',
   ]
   type Fila = (string | number)[]
@@ -252,6 +297,8 @@ export async function exportarCompra(filas: CompraFila[], fechaIso: string) {
       f.inventario_cajas ?? '',
       f.a_comprar,
       f.a_comprar_cajas ?? '',
+      f.cantidad_compra ?? f.a_comprar,
+      f.unidad_compra ?? f.unidad,
       f.kg_por_caja ?? '',
     ])
   }
@@ -260,6 +307,7 @@ export async function exportarCompra(filas: CompraFila[], fechaIso: string) {
     { wch: 28 }, { wch: 8 },
     { wch: 10 }, { wch: 12 },
     { wch: 12 }, { wch: 14 },
+    { wch: 10 }, { wch: 12 },
     { wch: 12 }, { wch: 14 },
     { wch: 8 },
   ]
