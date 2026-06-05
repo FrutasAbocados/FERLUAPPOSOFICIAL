@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Receipt,
   ScrollText,
+  Tags,
   Users,
   UsersRound,
   Vault,
@@ -43,6 +44,7 @@ const MODULES: ModuleNav[] = [
   { key: 'cobros',     label: 'Cobros',     to: '/cobros',     icon: HandCoins },
   { key: 'gastos',     label: 'Gastos',     to: '/gastos',     icon: Receipt },
   { key: 'tesoreria',  label: 'Tesorería',  to: '/tesoreria',  icon: Vault },
+  { key: 'listado_precios', label: 'Listado Precios', to: '/listado-precios', icon: Tags },
 ]
 
 const EQUIPO: ModuleNav[] = [
@@ -66,6 +68,7 @@ const PRELOADERS: Record<string, () => void> = {
   '/cobros':           () => { void import('@/modules/cobros/CobrosPage') },
   '/gastos':           () => { void import('@/modules/gastos/GastosPage') },
   '/tesoreria':        () => { void import('@/modules/tesoreria/TesoreriaPage') },
+  '/listado-precios':  () => { void import('@/modules/listado-precios/ListadoPreciosPage') },
   '/trabajadores':     () => { void import('@/modules/trabajadores/TrabajadoresOpPage') },
   '/bbdd-trabajadores':() => { void import('@/modules/trabajadores/TrabajadoresPage') },
   '/nominas':          () => { void import('@/modules/nominas/NominasPage') },
