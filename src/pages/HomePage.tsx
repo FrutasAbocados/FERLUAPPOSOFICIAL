@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   BarChart3, Banknote, Bot, CalendarClock,
-  CheckSquare, CalendarDays, EyeOff, HandCoins, Package, RotateCcw, TrendingUp, UserMinus, Users, Wallet, X,
+  CheckSquare, CalendarDays, EyeOff, HandCoins, Package, RotateCcw, Tags, TrendingUp, UserMinus, Users, Wallet, X,
   ChevronDown, ArrowRight,
   type LucideIcon,
 } from 'lucide-react'
@@ -53,6 +53,7 @@ const MODULOS = [
   { key: 'cobros',            title: 'Cobros',       to: '/cobros',            Icon: HandCoins,    color: 'oklch(70% 0.18 25)',  bg: 'oklch(22% 0.10 25  / 0.55)' },
   { key: 'sueldos',           title: 'Sueldos',      to: '/sueldos',           Icon: Wallet,       color: 'oklch(80% 0.15 55)',  bg: 'oklch(23% 0.09 55  / 0.55)' },
   { key: 'bbdd_trabajadores', title: 'BBDD',         to: '/bbdd-trabajadores', Icon: Users,        color: 'oklch(75% 0.12 270)', bg: 'oklch(20% 0.08 270 / 0.55)' },
+  { key: 'listado_precios',   title: 'Listado Precios', to: '/listado-precios', Icon: Tags,        color: 'oklch(80% 0.15 130)', bg: 'oklch(22% 0.10 130 / 0.55)' },
 ] as const
 
 export function HomePage() {
