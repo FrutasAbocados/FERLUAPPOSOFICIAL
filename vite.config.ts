@@ -21,6 +21,7 @@ export default defineConfig({
           '**/vendor-xlsx-*.js',
           '**/vendor-recharts-*.js',
           '**/vendor-leaflet-*.js',
+          '**/vendor-pdf-*.js',
         ],
         // Bundle pasó de 2MB tras añadir Recharts + Gastos + Clientes (2026-05-06).
         // 5 MiB cubre con margen y evita romper el build de Vercel.
@@ -54,6 +55,9 @@ export default defineConfig({
           if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet') || id.includes('node_modules/@react-leaflet')) return 'vendor-leaflet'
           if (id.includes('node_modules/exceljs')) return 'vendor-exceljs'
           if (id.includes('node_modules/xlsx')) return 'vendor-xlsx'
+          // Stack PDF (jspdf + html2canvas/-pro + canvg): solo se usa al exportar,
+          // fuera del precache PWA para no inflar la descarga inicial del móvil.
+          if (id.includes('node_modules/jspdf') || id.includes('html2canvas') || id.includes('node_modules/canvg')) return 'vendor-pdf'
         },
       },
     },

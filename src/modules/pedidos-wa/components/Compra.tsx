@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
@@ -664,11 +664,13 @@ function FormatoCompraEditor({
 }) {
   const [unidad, setUnidad] = useState(fila.unidad_compra)
   const [contenido, setContenido] = useState(String(fila.contenido_compra))
+  const [prevFormato, setPrevFormato] = useState({ unidad: fila.unidad_compra, contenido: fila.contenido_compra })
 
-  useEffect(() => {
+  if (prevFormato.unidad !== fila.unidad_compra || prevFormato.contenido !== fila.contenido_compra) {
+    setPrevFormato({ unidad: fila.unidad_compra, contenido: fila.contenido_compra })
     setUnidad(fila.unidad_compra)
     setContenido(String(fila.contenido_compra))
-  }, [fila.unidad_compra, fila.contenido_compra])
+  }
 
   const guardar = () => {
     const valor = Number(contenido)

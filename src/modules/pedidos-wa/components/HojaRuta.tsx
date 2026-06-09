@@ -429,12 +429,17 @@ function TableSection({
 }) {
   const config = configs.find((row) => row.repartidor === section.repartidor && row.salida === section.salida)
   const manuales = extras.filter((row) => row.repartidor === section.repartidor && row.salida === section.salida)
-  const [vehiculo, setVehiculo] = useState(config?.vehiculo ?? '')
+  const vehiculoServer = config?.vehiculo ?? ''
+  const [vehiculo, setVehiculo] = useState(vehiculoServer)
+  const [prevVehiculoServer, setPrevVehiculoServer] = useState(vehiculoServer)
   const guardarConfig = useGuardarRutaConfig()
   const guardarExtra = useGuardarRutaExtra()
   const eliminarExtra = useEliminarRutaExtra()
 
-  useEffect(() => setVehiculo(config?.vehiculo ?? ''), [config?.vehiculo])
+  if (prevVehiculoServer !== vehiculoServer) {
+    setPrevVehiculoServer(vehiculoServer)
+    setVehiculo(vehiculoServer)
+  }
 
   const guardarVehiculo = () => {
     const valor = vehiculo.trim()
@@ -534,7 +539,11 @@ function ManualRouteTableRow({
   onDelete: () => void
 }) {
   const [draft, setDraft] = useState(linea)
-  useEffect(() => setDraft(linea), [linea])
+  const [prevLinea, setPrevLinea] = useState(linea)
+  if (prevLinea !== linea) {
+    setPrevLinea(linea)
+    setDraft(linea)
+  }
 
   const cambiar = (patch: Partial<RutaExtra>) => setDraft((prev) => ({ ...prev, ...patch }))
   const guardar = (field: keyof Pick<RutaExtra, 'cliente' | 'horario' | 'factura' | 'pedido' | 'faltas'>) => {

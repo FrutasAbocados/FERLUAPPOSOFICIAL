@@ -153,7 +153,6 @@ function buildSheet(
   const headerRow = ws.addRow(['CLIENTE', 'HORARIO', 'FACTURA', 'PEDIDO', 'FALTAS', 'VEHÍCULO', 'REPARTO'])
   styleRow(headerRow, 'header', false)
 
-  let altBg = false
   for (const rep of REPARTIDOR_ORDER) {
     for (const salida of ['PRIMERA', 'SEGUNDA'] as const) {
       const pedidosSeccion = pedidos.filter((p) => (
@@ -168,7 +167,7 @@ function buildSheet(
       const secRow = ws.addRow([label, '', '', '', '', '', ''])
       ws.mergeCells(secRow.number, 1, secRow.number, 7)
       styleRow(secRow, salida === 'SEGUNDA' ? 'salida' : 'section', false)
-      altBg = false
+      let altBg = false
 
       for (const p of pedidosSeccion) {
         const c = p.cliente
