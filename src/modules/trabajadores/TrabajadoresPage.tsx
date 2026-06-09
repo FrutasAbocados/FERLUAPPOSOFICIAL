@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Modal } from '@/shared/components/Modal'
 import { PageTopbar } from '@/shared/components/PageTopbar'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { FileText, Save, UserCog, Users, X } from 'lucide-react'
+import { FileText, Save, UserCog, UserPlus, Users, X } from 'lucide-react'
 import { eurosOrDash } from '@/shared/lib/format'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -104,6 +104,33 @@ function useGuardarCondiciones() {
   })
 }
 
+function useCrearTrabajador() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (t: Trabajador) => {
+      const { error } = await supabase
+        .from('empleados')
+        .insert({
+          nombre: t.nombre.trim(),
+          puesto: t.puesto,
+          fecha_alta: t.fecha_alta,
+          sueldo_base: t.sueldo_base,
+          plus_transporte: t.plus_transporte,
+          plus_responsabilidad: t.plus_responsabilidad,
+          plus_otros: t.plus_otros,
+          plus_otros_concepto: t.plus_otros_concepto,
+          notas: t.notas,
+          activo: t.activo,
+          pack: t.pack,
+          limite_credito_mensual: t.limite_credito_mensual,
+          tarifa_sabado: t.tarifa_sabado,
+        })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['trabajadores'] }),
+  })
+}
+
 function useGuardarTrabajador() {
   const qc = useQueryClient()
   return useMutation({
@@ -142,9 +169,28 @@ const totalMensual = (t: Trabajador) => {
     Number(t.plus_otros ?? 0)
 }
 
+const trabajadorNuevo = (): Trabajador => ({
+  id: '',
+  nombre: '',
+  user_id: null,
+  puesto: null,
+  fecha_alta: new Date().toISOString().slice(0, 10),
+  sueldo_base: null,
+  plus_transporte: null,
+  plus_responsabilidad: null,
+  plus_otros: null,
+  plus_otros_concepto: null,
+  notas: null,
+  activo: true,
+  pack: 1,
+  limite_credito_mensual: 100,
+  tarifa_sabado: 70,
+})
+
 export function TrabajadoresPage() {
   const { data, isLoading } = useTrabajadores()
   const [editing, setEditing] = useState<Trabajador | null>(null)
+  const [creating, setCreating] = useState(false)
 
   const totalNomina = useMemo(() =>
     (data ?? []).filter(t => t.activo).reduce((s, t) => s + totalMensual(t), 0),
@@ -156,6 +202,11 @@ export function TrabajadoresPage() {
         breadcrumb="EQUIPO · BBDD TRABAJADORES"
         title="Trabajadores"
         subtitle="Plantilla, condiciones y pluses individualizados."
+        actions={
+          <Button size="sm" onClick={() => setCreating(true)}>
+            <UserPlus className="mr-1 h-4 w-4" /> Nuevo trabajador
+          </Button>
+        }
       />
       <div className="ao-page max-w-5xl py-6 md:py-8">
 
@@ -204,22 +255,32 @@ export function TrabajadoresPage() {
       {editing && (
         <EditorTrabajador trabajador={editing} onClose={() => setEditing(null)} />
       )}
+      {creating && (
+        <EditorTrabajador trabajador={trabajadorNuevo()} modo="crear" onClose={() => setCreating(false)} />
+      )}
       </div>
     </div>
   )
 }
 
-function EditorTrabajador({ trabajador, onClose }: { trabajador: Trabajador; onClose: () => void }) {
+function EditorTrabajador({ trabajador, onClose, modo = 'editar' }: { trabajador: Trabajador; onClose: () => void; modo?: 'crear' | 'editar' }) {
   const guardar = useGuardarTrabajador()
+  const crear = useCrearTrabajador()
   const [t, setT] = useState<Trabajador>(trabajador)
+  const pending = guardar.isPending || crear.isPending
 
   const set = <K extends keyof Trabajador>(k: K, v: Trabajador[K]) => setT(prev => ({ ...prev, [k]: v }))
   const setNum = (k: keyof Trabajador, v: string) =>
     setT(prev => ({ ...prev, [k]: v === '' ? null : Number(v.replace(',', '.')) }))
 
   const submit = async () => {
+    if (modo === 'crear' && !t.nombre.trim()) {
+      toast({ title: 'Falta el nombre', description: 'El nombre del trabajador es obligatorio.', variant: 'error' })
+      return
+    }
     try {
-      await guardar.mutateAsync(t)
+      if (modo === 'crear') await crear.mutateAsync(t)
+      else await guardar.mutateAsync(t)
       onClose()
     } catch (e) {
       toast({ title: 'No se pudo guardar', description: e instanceof Error ? e.message : '', variant: 'error' })
@@ -234,8 +295,10 @@ function EditorTrabajador({ trabajador, onClose }: { trabajador: Trabajador; onC
               <UserCog className="h-5 w-5 text-[var(--color-primary-2)]" />
             </div>
             <div>
-              <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">{trabajador.nombre}</h2>
-              <p className="text-xs text-[var(--color-ink-3)]">Editar condiciones</p>
+              <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">
+                {modo === 'crear' ? (t.nombre.trim() || 'Nuevo trabajador') : trabajador.nombre}
+              </h2>
+              <p className="text-xs text-[var(--color-ink-3)]">{modo === 'crear' ? 'Alta de empleado' : 'Editar condiciones'}</p>
             </div>
           </div>
           <Button size="sm" variant="ghost" onClick={onClose}><X className="h-4 w-4" /></Button>
@@ -356,12 +419,18 @@ function EditorTrabajador({ trabajador, onClose }: { trabajador: Trabajador; onC
             />
           </Field>
 
-          <CondicionesSection empleadoId={t.id} />
+          {modo === 'editar' ? (
+            <CondicionesSection empleadoId={t.id} />
+          ) : (
+            <p className="rounded-md border border-dashed border-[var(--color-border)] p-3 text-xs text-[var(--color-ink-3)]">
+              Las condiciones de contrato (jornada, horario, vacaciones…) se añaden tras crear el trabajador, abriendo su ficha.
+            </p>
+          )}
 
           <div className="flex justify-end gap-2 border-t border-[var(--color-border)] pt-3">
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button onClick={submit} disabled={guardar.isPending}>
-              <Save className="mr-1 h-4 w-4" /> {guardar.isPending ? 'Guardando…' : 'Guardar'}
+            <Button onClick={submit} disabled={pending}>
+              <Save className="mr-1 h-4 w-4" /> {pending ? 'Guardando…' : modo === 'crear' ? 'Crear trabajador' : 'Guardar'}
             </Button>
           </div>
         </div>
