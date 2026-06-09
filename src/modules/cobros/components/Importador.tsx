@@ -19,7 +19,7 @@ export function Importador() {
     setResult(null)
     try {
       const buf = await file.arrayBuffer()
-      const data = parseExcel(buf)
+      const data = await parseExcel(buf)
       setParsed(data)
     } catch (err) {
       console.error(err)
@@ -74,7 +74,7 @@ export function Importador() {
           <label className="inline-flex">
             <input
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx"
               className="hidden"
               onChange={onFile}
               disabled={busy}

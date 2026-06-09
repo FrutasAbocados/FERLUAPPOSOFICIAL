@@ -275,7 +275,7 @@ export type CompraFila = {
 }
 
 export async function exportarCompra(filas: CompraFila[], fechaIso: string) {
-  const XLSX = await import('xlsx')
+  const { default: ExcelJSRuntime } = await import('exceljs')
   const HEADER_COMPRA = [
     'PRODUCTO', 'UNIDAD',
     'PEDIDO', 'PEDIDO (cajas)',
@@ -284,10 +284,15 @@ export async function exportarCompra(filas: CompraFila[], fechaIso: string) {
     'PEDIR', 'FORMATO',
     'kg/caja',
   ]
-  type Fila = (string | number)[]
-  const rows: Fila[] = [HEADER_COMPRA]
+  const wbx = new ExcelJSRuntime.Workbook()
+  wbx.creator = 'Abocados OS'
+  wbx.created = new Date()
+  const ws = wbx.addWorksheet('COMPRA')
+  const widths = [28, 8, 10, 12, 12, 14, 10, 12, 12, 14, 8]
+  ws.columns = widths.map((w) => ({ width: w }))
+  ws.addRow(HEADER_COMPRA)
   for (const f of filas) {
-    rows.push([
+    ws.addRow([
       f.producto,
       f.unidad,
       f.pedido_total,
@@ -301,16 +306,14 @@ export async function exportarCompra(filas: CompraFila[], fechaIso: string) {
       f.kg_por_caja ?? '',
     ])
   }
-  const ws = XLSX.utils.aoa_to_sheet(rows)
-  ws['!cols'] = [
-    { wch: 28 }, { wch: 8 },
-    { wch: 10 }, { wch: 12 },
-    { wch: 12 }, { wch: 14 },
-    { wch: 10 }, { wch: 12 },
-    { wch: 12 }, { wch: 14 },
-    { wch: 8 },
-  ]
-  const wbx = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wbx, ws, 'COMPRA')
-  XLSX.writeFile(wbx, `compra-${fechaIso}.xlsx`)
+  const buffer = await wbx.xlsx.writeBuffer()
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `compra-${fechaIso}.xlsx`
+  a.click()
+  URL.revokeObjectURL(url)
 }

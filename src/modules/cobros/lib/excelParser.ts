@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import type ExcelJS from 'exceljs'
 import { isValid, parseISO } from 'date-fns'
 import { calcVencimiento, excelSerialToDate, isoDate } from './utils'
 import type { FormaPago, MetodoCobro } from './types'
@@ -100,19 +100,88 @@ export type ParseResult = ImportPayload & {
   }
 }
 
-export function parseExcel(buffer: ArrayBuffer): ParseResult {
-  const wb = XLSX.read(buffer, { type: 'array' })
+// ─── Lectura con exceljs ──
+// Sustituye a la librería `xlsx` (CVE sin parche en npm; este parser procesa
+// archivos subidos por el usuario). exceljs solo lee .xlsx — los .xls antiguos
+// (contenedor OLE2) se detectan por magic bytes y se rechazan con instrucción clara.
+
+const OLE2_MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]
+
+function esXlsAntiguo(buffer: ArrayBuffer): boolean {
+  const bytes = new Uint8Array(buffer.slice(0, 8))
+  return bytes.length === 8 && OLE2_MAGIC.every((b, i) => bytes[i] === b)
+}
+
+// Normaliza un CellValue de exceljs al primitivo que esperan los parsers
+// (string | number | boolean | Date | null). Fórmulas → su resultado; celdas
+// de error → su código ('#REF!'); richText / hyperlink → texto plano.
+function cellValue(v: ExcelJS.CellValue): unknown {
+  if (v == null) return null
+  if (v instanceof Date) return v
+  if (typeof v === 'object') {
+    const o = v as unknown as Record<string, unknown>
+    if ('error' in o) return String(o.error)
+    if ('result' in o) return cellValue(o.result as ExcelJS.CellValue)
+    if ('richText' in o) return (o.richText as { text: string }[]).map((r) => r.text).join('')
+    if ('text' in o) return cellValue(o.text as ExcelJS.CellValue)
+    return null
+  }
+  return v
+}
+
+type RowRecord = Record<string, unknown>
+
+// Equivalente a XLSX.utils.sheet_to_json: cada fila como objeto clave=cabecera
+// (fila 1, sin trim — 'Cliente. ' con espacio se respeta). Columnas sin cabecera
+// reciben __EMPTY, __EMPTY_1, __EMPTY_2… (mismo naming que usaba xlsx).
+// `fila` es el número real de fila en el Excel (para los avisos).
+function sheetToRows(ws: ExcelJS.Worksheet): { row: RowRecord; fila: number }[] {
+  const headerRow = ws.getRow(1)
+  const headers: string[] = []
+  let emptyCount = 0
+  for (let c = 1; c <= ws.columnCount; c++) {
+    const raw = cellValue(headerRow.getCell(c).value)
+    const name = raw == null ? '' : String(raw)
+    if (name !== '') {
+      headers[c] = name
+    } else {
+      headers[c] = emptyCount === 0 ? '__EMPTY' : `__EMPTY_${emptyCount}`
+      emptyCount++
+    }
+  }
+  const rows: { row: RowRecord; fila: number }[] = []
+  ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    if (rowNumber === 1) return
+    const rec: RowRecord = {}
+    let hasValue = false
+    for (let c = 1; c <= ws.columnCount; c++) {
+      const v = cellValue(row.getCell(c).value)
+      rec[headers[c]] = v
+      if (v != null && v !== '') hasValue = true
+    }
+    if (hasValue) rows.push({ row: rec, fila: rowNumber })
+  })
+  return rows
+}
+
+export async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
+  if (esXlsAntiguo(buffer)) {
+    throw new Error(
+      'Formato .xls antiguo no soportado. Abre el archivo en Excel y guárdalo como .xlsx (Libro de Excel).',
+    )
+  }
+  const { default: ExcelJSLib } = await import('exceljs')
+  const wb = new ExcelJSLib.Workbook()
+  await wb.xlsx.load(buffer)
+
   const errores: ParseError[] = []
   const clientesMap = new Map<string, ImportPayload['clientes'][number]>()
   const movimientos: ImportPayload['movimientos'] = []
 
   // ─── Hoja Clientes ──
-  const sheetClientes = wb.Sheets['Clientes']
+  const sheetClientes = wb.getWorksheet('Clientes')
   if (sheetClientes) {
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheetClientes, {
-      defval: null,
-    })
-    rows.forEach((row, idx) => {
+    sheetToRows(sheetClientes).forEach(({ row, fila }) => {
       const nombre = typeof row['Cliente'] === 'string' ? (row['Cliente'] as string).trim() : ''
       if (!nombre) return
       const formaPago = parseFormaPago(row['Forma de Pago'])
@@ -126,7 +195,7 @@ export function parseExcel(buffer: ArrayBuffer): ParseResult {
       // Validación blanda: filas con #REF! u otros errores
       const v = row['__EMPTY_2']
       if (typeof v === 'string' && v.startsWith('#')) {
-        errores.push({ hoja: 'Clientes', fila: idx + 2, motivo: `Celda con error: ${v}` })
+        errores.push({ hoja: 'Clientes', fila, motivo: `Celda con error: ${v}` })
       }
     })
   } else {
@@ -135,11 +204,10 @@ export function parseExcel(buffer: ArrayBuffer): ParseResult {
 
   // Función común para parsear hojas de facturas
   const parseFacturas = (sheetName: string, esArchivado: boolean) => {
-    const sheet = wb.Sheets[sheetName]
+    const sheet = wb.getWorksheet(sheetName)
     if (!sheet) return 0
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null })
     let count = 0
-    rows.forEach((row, idx) => {
+    sheetToRows(sheet).forEach(({ row, fila }) => {
       const clienteName = (row['Cliente. '] ?? row['Cliente']) as unknown
       const nombre = typeof clienteName === 'string' ? clienteName.trim() : ''
       if (!nombre) return
@@ -158,7 +226,7 @@ export function parseExcel(buffer: ArrayBuffer): ParseResult {
       if (!fechaFactura) {
         errores.push({
           hoja: sheetName,
-          fila: idx + 2,
+          fila,
           motivo: `Fecha factura inválida (cliente=${nombre}, nº=${numFactura ?? '—'})`,
         })
         return
@@ -167,7 +235,7 @@ export function parseExcel(buffer: ArrayBuffer): ParseResult {
       if (importe == null) {
         errores.push({
           hoja: sheetName,
-          fila: idx + 2,
+          fila,
           motivo: `Importe inválido (cliente=${nombre}, nº=${numFactura ?? '—'})`,
         })
         return

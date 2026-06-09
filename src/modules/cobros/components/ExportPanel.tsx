@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import * as XLSX from 'xlsx'
 import { CloudDownload, Cloud, Download, FileJson, Loader2, RefreshCw, Upload } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
@@ -32,76 +31,100 @@ export function ExportPanel() {
   const restaurar = useRestaurarBackup()
   const [restoring, setRestoring] = useState(false)
 
-  const exportXLSX = () => {
+  const exportXLSX = async () => {
     if (!clientes.data || !movs.data) return
-    const wb = XLSX.utils.book_new()
+    // exceljs en diferido: solo se descarga el chunk al pulsar Exportar.
+    const { default: ExcelJSLib } = await import('exceljs')
+    const wb = new ExcelJSLib.Workbook()
+
+    const addSheet = (name: string, headers: string[], rows: (string | number)[][]) => {
+      const ws = wb.addWorksheet(name)
+      ws.addRow(headers)
+      rows.forEach((r) => ws.addRow(r))
+    }
 
     // Hoja Clientes
-    const clientesRows = clientes.data.map((c) => ({
-      Cliente: c.nombre,
-      'Forma de Pago': FORMA_PAGO_LABEL[c.forma_pago],
-      'Método Cobro Preferido': c.metodo_cobro_preferido ?? '',
-      Notas: c.notas ?? '',
-      Activo: c.activo ? 'Sí' : 'No',
-    }))
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clientesRows), 'Clientes')
+    addSheet(
+      'Clientes',
+      ['Cliente', 'Forma de Pago', 'Método Cobro Preferido', 'Notas', 'Activo'],
+      clientes.data.map((c) => [
+        c.nombre,
+        FORMA_PAGO_LABEL[c.forma_pago],
+        c.metodo_cobro_preferido ?? '',
+        c.notas ?? '',
+        c.activo ? 'Sí' : 'No',
+      ]),
+    )
 
     // Hoja Facturas (pendientes + cobradas no archivadas)
     const nombrePorId = new Map(clientes.data.map((c) => [c.id, c.nombre]))
     const formaPorId = new Map(clientes.data.map((c) => [c.id, c.forma_pago]))
-    const facturasRows = movs.data
-      .filter((m) => m.tipo === 'Factura' && !m.pagado)
-      .map((m) => ({
-        Cliente: nombrePorId.get(m.cliente_id) ?? '',
-        'Nº Factura': m.numero_factura ?? '',
-        'Fecha Factura': m.fecha_factura,
-        Importe: Number(m.importe),
-        'Pagado (Sí/No)': m.pagado ? 'Pagado' : 'No',
-        'Fecha Cobro': m.fecha_cobro ?? '',
-        'Importe Cobrado': m.importe_cobrado ?? '',
-        'Método Cobro': m.metodo_cobro ?? '',
-        'Forma de Pago': FORMA_PAGO_LABEL[formaPorId.get(m.cliente_id) ?? 'Contado'],
-        'Fecha Vencimiento': m.fecha_vencimiento,
-        'Importe Pendiente': importePendiente(m),
-      }))
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(facturasRows), 'Facturas')
-
-    // Hoja Pizarra (deudas no factura)
-    const pizarraRows = movs.data
-      .filter((m) => m.tipo === 'Pizarra')
-      .map((m) => ({
-        Cliente: nombrePorId.get(m.cliente_id) ?? '',
-        'Fecha': m.fecha_factura,
-        Concepto: m.concepto ?? '',
-        Importe: Number(m.importe),
-        Pagado: m.pagado ? 'Sí' : 'No',
-        'Fecha Cobro': m.fecha_cobro ?? '',
-        'Importe Cobrado': m.importe_cobrado ?? '',
-        'Método Cobro': m.metodo_cobro ?? '',
-      }))
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pizarraRows), 'Pizarra')
-
-    // Hoja Archivados (facturas pagadas)
-    const archivadosRows = movs.data
-      .filter((m) => m.tipo === 'Factura' && m.pagado)
-      .map((m) => ({
-        Cliente: nombrePorId.get(m.cliente_id) ?? '',
-        'Nº Factura': m.numero_factura ?? '',
-        'Fecha Factura': m.fecha_factura,
-        Importe: Number(m.importe),
-        'Pagado (Sí/No)': 'Pagado',
-        'Fecha Cobro': m.fecha_cobro ?? '',
-        'Importe Cobrado': m.importe_cobrado ?? '',
-        'Método Cobro': m.metodo_cobro ?? '',
-      }))
-    XLSX.utils.book_append_sheet(
-      wb,
-      XLSX.utils.json_to_sheet(archivadosRows),
-      'Archivados Cobrados Antiguos',
+    addSheet(
+      'Facturas',
+      ['Cliente', 'Nº Factura', 'Fecha Factura', 'Importe', 'Pagado (Sí/No)', 'Fecha Cobro', 'Importe Cobrado', 'Método Cobro', 'Forma de Pago', 'Fecha Vencimiento', 'Importe Pendiente'],
+      movs.data
+        .filter((m) => m.tipo === 'Factura' && !m.pagado)
+        .map((m) => [
+          nombrePorId.get(m.cliente_id) ?? '',
+          m.numero_factura ?? '',
+          m.fecha_factura,
+          Number(m.importe),
+          m.pagado ? 'Pagado' : 'No',
+          m.fecha_cobro ?? '',
+          m.importe_cobrado ?? '',
+          m.metodo_cobro ?? '',
+          FORMA_PAGO_LABEL[formaPorId.get(m.cliente_id) ?? 'Contado'],
+          m.fecha_vencimiento,
+          importePendiente(m),
+        ]),
     )
 
-    const fname = `ControlDeudaAbocados_${new Date().toISOString().slice(0, 10)}.xlsx`
-    XLSX.writeFile(wb, fname)
+    // Hoja Pizarra (deudas no factura)
+    addSheet(
+      'Pizarra',
+      ['Cliente', 'Fecha', 'Concepto', 'Importe', 'Pagado', 'Fecha Cobro', 'Importe Cobrado', 'Método Cobro'],
+      movs.data
+        .filter((m) => m.tipo === 'Pizarra')
+        .map((m) => [
+          nombrePorId.get(m.cliente_id) ?? '',
+          m.fecha_factura,
+          m.concepto ?? '',
+          Number(m.importe),
+          m.pagado ? 'Sí' : 'No',
+          m.fecha_cobro ?? '',
+          m.importe_cobrado ?? '',
+          m.metodo_cobro ?? '',
+        ]),
+    )
+
+    // Hoja Archivados (facturas pagadas)
+    addSheet(
+      'Archivados Cobrados Antiguos',
+      ['Cliente', 'Nº Factura', 'Fecha Factura', 'Importe', 'Pagado (Sí/No)', 'Fecha Cobro', 'Importe Cobrado', 'Método Cobro'],
+      movs.data
+        .filter((m) => m.tipo === 'Factura' && m.pagado)
+        .map((m) => [
+          nombrePorId.get(m.cliente_id) ?? '',
+          m.numero_factura ?? '',
+          m.fecha_factura,
+          Number(m.importe),
+          'Pagado',
+          m.fecha_cobro ?? '',
+          m.importe_cobrado ?? '',
+          m.metodo_cobro ?? '',
+        ]),
+    )
+
+    const data = await wb.xlsx.writeBuffer()
+    const blob = new Blob([data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `ControlDeudaAbocados_${new Date().toISOString().slice(0, 10)}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const exportJSON = () => {

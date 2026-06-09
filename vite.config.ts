@@ -18,7 +18,6 @@ export default defineConfig({
         globIgnores: [
           '**/vendor-excel-*.js',
           '**/vendor-exceljs-*.js',
-          '**/vendor-xlsx-*.js',
           '**/vendor-recharts-*.js',
           '**/vendor-leaflet-*.js',
           '**/vendor-pdf-*.js',
@@ -45,6 +44,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // jspdf importa html2canvas solo en .html() (que no usamos); el alias evita
+      // bundlear html2canvas clásico + html2canvas-pro a la vez (~200KB duplicados).
+      html2canvas: 'html2canvas-pro',
     },
   },
   build: {
@@ -54,7 +56,6 @@ export default defineConfig({
           if (id.includes('node_modules/recharts')) return 'vendor-recharts'
           if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet') || id.includes('node_modules/@react-leaflet')) return 'vendor-leaflet'
           if (id.includes('node_modules/exceljs')) return 'vendor-exceljs'
-          if (id.includes('node_modules/xlsx')) return 'vendor-xlsx'
           // Stack PDF (jspdf + html2canvas/-pro + canvg): solo se usa al exportar,
           // fuera del precache PWA para no inflar la descarga inicial del móvil.
           if (id.includes('node_modules/jspdf') || id.includes('html2canvas') || id.includes('node_modules/canvg')) return 'vendor-pdf'
