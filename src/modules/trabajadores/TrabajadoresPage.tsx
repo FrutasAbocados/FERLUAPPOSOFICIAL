@@ -25,6 +25,7 @@ interface Trabajador {
   pack: 1 | 2 | 3
   limite_credito_mensual: number | null
   tarifa_sabado: number | null
+  jornada_factor: number
 }
 
 const eur = eurosOrDash
@@ -35,7 +36,7 @@ function useTrabajadores() {
     queryFn: async (): Promise<Trabajador[]> => {
       const { data, error } = await supabase
         .from('empleados')
-        .select('id, nombre, user_id, puesto, fecha_alta, sueldo_base, plus_transporte, plus_responsabilidad, plus_otros, plus_otros_concepto, notas, activo, pack, limite_credito_mensual, tarifa_sabado')
+        .select('id, nombre, user_id, puesto, fecha_alta, sueldo_base, plus_transporte, plus_responsabilidad, plus_otros, plus_otros_concepto, notas, activo, pack, limite_credito_mensual, tarifa_sabado, jornada_factor')
         .order('nombre')
       if (error) throw error
       return (data ?? []) as Trabajador[]
@@ -124,6 +125,7 @@ function useCrearTrabajador() {
           pack: t.pack,
           limite_credito_mensual: t.limite_credito_mensual,
           tarifa_sabado: t.tarifa_sabado,
+          jornada_factor: t.jornada_factor,
         })
       if (error) throw error
     },
@@ -151,6 +153,7 @@ function useGuardarTrabajador() {
           pack: t.pack,
           limite_credito_mensual: t.limite_credito_mensual,
           tarifa_sabado: t.tarifa_sabado,
+          jornada_factor: t.jornada_factor,
         })
         .eq('id', t.id)
       if (error) throw error
@@ -185,6 +188,7 @@ const trabajadorNuevo = (): Trabajador => ({
   pack: 1,
   limite_credito_mensual: 100,
   tarifa_sabado: 70,
+  jornada_factor: 1,
 })
 
 export function TrabajadoresPage() {
@@ -347,6 +351,28 @@ function EditorTrabajador({ trabajador, onClose, modo = 'editar' }: { trabajador
                   <div className="text-xs text-[var(--color-ink-3)]">Prácticas 4h · sueldo fijo · crédito frutas · sin más</div>
                 </div>
               </label>
+            </div>
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              <Field label="Jornada">
+                <select
+                  value={String(t.jornada_factor)}
+                  onChange={(e) => set('jornada_factor', Number(e.target.value))}
+                  className="h-9 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-sm"
+                >
+                  <option value="1">Completa</option>
+                  <option value="0.5">Media jornada (×0,5)</option>
+                  <option value="0.75">Reducida 75% (×0,75)</option>
+                </select>
+              </Field>
+              <div className="flex items-end">
+                <p className="text-xs text-[var(--color-ink-3)]">
+                  Vacaciones prorrateadas:{' '}
+                  <strong className="text-[var(--color-ink)] tabular-nums">
+                    {Math.round((t.pack === 1 ? 60 : t.pack === 2 ? 48 : 0) * (t.jornada_factor ?? 1))} días/año
+                  </strong>
+                  {t.jornada_factor !== 1 && <span> · pluses se ajustan a mano</span>}
+                </p>
+              </div>
             </div>
             {(t.pack === 1 || t.pack === 3) && (
               <div className="mt-3">

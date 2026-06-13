@@ -69,7 +69,11 @@ export function EmpleadoHorasExtrasView({ empleado }: { empleado: EmpleadoPropio
   const { data: items, isLoading } = useMisHoras(empleado.id, mesISO)
 
   const [fecha, setFecha] = useState(format(new Date(), 'yyyy-MM-dd'))
-  const [horas, setHoras] = useState<number>(1)
+  const [horasStr, setHorasStr] = useState('1')
+  const horas = useMemo(() => {
+    const n = Number(horasStr.replace(',', '.'))
+    return Number.isFinite(n) ? n : 0
+  }, [horasStr])
   const [motivo, setMotivo] = useState('')
 
   const solicitar = useMutation({
@@ -84,7 +88,7 @@ export function EmpleadoHorasExtrasView({ empleado }: { empleado: EmpleadoPropio
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['emp-he'] })
       setMotivo('')
-      setHoras(1)
+      setHorasStr('1')
       toast({ title: 'Petición enviada', description: 'El responsable la revisará pronto.', variant: 'success' })
     },
     onError: (e) => toast({ title: 'No se pudo enviar', description: e instanceof Error ? e.message : '', variant: 'error' }),
@@ -176,8 +180,32 @@ export function EmpleadoHorasExtrasView({ empleado }: { empleado: EmpleadoPropio
           </div>
           <div>
             <label className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Horas</label>
-            <Input type="number" min={0.5} max={24} step={0.5} value={horas} onChange={(e) => setHoras(Number(e.target.value))} className="h-9" />
+            <Input
+              type="text"
+              inputMode="decimal"
+              value={horasStr}
+              onChange={(e) => setHorasStr(e.target.value.replace(/[^0-9.,]/g, ''))}
+              placeholder="1,5"
+              className="h-9 text-right tabular-nums"
+            />
           </div>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {['0,5', '1', '1,5', '2', '3', '4'].map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setHorasStr(v)}
+              className={`rounded-md border px-2.5 py-1 text-xs font-semibold tabular-nums transition ${
+                horasStr === v
+                  ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]'
+                  : 'border-[var(--line)] text-[var(--ink-mute)] hover:border-[var(--color-primary)]'
+              }`}
+            >
+              {v} h
+            </button>
+          ))}
+          <span className="self-center text-[11px] text-[var(--ink-mute)]">Puedes poner medias horas (0,5).</span>
         </div>
         <div className="mt-2">
           <label className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Observaciones</label>
