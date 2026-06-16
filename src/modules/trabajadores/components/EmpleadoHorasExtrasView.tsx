@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO, startOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Clock4, Trash2 } from 'lucide-react'
+import { Banknote, CalendarOff, Clock4, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
@@ -41,6 +41,41 @@ const APROB_TONO: Record<Aprobacion, string> = {
 const fmt = (s: string) => format(parseISO(s), "d 'de' LLLL", { locale: es })
 const num = (v: unknown) => Number(v ?? 0)
 
+interface ResumenHE {
+  horas_pago_pendientes: number
+  horas_pago_liquidadas: number
+  importe_pago_pendiente: number
+  importe_pago_liquidado: number
+  horas_compensadas_pend: number
+  horas_compensadas_liq: number
+  dias_vac_pendientes: number
+  dias_vac_liquidados: number
+}
+
+// Mismo cálculo que el admin (trabajadores_horas_extras_resumen_mes) pero scoped al
+// propio empleado → la vista del empleado y la del admin SIEMPRE cuadran.
+function useMiResumen(mesISO: string) {
+  return useQuery({
+    queryKey: ['emp-he-resumen', mesISO] as const,
+    queryFn: async (): Promise<ResumenHE | null> => {
+      const { data, error } = await supabase.rpc('trabajadores_horas_extras_resumen_self', { p_mes: mesISO })
+      if (error) throw error
+      const r = (data ?? [])[0] as ResumenHE | undefined
+      if (!r) return null
+      return {
+        horas_pago_pendientes: num(r.horas_pago_pendientes),
+        horas_pago_liquidadas: num(r.horas_pago_liquidadas),
+        importe_pago_pendiente: num(r.importe_pago_pendiente),
+        importe_pago_liquidado: num(r.importe_pago_liquidado),
+        horas_compensadas_pend: num(r.horas_compensadas_pend),
+        horas_compensadas_liq: num(r.horas_compensadas_liq),
+        dias_vac_pendientes: num(r.dias_vac_pendientes),
+        dias_vac_liquidados: num(r.dias_vac_liquidados),
+      }
+    },
+  })
+}
+
 function useMisHoras(empleadoId: string, mesISO: string) {
   return useQuery({
     queryKey: ['emp-he', empleadoId, mesISO] as const,
@@ -67,6 +102,7 @@ export function EmpleadoHorasExtrasView({ empleado }: { empleado: EmpleadoPropio
   const mesISO = format(mes, 'yyyy-MM-dd')
 
   const { data: items, isLoading } = useMisHoras(empleado.id, mesISO)
+  const { data: resumen } = useMiResumen(mesISO)
 
   const [fecha, setFecha] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [horasStr, setHorasStr] = useState('1')
@@ -103,21 +139,10 @@ export function EmpleadoHorasExtrasView({ empleado }: { empleado: EmpleadoPropio
     onError: (e) => toast({ title: 'No se pudo anular', description: e instanceof Error ? e.message : '', variant: 'error' }),
   })
 
-  const kpis = useMemo(() => {
-    const list = items ?? []
-    const solicitadas = list.filter((i) => i.aprobacion === 'solicitado')
-    const aprobadas = list.filter((i) => i.aprobacion === 'aprobado')
-    const liquidadas = aprobadas.filter((i) => i.estado === 'liquidado')
-    const horasPend = solicitadas.reduce((s, i) => s + i.horas, 0)
-    const horasAprob = aprobadas.reduce((s, i) => s + i.horas, 0)
-    const horasLiq = liquidadas.reduce((s, i) => s + i.horas, 0)
-    return {
-      nSolicitadas: solicitadas.length,
-      horasPend,
-      horasAprob,
-      horasLiq,
-    }
-  }, [items])
+  const nSolicitadas = useMemo(
+    () => (items ?? []).filter((i) => i.aprobacion === 'solicitado').length,
+    [items],
+  )
 
   const enviar = () => {
     if (horas <= 0) {
@@ -149,25 +174,36 @@ export function EmpleadoHorasExtrasView({ empleado }: { empleado: EmpleadoPropio
         </div>
       </header>
 
-      {/* KPIs propios */}
+      {/* KPIs propios — mismo desglose (y mismos datos) que ve el responsable */}
       <div className="emp-hero-card mb-4 ao-fade-in-up" style={{ animationDelay: '.06s' }}>
         <div className="relative z-10 grid grid-cols-3 gap-2 text-center">
           <div className="emp-kpi-tile">
-            <div className="mb-0.5 text-[9px] font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Pendientes</div>
-            <div className="font-display text-2xl font-bold tabular-nums text-amber-400">{kpis.horasPend}<span className="ml-0.5 text-xs font-normal text-[var(--ink-mute)]">h</span></div>
-            <div className="text-[10px] text-[var(--ink-mute)]">{kpis.nSolicitadas} petición(es)</div>
+            <div className="mb-0.5 flex items-center justify-center gap-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--ink-mute)]">
+              <Banknote className="h-3 w-3" /> Pago
+            </div>
+            <div className="font-display text-2xl font-bold tabular-nums text-amber-400">{euros(resumen?.importe_pago_pendiente ?? 0)}</div>
+            <div className="text-[10px] text-[var(--ink-mute)]">{resumen?.horas_pago_pendientes ?? 0} h pendientes</div>
           </div>
           <div className="emp-kpi-tile">
-            <div className="mb-0.5 text-[9px] font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Aprobadas</div>
-            <div className="font-display text-2xl font-bold tabular-nums text-blue-400">{kpis.horasAprob}<span className="ml-0.5 text-xs font-normal text-[var(--ink-mute)]">h</span></div>
-            <div className="text-[10px] text-[var(--ink-mute)]">este mes</div>
+            <div className="mb-0.5 flex items-center justify-center gap-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--ink-mute)]">
+              <Clock4 className="h-3 w-3" /> Horas libres
+            </div>
+            <div className="font-display text-2xl font-bold tabular-nums text-blue-400">{resumen?.horas_compensadas_pend ?? 0}<span className="ml-0.5 text-xs font-normal text-[var(--ink-mute)]">h</span></div>
+            <div className="text-[10px] text-[var(--ink-mute)]">{resumen?.horas_compensadas_liq ?? 0} h ya saldadas</div>
           </div>
           <div className="emp-kpi-tile">
-            <div className="mb-0.5 text-[9px] font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Liquidadas</div>
-            <div className="font-display text-2xl font-bold tabular-nums text-emerald-500">{kpis.horasLiq}<span className="ml-0.5 text-xs font-normal text-[var(--ink-mute)]">h</span></div>
-            <div className="text-[10px] text-[var(--ink-mute)]">ya saldadas</div>
+            <div className="mb-0.5 flex items-center justify-center gap-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--ink-mute)]">
+              <CalendarOff className="h-3 w-3" /> Vacaciones
+            </div>
+            <div className="font-display text-2xl font-bold tabular-nums text-emerald-500">{resumen?.dias_vac_pendientes ?? 0}<span className="ml-0.5 text-xs font-normal text-[var(--ink-mute)]">d</span></div>
+            <div className="text-[10px] text-[var(--ink-mute)]">{resumen?.dias_vac_liquidados ?? 0} d ya saldados</div>
           </div>
         </div>
+        {nSolicitadas > 0 && (
+          <div className="relative z-10 mt-2 text-center text-[11px] text-amber-400">
+            {nSolicitadas} petición(es) esperando aprobación del responsable
+          </div>
+        )}
       </div>
 
       {/* Formulario solicitar */}
