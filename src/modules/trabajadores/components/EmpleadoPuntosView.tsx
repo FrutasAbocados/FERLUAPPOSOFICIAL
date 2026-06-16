@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, parseISO, startOfMonth, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Award, ChevronLeft, ChevronRight, Star } from 'lucide-react'
+import { Award, ChevronDown, ChevronLeft, ChevronRight, Star, StickyNote } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { supabase } from '@/shared/lib/supabase'
 import { euros } from '@/shared/lib/format'
@@ -99,6 +99,7 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
 
 export function EmpleadoPuntosView({ empleado }: { empleado: EmpleadoPropio }) {
   const [mes, setMes] = useState<Date>(startOfMonth(new Date()))
+  const [diaAbierto, setDiaAbierto] = useState<string | null>(null)
   const mesISO = format(mes, 'yyyy-MM-dd')
   const mesLabel = format(mes, 'LLLL yyyy', { locale: es })
   const isCurrentMonth = mesISO === format(startOfMonth(new Date()), 'yyyy-MM-dd')
@@ -219,31 +220,66 @@ export function EmpleadoPuntosView({ empleado }: { empleado: EmpleadoPropio }) {
             <div className="ao-card p-0 overflow-hidden ao-fade-in-up" style={{ animationDelay: '.16s' }}>
               <div className="px-4 py-3 border-b border-[var(--line)]">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Días puntuados este mes</h2>
+                <p className="mt-0.5 text-[10px] text-[var(--ink-mute)]">Toca un día para ver las notas de Álvaro</p>
               </div>
               <ul className="divide-y divide-[var(--line)]">
                 {[...dias].reverse().map(d => {
                   const algunaNota = !!(d.nota_puntualidad || d.nota_reparto || d.nota_responsabilidad)
+                  const abierto = diaAbierto === d.fecha
                   return (
-                    <li key={d.fecha} className="px-4 py-2.5">
-                      <div className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-2 text-sm">
-                        <span className="capitalize text-[var(--ink-dim)]">
-                          {format(parseISO(d.fecha), "EEE d MMM", { locale: es })}
-                        </span>
-                        <DiaBadge label="P" value={d.puntualidad} />
-                        <DiaBadge label="R" value={d.reparto} />
-                        <DiaBadge label="Rs" value={d.responsabilidad} />
-                        <span
-                          className="font-display text-base font-bold tabular-nums w-6 text-right"
-                          style={{ color: d.total >= 5 ? 'var(--mint)' : d.total >= 3 ? 'var(--ink)' : 'var(--ink-mute)' }}
-                        >
-                          {d.total}
-                        </span>
-                      </div>
-                      {algunaNota && (
-                        <div className="mt-0.5 space-y-0.5 pl-1 text-[11px] text-[var(--ink-mute)]">
-                          {d.nota_puntualidad     && <div><Star className="inline h-2.5 w-2.5 mr-1" style={{ color: 'var(--mint)' }} />{d.nota_puntualidad}</div>}
-                          {d.nota_reparto         && <div><Star className="inline h-2.5 w-2.5 mr-1" style={{ color: 'var(--sky)' }} />{d.nota_reparto}</div>}
-                          {d.nota_responsabilidad && <div><Star className="inline h-2.5 w-2.5 mr-1" style={{ color: 'var(--amber)' }} />{d.nota_responsabilidad}</div>}
+                    <li key={d.fecha}>
+                      <button
+                        type="button"
+                        onClick={() => setDiaAbierto(abierto ? null : d.fecha)}
+                        aria-expanded={abierto}
+                        className="w-full px-4 py-2.5 text-left transition-colors hover:bg-[rgba(255,255,255,.03)]"
+                      >
+                        <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-2 text-sm">
+                          <span className="capitalize text-[var(--ink-dim)] flex items-center gap-1.5 min-w-0">
+                            <span className="truncate">{format(parseISO(d.fecha), "EEE d MMM", { locale: es })}</span>
+                            {algunaNota && <StickyNote className="h-3 w-3 shrink-0" style={{ color: 'var(--amber)' }} aria-label="Tiene notas" />}
+                          </span>
+                          <DiaBadge label="P" value={d.puntualidad} />
+                          <DiaBadge label="R" value={d.reparto} />
+                          <DiaBadge label="Rs" value={d.responsabilidad} />
+                          <span
+                            className="font-display text-base font-bold tabular-nums w-6 text-right"
+                            style={{ color: d.total >= 5 ? 'var(--mint)' : d.total >= 3 ? 'var(--ink)' : 'var(--ink-mute)' }}
+                          >
+                            {d.total}
+                          </span>
+                          <ChevronDown
+                            className="h-4 w-4 shrink-0 text-[var(--ink-mute)] transition-transform"
+                            style={{ transform: abierto ? 'rotate(180deg)' : undefined }}
+                          />
+                        </div>
+                      </button>
+                      {abierto && (
+                        <div className="px-4 pb-3">
+                          {algunaNota ? (
+                            <div className="space-y-1.5 rounded-lg border border-[var(--line)] bg-[rgba(255,255,255,.02)] p-2.5 text-[11px] leading-snug text-[var(--ink-dim)]">
+                              {d.nota_puntualidad && (
+                                <div className="flex gap-1.5">
+                                  <Star className="h-3 w-3 shrink-0 mt-0.5" style={{ color: 'var(--mint)' }} />
+                                  <span><strong className="text-[var(--ink)]">Puntualidad:</strong> {d.nota_puntualidad}</span>
+                                </div>
+                              )}
+                              {d.nota_reparto && (
+                                <div className="flex gap-1.5">
+                                  <Star className="h-3 w-3 shrink-0 mt-0.5" style={{ color: 'var(--sky)' }} />
+                                  <span><strong className="text-[var(--ink)]">Reparto:</strong> {d.nota_reparto}</span>
+                                </div>
+                              )}
+                              {d.nota_responsabilidad && (
+                                <div className="flex gap-1.5">
+                                  <Star className="h-3 w-3 shrink-0 mt-0.5" style={{ color: 'var(--amber)' }} />
+                                  <span><strong className="text-[var(--ink)]">Responsabilidad:</strong> {d.nota_responsabilidad}</span>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-[11px] italic text-[var(--ink-mute)]">Sin notas de Álvaro para este día.</p>
+                          )}
                         </div>
                       )}
                     </li>
