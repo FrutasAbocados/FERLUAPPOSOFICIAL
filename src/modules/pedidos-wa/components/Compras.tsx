@@ -1,24 +1,20 @@
 import { useMemo, useRef, useState } from 'react'
-import { differenceInCalendarDays, format, parseISO } from 'date-fns'
+import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   AlertCircle,
-  ArrowDownUp,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   CloudUpload,
-  Copy,
   FileText,
   Loader2,
-  Search,
   Trash2,
   Upload,
   X,
 } from 'lucide-react'
 import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
-import { Input } from '@/shared/components/ui/input'
 import { confirm } from '@/shared/lib/confirm'
 import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
@@ -46,10 +42,6 @@ type Borrador = CompraExtraccion & {
 
 const UNIDADES = ['caja', 'kg', 'bolsa', 'saco', 'bandeja', 'manojo', 'bulto', 'unidad', 'lecho', 'carton'] as const
 
-// Normaliza el nº de factura para comparar: sin espacios ni símbolos, mayúsculas.
-// Así "1873/X6", "1873 / x6" y "1873-X6" se consideran el mismo número.
-const normNum = (s: string | null | undefined) => (s ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '')
-
 export function Compras() {
   const hoy = new Date()
   const [yyyymm, setYyyymm] = useState(format(hoy, 'yyyy-MM'))
@@ -63,14 +55,6 @@ export function Compras() {
   const [parseando, setParseando] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-
-  // Filtros / orden / dedup de la lista del mes
-  const [q, setQ] = useState('')
-  const [provFiltro, setProvFiltro] = useState<string>('todos')
-  const [sortKey, setSortKey] = useState<'fecha' | 'total' | 'proveedor' | 'num'>('fecha')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [soloDup, setSoloDup] = useState(false)
-  const [soloSinHolded, setSoloSinHolded] = useState(false)
 
   const [modalSubir, setModalSubir] = useState<{
     compra: CompraConLineas
@@ -120,81 +104,6 @@ export function Compras() {
     () => (compras.data ?? []).reduce((s, c) => s + Number(c.total ?? 0), 0),
     [compras.data],
   )
-
-  // Proveedores presentes este mes (para el filtro)
-  const proveedores = useMemo(() => {
-    const set = new Set<string>()
-    for (const c of compras.data ?? []) if (c.proveedor_nombre) set.add(c.proveedor_nombre)
-    return [...set].sort((a, b) => a.localeCompare(b, 'es'))
-  }, [compras.data])
-
-  // Detección de POSIBLES duplicados (lo que el constraint único NO pilla):
-  // misma factura re-subida con el nº leído distinto por el OCR, o con líneas
-  // que no cogió → total distinto. Empareja por proveedor + (nº normalizado igual
-  // O total muy parecido y fecha a ≤2 días). Devuelve, por id, sus "gemelas".
-  const dupTwins = useMemo(() => {
-    const list = compras.data ?? []
-    const twins = new Map<string, string[]>()
-    const add = (id: string, desc: string) => {
-      const arr = twins.get(id) ?? []
-      arr.push(desc)
-      twins.set(id, arr)
-    }
-    const descOf = (c: CompraConLineas) =>
-      `Nº ${c.num_factura || '—'} · ${euros(Number(c.total))} · ${c.fecha}`
-    for (let i = 0; i < list.length; i++) {
-      for (let j = i + 1; j < list.length; j++) {
-        const a = list[i], b = list[j]
-        if (a.proveedor_holded_id !== b.proveedor_holded_id) continue
-        const na = normNum(a.num_factura), nb = normNum(b.num_factura)
-        const mismoNum = na.length > 0 && na === nb
-        const ta = Number(a.total ?? 0), tb = Number(b.total ?? 0)
-        const totalCerca = Math.abs(ta - tb) <= Math.max(0.5, Math.max(ta, tb) * 0.01)
-        let diasCerca = false
-        try { diasCerca = Math.abs(differenceInCalendarDays(parseISO(a.fecha), parseISO(b.fecha))) <= 2 } catch { /* fechas inválidas */ }
-        if (mismoNum || (totalCerca && diasCerca)) {
-          add(a.id, descOf(b))
-          add(b.id, descOf(a))
-        }
-      }
-    }
-    return twins
-  }, [compras.data])
-
-  const numDup = dupTwins.size
-
-  // Lista visible tras filtrar + ordenar
-  const comprasView = useMemo(() => {
-    const qn = q.trim().toLowerCase()
-    const filtradas = (compras.data ?? []).filter((c) => {
-      if (provFiltro !== 'todos' && c.proveedor_nombre !== provFiltro) return false
-      if (soloSinHolded && c.holded_purchase_id) return false
-      if (soloDup && !dupTwins.has(c.id)) return false
-      if (qn) {
-        const hay = `${c.num_factura ?? ''} ${c.proveedor_nombre ?? ''}`.toLowerCase()
-        const hayNorm = normNum(c.num_factura).toLowerCase()
-        if (!hay.includes(qn) && !hayNorm.includes(normNum(qn).toLowerCase())) return false
-      }
-      return true
-    })
-    const dir = sortDir === 'asc' ? 1 : -1
-    return filtradas.sort((a, b) => {
-      let cmp = 0
-      switch (sortKey) {
-        case 'fecha':     cmp = a.fecha.localeCompare(b.fecha); break
-        case 'total':     cmp = Number(a.total ?? 0) - Number(b.total ?? 0); break
-        case 'proveedor': cmp = (a.proveedor_nombre ?? '').localeCompare(b.proveedor_nombre ?? '', 'es'); break
-        case 'num':       cmp = normNum(a.num_factura).localeCompare(normNum(b.num_factura)); break
-      }
-      if (cmp === 0) cmp = a.fecha.localeCompare(b.fecha)
-      return cmp * dir
-    })
-  }, [compras.data, q, provFiltro, soloSinHolded, soloDup, dupTwins, sortKey, sortDir])
-
-  const toggleSort = (k: typeof sortKey) => {
-    if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    else { setSortKey(k); setSortDir(k === 'proveedor' || k === 'num' ? 'asc' : 'desc') }
-  }
 
   const procesarPdf = async (file: File) => {
     if (file.type !== 'application/pdf') {
@@ -382,110 +291,25 @@ export function Compras() {
 
       {/* Lista del mes */}
       <div className="space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-2)]">
-            Compras del mes
-          </h2>
-          {numDup > 0 && (
-            <button
-              onClick={() => setSoloDup((v) => !v)}
-              className={cn(
-                'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
-                soloDup
-                  ? 'bg-[var(--amber)] text-black'
-                  : 'bg-[oklch(75%_.15_75_/_0.18)] text-[var(--amber)] hover:bg-[oklch(75%_.15_75_/_0.28)]',
-              )}
-              title="Filtrar solo las que parecen repetidas"
-            >
-              <Copy className="h-3.5 w-3.5" /> {numDup} posible{numDup === 1 ? '' : 's'} duplicado{numDup === 1 ? '' : 's'}
-            </button>
-          )}
-        </div>
-
-        {/* Barra de filtros + orden */}
-        {(compras.data ?? []).length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[200px] flex-1">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-ink-3)]" />
-              <Input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Buscar nº factura o proveedor…"
-                className="h-9 pl-8"
-              />
-            </div>
-            <select
-              value={provFiltro}
-              onChange={(e) => setProvFiltro(e.target.value)}
-              className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-ink)]"
-              title="Filtrar por proveedor"
-            >
-              <option value="todos">Todos los proveedores</option>
-              {proveedores.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-            <select
-              value={sortKey}
-              onChange={(e) => toggleSort(e.target.value as typeof sortKey)}
-              className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-ink)]"
-              title="Ordenar por"
-            >
-              <option value="fecha">Ordenar: Fecha</option>
-              <option value="total">Ordenar: Importe</option>
-              <option value="proveedor">Ordenar: Proveedor</option>
-              <option value="num">Ordenar: Nº factura</option>
-            </select>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
-              title={sortDir === 'asc' ? 'Ascendente' : 'Descendente'}
-              className="h-9"
-            >
-              <ArrowDownUp className="h-4 w-4" /> {sortDir === 'asc' ? '↑' : '↓'}
-            </Button>
-            <Button
-              size="sm"
-              variant={soloSinHolded ? 'primary' : 'outline'}
-              onClick={() => setSoloSinHolded((v) => !v)}
-              className="h-9"
-              title="Solo las que no se han subido a Holded"
-            >
-              Sin Holded
-            </Button>
-          </div>
-        )}
-
+        <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-2)]">
+          Compras del mes
+        </h2>
         {compras.isLoading && <div className="text-sm text-[var(--color-ink-2)]">Cargando…</div>}
         {!compras.isLoading && (compras.data ?? []).length === 0 && (
           <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] p-6 text-center text-sm text-[var(--color-ink-2)]">
             Sin facturas este mes.
           </div>
         )}
-        {!compras.isLoading && (compras.data ?? []).length > 0 && comprasView.length === 0 && (
-          <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] p-6 text-center text-sm text-[var(--color-ink-2)]">
-            Ninguna factura coincide con los filtros.
-          </div>
-        )}
-        {comprasView.map((c) => (
+        {(compras.data ?? []).map((c) => (
           <div
             key={c.id}
             className="flex flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2"
           >
             <FileText className="h-4 w-4 shrink-0 text-[var(--color-ink-2)]" />
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+              <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
                 <span className="font-semibold">{c.proveedor_nombre}</span>
-                {c.num_factura
-                  ? <span className="rounded bg-[var(--color-surface-2)] px-1.5 py-0.5 font-mono text-xs font-medium text-[var(--color-ink)]">Nº {c.num_factura}</span>
-                  : <span className="rounded bg-[oklch(75%_.15_75_/_0.18)] px-1.5 py-0.5 text-xs font-medium text-[var(--amber)]">sin nº</span>}
-                {dupTwins.has(c.id) && (
-                  <span
-                    className="inline-flex items-center gap-1 rounded bg-[oklch(75%_.15_75_/_0.18)] px-1.5 py-0.5 text-xs font-medium text-[var(--amber)]"
-                    title={`Posible duplicado de:\n${dupTwins.get(c.id)?.join('\n')}`}
-                  >
-                    <Copy className="h-3 w-3" /> posible duplicado
-                  </span>
-                )}
+                <span className="text-[var(--color-ink-2)]">{c.num_factura}</span>
               </div>
               <div className="text-xs text-[var(--color-ink-2)]">
                 {format(new Date(c.fecha + 'T00:00'), 'd MMM', { locale: es })} · {c.lineas.length} líneas
