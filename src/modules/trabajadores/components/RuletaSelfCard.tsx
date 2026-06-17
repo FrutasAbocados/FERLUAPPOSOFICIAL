@@ -99,7 +99,7 @@ export function RuletaSelfCard() {
                     <>Tienes <span className="text-[var(--color-primary)]">{estado.puntos_disponibles}</span> puntos para canjear</>
                   )}
                 </div>
-                <div className="text-xs text-[var(--color-ink-3)]">12 pts = 1 tirada · 55 pts = 5 tiradas · 100 pts = 10 tiradas</div>
+                <div className="text-xs text-[var(--color-ink-3)]">12 pts = 1 tirada · 55 pts = 5 tiradas</div>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -118,14 +118,6 @@ export function RuletaSelfCard() {
                 disabled={!estado.puede_canjear_5 || canjear.isPending}
               >
                 {canjear.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : '55 pts → 5'}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => canjear.mutate(10)}
-                disabled={!estado.puede_canjear_10 || canjear.isPending}
-              >
-                {canjear.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : '100 pts → 10'}
               </Button>
               <Button
                 size="sm"
