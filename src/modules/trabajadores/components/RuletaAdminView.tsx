@@ -368,8 +368,9 @@ function CanjesPendientesSection() {
     onError: (e) => toast({ title: 'No se pudo actualizar', description: e instanceof Error ? e.message : '', variant: 'error' }),
   })
 
-  const pendientes = data.filter((c) => !c.entregado)
-  const solicitados = pendientes.filter((c) => c.solicitado_at).length
+  // Flujo único: el admin solo confirma premios que el empleado YA ha solicitado.
+  const solicitados = data.filter((c) => !c.entregado && c.solicitado_at)
+  const sinPedir = data.filter((c) => !c.entregado && !c.solicitado_at)
 
   return (
     <section className="mb-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
@@ -377,31 +378,28 @@ function CanjesPendientesSection() {
         <div className="flex items-center gap-2">
           <PackageCheck className="h-4 w-4 text-emerald-600" />
           <div>
-            <h2 className="text-sm font-semibold text-[var(--color-ink)]">Canjes de premios</h2>
+            <h2 className="text-sm font-semibold text-[var(--color-ink)]">Solicitudes de canje</h2>
             <p className="text-xs text-[var(--color-ink-3)]">
-              {solicitados} pedido{solicitados === 1 ? '' : 's'} por empleados · {pendientes.length} pendiente{pendientes.length === 1 ? '' : 's'} de entregar
+              {solicitados.length} solicitud{solicitados.length === 1 ? '' : 'es'} por confirmar
+              {sinPedir.length > 0 && <> · {sinPedir.length} premio{sinPedir.length === 1 ? '' : 's'} ganado{sinPedir.length === 1 ? '' : 's'} sin pedir aún</>}
             </p>
           </div>
         </div>
-        <KPI label="Pendientes" value={pendientes.length} tone={pendientes.length > 0 ? 'rose' : 'neutral'} />
+        <KPI label="Por confirmar" value={solicitados.length} tone={solicitados.length > 0 ? 'rose' : 'neutral'} />
       </div>
 
       {isLoading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
-      {!isLoading && pendientes.length === 0 && (
+      {!isLoading && solicitados.length === 0 && (
         <p className="rounded-md border border-dashed border-[var(--color-border)] px-3 py-4 text-center text-sm text-[var(--color-ink-3)]">
-          No hay premios pendientes de entregar.
+          No hay solicitudes de canje. El empleado debe pedir el premio desde su panel para que aparezca aquí.
         </p>
       )}
-      {pendientes.length > 0 && (
+      {solicitados.length > 0 && (
         <ul className="space-y-2">
-          {pendientes.map((c) => (
+          {solicitados.map((c) => (
             <li
               key={c.tirada_id}
-              className={`grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-md border px-3 py-2 text-sm ${
-                c.solicitado_at
-                  ? 'border-emerald-300 bg-[rgba(16,185,129,.08)]'
-                  : 'border-[var(--color-border)]'
-              }`}
+              className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-md border border-emerald-300 bg-[rgba(16,185,129,.08)] px-3 py-2 text-sm"
             >
               <span className="text-2xl">{c.premio_icono ?? '🎁'}</span>
               <div className="min-w-0">
@@ -414,13 +412,9 @@ function CanjesPendientesSection() {
                     {c.premio_tipo === 'puntos' && c.premio_valor ? ` · +${c.premio_valor}` : ''}
                     {c.premio_tipo === 'euros' && c.premio_valor ? ` · ${euros(c.premio_valor)}` : ''}
                   </span>
-                  {c.solicitado_at ? (
+                  {c.solicitado_at && (
                     <span className="rounded-full bg-[var(--mint-glow)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--mint)]">
                       pedido {format(new Date(c.solicitado_at), 'd LLL HH:mm', { locale: es })}
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-[rgba(255,255,255,.07)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-ink-3)]">
-                      ganado sin pedir
                     </span>
                   )}
                 </div>
@@ -436,7 +430,7 @@ function CanjesPendientesSection() {
                 disabled={marcar.isPending}
                 className="h-8"
               >
-                {marcar.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Check className="mr-1 h-3.5 w-3.5" /> Entregado</>}
+                {marcar.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Check className="mr-1 h-3.5 w-3.5" /> Confirmar canje</>}
               </Button>
             </li>
           ))}
@@ -666,23 +660,36 @@ function TiradasModal({
                     {t.entregado && t.entregado_at && <> · entregado {format(new Date(t.entregado_at), "d LLL", { locale: es })}</>}
                   </div>
                 </div>
-                {/* Solo aplica entregar a tiradas que ya tienen premio */}
-                {t.premio_id ? (
-                  <Button
-                    size="sm"
-                    variant={t.entregado ? 'outline' : 'primary'}
-                    onClick={() => marcar.mutate({ id: t.id, entregado: !t.entregado })}
-                    disabled={marcar.isPending}
-                    title={t.entregado ? 'Marcar como NO entregado' : 'Marcar entregado'}
-                    className="h-7"
-                  >
-                    {t.entregado
-                      ? <><Check className="mr-1 h-3.5 w-3.5" /> Entregado</>
-                      : <>Entregar</>}
-                  </Button>
-                ) : (
+                {/* Flujo único: solo se puede confirmar el canje si el empleado lo ha solicitado */}
+                {!t.premio_id ? (
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
                     sin tirar
+                  </span>
+                ) : t.entregado ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => marcar.mutate({ id: t.id, entregado: false })}
+                    disabled={marcar.isPending}
+                    title="Marcar como NO entregado"
+                    className="h-7"
+                  >
+                    <Check className="mr-1 h-3.5 w-3.5" /> Entregado
+                  </Button>
+                ) : t.solicitado_at ? (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => marcar.mutate({ id: t.id, entregado: true })}
+                    disabled={marcar.isPending}
+                    title="Confirmar el canje solicitado"
+                    className="h-7"
+                  >
+                    Confirmar canje
+                  </Button>
+                ) : (
+                  <span className="rounded-full bg-[rgba(255,255,255,.07)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-ink-3)]">
+                    esperando solicitud
                   </span>
                 )}
                 <Button
