@@ -73,13 +73,10 @@ export function RuletaModal({ onClose, modoTest = false }: { onClose: () => void
   const { data: premios, isLoading } = useQuery({
     queryKey: ['ruleta', 'premios-activos'] as const,
     queryFn: async (): Promise<Premio[]> => {
-      const { data, error } = await supabase
-        .from('trabajadores_ruleta_premios')
-        .select('id, nombre, descripcion, tipo, valor, peso, icono, color, created_at')
-        .eq('activo', true)
-        .order('created_at', { ascending: true })
+      // RPC: premios activos ya excluyendo el "Desayuno para ti mismo" según el empleado logueado
+      const { data, error } = await supabase.rpc('ruleta_premios_visibles')
       if (error) throw error
-      return (data ?? []).map((p) => ({
+      return ((data ?? []) as Record<string, unknown>[]).map((p) => ({
         id: String(p.id),
         nombre: String(p.nombre),
         descripcion: p.descripcion ? String(p.descripcion) : null,
