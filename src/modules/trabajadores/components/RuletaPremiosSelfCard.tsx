@@ -22,6 +22,7 @@ type PremioSelf = {
   premio_tipo: Tipo
   premio_valor: number
   premio_icono: string | null
+  invita_nombre: string | null
 }
 
 type PremioSelfRow = {
@@ -37,6 +38,7 @@ type PremioSelfRow = {
   premio_tipo: string
   premio_valor: number | string | null
   premio_icono: string | null
+  invita_nombre: string | null
 }
 
 const TIPO_LABEL: Record<Tipo, string> = {
@@ -81,6 +83,7 @@ export function RuletaPremiosSelfCard({ compact = false }: { compact?: boolean }
         premio_tipo: r.premio_tipo as Tipo,
         premio_valor: Number(r.premio_valor ?? 0),
         premio_icono: r.premio_icono ? String(r.premio_icono) : null,
+        invita_nombre: r.invita_nombre ? String(r.invita_nombre) : null,
       }))
     },
   })
@@ -158,6 +161,11 @@ export function RuletaPremiosSelfCard({ compact = false }: { compact?: boolean }
                         <estado.Icon className="h-3 w-3" /> {estado.label}
                       </span>
                     </div>
+                    {p.invita_nombre && (
+                      <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-primary)] ring-1 ring-[var(--color-primary)]/25">
+                        {p.premio_icono ?? '🥐'} Te invita {p.invita_nombre}
+                      </span>
+                    )}
                     {(p.premio_descripcion || p.motivo || p.tirada_at) && (
                       <p className="mt-1 text-xs text-[var(--color-ink-3)]">
                         {p.premio_descripcion ?? p.motivo ?? 'Premio de ruleta'}
