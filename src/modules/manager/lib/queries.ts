@@ -2,7 +2,7 @@ import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/re
 import { supabase } from '@/shared/lib/supabase'
 import { periodFromPreset, type Period } from './period'
 import type {
-  AbueloFactura, AbueloLinea, AliasRow, CatalogoProducto,
+  AbueloFactura, AbueloLinea, AliasRow, AsesorIaResult, CatalogoProducto,
   ClienteFactura, ClienteListItem, ClienteProducto,
   CosteManualRow, FacturaLinea, FacturaListItem, Forecast,
   ProductoCliente, ProductoCompra, ProductoHistoricoMes, ProductoListItem,
@@ -818,4 +818,40 @@ export function prefetchManagerResumen(queryClient: QueryClient, period?: Period
   void queryClient.prefetchQuery(serieDiariaOpts(p))
   void queryClient.prefetchQuery(topClientesOpts(p, 10))
   void queryClient.prefetchQuery(topProductosOpts(p, 10))
+}
+
+// ── Asesor IA comercial del día ───────────────────────────────────────────
+const asesorKey = (fecha: string) => ['manager', 'asesor-ia', fecha] as const
+
+export function useAsesorIaDia(fecha: string) {
+  return useQuery({
+    queryKey: asesorKey(fecha),
+    queryFn: async (): Promise<AsesorIaResult | null> => {
+      const { data, error } = await supabase.rpc('manager_asesor_ia_get', { p_fecha: fecha })
+      if (error) throw error
+      const row = Array.isArray(data) ? data[0] : data
+      if (!row?.datos) return null
+      const d = row.datos as Omit<AsesorIaResult, 'fecha' | 'modelo' | 'created_at'>
+      return { fecha, modelo: row.modelo ?? undefined, created_at: row.created_at ?? null, ...d }
+    },
+    staleTime: STALE_5M,
+  })
+}
+
+export function useGenerarAsesorIa(fecha: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (): Promise<AsesorIaResult> => {
+      const { data, error } = await supabase.functions.invoke('manager-asesor-ia', {
+        body: { fecha, force: true },
+      })
+      if (error) throw error
+      const res = data as AsesorIaResult & { error?: string }
+      if (res.error) throw new Error(res.error)
+      return res
+    },
+    onSuccess: (res) => {
+      qc.setQueryData(asesorKey(fecha), res)
+    },
+  })
 }

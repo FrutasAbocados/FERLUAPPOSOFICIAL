@@ -275,3 +275,28 @@ export interface CatalogoProducto {
   veces_vendido: number
   tax_rate_ultimo: number | null  // último IVA visto en manager_lineas para el producto
 }
+
+// ── Asesor IA comercial (análisis del día por cliente) ────────────────────
+export interface AsesorAccion {
+  tipo: 'pvp' | 'coste' | 'alerta' | string
+  producto: string
+  severidad: 'alta' | 'media' | 'baja' | string
+  detalle: string
+  impacto_eur: number
+}
+export interface AsesorCliente {
+  cliente: string
+  venta: number
+  nota: string
+  acciones: AsesorAccion[]
+}
+export interface AsesorIaResult {
+  fecha: string
+  resumen: string
+  oportunidad_eur: number
+  clientes: AsesorCliente[]
+  modelo?: string
+  cacheado?: boolean
+  vacio?: boolean
+  created_at?: string | null
+}

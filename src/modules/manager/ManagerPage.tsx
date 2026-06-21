@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
 import { PageTopbar } from '@/shared/components/PageTopbar'
-import { BarChart3, CalendarDays, FileText, MapPinned, Package, ReceiptText, Sparkles, TrendingUp, Users } from 'lucide-react'
+import { BarChart3, Brain, CalendarDays, FileText, MapPinned, Package, ReceiptText, Sparkles, TrendingUp, Users } from 'lucide-react'
 import { SyncBar } from './components/SyncBar'
 import { PeriodPicker } from './components/PeriodPicker'
 import { periodFromPreset, type Period } from './lib/period'
@@ -14,6 +14,7 @@ const PatronesView           = lazy(() => import('./components/PatronesView').th
 const CalendarioClientesView = lazy(() => import('./components/CalendarioClientesView').then(m => ({ default: m.CalendarioClientesView })))
 const EstacionalidadCosteView = lazy(() => import('./components/EstacionalidadCosteView').then(m => ({ default: m.EstacionalidadCosteView })))
 const MapaClientesView       = lazy(() => import('./components/MapaClientesView').then(m => ({ default: m.MapaClientesView })))
+const AsesorIaView           = lazy(() => import('./components/AsesorIaView').then(m => ({ default: m.AsesorIaView })))
 
 function TabFallback() {
   return (
@@ -42,7 +43,7 @@ function TabFallback() {
   )
 }
 
-type Tab = 'resumen' | 'clientes' | 'productos' | 'facturas' | 'calendario' | 'patrones' | 'abuelo' | 'estacionalidad' | 'mapa'
+type Tab = 'resumen' | 'asesor' | 'clientes' | 'productos' | 'facturas' | 'calendario' | 'patrones' | 'abuelo' | 'estacionalidad' | 'mapa'
 
 export function ManagerPage() {
   const [period, setPeriod] = useState<Period>(() => periodFromPreset('mes'))
@@ -64,6 +65,7 @@ export function ManagerPage() {
         <div className="ao-tabbar max-w-full overflow-x-auto no-scrollbar">
           {([
             { k: 'resumen',    l: 'Resumen', Icon: BarChart3 },
+            { k: 'asesor',     l: 'Asesor IA', Icon: Brain },
             { k: 'clientes',   l: 'Clientes', Icon: Users },
             { k: 'productos',  l: 'Productos', Icon: Package },
             { k: 'facturas',   l: 'Facturas', Icon: FileText },
@@ -88,6 +90,7 @@ export function ManagerPage() {
 
         <Suspense fallback={<TabFallback />}>
           {tab === 'resumen'    && <ResumenView   period={period} />}
+          {tab === 'asesor'     && <AsesorIaView />}
           {tab === 'clientes'   && <ClientesView  period={period} />}
           {tab === 'productos'  && <ProductosView period={period} />}
           {tab === 'facturas'   && <FacturasView  period={period} />}
