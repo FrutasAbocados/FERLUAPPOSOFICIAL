@@ -72,6 +72,9 @@ function HomeAdmin() {
 
   const isAdmin        = role === 'admin_full' || role === 'admin_op'
   const isGestorCobros = role === 'gestor_cobros'
+  // Semiadmins (gestor_cobros, responsable, operaciones) son trabajadores más:
+  // ven la ruleta como un empleado. Los admin plenos (Luis/Álvaro) no.
+  const esTrabajador   = !!role && !isAdmin
   const canSeeCobros   = isAdmin || isGestorCobros
   const deudoresQ   = useTopDeudoresCobros({ enabled: canSeeCobros })
   const esperadosQ  = usePedidosEsperados({ enabled: isAdmin })
@@ -160,6 +163,14 @@ function HomeAdmin() {
 
           {/* ── COLUMNA PRINCIPAL ── */}
           <div className="min-w-0 space-y-6">
+
+            {/* 0 — Ruleta (semiadmins también juegan como un trabajador más) */}
+            {esTrabajador && (
+              <div className="space-y-[22px]">
+                <RuletaSelfCard />
+                <RuletaPremiosSelfCard compact />
+              </div>
+            )}
 
             {/* 1 — Estado ejecutivo empresa */}
             <PanelEmpresa />
