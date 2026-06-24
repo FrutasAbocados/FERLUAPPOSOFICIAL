@@ -191,6 +191,7 @@ export type WhatsappFila = {
   id: string
   fecha: string
   cliente_id: string
+  pedido_id: string | null
   pedido: string
   faltas: string | null
   estado: WhatsappFilaEstado
@@ -215,7 +216,7 @@ export function useWhatsappFilas(fecha: string) {
       const { data, error } = await supabase
         .from('pedidos_wa_whatsapp_filas')
         .select(`
-          id, fecha, cliente_id, pedido, faltas, estado, confianza,
+          id, fecha, cliente_id, pedido_id, pedido, faltas, estado, confianza,
           source_message_ids, modelo, error, generated_at, created_at, updated_at,
           cliente:cliente_id (
             id, nombre, nombre_normalizado, holded_contact_id, holded_doc_type,
@@ -252,6 +253,43 @@ export function useWhatsappMensajes(fecha: string) {
         .order('received_at', { ascending: false })
       if (error) throw error
       return (data ?? []) as unknown as WhatsappMensaje[]
+    },
+  })
+}
+
+export function useCrearWhatsappMensajeManual() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      fecha: string
+      cliente_id: string
+      texto: string
+    }) => {
+      const texto = input.texto.trim()
+      if (!texto) throw new Error('Mensaje vacío')
+      const stamp = Date.now().toString(36)
+      const suffix = Math.random().toString(36).slice(2, 8)
+      const { error } = await supabase
+        .from('pedidos_wa_whatsapp_mensajes')
+        .insert({
+          wa_message_id: `manual-${input.fecha}-${input.cliente_id}-${stamp}-${suffix}`,
+          phone_number_id: 'manual',
+          telefono_norm: '00000000',
+          perfil_nombre: 'Box manual',
+          cliente_id: input.cliente_id,
+          fecha_negocio: input.fecha,
+          received_at: new Date().toISOString(),
+          message_type: 'manual',
+          texto,
+          raw_payload: { source: 'abocados_box_manual', texto },
+          estado: 'recibido',
+          error: null,
+        })
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.whatsappMensajes(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.whatsappFilas(vars.fecha) })
     },
   })
 }
@@ -317,7 +355,7 @@ export function useActualizarWhatsappFila() {
     mutationFn: async (input: {
       id: string
       fecha: string
-      patch: Partial<Pick<WhatsappFila, 'pedido' | 'faltas' | 'estado'>>
+      patch: Partial<Pick<WhatsappFila, 'pedido' | 'faltas' | 'estado' | 'pedido_id'>>
     }) => {
       const { error } = await supabase
         .from('pedidos_wa_whatsapp_filas')
