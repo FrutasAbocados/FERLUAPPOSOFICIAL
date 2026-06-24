@@ -42,6 +42,9 @@ export function WhatsappAuto() {
   const { data: telefonos = [] } = useWhatsappTelefonos()
   const { data: clientes = [] } = useTodosLosClientesPedidos()
   const procesar = useProcesarWhatsappPendientes()
+  const crearPedido = useCrearPedido()
+  const actualizarFila = useActualizarWhatsappFila()
+  const [pasandoProcesados, setPasandoProcesados] = useState(false)
 
   const filasOrdenadas = useMemo(
     () => [...filas].sort((a, b) => {
@@ -73,6 +76,11 @@ export function WhatsappAuto() {
     telefonos: telefonos.filter(t => t.activo).length,
   }), [filas, mensajes.length, sinCliente.length, telefonos])
 
+  const filasPendientesHoy = useMemo(
+    () => filasOrdenadas.filter(isFilaListaParaHoy),
+    [filasOrdenadas],
+  )
+
   const copyRows = async (includeHeader: boolean) => {
     const tsv = buildTsv(filasOrdenadas, includeHeader)
     if (!tsv.trim()) {
@@ -88,6 +96,41 @@ export function WhatsappAuto() {
       onSuccess: () => toast({ title: 'WhatsApps procesados', variant: 'success' }),
       onError: (err) => toast({ title: 'Error procesando', description: errorMessage(err), variant: 'error' }),
     })
+  }
+
+  const onPasarProcesados = async () => {
+    if (filasPendientesHoy.length === 0) {
+      toast({ title: 'Sin pedidos pendientes', description: 'No hay filas listas para pasar a Hoy.', variant: 'error' })
+      return
+    }
+    setPasandoProcesados(true)
+    let ok = 0
+    const errores: string[] = []
+    for (const row of filasPendientesHoy) {
+      try {
+        await crearPedidoDesdeWhatsappFila({
+          fecha,
+          row,
+          crearPedido,
+          actualizar: actualizarFila,
+        })
+        ok += 1
+      } catch (err) {
+        errores.push(`${row.cliente?.nombre ?? 'Sin cliente'}: ${errorMessage(err)}`)
+      }
+    }
+    setPasandoProcesados(false)
+
+    if (ok > 0) {
+      toast({ title: `${ok} pedido${ok === 1 ? '' : 's'} pasado${ok === 1 ? '' : 's'} a Hoy`, variant: 'success' })
+    }
+    if (errores.length > 0) {
+      toast({
+        title: `${errores.length} pedido${errores.length === 1 ? '' : 's'} sin pasar`,
+        description: errores.slice(0, 2).join(' · '),
+        variant: 'error',
+      })
+    }
   }
 
   return (
@@ -115,6 +158,15 @@ export function WhatsappAuto() {
           <Button size="sm" variant="secondary" onClick={onProcesar} disabled={procesar.isPending}>
             {procesar.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Procesar IA
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => void onPasarProcesados()}
+            disabled={pasandoProcesados || filasPendientesHoy.length === 0}
+          >
+            {pasandoProcesados ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+            Pasar pedidos procesados
           </Button>
           <Button size="sm" variant="outline" onClick={() => void copyRows(false)} disabled={filasOrdenadas.length === 0}>
             <Clipboard className="h-3.5 w-3.5" />
@@ -321,30 +373,14 @@ function WhatsappRow({ fecha, row }: { fecha: string; row: WhatsappFila }) {
   }
 
   const pasarAHoy = async () => {
-    if (!cliente) {
-      toast({ title: 'Sin cliente', variant: 'error' })
-      return
-    }
-    if (!row.pedido.trim()) {
-      toast({ title: 'Pedido vacío', variant: 'error' })
-      return
-    }
     try {
-      const parsed = await parsearPedido(row.pedido, cliente.nombre)
-      const result = await crearPedido.mutateAsync({
-        cliente_id: cliente.id,
+      await crearPedidoDesdeWhatsappFila({
         fecha,
-        texto_original: row.pedido,
-        notas_admin: parsed.notasAdmin,
-        faltas: row.faltas,
-        lineas: parsed.lineas,
+        row,
+        crearPedido,
+        actualizar,
       })
-      await actualizar.mutateAsync({
-        id: row.id,
-        fecha,
-        patch: { pedido_id: result.pedido_id, estado: 'listo' },
-      })
-      toast({ title: `${cliente.nombre} ya está en Hoy`, variant: 'success' })
+      toast({ title: `${row.cliente?.nombre ?? 'Pedido'} ya está en Hoy`, variant: 'success' })
     } catch (err) {
       toast({ title: 'No se pudo pasar a Hoy', description: errorMessage(err), variant: 'error' })
     }
@@ -421,6 +457,42 @@ function WhatsappRow({ fecha, row }: { fecha: string; row: WhatsappFila }) {
       </td>
     </tr>
   )
+}
+
+function isFilaListaParaHoy(row: WhatsappFila) {
+  return row.estado === 'listo' && !row.pedido_id && !!row.cliente && !!row.pedido.trim()
+}
+
+async function crearPedidoDesdeWhatsappFila({
+  fecha,
+  row,
+  crearPedido,
+  actualizar,
+}: {
+  fecha: string
+  row: WhatsappFila
+  crearPedido: ReturnType<typeof useCrearPedido>
+  actualizar: ReturnType<typeof useActualizarWhatsappFila>
+}) {
+  const cliente = row.cliente
+  if (!cliente) throw new Error('Sin cliente')
+  if (!row.pedido.trim()) throw new Error('Pedido vacío')
+
+  const parsed = await parsearPedido(row.pedido, cliente.nombre)
+  const result = await crearPedido.mutateAsync({
+    cliente_id: cliente.id,
+    fecha,
+    texto_original: row.pedido,
+    notas_admin: parsed.notasAdmin,
+    faltas: row.faltas,
+    lineas: parsed.lineas,
+  })
+  await actualizar.mutateAsync({
+    id: row.id,
+    fecha,
+    patch: { pedido_id: result.pedido_id, estado: 'listo' },
+  })
+  return result
 }
 
 function SinClientePanel({
