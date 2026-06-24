@@ -30,6 +30,9 @@ const KEYS = {
   holdedLogs:      (fecha: string) => ['pedidos_wa', 'holded_logs', fecha] as const,
   comprasMes:      (yyyymm: string) => ['pedidos_wa', 'compras', yyyymm] as const,
   compra:          (id: string) => ['pedidos_wa', 'compra', id] as const,
+  whatsappFilas:   (fecha: string) => ['pedidos_wa', 'whatsapp_filas', fecha] as const,
+  whatsappMensajes: (fecha: string) => ['pedidos_wa', 'whatsapp_mensajes', fecha] as const,
+  whatsappTelefonos: ['pedidos_wa', 'whatsapp_telefonos'] as const,
 }
 
 export function useClientesPedidosWa() {
@@ -148,6 +151,199 @@ export function useToggleActivoCliente() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.clientes })
       qc.invalidateQueries({ queryKey: KEYS.clientesAll })
+    },
+  })
+}
+
+// ─── WhatsApp inbox automatico ──────────────────────────────────────────────
+
+export type WhatsappFilaEstado = 'pendiente' | 'listo' | 'revisar' | 'error'
+export type WhatsappMensajeEstado = 'recibido' | 'sin_cliente' | 'sin_texto' | 'procesado' | 'error'
+
+export type WhatsappTelefono = {
+  id: string
+  cliente_id: string
+  telefono_norm: string
+  telefono_display: string | null
+  etiqueta: string | null
+  activo: boolean
+  cliente?: Pick<ClientePedido, 'id' | 'nombre' | 'horario' | 'tipo_factura' | 'repartidor' | 'activo'>
+}
+
+export type WhatsappMensaje = {
+  id: string
+  wa_message_id: string
+  phone_number_id: string | null
+  telefono_norm: string
+  perfil_nombre: string | null
+  cliente_id: string | null
+  fila_id: string | null
+  fecha_negocio: string
+  received_at: string
+  message_type: string
+  texto: string | null
+  estado: WhatsappMensajeEstado
+  error: string | null
+  cliente?: Pick<ClientePedido, 'id' | 'nombre' | 'horario' | 'tipo_factura' | 'repartidor' | 'activo'> | null
+}
+
+export type WhatsappFila = {
+  id: string
+  fecha: string
+  cliente_id: string
+  pedido: string
+  faltas: string | null
+  estado: WhatsappFilaEstado
+  confianza: number | null
+  source_message_ids: string[]
+  modelo: string | null
+  error: string | null
+  generated_at: string | null
+  created_at: string
+  updated_at: string
+  cliente?: ClientePedido
+}
+
+function normalizarTelefonoWhatsapp(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 16)
+}
+
+export function useWhatsappFilas(fecha: string) {
+  return useQuery({
+    queryKey: KEYS.whatsappFilas(fecha),
+    queryFn: async (): Promise<WhatsappFila[]> => {
+      const { data, error } = await supabase
+        .from('pedidos_wa_whatsapp_filas')
+        .select(`
+          id, fecha, cliente_id, pedido, faltas, estado, confianza,
+          source_message_ids, modelo, error, generated_at, created_at, updated_at,
+          cliente:cliente_id (
+            id, nombre, nombre_normalizado, holded_contact_id, holded_doc_type,
+            repartidor, horario, tipo_factura, salida,
+            subseccion_default, notas, activo
+          )
+        `)
+        .eq('fecha', fecha)
+        .order('estado', { ascending: true })
+        .order('updated_at', { ascending: false })
+      if (error) throw error
+      return ((data ?? []) as unknown as WhatsappFila[]).map(r => ({
+        ...r,
+        confianza: r.confianza == null ? null : Number(r.confianza),
+        source_message_ids: r.source_message_ids ?? [],
+      }))
+    },
+  })
+}
+
+export function useWhatsappMensajes(fecha: string) {
+  return useQuery({
+    queryKey: KEYS.whatsappMensajes(fecha),
+    queryFn: async (): Promise<WhatsappMensaje[]> => {
+      const { data, error } = await supabase
+        .from('pedidos_wa_whatsapp_mensajes')
+        .select(`
+          id, wa_message_id, phone_number_id, telefono_norm, perfil_nombre,
+          cliente_id, fila_id, fecha_negocio, received_at, message_type,
+          texto, estado, error,
+          cliente:cliente_id (id, nombre, horario, tipo_factura, repartidor, activo)
+        `)
+        .eq('fecha_negocio', fecha)
+        .order('received_at', { ascending: false })
+      if (error) throw error
+      return (data ?? []) as unknown as WhatsappMensaje[]
+    },
+  })
+}
+
+export function useWhatsappTelefonos() {
+  return useQuery({
+    queryKey: KEYS.whatsappTelefonos,
+    queryFn: async (): Promise<WhatsappTelefono[]> => {
+      const { data, error } = await supabase
+        .from('pedidos_wa_cliente_telefonos')
+        .select(`
+          id, cliente_id, telefono_norm, telefono_display, etiqueta, activo,
+          cliente:cliente_id (id, nombre, horario, tipo_factura, repartidor, activo)
+        `)
+        .order('activo', { ascending: false })
+        .order('telefono_norm', { ascending: true })
+      if (error) throw error
+      return (data ?? []) as unknown as WhatsappTelefono[]
+    },
+  })
+}
+
+export function useVincularTelefonoWhatsapp() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      fecha: string
+      telefono: string
+      cliente_id: string
+      etiqueta?: string | null
+    }) => {
+      const telefono = normalizarTelefonoWhatsapp(input.telefono)
+      if (telefono.length < 8) throw new Error('Telefono invalido')
+      const { error: upsertErr } = await supabase
+        .from('pedidos_wa_cliente_telefonos')
+        .upsert({
+          cliente_id: input.cliente_id,
+          telefono_norm: telefono,
+          telefono_display: input.telefono.trim() || telefono,
+          etiqueta: input.etiqueta ?? null,
+          activo: true,
+        }, { onConflict: 'telefono_norm' })
+      if (upsertErr) throw upsertErr
+
+      const { error: msgErr } = await supabase
+        .from('pedidos_wa_whatsapp_mensajes')
+        .update({ cliente_id: input.cliente_id, estado: 'recibido', error: null })
+        .eq('telefono_norm', telefono)
+        .eq('fecha_negocio', input.fecha)
+      if (msgErr) throw msgErr
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.whatsappTelefonos })
+      qc.invalidateQueries({ queryKey: KEYS.whatsappMensajes(vars.fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.whatsappFilas(vars.fecha) })
+    },
+  })
+}
+
+export function useActualizarWhatsappFila() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      id: string
+      fecha: string
+      patch: Partial<Pick<WhatsappFila, 'pedido' | 'faltas' | 'estado'>>
+    }) => {
+      const { error } = await supabase
+        .from('pedidos_wa_whatsapp_filas')
+        .update(input.patch)
+        .eq('id', input.id)
+      if (error) throw error
+    },
+    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: KEYS.whatsappFilas(vars.fecha) }),
+  })
+}
+
+export function useProcesarWhatsappPendientes() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (fecha: string): Promise<{ ok?: boolean; error?: string }> => {
+      const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string }>(
+        'whatsapp-inbox',
+        { body: { action: 'process_pending', fecha } },
+      )
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      return data ?? { ok: true }
+    },
+    onSuccess: (_d, fecha) => {
+      qc.invalidateQueries({ queryKey: KEYS.whatsappFilas(fecha) })
+      qc.invalidateQueries({ queryKey: KEYS.whatsappMensajes(fecha) })
     },
   })
 }

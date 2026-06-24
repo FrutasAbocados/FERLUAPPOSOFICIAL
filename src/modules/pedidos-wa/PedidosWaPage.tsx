@@ -1,8 +1,9 @@
 import { lazy, Suspense, useState } from 'react'
 import { PageTopbar } from '@/shared/components/PageTopbar'
-import { Coins, FileText, Package, Repeat, ShoppingCart, Truck, Users, Zap } from 'lucide-react'
+import { Coins, FileText, MessageSquareText, Package, Repeat, ShoppingCart, Truck, Users, Zap } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
 
+const WhatsappAuto = lazy(() => import('./components/WhatsappAuto').then(m => ({ default: m.WhatsappAuto })))
 const CapturaRapida = lazy(() => import('./components/CapturaRapida').then(m => ({ default: m.CapturaRapida })))
 const Compra = lazy(() => import('./components/Compra').then(m => ({ default: m.Compra })))
 const Compras = lazy(() => import('./components/Compras').then(m => ({ default: m.Compras })))
@@ -13,21 +14,24 @@ const ListaPedidosHoy = lazy(() => import('./components/ListaPedidosHoy').then(m
 const Productos = lazy(() => import('./components/Productos').then(m => ({ default: m.Productos })))
 const Recurrentes = lazy(() => import('./components/Recurrentes').then(m => ({ default: m.Recurrentes })))
 
-type Tab = 'captura' | 'hoy' | 'compra' | 'compras-prov' | 'mapeo-costes' | 'ruta' | 'clientes' | 'productos' | 'recurrentes'
+type Tab = 'wa-auto' | 'captura' | 'hoy' | 'compra' | 'compras-prov' | 'mapeo-costes' | 'ruta' | 'clientes' | 'productos' | 'recurrentes'
 
 export function PedidosWaPage() {
-  const [tab, setTab] = useState<Tab>('captura')
+  const [tab, setTab] = useState<Tab>('wa-auto')
 
   return (
     <div className="flex h-full flex-col overflow-x-hidden">
       <PageTopbar
         breadcrumb="OPERACIONES · PEDIDOS"
         title="Pedidos WhatsApp"
-        subtitle="Automatización Holded completa · 8 tabs"
+        subtitle="Entrada WhatsApp · organización · Holded"
       />
 
       <nav className="border-b border-[var(--line)] px-4 py-3 sm:px-9" role="tablist">
         <div className="ao-tabbar max-w-full overflow-x-auto">
+          <TabBtn active={tab === 'wa-auto'} onClick={() => setTab('wa-auto')}>
+            <MessageSquareText className="h-3.5 w-3.5" /> WA auto
+          </TabBtn>
           <TabBtn active={tab === 'captura'} onClick={() => setTab('captura')}>
             <Zap className="h-3.5 w-3.5" /> Captura
           </TabBtn>
@@ -59,6 +63,7 @@ export function PedidosWaPage() {
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <div className="ao-page max-w-none">
         <Suspense fallback={<TabFallback />}>
+          {tab === 'wa-auto'      && <WhatsappAuto />}
           {tab === 'captura'      && <CapturaRapida />}
           {tab === 'hoy'          && <ListaPedidosHoy />}
           {tab === 'compra'       && <Compra />}
