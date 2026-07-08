@@ -79,7 +79,7 @@ export function ClienteModal({ cliente, onClose, onSaved, nombreInicial }: Props
       return
     }
     if ((form.repartidor === 'GERMAN' || form.repartidor === 'RAUL') && !form.salida) {
-      toast({ title: 'En Germán/Raúl indica 1ª o 2ª salida', variant: 'error' })
+      toast({ title: 'En Alvaro Gómez/Raúl indica 1ª o 2ª salida', variant: 'error' })
       return
     }
     try {

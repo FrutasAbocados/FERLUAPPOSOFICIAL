@@ -176,7 +176,7 @@ export const UNIDAD_LABEL: Record<Unidad, string> = {
 
 export const REPARTIDOR_LABEL: Record<Repartidor, string> = {
   TORRES: 'Torres',
-  GERMAN: 'Germán',
+  GERMAN: 'Alvaro Gómez',
   RAUL:   'Raúl',
   ALEX:   'Alex',
 }
