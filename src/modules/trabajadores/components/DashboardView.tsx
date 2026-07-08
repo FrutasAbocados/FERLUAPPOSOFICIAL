@@ -8,6 +8,7 @@ import { euros } from '@/shared/lib/format'
 import { useAuth } from '@/shared/auth/useAuth'
 import { ColaboradoresView } from './ColaboradoresView'
 import { EmpleadoHero } from './EmpleadoHero'
+import { EmpleadoObjetivoCard } from './EmpleadoObjetivoCard'
 import { useEmpleadoPropio } from '../lib/useEmpleadoPropio'
 
 interface Empleado {
@@ -182,17 +183,22 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
     return (
       <div className="ao-page py-5 md:py-6">
         {e ? (
-          <EmpleadoHero
-            empleadoId={e.id}
-            nombre={e.nombre}
-            pack={e.pack}
-            puesto={e.puesto}
-            puntosMes={pts?.total_puntos ?? 0}
-            puntosEuros={pts?.euros ?? 0}
-            creditoDisponible={cr?.disponible ?? null}
-            creditoGastado={cr?.gastado ?? null}
-            creditoLimite={cr?.limite_base ?? null}
-          />
+          <>
+            <EmpleadoHero
+              empleadoId={e.id}
+              nombre={e.nombre}
+              pack={e.pack}
+              puesto={e.puesto}
+              puntosMes={pts?.total_puntos ?? 0}
+              puntosEuros={pts?.euros ?? 0}
+              creditoDisponible={cr?.disponible ?? null}
+              creditoGastado={cr?.gastado ?? null}
+              creditoLimite={cr?.limite_base ?? null}
+            />
+            <div className="mt-4">
+              <EmpleadoObjetivoCard />
+            </div>
+          </>
         ) : (
           <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-sm text-[var(--color-ink-3)]">
             Tu cuenta no está vinculada a un trabajador. Avisa a Luis o Álvaro.

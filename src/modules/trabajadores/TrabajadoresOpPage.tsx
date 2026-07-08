@@ -1,6 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Award, BarChart3, CalendarClock, CalendarOff, Clock4, Construction, Fingerprint, ShoppingBasket, Sparkles } from 'lucide-react'
+import { Award, BarChart3, CalendarClock, CalendarOff, ClipboardList, Clock4, Fingerprint, ShoppingBasket, Sparkles, Target } from 'lucide-react'
 import { useAuth } from '@/shared/auth/useAuth'
 import { EmpleadoNav, type EmpleadoTab } from './components/EmpleadoNav'
 import { useEmpleadoPropio } from './lib/useEmpleadoPropio'
@@ -20,8 +20,10 @@ const EmpleadoVacacionesView = lazy(() => import('./components/EmpleadoVacacione
 const EmpleadoCierreView = lazy(() => import('./components/EmpleadoCierreView').then(m => ({ default: m.EmpleadoCierreView })))
 const EmpleadoHorasExtrasView = lazy(() => import('./components/EmpleadoHorasExtrasView').then(m => ({ default: m.EmpleadoHorasExtrasView })))
 const RuletaPremiosSelfCard = lazy(() => import('./components/RuletaPremiosSelfCard').then(m => ({ default: m.RuletaPremiosSelfCard })))
+const ObjetivosAdminView = lazy(() => import('./components/ObjetivosAdminView').then(m => ({ default: m.ObjetivosAdminView })))
+const IncidenciasView = lazy(() => import('./components/IncidenciasView').then(m => ({ default: m.IncidenciasView })))
 
-type Tab = 'dashboard' | 'puntos' | 'premios' | 'vacaciones' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'colab' | 'cierre'
+type Tab = 'dashboard' | 'puntos' | 'premios' | 'vacaciones' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'incidencias' | 'colab' | 'cierre'
 
 const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'dashboard',     l: 'Dashboard',          Icon: BarChart3 },
@@ -32,10 +34,11 @@ const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'fichajes',      l: 'Fichajes',           Icon: Fingerprint },
   { k: 'turnos',        l: 'Turnos',             Icon: CalendarClock },
   { k: 'ruleta',        l: 'Ruleta',             Icon: Sparkles },
-  { k: 'productividad', l: 'Plus productividad', Icon: Construction },
+  { k: 'productividad', l: 'Plus productividad', Icon: Target },
+  { k: 'incidencias',   l: 'Incidencias',        Icon: ClipboardList },
 ]
 
-const TABS_EMPLEADO: Tab[] = ['dashboard', 'cierre', 'puntos', 'premios', 'vacaciones', 'horas_extras', 'credito', 'colab']
+const TABS_EMPLEADO: Tab[] = ['dashboard', 'cierre', 'incidencias', 'puntos', 'premios', 'vacaciones', 'horas_extras', 'credito', 'colab']
 const TAB_KEYS = new Set<string>([...TABS.map(t => t.k), ...TABS_EMPLEADO])
 
 const isTab = (v: string | null | undefined): v is Tab =>
@@ -89,7 +92,8 @@ export function TrabajadoresOpPage() {
         {tab === 'fichajes'     && <FichajesView />}
         {tab === 'turnos'       && <TurnosPage />}
         {tab === 'ruleta'       && <RuletaAdminView />}
-        {tab === 'productividad' && <Placeholder titulo="Plus productividad" descripcion="Cálculo de plus por productividad según métricas." comingSoon />}
+        {tab === 'productividad' && <ObjetivosAdminView />}
+        {tab === 'incidencias'  && <IncidenciasView autorEmpleadoId={null} />}
       </Suspense>
     </div>
   )
@@ -120,6 +124,7 @@ function EmpleadoContent({
       <Suspense fallback={<TabFallback />}>
         {empTab === 'dashboard'    && <DashboardView modoEmpleado />}
         {empTab === 'cierre'       && (empleado ? <EmpleadoCierreView empleado={empleado} /> : <DashboardView modoEmpleado />)}
+        {empTab === 'incidencias'  && <IncidenciasView autorEmpleadoId={empleado?.id ?? null} />}
         {empTab === 'puntos'       && (empleado ? <EmpleadoPuntosView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'premios'      && <EmpleadoPremiosView />}
         {empTab === 'credito'      && (empleado ? <EmpleadoCreditoView empleado={empleado} /> : <DashboardView modoEmpleado />)}
@@ -147,17 +152,3 @@ function TabFallback() {
   )
 }
 
-function Placeholder({ titulo, descripcion, comingSoon }: { titulo: string; descripcion: string; comingSoon?: boolean }) {
-  return (
-    <div className="mx-auto max-w-3xl px-4 py-12 text-center md:px-6 md:py-20">
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-primary-soft)]">
-        <Construction className="h-7 w-7 text-[var(--color-primary-2)]" />
-      </div>
-      <h2 className="font-display text-2xl font-bold text-[var(--color-ink)]">{titulo}</h2>
-      <p className="mt-2 text-sm text-[var(--color-ink-2)]">{descripcion}</p>
-      {comingSoon && (
-        <span className="mt-3 inline-block rounded-full bg-[oklch(92%_.08_82_/_0.85)] px-3 py-1 text-xs font-semibold text-[var(--color-primary)] dark:bg-[oklch(28%_.08_72_/_0.42)]">Coming soon</span>
-      )}
-    </div>
-  )
-}

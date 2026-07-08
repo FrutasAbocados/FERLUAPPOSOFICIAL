@@ -132,7 +132,7 @@ export function CondicionesPage() {
           )}
           {N(data.plus_otros) > 0 && (
             <Row
-              label={data.plus_otros_concepto || 'Otros pluses'}
+              label={data.plus_otros_concepto || 'Plus productividad (si se cumple objetivo)'}
               value={euros(N(data.plus_otros))}
             />
           )}
