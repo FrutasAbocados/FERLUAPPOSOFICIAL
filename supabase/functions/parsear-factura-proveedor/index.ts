@@ -1,10 +1,14 @@
 // Edge Function: parsear-factura-proveedor
 // ----------------------------------------------------------------------------
-// Recibe un PDF en base64 (factura de proveedor: Alcalde, Abasthosur, ...) y
-// devuelve cabecera + líneas estructuradas listas para crear un documento
-// "purchase" en Holded. Auto-detecta el proveedor por logo/CIF.
+// Recibe un PDF o FOTOS en base64 (factura de proveedor: Alcalde, Abasthosur,
+// Agroejido u otros) y devuelve cabecera + líneas estructuradas listas para
+// crear un documento "purchase" en Holded. Auto-detecta el proveedor por logo/CIF.
 //
 // Body: { pdf_base64: string, filename?: string }
+//    o: { imagenes: { b64: string, media_type: string }[], filename?: string }
+//
+// Las fotos llegan ya convertidas a JPEG/PNG/WebP desde el cliente: la API de
+// Claude NO acepta HEIC (formato por defecto del iPhone).
 // Returns:
 //   {
 //     proveedor_detectado: 'alcalde' | 'abasthosur' | 'agroejido' | 'otro',
@@ -41,7 +45,7 @@ const cors = {
   'access-control-allow-headers': 'authorization, content-type, apikey, x-client-info',
 }
 
-const SYSTEM = `Eres un parser de facturas de proveedores de fruta y verdura para Frutas Abocados (Ferlu Project S.L.). Recibes un PDF y devuelves JSON estructurado.
+const SYSTEM = `Eres un parser de facturas de proveedores de fruta y verdura para Frutas Abocados (Ferlu Project S.L.). Recibes un PDF, o bien una o varias FOTOS de una factura en papel (una por página), y devuelves JSON estructurado.
 
 REGLAS ABSOLUTAS:
 1. Devuelve SOLO JSON válido. Tu respuesta debe empezar con llave de apertura y terminar con llave de cierre. Sin markdown, sin texto previo, sin análisis, sin \`\`\`. NADA antes del JSON.
@@ -114,8 +118,22 @@ AGROEJIDO / SUBASTAS (es un ALBARÁN; columnas: BULTOS | GÉNEROS | CANTIDAD | P
 - IGNORA POR COMPLETO el recuadro inferior izquierdo "Envase | Retira | Saldo Act." (es el saldo de cascos/envases retornables, suele traer números NEGATIVOS como "PETIT SUISSE -100") — NO son líneas de compra. Ignora también "MATRICULAS", la fila de totales (BULTOS=160, CANTIDAD=1.228) y las "CONDICIONES DE COMPRA-VENTA".
 - VALIDACIÓN: cantidad × precio_unitario ≈ importe (tolerancia 0.05€). La suma de importes de líneas ≈ BASE IMPONIBLE.
 
+OTRO PROVEEDOR (proveedor_detectado = "otro"; suele llegar como FOTO, no PDF):
+- No asumas ninguna estructura de columnas: cada proveedor pequeño tiene su formato (incluso manuscrito).
+- proveedor_nombre = razón social tal cual aparezca en la cabecera. Si no hay, usa el nombre comercial. Si no hay NADA legible, "PROVEEDOR DESCONOCIDO".
+- Localiza la tabla de líneas: normalmente concepto + cantidad + precio + importe. Ignora cabeceras, pies, sellos y firmas.
+- unidad: dedúcela del texto ("kg", "kgs", "cajas", "c/", "uds", "manojos", "bolsas", "sacos", "bandejas"). Si NO hay ninguna pista, usa "unidad".
+- codigo_proveedor = el código de artículo si existe; si no, null.
+- iva_pct: si no aparece desglosado por línea, usa el tipo del pie de factura. Fruta/verdura fresca en España = 4. Si no hay ni pie ni pista, usa 4.
+- notas: si una línea está borrosa, cortada o dudosa, escribe "REVISAR: <lo que crees leer>". NO inventes valores.
+
+CALIDAD DE FOTO (solo cuando la entrada son imágenes):
+- Si la imagen está tan borrosa, oscura o cortada que no puedes leer la tabla con seguridad, NO adivines: devuelve el JSON con "lineas": [] y "notas_globales": "FOTO ILEGIBLE: <motivo>".
+- Si faltan páginas (la factura continúa y no la ves), extrae lo visible y añade "notas_globales": "FALTAN PAGINAS".
+- Es MUCHO peor inventar una cifra que devolver la línea marcada como REVISAR. Un número inventado corrompe el coste de un producto durante semanas.
+
 CABECERA (todos los proveedores):
-- num_factura: ABASTHOSUR usa "FACTURA: 50011191"; Alcalde usa "N.Fra. 1873/X6"; AGROEJIDO usa el "Nº.ALBARÁN" (ej. "AS25 / 46858" → "AS25/46858").
+- num_factura: ABASTHOSUR usa "FACTURA: 50011191"; Alcalde usa "N.Fra. 1873/X6"; AGROEJIDO usa el "Nº.ALBARÁN" (ej. "AS25 / 46858" → "AS25/46858"). Otros: el número que aparezca junto a "Factura"/"Albarán"/"Nº". Si no hay ninguno, "SIN-NUMERO".
 - total_bruto = importe bruto antes de IVA.
 - total_iva = suma del IVA.
 - total = total final con IVA.
@@ -149,9 +167,19 @@ FORMATO DE RESPUESTA (exacto):
   ]
 }`
 
-type Body = { pdf_base64: string; filename?: string }
+type Imagen = { b64: string; media_type: string }
+type Body = { pdf_base64?: string; imagenes?: Imagen[]; filename?: string }
 
-async function parsearConClaude(pdfB64: string): Promise<unknown> {
+// Claude solo acepta estos formatos de imagen. El iPhone dispara HEIC por
+// defecto, así que el cliente convierte a JPEG antes de subir.
+const MEDIA_TYPES_OK = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
+type Bloque =
+  | { type: 'document'; source: { type: 'base64'; media_type: string; data: string } }
+  | { type: 'image';    source: { type: 'base64'; media_type: string; data: string } }
+  | { type: 'text';     text: string }
+
+async function parsearConClaude(bloques: Bloque[]): Promise<unknown> {
   const res = await fetch(ANTHROPIC_URL, {
     method: 'POST',
     headers: {
@@ -167,10 +195,7 @@ async function parsearConClaude(pdfB64: string): Promise<unknown> {
         {
           role: 'user',
           content: [
-            {
-              type: 'document',
-              source: { type: 'base64', media_type: 'application/pdf', data: pdfB64 },
-            },
+            ...bloques,
             {
               type: 'text',
               text: 'Extrae la factura siguiendo las reglas. Devuelve SOLO el JSON.',
@@ -215,12 +240,38 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: 'Body JSON inválido' }, 400)
   }
-  if (typeof body.pdf_base64 !== 'string' || body.pdf_base64.length < 100) {
-    return json({ error: 'pdf_base64 requerido (base64 válido)' }, 400)
+  const bloques: Bloque[] = []
+
+  if (typeof body.pdf_base64 === 'string' && body.pdf_base64.length >= 100) {
+    bloques.push({
+      type: 'document',
+      source: { type: 'base64', media_type: 'application/pdf', data: body.pdf_base64 },
+    })
+  } else if (Array.isArray(body.imagenes) && body.imagenes.length > 0) {
+    if (body.imagenes.length > 8) {
+      return json({ error: 'Máximo 8 fotos por factura' }, 400)
+    }
+    for (const img of body.imagenes) {
+      if (typeof img?.b64 !== 'string' || img.b64.length < 100) {
+        return json({ error: 'Cada imagen necesita b64 válido' }, 400)
+      }
+      if (!MEDIA_TYPES_OK.includes(img.media_type)) {
+        return json(
+          { error: `Formato ${img.media_type ?? '?'} no soportado. Usa JPEG, PNG o WebP (el HEIC del iPhone debe convertirse antes).` },
+          400,
+        )
+      }
+      bloques.push({
+        type: 'image',
+        source: { type: 'base64', media_type: img.media_type, data: img.b64 },
+      })
+    }
+  } else {
+    return json({ error: 'Envía pdf_base64 o imagenes[] (base64 válido)' }, 400)
   }
 
   try {
-    const parsed = await parsearConClaude(body.pdf_base64)
+    const parsed = await parsearConClaude(bloques)
     return json(parsed)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

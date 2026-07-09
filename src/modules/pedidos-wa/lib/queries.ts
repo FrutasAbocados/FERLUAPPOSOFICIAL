@@ -1,13 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
+import type { FotoPreparada } from './imagen'
 import type {
   ClientePedido,
   CompraDB,
   CompraExtraccion,
   CompraLineaDB,
   CompraLineaExtraida,
+  ContactoHolded,
   EstadoPedido,
   LineaParseada,
+  OrigenCompra,
   Pedido,
   Repartidor,
   Salida,
@@ -1574,8 +1577,112 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
+/** OCR de una factura fotografiada (1..8 fotos, ya convertidas a JPEG). */
+export async function parsearFacturaProveedorFotos(
+  fotos: FotoPreparada[],
+): Promise<CompraExtraccion> {
+  const { data, error } = await supabase.functions.invoke<CompraExtraccion | { error: string }>(
+    'parsear-factura-proveedor',
+    {
+      body: {
+        imagenes: fotos.map((f) => ({ b64: f.b64, media_type: f.media_type })),
+        filename: fotos[0]?.nombre,
+      },
+    },
+  )
+  if (error) throw error
+  if (!data || 'error' in data) {
+    throw new Error((data as { error?: string })?.error ?? 'Respuesta vacía del parser')
+  }
+  return repararLineasExtraccion(data as CompraExtraccion)
+}
+
+/** Sube las fotos al bucket privado y devuelve sus rutas. */
+export async function subirFotosFactura(
+  fotos: FotoPreparada[],
+  compraId: string,
+): Promise<string[]> {
+  const paths: string[] = []
+  for (const [i, f] of fotos.entries()) {
+    const path = `compras/${compraId}/${i + 1}-${Date.now()}.jpg`
+    const { error } = await supabase.storage
+      .from('abuelo-facturas')
+      .upload(path, f.blob, { contentType: 'image/jpeg', upsert: false })
+    if (error) throw error
+    paths.push(path)
+  }
+  return paths
+}
+
+/** URL firmada temporal para ver una foto guardada (bucket privado). */
+export async function urlFotoFactura(path: string, segundos = 300): Promise<string> {
+  const { data, error } = await supabase.storage
+    .from('abuelo-facturas')
+    .createSignedUrl(path, segundos)
+  if (error) throw error
+  return data.signedUrl
+}
+
+/** Busca proveedores en el cache local de contactos Holded (`manager_contactos`). */
+export function useBuscarProveedores(termino: string) {
+  const q = termino.trim()
+  return useQuery({
+    queryKey: ['pedidos_wa', 'proveedores', q] as const,
+    enabled: q.length >= 2,
+    queryFn: async (): Promise<ContactoHolded[]> => {
+      const { data, error } = await supabase
+        .from('manager_contactos')
+        .select('id, nombre, nif')
+        .ilike('nombre', `%${q}%`)
+        .order('nombre')
+        .limit(20)
+      if (error) throw error
+      return (data ?? []) as ContactoHolded[]
+    },
+  })
+}
+
+/** Vínculo recordado nombre-OCR -> contacto Holded, para autodetectar la próxima vez. */
+export function useProveedorAlias(nombreDetectado: string | null) {
+  const norm = (nombreDetectado ?? '').trim().toLowerCase()
+  return useQuery({
+    queryKey: ['pedidos_wa', 'proveedor-alias', norm] as const,
+    enabled: norm.length > 0,
+    queryFn: async (): Promise<{ holded_contact_id: string; holded_nombre: string } | null> => {
+      const { data, error } = await supabase
+        .from('pedidos_wa_proveedor_alias')
+        .select('holded_contact_id, holded_nombre')
+        .eq('nombre_norm', norm)
+        .eq('activo', true)
+        .maybeSingle()
+      if (error) throw error
+      return data ?? null
+    },
+  })
+}
+
+export function useRecordarProveedorAlias() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { nombre_detectado: string; contacto: ContactoHolded }) => {
+      const { error } = await supabase.from('pedidos_wa_proveedor_alias').upsert(
+        {
+          nombre_norm:       input.nombre_detectado.trim().toLowerCase(),
+          holded_contact_id: input.contacto.id,
+          holded_nombre:     input.contacto.nombre,
+          activo:            true,
+        },
+        { onConflict: 'nombre_norm' },
+      )
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pedidos_wa', 'proveedor-alias'] }),
+  })
+}
+
 type GuardarCompraInput = {
-  proveedor_holded_id: string
+  /** NULL = texto libre: se archiva, pero no sube a Holded ni entra en el coste. */
+  proveedor_holded_id: string | null
   proveedor_nombre:    string
   num_factura:         string
   fecha:               string
@@ -1587,6 +1694,9 @@ type GuardarCompraInput = {
   raw_extraction:      CompraExtraccion
   notas:               string | null
   lineas:              CompraLineaExtraida[]
+  origen?:             OrigenCompra
+  /** Fotos ya preparadas; se suben a Storage tras insertar la cabecera. */
+  fotos?:              FotoPreparada[]
 }
 
 export function useGuardarCompra() {
@@ -1607,10 +1717,22 @@ export function useGuardarCompra() {
           pdf_filename:        input.pdf_filename,
           raw_extraction:      input.raw_extraction,
           notas:               input.notas,
+          origen:              input.origen ?? 'pdf',
         })
         .select('*')
         .single()
       if (errCab) throw errCab
+
+      // Fotos: se suben DESPUÉS de tener el id de compra (van en carpeta por compra).
+      // Si Storage falla, la compra ya está guardada — no la tiramos, solo avisamos.
+      if (input.fotos?.length) {
+        try {
+          const paths = await subirFotosFactura(input.fotos, compra.id)
+          await supabase.from('pedidos_wa_compras').update({ foto_paths: paths }).eq('id', compra.id)
+        } catch (e) {
+          console.error('[compras] fotos no subidas:', e)
+        }
+      }
 
       if (input.lineas.length > 0) {
         const filas = input.lineas.map((l) => ({

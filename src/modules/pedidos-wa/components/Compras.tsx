@@ -1,14 +1,17 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   AlertCircle,
+  Camera,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   CloudUpload,
   FileText,
+  ImageIcon,
   Loader2,
+  Search,
   Trash2,
   Upload,
   X,
@@ -19,11 +22,16 @@ import { confirm } from '@/shared/lib/confirm'
 import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 import { cn } from '@/shared/lib/utils'
+import { prepararFoto, type FotoPreparada } from '../lib/imagen'
 import {
   parsearFacturaProveedor,
+  parsearFacturaProveedorFotos,
+  useBuscarProveedores,
   useComprasMes,
   useEliminarCompra,
   useGuardarCompra,
+  useProveedorAlias,
+  useRecordarProveedorAlias,
   useSubirCompraAHolded,
   type CompraConLineas,
   type SubirCompraDryRun,
@@ -32,12 +40,16 @@ import {
   PROVEEDOR_HOLDED_ID,
   type CompraExtraccion,
   type CompraLineaExtraida,
+  type ContactoHolded,
+  type OrigenCompra,
   type ProveedorDetectado,
 } from '../lib/types'
 
 type Borrador = CompraExtraccion & {
   pdf_filename: string | null
   proveedor_holded_id: string | null
+  origen: OrigenCompra
+  fotos: FotoPreparada[]
 }
 
 const UNIDADES = ['caja', 'kg', 'bolsa', 'saco', 'bandeja', 'manojo', 'bulto', 'unidad', 'lecho', 'carton'] as const
@@ -54,7 +66,9 @@ export function Compras() {
   const [borrador, setBorrador] = useState<Borrador | null>(null)
   const [parseando, setParseando] = useState(false)
   const [dragActive, setDragActive] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef   = useRef<HTMLInputElement>(null)
+  const camaraRef  = useRef<HTMLInputElement>(null)
+  const galeriaRef = useRef<HTMLInputElement>(null)
 
   const [modalSubir, setModalSubir] = useState<{
     compra: CompraConLineas
@@ -105,6 +119,21 @@ export function Compras() {
     [compras.data],
   )
 
+  const avisarExtraccion = (extr: CompraExtraccion) => {
+    if (extr.notas_globales) {
+      toast({
+        title: 'El OCR no está seguro',
+        description: extr.notas_globales,
+        variant: 'error',
+      })
+      return
+    }
+    toast({
+      title: `Factura ${extr.num_factura} extraída`,
+      description: `${extr.proveedor_nombre} · ${extr.lineas.length} líneas · ${euros(extr.total)}`,
+    })
+  }
+
   const procesarPdf = async (file: File) => {
     if (file.type !== 'application/pdf') {
       toast({ title: 'Solo PDF', description: 'Suelta un archivo .pdf', variant: 'error' })
@@ -117,11 +146,8 @@ export function Compras() {
         extr.proveedor_detectado !== 'otro'
           ? PROVEEDOR_HOLDED_ID[extr.proveedor_detectado]
           : null
-      setBorrador({ ...extr, pdf_filename: file.name, proveedor_holded_id: holdedId })
-      toast({
-        title: `Factura ${extr.num_factura} extraída`,
-        description: `${extr.proveedor_nombre} · ${extr.lineas.length} líneas · ${euros(extr.total)}`,
-      })
+      setBorrador({ ...extr, pdf_filename: file.name, proveedor_holded_id: holdedId, origen: 'pdf', fotos: [] })
+      avisarExtraccion(extr)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       toast({ title: 'Error parseando PDF', description: msg, variant: 'error' })
@@ -130,16 +156,58 @@ export function Compras() {
     }
   }
 
+  /** Fotos: se convierten a JPEG (Claude no acepta el HEIC del iPhone) y se mandan juntas. */
+  const procesarFotos = async (files: File[]) => {
+    if (files.length === 0) return
+    if (files.length > 8) {
+      toast({ title: 'Máximo 8 fotos', description: 'Haz una foto por página.', variant: 'error' })
+      return
+    }
+    setParseando(true)
+    try {
+      const fotos: FotoPreparada[] = []
+      for (const f of files) fotos.push(await prepararFoto(f))
+
+      const extr = await parsearFacturaProveedorFotos(fotos)
+      const holdedId =
+        extr.proveedor_detectado !== 'otro'
+          ? PROVEEDOR_HOLDED_ID[extr.proveedor_detectado]
+          : null
+      setBorrador({
+        ...extr,
+        pdf_filename: fotos[0]?.nombre ?? null,
+        proveedor_holded_id: holdedId,
+        origen: 'foto',
+        fotos,
+      })
+      avisarExtraccion(extr)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      toast({ title: 'Error leyendo la foto', description: msg, variant: 'error' })
+    } finally {
+      setParseando(false)
+    }
+  }
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setDragActive(false)
-    const file = e.dataTransfer.files[0]
-    if (file) procesarPdf(file)
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length === 0) return
+    const imagenes = files.filter((f) => f.type.startsWith('image/'))
+    if (imagenes.length > 0) procesarFotos(imagenes)
+    else procesarPdf(files[0])
   }
 
   const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) procesarPdf(file)
+    e.target.value = ''
+  }
+
+  const onPickFotos = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (files.length) procesarFotos(files)
     e.target.value = ''
   }
 
@@ -151,17 +219,20 @@ export function Compras() {
 
   const onGuardar = async () => {
     if (!borrador) return
-    if (!borrador.proveedor_holded_id) {
-      toast({
-        title: 'Proveedor sin enlazar',
-        description: 'No se reconoció el proveedor automáticamente. Edita la factura manualmente o avisa.',
-        variant: 'error',
-      })
-      return
-    }
     if (!borrador.num_factura.trim()) {
       toast({ title: 'Falta nº factura', variant: 'error' })
       return
+    }
+    // Sin proveedor Holded la compra se archiva, pero NO llega a manager_lineas
+    // (solo holded-sync escribe ahí) y por tanto no afecta al coste ni al margen.
+    if (!borrador.proveedor_holded_id) {
+      const ok = await confirm({
+        title: '¿Guardar sin enlazar a Holded?',
+        description:
+          'La factura quedará archivada con su foto, pero NO se podrá subir a Holded y no contará para el coste ni para el margen. Puedes enlazarla ahora eligiendo el proveedor.',
+        confirmLabel: 'Guardar sin enlazar',
+      })
+      if (!ok) return
     }
     if (desviacion > 0.05) {
       const ok = await confirm({
@@ -183,10 +254,17 @@ export function Compras() {
         iva_desglose:        borrador.iva_desglose,
         pdf_filename:        borrador.pdf_filename,
         raw_extraction:      borrador,
-        notas:               null,
+        notas:               borrador.notas_globales ?? null,
         lineas:              borrador.lineas,
+        origen:              borrador.origen,
+        fotos:               borrador.fotos,
       })
-      toast({ title: 'Compra guardada', description: borrador.num_factura })
+      toast({
+        title: 'Compra guardada',
+        description: borrador.proveedor_holded_id
+          ? `${borrador.num_factura} · súbela a Holded para que cuente en el coste`
+          : `${borrador.num_factura} · archivada, no cuenta para el coste`,
+      })
       setBorrador(null)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -239,38 +317,89 @@ export function Compras() {
 
       {/* Drop zone (oculto si hay borrador para no estorbar) */}
       {!borrador && (
-        <div
-          onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
-          onDragLeave={() => setDragActive(false)}
-          onDrop={onDrop}
-          onClick={() => inputRef.current?.click()}
-          className={cn(
-            'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border-2 border-dashed p-8 text-center transition-colors',
-            dragActive
-              ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]'
-              : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)]',
-          )}
-        >
-          {parseando ? (
-            <>
-              <Loader2 className="h-7 w-7 animate-spin text-[var(--color-primary)]" />
-              <div className="text-sm font-medium">Extrayendo factura…</div>
-              <div className="text-xs text-[var(--color-ink-2)]">Esto puede tardar 10-20s</div>
-            </>
-          ) : (
-            <>
-              <Upload className="h-7 w-7 text-[var(--color-ink-2)]" />
-              <div className="text-sm font-medium">Suelta aquí el PDF de la factura</div>
-              <div className="text-xs text-[var(--color-ink-2)]">Alcalde · Abasthosur · Agroejido · otros</div>
-            </>
-          )}
-          <input
-            ref={inputRef}
-            type="file"
-            accept="application/pdf"
-            className="hidden"
-            onChange={onPickFile}
-          />
+        <div className="space-y-2">
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
+            onDragLeave={() => setDragActive(false)}
+            onDrop={onDrop}
+            onClick={() => !parseando && inputRef.current?.click()}
+            className={cn(
+              'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border-2 border-dashed p-8 text-center transition-colors',
+              dragActive
+                ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]'
+                : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)]',
+            )}
+          >
+            {parseando ? (
+              <>
+                <Loader2 className="h-7 w-7 animate-spin text-[var(--color-primary)]" />
+                <div className="text-sm font-medium">Extrayendo factura…</div>
+                <div className="text-xs text-[var(--color-ink-2)]">Esto puede tardar 10-20s</div>
+              </>
+            ) : (
+              <>
+                <Upload className="h-7 w-7 text-[var(--color-ink-2)]" />
+                <div className="text-sm font-medium">Suelta aquí el PDF de la factura</div>
+                <div className="text-xs text-[var(--color-ink-2)]">Alcalde · Abasthosur · Agroejido</div>
+              </>
+            )}
+            <input
+              ref={inputRef}
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              onChange={onPickFile}
+            />
+          </div>
+
+          {/* Otros proveedores — foto/cámara */}
+          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">Otros proveedores</div>
+                <div className="text-xs text-[var(--color-ink-2)]">
+                  Factura en papel de un proveedor poco habitual: échale una foto
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                disabled={parseando}
+                onClick={() => camaraRef.current?.click()}
+              >
+                <Camera className="mr-1.5 h-4 w-4" /> Foto / Cámara
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={parseando}
+                onClick={() => galeriaRef.current?.click()}
+              >
+                <ImageIcon className="mr-1.5 h-4 w-4" /> Elegir imágenes
+              </Button>
+            </div>
+            <div className="mt-2 text-[11px] text-[var(--color-ink-2)]">
+              Hasta 8 fotos (una por página). Se convierten a JPEG antes de enviarlas.
+            </div>
+
+            {/* capture abre la cámara trasera directamente en el móvil */}
+            <input
+              ref={camaraRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={onPickFotos}
+            />
+            <input
+              ref={galeriaRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={onPickFotos}
+            />
+          </div>
         </div>
       )}
 
@@ -305,7 +434,9 @@ export function Compras() {
             key={c.id}
             className="flex flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2"
           >
-            <FileText className="h-4 w-4 shrink-0 text-[var(--color-ink-2)]" />
+            {c.origen === 'foto'
+              ? <Camera className="h-4 w-4 shrink-0 text-[var(--color-ink-2)]" />
+              : <FileText className="h-4 w-4 shrink-0 text-[var(--color-ink-2)]" />}
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
                 <span className="font-semibold">{c.proveedor_nombre}</span>
@@ -324,11 +455,19 @@ export function Compras() {
                 >
                   <CheckCircle2 className="h-3 w-3" /> Holded {c.holded_purchase_num ?? '✓'}
                 </div>
-              ) : (
+              ) : c.proveedor_holded_id ? (
                 <div className="text-[10px] uppercase text-[var(--color-primary)]">Sin Holded</div>
+              ) : (
+                <div
+                  className="text-[10px] uppercase text-[var(--color-ink-2)]"
+                  title="Sin proveedor Holded: archivada, no cuenta para el coste ni el margen"
+                >
+                  Solo archivada
+                </div>
               )}
             </div>
-            {!c.holded_purchase_id && (
+            {/* Sin proveedor_holded_id, compra-a-holded no puede construir el documento */}
+            {!c.holded_purchase_id && c.proveedor_holded_id && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -403,8 +542,9 @@ function BorradorCard({
     <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
       {/* Cabecera */}
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface-2)] p-3">
-        <div className="min-w-0">
-          <div className="text-xs uppercase tracking-wide text-[var(--color-ink-2)]">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-[var(--color-ink-2)]">
+            {borrador.origen === 'foto' && <Camera className="h-3 w-3" />}
             {detectadoLabel(borrador.proveedor_detectado)}
           </div>
           <input
@@ -413,16 +553,32 @@ function BorradorCard({
             onChange={(e) => onCambiar({ proveedor_nombre: e.target.value })}
             className="w-full bg-transparent font-display text-base font-semibold focus:outline-none"
           />
-          {!borrador.proveedor_holded_id && (
-            <div className="mt-1 flex items-center gap-1 text-xs text-[var(--coral)]">
-              <AlertCircle className="h-3 w-3" /> Proveedor no reconocido — no se podrá enlazar a Holded
-            </div>
-          )}
         </div>
         <Button variant="ghost" size="icon" onClick={onCancelar} aria-label="Descartar">
           <X className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* El OCR avisa cuando no se fía de lo que ha leído */}
+      {borrador.notas_globales && (
+        <div className="flex items-start gap-2 border-b border-[oklch(72%_.16_25_/_0.35)] bg-[oklch(30%_.12_25_/_0.12)] px-3 py-2 text-xs text-[var(--coral)]">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <div>
+            <div className="font-semibold">El OCR no se fía de esta foto</div>
+            <div className="mt-0.5">{borrador.notas_globales}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Proveedor no autodetectado: enlazar a Holded es opcional pero decide si cuenta el coste */}
+      {!borrador.proveedor_holded_id && (
+        <SelectorProveedor
+          nombreDetectado={borrador.proveedor_nombre}
+          onElegir={(c) => onCambiar({ proveedor_holded_id: c.id, proveedor_nombre: c.nombre })}
+        />
+      )}
+
+      {borrador.fotos.length > 0 && <TiraFotos fotos={borrador.fotos} />}
 
       {/* Cabecera campos */}
       <div className="grid grid-cols-2 gap-2 border-b border-[var(--color-border)] p-3 sm:grid-cols-4">
@@ -596,6 +752,125 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="text-[10px] uppercase tracking-wide text-[var(--color-ink-2)]">{label}</span>
       {children}
     </label>
+  )
+}
+
+// ─── Selector de proveedor Holded (solo cuando el OCR no lo reconoce) ────────
+
+function SelectorProveedor({
+  nombreDetectado,
+  onElegir,
+}: {
+  nombreDetectado: string
+  onElegir: (c: ContactoHolded) => void
+}) {
+  const [q, setQ] = useState('')
+  const [recordar, setRecordar] = useState(true)
+  const resultados = useBuscarProveedores(q)
+  const alias = useProveedorAlias(nombreDetectado)
+  const recordarAlias = useRecordarProveedorAlias()
+
+  // Si este proveedor ya se enlazó una vez, se aplica solo: la 2ª factura es 0 clicks.
+  const yaAplicado = useRef(false)
+  useEffect(() => {
+    const a = alias.data
+    if (a && !yaAplicado.current) {
+      yaAplicado.current = true
+      onElegir({ id: a.holded_contact_id, nombre: a.holded_nombre, nif: null })
+      toast({ title: 'Proveedor recordado', description: a.holded_nombre })
+    }
+  }, [alias.data, onElegir])
+
+  const elegir = async (c: ContactoHolded) => {
+    onElegir(c)
+    if (recordar && nombreDetectado.trim()) {
+      try {
+        await recordarAlias.mutateAsync({ nombre_detectado: nombreDetectado, contacto: c })
+      } catch {
+        // Que no se recuerde no debe impedir guardar la factura.
+      }
+    }
+  }
+
+  return (
+    <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <div className="mb-1.5 flex items-start gap-2 text-xs text-[var(--color-ink-2)]">
+        <AlertCircle className="h-4 w-4 shrink-0 text-[var(--color-primary)]" />
+        <div>
+          <span className="font-semibold text-[var(--color-ink)]">Proveedor no reconocido.</span>{' '}
+          Enlázalo a Holded para que esta compra cuente en el coste y el margen. Si lo dejas en
+          blanco, la factura se archiva pero no afecta a los números.
+        </div>
+      </div>
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-ink-2)]" />
+        <input
+          type="text"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar proveedor en Holded…"
+          className="w-full rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-1.5 pl-7 pr-2 text-sm"
+        />
+      </div>
+
+      {q.trim().length >= 2 && (
+        <div className="mt-1.5 max-h-44 overflow-y-auto rounded border border-[var(--color-border)]">
+          {resultados.isLoading && (
+            <div className="px-2 py-1.5 text-xs text-[var(--color-ink-2)]">Buscando…</div>
+          )}
+          {!resultados.isLoading && (resultados.data ?? []).length === 0 && (
+            <div className="px-2 py-1.5 text-xs text-[var(--color-ink-2)]">
+              Sin resultados. Créalo antes en Holded.
+            </div>
+          )}
+          {(resultados.data ?? []).map((c) => (
+            <button
+              key={c.id}
+              onClick={() => elegir(c)}
+              className="flex w-full items-baseline justify-between gap-2 border-b border-[var(--color-border)] px-2 py-1.5 text-left text-xs last:border-b-0 hover:bg-[var(--color-surface-2)]"
+            >
+              <span className="truncate font-medium">{c.nombre}</span>
+              {c.nif && <span className="shrink-0 text-[10px] text-[var(--color-ink-2)]">{c.nif}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <label className="mt-2 flex cursor-pointer items-center gap-1.5 text-xs text-[var(--color-ink-2)]">
+        <input
+          type="checkbox"
+          checked={recordar}
+          onChange={(e) => setRecordar(e.target.checked)}
+          className="accent-[var(--color-primary)]"
+        />
+        Recordar para las próximas facturas de «{nombreDetectado || 'este proveedor'}»
+      </label>
+    </div>
+  )
+}
+
+// ─── Tira de fotos del borrador ─────────────────────────────────────────────
+
+function TiraFotos({ fotos }: { fotos: FotoPreparada[] }) {
+  const urls = useMemo(() => fotos.map((f) => URL.createObjectURL(f.blob)), [fotos])
+  useEffect(() => () => urls.forEach(URL.revokeObjectURL), [urls])
+
+  return (
+    <div className="flex gap-2 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-surface-2)] p-2">
+      {urls.map((u, i) => (
+        <a
+          key={u}
+          href={u}
+          target="_blank"
+          rel="noreferrer"
+          className="shrink-0 overflow-hidden rounded border border-[var(--color-border)]"
+          title={`Foto ${i + 1} — abrir`}
+        >
+          <img src={u} alt={`Factura foto ${i + 1}`} className="h-20 w-auto object-cover" />
+        </a>
+      ))}
+    </div>
   )
 }
 

@@ -119,11 +119,16 @@ export type CompraExtraccion = {
   total: number
   iva_desglose: { base: number; tipo: number; importe: number }[]
   lineas: CompraLineaExtraida[]
+  /** Solo en fotos: "FOTO ILEGIBLE: ..." o "FALTAN PAGINAS". */
+  notas_globales?: string | null
 }
+
+export type OrigenCompra = 'pdf' | 'foto'
 
 export type CompraDB = {
   id: string
-  proveedor_holded_id: string
+  /** NULL = proveedor en texto libre: la compra NO se puede subir a Holded ni entra en el coste. */
+  proveedor_holded_id: string | null
   proveedor_nombre: string
   num_factura: string
   fecha: string
@@ -133,11 +138,20 @@ export type CompraDB = {
   iva_desglose: { base: number; tipo: number; importe: number }[] | null
   pdf_filename: string | null
   notas: string | null
+  origen: OrigenCompra
+  foto_paths: string[]
   holded_purchase_id: string | null
   holded_purchase_num: string | null
   holded_purchase_created_at: string | null
   created_at: string
   updated_at: string
+}
+
+/** Contacto de Holded cacheado en local (tabla `manager_contactos`). */
+export type ContactoHolded = {
+  id: string
+  nombre: string
+  nif: string | null
 }
 
 export type CompraLineaDB = {
