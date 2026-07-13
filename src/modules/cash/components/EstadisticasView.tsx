@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { addDays, addWeeks, endOfMonth, format, parseISO, startOfMonth, startOfWeek, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { BarChart3, Banknote, Clock, CreditCard, Loader2, ReceiptText, TrendingUp } from 'lucide-react'
+import { BarChart3, Banknote, Clock, CreditCard, Loader2, Receipt, ReceiptText, TrendingUp, Wallet } from 'lucide-react'
 import { useCashStatsSemanas, type StatsSemana } from '../lib/repartos-queries'
 import { euros } from '../lib/format'
 import { cn } from '@/shared/lib/utils'
@@ -43,14 +43,16 @@ export function EstadisticasView() {
   const rows = useMemo(() => stats.data ?? [], [stats.data])
 
   const totals = useMemo(() => {
-    const acc = { horas: 0, total: 0, efectivo: 0, tarjeta: 0, deuda: 0, jornadas: 0 }
+    const acc = { horas: 0, total: 0, efectivo: 0, gastos: 0, efectivoNeto: 0, tarjeta: 0, deuda: 0, jornadas: 0 }
     for (const r of rows) {
-      acc.horas    += r.horas
-      acc.total    += r.total
-      acc.efectivo += r.efectivo
-      acc.tarjeta  += r.tarjeta
-      acc.deuda    += r.deuda
-      acc.jornadas += r.jornadas
+      acc.horas        += r.horas
+      acc.total        += r.total
+      acc.efectivo     += r.efectivo
+      acc.gastos       += r.gastos
+      acc.efectivoNeto += r.efectivoNeto
+      acc.tarjeta      += r.tarjeta
+      acc.deuda        += r.deuda
+      acc.jornadas     += r.jornadas
     }
     return acc
   }, [rows])
@@ -73,11 +75,13 @@ export function EstadisticasView() {
             horas: s.horas + r.horas,
             total: s.total + r.total,
             efectivo: s.efectivo + r.efectivo,
+            gastos: s.gastos + r.gastos,
+            efectivoNeto: s.efectivoNeto + r.efectivoNeto,
             tarjeta: s.tarjeta + r.tarjeta,
             deuda: s.deuda + r.deuda,
             jornadas: s.jornadas + r.jornadas,
           }),
-          { horas: 0, total: 0, efectivo: 0, tarjeta: 0, deuda: 0, jornadas: 0 },
+          { horas: 0, total: 0, efectivo: 0, gastos: 0, efectivoNeto: 0, tarjeta: 0, deuda: 0, jornadas: 0 },
         )
         return { semana, lista: lista.sort((a, b) => a.empleado_nombre.localeCompare(b.empleado_nombre)), sub }
       })
@@ -145,12 +149,14 @@ export function EstadisticasView() {
       </div>
 
       {/* KPIs globales */}
-      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-6">
-        <Kpi icon={<Clock className="h-4 w-4" />}        label="Horas totales"  value={`${totals.horas.toFixed(1)} h`} tone="primary" />
-        <Kpi icon={<Banknote className="h-4 w-4" />}     label="Efectivo"       value={euros(totals.efectivo)}         tone="success" />
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kpi icon={<Banknote className="h-4 w-4" />}     label="Efectivo bruto" value={euros(totals.efectivo)}         tone="neutral" />
+        <Kpi icon={<Receipt className="h-4 w-4" />}      label="Gastos"         value={totals.gastos > 0 ? `−${euros(totals.gastos)}` : euros(0)} tone="warn" />
+        <Kpi icon={<Wallet className="h-4 w-4" />}       label="Efectivo neto"  value={euros(totals.efectivoNeto)}     tone="success" />
         <Kpi icon={<CreditCard className="h-4 w-4" />}   label="Tarjeta"        value={euros(totals.tarjeta)}          tone="neutral" />
         <Kpi icon={<ReceiptText className="h-4 w-4" />}  label="Deuda"          value={euros(totals.deuda)}            tone="warn" />
         <Kpi icon={<BarChart3 className="h-4 w-4" />}    label="Total reparto"  value={euros(totals.total)}            tone="primary" />
+        <Kpi icon={<Clock className="h-4 w-4" />}        label="Horas totales"  value={`${totals.horas.toFixed(1)} h`} tone="primary" />
         <Kpi icon={<TrendingUp className="h-4 w-4" />}   label="Productividad"  value={`${productividadMedia.toFixed(1)} €/h`} tone={productividadMedia >= 80 ? 'success' : 'warn'} />
       </div>
 
@@ -191,7 +197,9 @@ export function EstadisticasView() {
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--color-ink-2)]">
                     <span><span className="text-[var(--color-ink-3)]">Horas:</span> <strong>{sub.horas.toFixed(1)} h</strong></span>
-                    <span><span className="text-[var(--color-ink-3)]">Efect:</span> <strong>{euros(sub.efectivo)}</strong></span>
+                    <span><span className="text-[var(--color-ink-3)]">Efect. bruto:</span> <strong>{euros(sub.efectivo)}</strong></span>
+                    <span><span className="text-[var(--color-ink-3)]">Gastos:</span> <strong className="text-[var(--coral)]">{sub.gastos > 0 ? `−${euros(sub.gastos)}` : euros(0)}</strong></span>
+                    <span><span className="text-[var(--color-ink-3)]">Efect. neto:</span> <strong className="text-[var(--mint)]">{euros(sub.efectivoNeto)}</strong></span>
                     <span><span className="text-[var(--color-ink-3)]">Tarj:</span> <strong>{euros(sub.tarjeta)}</strong></span>
                     <span><span className="text-[var(--color-ink-3)]">Deuda:</span> <strong>{euros(sub.deuda)}</strong></span>
                     <span><span className="text-[var(--color-ink-3)]">Total:</span> <strong>{euros(sub.total)}</strong></span>
@@ -207,7 +215,9 @@ export function EstadisticasView() {
                         <th className="px-4 py-2">Trabajador</th>
                         <th className="px-3 py-2 text-right">Horas</th>
                         <th className="px-3 py-2 text-right">Jornadas</th>
-                        <th className="px-3 py-2 text-right">Efectivo</th>
+                        <th className="px-3 py-2 text-right">Efect. bruto</th>
+                        <th className="px-3 py-2 text-right">Gastos</th>
+                        <th className="px-3 py-2 text-right">Efect. neto</th>
                         <th className="px-3 py-2 text-right">Tarjeta</th>
                         <th className="px-3 py-2 text-right">Deuda</th>
                         <th className="px-3 py-2 text-right">Total</th>
@@ -222,7 +232,9 @@ export function EstadisticasView() {
                             <td className="px-4 py-2 font-medium text-[var(--color-ink)]">{r.empleado_nombre}</td>
                             <td className="px-3 py-2 text-right tabular-nums">{r.horas.toFixed(1)}</td>
                             <td className="px-3 py-2 text-right tabular-nums text-[var(--color-ink-2)]">{r.jornadas}</td>
-                            <td className="px-3 py-2 text-right tabular-nums text-[var(--color-success)]">{euros(r.efectivo)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums text-[var(--color-ink-2)]">{euros(r.efectivo)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums text-[var(--coral)]">{r.gastos > 0 ? `−${euros(r.gastos)}` : euros(0)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--color-success)]">{euros(r.efectivoNeto)}</td>
                             <td className="px-3 py-2 text-right tabular-nums text-[var(--color-ink-2)]">{euros(r.tarjeta)}</td>
                             <td className="px-3 py-2 text-right tabular-nums text-[var(--color-warn)]">{euros(r.deuda)}</td>
                             <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--color-ink)]">{euros(r.total)}</td>

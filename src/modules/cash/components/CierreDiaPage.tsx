@@ -8,6 +8,7 @@ import { euros } from '../lib/format'
 import {
   useEmpleadosActivos,
   useEmpleadosSiempreCierre,
+  useJornadaGastos,
   useJornadaLineas,
   useJornadasDia,
   useResumenDia,
@@ -128,6 +129,7 @@ function JornadaCard({
   onClick: () => void
 }) {
   const lineas = useJornadaLineas(jornada.id)
+  const gastos = useJornadaGastos(jornada.id)
   const stats = useMemo(() => {
     const list = lineas.data ?? []
     const total = list.reduce((s, l) => s + Number(l.importe), 0)
@@ -140,8 +142,17 @@ function JornadaCard({
     const deuda = list
       .filter((l) => l.forma_pago === 'deuda')
       .reduce((s, l) => s + Number(l.importe), 0)
-    return { count: list.length, total, efectivo, tarjeta, deuda }
-  }, [lineas.data])
+    const totalGastos = (gastos.data ?? []).reduce((s, g) => s + Number(g.importe), 0)
+    return {
+      count: list.length,
+      total,
+      efectivo,
+      gastos: totalGastos,
+      efectivoNeto: efectivo - totalGastos,
+      tarjeta,
+      deuda,
+    }
+  }, [lineas.data, gastos.data])
 
   const horas =
     jornada.hora_inicio && jornada.hora_fin
@@ -169,9 +180,11 @@ function JornadaCard({
             {horas} · {stats.count} reparto{stats.count === 1 ? '' : 's'}
           </p>
         </div>
-        <div className="grid grid-cols-4 gap-3 text-right text-xs tabular-nums">
+        <div className="grid grid-cols-3 gap-3 text-right text-xs tabular-nums md:grid-cols-6">
           <Mini label="Total" value={euros(stats.total)} />
-          <Mini label="Efectivo" value={euros(stats.efectivo)} tone="success" />
+          <Mini label="Efectivo bruto" value={euros(stats.efectivo)} />
+          <Mini label="Gastos" value={stats.gastos > 0 ? `−${euros(stats.gastos)}` : euros(0)} tone="danger" />
+          <Mini label="Efectivo neto" value={euros(stats.efectivoNeto)} tone="success" />
           <Mini label="Tarjeta" value={euros(stats.tarjeta)} />
           <Mini label="Deuda" value={euros(stats.deuda)} />
         </div>
@@ -193,20 +206,20 @@ function Mini({
 }: {
   label: string
   value: string
-  tone?: 'success'
+  tone?: 'success' | 'danger'
 }) {
+  const toneClass =
+    tone === 'success'
+      ? 'text-[var(--mint)]'
+      : tone === 'danger'
+        ? 'text-[var(--coral)]'
+        : 'text-[var(--color-ink)]'
   return (
     <div>
       <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">
         {label}
       </p>
-      <p
-        className={`mono text-sm font-semibold ${
-          tone === 'success' ? 'text-[var(--mint)]' : 'text-[var(--color-ink)]'
-        }`}
-      >
-        {value}
-      </p>
+      <p className={`mono text-sm font-semibold ${toneClass}`}>{value}</p>
     </div>
   )
 }
@@ -214,19 +227,23 @@ function Mini({
 function ResumenDia({ fecha }: { fecha: string }) {
   const resumen = useResumenDia(fecha)
   if (resumen.isLoading || !resumen.data) return null
-  const { total, efectivo, tarjeta, deuda, count } = resumen.data
+  const { total, efectivo, gastos, efectivoNeto, tarjeta, deuda, count } = resumen.data
   if (count === 0) return null
   return (
     <div className="ao-card p-4">
       <p className="label-caps mb-2">
         Total del día
       </p>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Mini label="Repartos" value={String(count)} />
         <Mini label="Total" value={euros(total)} />
-        <Mini label="Efectivo" value={euros(efectivo)} tone="success" />
         <Mini label="Tarjeta" value={euros(tarjeta)} />
         <Mini label="Deuda" value={euros(deuda)} />
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-3 border-t border-[var(--color-border)] pt-3">
+        <Mini label="Efectivo bruto" value={euros(efectivo)} />
+        <Mini label="Gastos" value={gastos > 0 ? `−${euros(gastos)}` : euros(0)} tone="danger" />
+        <Mini label="Efectivo neto" value={euros(efectivoNeto)} tone="success" />
       </div>
     </div>
   )

@@ -496,12 +496,16 @@ function JornadaForm({
         </div>
 
         <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-          <div className="mb-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-6">
+          <div className="mb-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
             <Total label="Repartos" value={String(totales.count)} />
             <Total label="Total" value={euros(totales.total)} />
-            <Total label="Efectivo" value={euros(totales.efectivo)} tone="success" />
             <Total label="Tarjeta" value={euros(totales.tarjeta)} />
             <Total label="Deuda" value={euros(totales.deuda)} />
+          </div>
+          <div className="mb-3 grid grid-cols-2 gap-2 border-t border-[var(--color-border)] pt-3 text-xs md:grid-cols-4">
+            <Total label="Efectivo bruto" value={euros(totales.efectivo)} />
+            <Total label="Gastos" value={totalGastos > 0 ? `−${euros(totalGastos)}` : euros(0)} tone="danger" />
+            <Total label="Efectivo neto" value={euros(totales.efectivo - totalGastos)} tone="success" />
             <Total label="Duración" value={duracion ?? '—'} />
           </div>
           <div className="flex items-center justify-between gap-2">
