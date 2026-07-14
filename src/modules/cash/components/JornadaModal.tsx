@@ -525,14 +525,14 @@ function JornadaForm({
                   onClick={() => setMonedasAbierto((v) => !v)}
                   aria-label={monedasAbierto ? 'Ocultar monedas' : 'Descontar monedas'}
                   aria-expanded={monedasAbierto}
-                  title="Descontar monedas"
-                  className={`-mr-1 -mt-0.5 rounded-[var(--radius-sm)] p-1 transition-colors hover:bg-[rgba(255,255,255,.06)] ${
+                  className={`mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-semibold transition-colors ${
                     monedasAbierto || totalMonedas > 0
-                      ? 'text-[var(--mint)]'
-                      : 'text-[var(--color-ink-3)] hover:text-[var(--color-ink)]'
+                      ? 'border-[var(--mint)] bg-[var(--mint)]/15 text-[var(--mint)]'
+                      : 'border-[var(--color-border)] bg-[rgba(255,255,255,.04)] text-[var(--color-ink-2)] hover:border-[var(--mint)] hover:text-[var(--mint)]'
                   }`}
                 >
-                  <Coins className="h-4 w-4" />
+                  <Coins className="h-3.5 w-3.5" />
+                  Monedas
                 </button>
               }
             />
@@ -722,13 +722,11 @@ function Total({
         : 'text-[var(--color-ink)]'
   return (
     <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[rgba(255,255,255,.02)] px-3 py-2">
-      <div className="flex items-start justify-between gap-1">
-        <p className="label-caps">
-          {label}
-        </p>
-        {action}
-      </div>
+      <p className="label-caps">
+        {label}
+      </p>
       <p className={`mono mt-0.5 text-sm font-semibold tabular-nums ${toneCls}`}>{value}</p>
+      {action}
     </div>
   )
 }
