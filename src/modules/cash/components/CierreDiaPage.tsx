@@ -143,16 +143,19 @@ function JornadaCard({
       .filter((l) => l.forma_pago === 'deuda')
       .reduce((s, l) => s + Number(l.importe), 0)
     const totalGastos = (gastos.data ?? []).reduce((s, g) => s + Number(g.importe), 0)
+    const monedas = Number(jornada.efectivo_monedas ?? 0)
     return {
       count: list.length,
       total,
       efectivo,
       gastos: totalGastos,
       efectivoNeto: efectivo - totalGastos,
+      monedas,
+      efectivoNetoSinMonedas: efectivo - totalGastos - monedas,
       tarjeta,
       deuda,
     }
-  }, [lineas.data, gastos.data])
+  }, [lineas.data, gastos.data, jornada.efectivo_monedas])
 
   const horas =
     jornada.hora_inicio && jornada.hora_fin
@@ -180,11 +183,21 @@ function JornadaCard({
             {horas} · {stats.count} reparto{stats.count === 1 ? '' : 's'}
           </p>
         </div>
-        <div className="grid grid-cols-3 gap-3 text-right text-xs tabular-nums md:grid-cols-6">
+        <div
+          className={`grid grid-cols-3 gap-3 text-right text-xs tabular-nums ${
+            stats.monedas > 0 ? 'md:grid-cols-8' : 'md:grid-cols-6'
+          }`}
+        >
           <Mini label="Total" value={euros(stats.total)} />
           <Mini label="Efectivo bruto" value={euros(stats.efectivo)} />
           <Mini label="Gastos" value={stats.gastos > 0 ? `−${euros(stats.gastos)}` : euros(0)} tone="danger" />
           <Mini label="Efectivo neto" value={euros(stats.efectivoNeto)} tone="success" />
+          {stats.monedas > 0 && (
+            <>
+              <Mini label="Monedas" value={`−${euros(stats.monedas)}`} tone="danger" />
+              <Mini label="Neto sin monedas" value={euros(stats.efectivoNetoSinMonedas)} tone="success" />
+            </>
+          )}
           <Mini label="Tarjeta" value={euros(stats.tarjeta)} />
           <Mini label="Deuda" value={euros(stats.deuda)} />
         </div>
@@ -227,7 +240,7 @@ function Mini({
 function ResumenDia({ fecha }: { fecha: string }) {
   const resumen = useResumenDia(fecha)
   if (resumen.isLoading || !resumen.data) return null
-  const { total, efectivo, gastos, efectivoNeto, tarjeta, deuda, count } = resumen.data
+  const { total, efectivo, gastos, efectivoNeto, monedas, efectivoNetoSinMonedas, tarjeta, deuda, count } = resumen.data
   if (count === 0) return null
   return (
     <div className="ao-card p-4">
@@ -240,10 +253,20 @@ function ResumenDia({ fecha }: { fecha: string }) {
         <Mini label="Tarjeta" value={euros(tarjeta)} />
         <Mini label="Deuda" value={euros(deuda)} />
       </div>
-      <div className="mt-3 grid grid-cols-3 gap-3 border-t border-[var(--color-border)] pt-3">
+      <div
+        className={`mt-3 grid grid-cols-3 gap-3 border-t border-[var(--color-border)] pt-3 ${
+          monedas > 0 ? 'md:grid-cols-5' : ''
+        }`}
+      >
         <Mini label="Efectivo bruto" value={euros(efectivo)} />
         <Mini label="Gastos" value={gastos > 0 ? `−${euros(gastos)}` : euros(0)} tone="danger" />
         <Mini label="Efectivo neto" value={euros(efectivoNeto)} tone="success" />
+        {monedas > 0 && (
+          <>
+            <Mini label="Monedas" value={`−${euros(monedas)}`} tone="danger" />
+            <Mini label="Neto sin monedas" value={euros(efectivoNetoSinMonedas)} tone="success" />
+          </>
+        )}
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCircle2, Loader2, Plus, Receipt, Search, Trash2, X } from 'lucide-react'
+import { CheckCircle2, Coins, Loader2, Plus, Receipt, Search, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { confirm } from '@/shared/lib/confirm'
@@ -126,6 +126,10 @@ function JornadaForm({
       importe: Number(g.importe),
     })),
   )
+  const [monedas, setMonedas] = useState<number | ''>(
+    jornada?.efectivo_monedas == null ? '' : Number(jornada.efectivo_monedas),
+  )
+  const [monedasAbierto, setMonedasAbierto] = useState<boolean>(jornada?.efectivo_monedas != null)
 
   const gastosPayload = (): GastoInput[] =>
     gastos
@@ -138,6 +142,7 @@ function JornadaForm({
       }))
 
   const totalGastos = gastos.reduce((s, g) => s + (g.importe === '' ? 0 : Number(g.importe)), 0)
+  const totalMonedas = monedas === '' ? 0 : Number(monedas)
 
   const addGasto = () =>
     setGastos((p) => [...p, { _key: newKey(), tipo: 'gasolina', concepto: '', importe: '' }])
@@ -193,6 +198,9 @@ function JornadaForm({
     return { total, efectivo, tarjeta, deuda, count: lineas.length }
   }, [lineas])
 
+  const efectivoNeto = totales.efectivo - totalGastos
+  const netoSinMonedas = efectivoNeto - totalMonedas
+
   const duracion = useMemo(() => {
     if (!horaInicio || !horaFin) return null
     const [h1, m1] = horaInicio.split(':').map(Number)
@@ -222,6 +230,7 @@ function JornadaForm({
       hora_inicio: horaInicio || null,
       hora_fin: horaFin || null,
       notas: notas.trim() || null,
+      efectivo_monedas: monedas === '' ? null : Number(monedas),
     }
     try {
       let id = jornada?.id
@@ -265,6 +274,7 @@ function JornadaForm({
         hora_inicio: horaInicio || null,
         hora_fin: horaFin || null,
         notas: notas.trim() || null,
+        efectivo_monedas: monedas === '' ? null : Number(monedas),
       })
       await guardarLineas.mutateAsync({
         jornadaId: jornada.id,
@@ -505,9 +515,62 @@ function JornadaForm({
           <div className="mb-3 grid grid-cols-2 gap-2 border-t border-[var(--color-border)] pt-3 text-xs md:grid-cols-4">
             <Total label="Efectivo bruto" value={euros(totales.efectivo)} />
             <Total label="Gastos" value={totalGastos > 0 ? `−${euros(totalGastos)}` : euros(0)} tone="danger" />
-            <Total label="Efectivo neto" value={euros(totales.efectivo - totalGastos)} tone="success" />
+            <Total
+              label="Efectivo neto"
+              value={euros(efectivoNeto)}
+              tone="success"
+              action={
+                <button
+                  type="button"
+                  onClick={() => setMonedasAbierto((v) => !v)}
+                  aria-label={monedasAbierto ? 'Ocultar monedas' : 'Descontar monedas'}
+                  aria-expanded={monedasAbierto}
+                  title="Descontar monedas"
+                  className={`-mr-1 -mt-0.5 rounded-[var(--radius-sm)] p-1 transition-colors hover:bg-[rgba(255,255,255,.06)] ${
+                    monedasAbierto || totalMonedas > 0
+                      ? 'text-[var(--mint)]'
+                      : 'text-[var(--color-ink-3)] hover:text-[var(--color-ink)]'
+                  }`}
+                >
+                  <Coins className="h-4 w-4" />
+                </button>
+              }
+            />
             <Total label="Duración" value={duracion ?? '—'} />
           </div>
+
+          {monedasAbierto && (
+            <div className="mb-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+              <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[rgba(255,255,255,.02)] px-3 py-2">
+                <label htmlFor="jornada-monedas" className="label-caps flex items-center gap-1.5">
+                  <Coins className="h-3.5 w-3.5" />
+                  Monedas
+                </label>
+                <Input
+                  id="jornada-monedas"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  inputMode="decimal"
+                  value={monedas === '' ? '' : monedas}
+                  onChange={(e) => setMonedas(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder="0,00"
+                  autoFocus
+                  className="mono mt-0.5 h-7 border-0 bg-transparent px-0 text-sm font-semibold tabular-nums shadow-none focus-visible:ring-0"
+                />
+              </div>
+              <Total
+                label="Neto sin monedas"
+                value={euros(netoSinMonedas)}
+                tone={netoSinMonedas < 0 ? 'danger' : 'success'}
+              />
+              {netoSinMonedas < 0 && (
+                <p className="col-span-2 self-center text-[11px] leading-snug text-[var(--coral)] md:col-span-2">
+                  Las monedas ({euros(totalMonedas)}) superan el efectivo neto ({euros(efectivoNeto)}). Revisa el importe.
+                </p>
+              )}
+            </div>
+          )}
           <div className="flex items-center justify-between gap-2">
             {jornada ? (
               <Button
@@ -644,10 +707,12 @@ function Total({
   label,
   value,
   tone,
+  action,
 }: {
   label: string
   value: string
   tone?: 'success' | 'danger'
+  action?: React.ReactNode
 }) {
   const toneCls =
     tone === 'success'
@@ -657,9 +722,12 @@ function Total({
         : 'text-[var(--color-ink)]'
   return (
     <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[rgba(255,255,255,.02)] px-3 py-2">
-      <p className="label-caps">
-        {label}
-      </p>
+      <div className="flex items-start justify-between gap-1">
+        <p className="label-caps">
+          {label}
+        </p>
+        {action}
+      </div>
       <p className={`mono mt-0.5 text-sm font-semibold tabular-nums ${toneCls}`}>{value}</p>
     </div>
   )

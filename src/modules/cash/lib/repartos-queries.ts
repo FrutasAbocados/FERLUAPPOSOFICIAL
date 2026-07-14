@@ -104,6 +104,8 @@ export type ResumenDia = {
   efectivo: number
   gastos: number
   efectivoNeto: number
+  monedas: number
+  efectivoNetoSinMonedas: number
   tarjeta: number
   deuda: number
 }
@@ -113,7 +115,7 @@ export function useResumenDia(fecha: string) {
     queryKey: ['repartos', 'resumen-dia', fecha] as const,
     enabled: !!fecha,
     queryFn: async (): Promise<ResumenDia> => {
-      const [lineasRes, gastosRes] = await Promise.all([
+      const [lineasRes, gastosRes, jornadasRes] = await Promise.all([
         supabase
           .from('repartos_jornada_lineas')
           .select('importe, forma_pago, repartos_jornada!inner(fecha)')
@@ -122,11 +124,18 @@ export function useResumenDia(fecha: string) {
           .from('repartos_jornada_gastos')
           .select('importe, repartos_jornada!inner(fecha)')
           .eq('repartos_jornada.fecha', fecha),
+        supabase
+          .from('repartos_jornada')
+          .select('efectivo_monedas')
+          .eq('fecha', fecha),
       ])
       if (lineasRes.error) throw lineasRes.error
       if (gastosRes.error) throw gastosRes.error
+      if (jornadasRes.error) throw jornadasRes.error
       const list = (lineasRes.data ?? []) as Array<{ importe: number; forma_pago: 'efectivo' | 'tarjeta' | 'deuda' }>
       const gastosList = (gastosRes.data ?? []) as Array<{ importe: number }>
+      const jornadasList = (jornadasRes.data ?? []) as Array<{ efectivo_monedas: number | null }>
+      const monedas = jornadasList.reduce((s, j) => s + Number(j.efectivo_monedas ?? 0), 0)
       const total = list.reduce((s, l) => s + Number(l.importe), 0)
       const efectivo = list
         .filter((l) => l.forma_pago === 'efectivo')
@@ -144,6 +153,8 @@ export function useResumenDia(fecha: string) {
         efectivo,
         gastos,
         efectivoNeto: efectivo - gastos,
+        monedas,
+        efectivoNetoSinMonedas: efectivo - gastos - monedas,
         tarjeta,
         deuda,
       }
@@ -158,6 +169,7 @@ export type CrearJornadaInput = {
   hora_inicio: string | null
   hora_fin: string | null
   notas: string | null
+  efectivo_monedas?: number | null
 }
 
 export function useCrearJornada() {
@@ -258,6 +270,8 @@ export type StatsSemana = {
   efectivo: number
   gastos: number
   efectivoNeto: number
+  monedas: number
+  efectivoNetoSinMonedas: number
   tarjeta: number
   deuda: number
   jornadas: number
@@ -275,13 +289,24 @@ export function useCashStatsSemanas(from: string, to: string) {
       if (error) throw error
       type Raw = Omit<
         StatsSemana,
-        'horas' | 'total' | 'efectivo' | 'gastos' | 'efectivoNeto' | 'tarjeta' | 'deuda' | 'jornadas'
+        | 'horas'
+        | 'total'
+        | 'efectivo'
+        | 'gastos'
+        | 'efectivoNeto'
+        | 'monedas'
+        | 'efectivoNetoSinMonedas'
+        | 'tarjeta'
+        | 'deuda'
+        | 'jornadas'
       > & {
         horas: number | string
         total: number | string
         efectivo: number | string
         gastos: number | string
         efectivo_neto: number | string
+        monedas: number | string
+        efectivo_neto_sin_monedas: number | string
         tarjeta: number | string
         deuda: number | string
         jornadas: number | string
@@ -295,6 +320,8 @@ export function useCashStatsSemanas(from: string, to: string) {
         efectivo: Number(r.efectivo),
         gastos: Number(r.gastos),
         efectivoNeto: Number(r.efectivo_neto),
+        monedas: Number(r.monedas),
+        efectivoNetoSinMonedas: Number(r.efectivo_neto_sin_monedas),
         tarjeta: Number(r.tarjeta),
         deuda: Number(r.deuda),
         jornadas: Number(r.jornadas),

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { addDays, addWeeks, endOfMonth, format, parseISO, startOfMonth, startOfWeek, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { BarChart3, Banknote, Clock, CreditCard, Loader2, Receipt, ReceiptText, TrendingUp, Wallet } from 'lucide-react'
+import { BarChart3, Banknote, Clock, Coins, CreditCard, Loader2, Receipt, ReceiptText, TrendingUp, Wallet } from 'lucide-react'
 import { useCashStatsSemanas, type StatsSemana } from '../lib/repartos-queries'
 import { euros } from '../lib/format'
 import { cn } from '@/shared/lib/utils'
@@ -43,21 +43,30 @@ export function EstadisticasView() {
   const rows = useMemo(() => stats.data ?? [], [stats.data])
 
   const totals = useMemo(() => {
-    const acc = { horas: 0, total: 0, efectivo: 0, gastos: 0, efectivoNeto: 0, tarjeta: 0, deuda: 0, jornadas: 0 }
+    const acc = {
+      horas: 0, total: 0, efectivo: 0, gastos: 0, efectivoNeto: 0,
+      monedas: 0, efectivoNetoSinMonedas: 0, tarjeta: 0, deuda: 0, jornadas: 0,
+    }
     for (const r of rows) {
-      acc.horas        += r.horas
-      acc.total        += r.total
-      acc.efectivo     += r.efectivo
-      acc.gastos       += r.gastos
-      acc.efectivoNeto += r.efectivoNeto
-      acc.tarjeta      += r.tarjeta
-      acc.deuda        += r.deuda
-      acc.jornadas     += r.jornadas
+      acc.horas                  += r.horas
+      acc.total                  += r.total
+      acc.efectivo               += r.efectivo
+      acc.gastos                 += r.gastos
+      acc.efectivoNeto           += r.efectivoNeto
+      acc.monedas                += r.monedas
+      acc.efectivoNetoSinMonedas += r.efectivoNetoSinMonedas
+      acc.tarjeta                += r.tarjeta
+      acc.deuda                  += r.deuda
+      acc.jornadas               += r.jornadas
     }
     return acc
   }, [rows])
 
   const productividadMedia = totals.horas > 0 ? totals.total / totals.horas : 0
+
+  // Las monedas son opcionales: si en el rango nadie apuntó ninguna, no ensuciamos
+  // los KPIs ni la tabla con dos columnas a cero.
+  const hayMonedas = totals.monedas > 0
 
   // Agrupar por semana → empleados
   const semanas = useMemo(() => {
@@ -77,11 +86,16 @@ export function EstadisticasView() {
             efectivo: s.efectivo + r.efectivo,
             gastos: s.gastos + r.gastos,
             efectivoNeto: s.efectivoNeto + r.efectivoNeto,
+            monedas: s.monedas + r.monedas,
+            efectivoNetoSinMonedas: s.efectivoNetoSinMonedas + r.efectivoNetoSinMonedas,
             tarjeta: s.tarjeta + r.tarjeta,
             deuda: s.deuda + r.deuda,
             jornadas: s.jornadas + r.jornadas,
           }),
-          { horas: 0, total: 0, efectivo: 0, gastos: 0, efectivoNeto: 0, tarjeta: 0, deuda: 0, jornadas: 0 },
+          {
+            horas: 0, total: 0, efectivo: 0, gastos: 0, efectivoNeto: 0,
+            monedas: 0, efectivoNetoSinMonedas: 0, tarjeta: 0, deuda: 0, jornadas: 0,
+          },
         )
         return { semana, lista: lista.sort((a, b) => a.empleado_nombre.localeCompare(b.empleado_nombre)), sub }
       })
@@ -153,6 +167,12 @@ export function EstadisticasView() {
         <Kpi icon={<Banknote className="h-4 w-4" />}     label="Efectivo bruto" value={euros(totals.efectivo)}         tone="neutral" />
         <Kpi icon={<Receipt className="h-4 w-4" />}      label="Gastos"         value={totals.gastos > 0 ? `−${euros(totals.gastos)}` : euros(0)} tone="warn" />
         <Kpi icon={<Wallet className="h-4 w-4" />}       label="Efectivo neto"  value={euros(totals.efectivoNeto)}     tone="success" />
+        {hayMonedas && (
+          <>
+            <Kpi icon={<Coins className="h-4 w-4" />}    label="Monedas"        value={`−${euros(totals.monedas)}`}    tone="warn" />
+            <Kpi icon={<Banknote className="h-4 w-4" />} label="Neto sin monedas" value={euros(totals.efectivoNetoSinMonedas)} tone="success" />
+          </>
+        )}
         <Kpi icon={<CreditCard className="h-4 w-4" />}   label="Tarjeta"        value={euros(totals.tarjeta)}          tone="neutral" />
         <Kpi icon={<ReceiptText className="h-4 w-4" />}  label="Deuda"          value={euros(totals.deuda)}            tone="warn" />
         <Kpi icon={<BarChart3 className="h-4 w-4" />}    label="Total reparto"  value={euros(totals.total)}            tone="primary" />
@@ -200,6 +220,12 @@ export function EstadisticasView() {
                     <span><span className="text-[var(--color-ink-3)]">Efect. bruto:</span> <strong>{euros(sub.efectivo)}</strong></span>
                     <span><span className="text-[var(--color-ink-3)]">Gastos:</span> <strong className="text-[var(--coral)]">{sub.gastos > 0 ? `−${euros(sub.gastos)}` : euros(0)}</strong></span>
                     <span><span className="text-[var(--color-ink-3)]">Efect. neto:</span> <strong className="text-[var(--mint)]">{euros(sub.efectivoNeto)}</strong></span>
+                    {hayMonedas && (
+                      <>
+                        <span><span className="text-[var(--color-ink-3)]">Monedas:</span> <strong className="text-[var(--coral)]">{sub.monedas > 0 ? `−${euros(sub.monedas)}` : euros(0)}</strong></span>
+                        <span><span className="text-[var(--color-ink-3)]">Neto s/ monedas:</span> <strong className="text-[var(--mint)]">{euros(sub.efectivoNetoSinMonedas)}</strong></span>
+                      </>
+                    )}
                     <span><span className="text-[var(--color-ink-3)]">Tarj:</span> <strong>{euros(sub.tarjeta)}</strong></span>
                     <span><span className="text-[var(--color-ink-3)]">Deuda:</span> <strong>{euros(sub.deuda)}</strong></span>
                     <span><span className="text-[var(--color-ink-3)]">Total:</span> <strong>{euros(sub.total)}</strong></span>
@@ -218,6 +244,12 @@ export function EstadisticasView() {
                         <th className="px-3 py-2 text-right">Efect. bruto</th>
                         <th className="px-3 py-2 text-right">Gastos</th>
                         <th className="px-3 py-2 text-right">Efect. neto</th>
+                        {hayMonedas && (
+                          <>
+                            <th className="px-3 py-2 text-right">Monedas</th>
+                            <th className="px-3 py-2 text-right">Neto s/ monedas</th>
+                          </>
+                        )}
                         <th className="px-3 py-2 text-right">Tarjeta</th>
                         <th className="px-3 py-2 text-right">Deuda</th>
                         <th className="px-3 py-2 text-right">Total</th>
@@ -235,6 +267,12 @@ export function EstadisticasView() {
                             <td className="px-3 py-2 text-right tabular-nums text-[var(--color-ink-2)]">{euros(r.efectivo)}</td>
                             <td className="px-3 py-2 text-right tabular-nums text-[var(--coral)]">{r.gastos > 0 ? `−${euros(r.gastos)}` : euros(0)}</td>
                             <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--color-success)]">{euros(r.efectivoNeto)}</td>
+                            {hayMonedas && (
+                              <>
+                                <td className="px-3 py-2 text-right tabular-nums text-[var(--coral)]">{r.monedas > 0 ? `−${euros(r.monedas)}` : euros(0)}</td>
+                                <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--color-success)]">{euros(r.efectivoNetoSinMonedas)}</td>
+                              </>
+                            )}
                             <td className="px-3 py-2 text-right tabular-nums text-[var(--color-ink-2)]">{euros(r.tarjeta)}</td>
                             <td className="px-3 py-2 text-right tabular-nums text-[var(--color-warn)]">{euros(r.deuda)}</td>
                             <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--color-ink)]">{euros(r.total)}</td>
