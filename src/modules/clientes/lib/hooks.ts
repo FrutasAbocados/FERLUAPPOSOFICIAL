@@ -52,9 +52,21 @@ export type Preferencias = {
   hora_preferida: string | null
   dia_preferido: string | null
   tags: string[]
+  en_pausa_desde: string | null
   en_pausa_hasta: string | null
   notas: string | null
   updated_at: string
+}
+
+/**
+ * Misma regla que la función SQL `cliente_en_pausa`: solo hasta → pausa hasta esa
+ * fecha; solo desde → pausa indefinida; ambas → rango inclusive.
+ */
+export function enPausa(desde: string | null, hasta: string | null, hoy: string): boolean {
+  if (!desde && !hasta) return false
+  if (desde && hoy < desde) return false
+  if (hasta && hoy > hasta) return false
+  return true
 }
 
 export type ClienteProgramaRow = {
@@ -86,6 +98,7 @@ export type SeguimientoFila = {
   cadencia_dias: number | null
   pedidos_activo: number
   ventas_activo: number
+  en_pausa_desde: string | null
   en_pausa_hasta: string | null
   estado: 'pidiendo' | 'sin_pedir' | 'pausa'
 }
@@ -180,7 +193,7 @@ export function usePreferencias(name: string | null) {
       if (!name) return null
       const { data, error } = await supabase
         .from('clientes_preferencias')
-        .select('contact_name_canon, hora_preferida, dia_preferido, tags, en_pausa_hasta, notas, updated_at')
+        .select('contact_name_canon, hora_preferida, dia_preferido, tags, en_pausa_desde, en_pausa_hasta, notas, updated_at')
         .eq('contact_name_canon', name)
         .maybeSingle()
       if (error) throw error
@@ -521,6 +534,7 @@ export async function fetchClientesSeguimiento(diasUmbral: number, diasActivo: n
     cadencia_dias: nullableNum(r.cadencia_dias),
     pedidos_activo: num(r.pedidos_activo),
     ventas_activo: num(r.ventas_activo),
+    en_pausa_desde: nullableStr(r.en_pausa_desde),
     en_pausa_hasta: nullableStr(r.en_pausa_hasta),
     estado: str(r.estado) as SeguimientoFila['estado'],
   }))
