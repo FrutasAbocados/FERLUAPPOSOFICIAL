@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Save } from 'lucide-react'
+import { Save, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -97,7 +97,23 @@ function PreferenciasCardInner({ name, prefs }: { name: string; prefs: Preferenc
         </div>
         <div>
           <Label htmlFor="pausa">En pausa hasta (vacaciones)</Label>
-          <Input id="pausa" type="date" value={form.en_pausa_hasta} onChange={(e) => update({ en_pausa_hasta: e.target.value })} />
+          <div className="flex items-center gap-2">
+            <Input id="pausa" type="date" value={form.en_pausa_hasta} onChange={(e) => update({ en_pausa_hasta: e.target.value })} className="flex-1" />
+            {/* Un <input type=date> nativo no se puede vaciar desde móvil: sin este
+                botón, quien se equivoca al poner las vacaciones no puede quitarlas. */}
+            {form.en_pausa_hasta && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => update({ en_pausa_hasta: '' })}
+                className="shrink-0 border border-[var(--color-border)] text-[var(--coral)] hover:border-[var(--coral)]"
+              >
+                <X className="mr-1 h-3.5 w-3.5" />
+                Quitar
+              </Button>
+            )}
+          </div>
         </div>
         <div className="md:col-span-3">
           <Label htmlFor="tags">Tags (separados por coma)</Label>
