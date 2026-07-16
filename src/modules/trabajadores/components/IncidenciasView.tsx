@@ -48,7 +48,7 @@ export function IncidenciasView({ autorEmpleadoId }: { autorEmpleadoId: string |
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Trabajadores</p>
           <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">Incidencias</h1>
-          <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">Faltas, abonos e incidencias por cliente. Seguimiento del equipo.</p>
+          <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">Faltas, abonos e incidencias por cliente o generales. Seguimiento del equipo.</p>
         </div>
         <button
           type="button"
@@ -120,7 +120,9 @@ function IncidenciaCard({ inc, puedeGestionar }: { inc: Incidencia; puedeGestion
     <section className="ao-card p-3.5">
       <div className="flex flex-wrap items-center gap-2">
         <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${TIPO_COLOR[inc.tipo]}`}>{inc.tipo}</span>
-        <span className="text-sm font-semibold text-[var(--color-ink)]">{inc.contact_name_canon}</span>
+        {inc.contact_name_canon
+          ? <span className="text-sm font-semibold text-[var(--color-ink)]">{inc.contact_name_canon}</span>
+          : <span className="rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 text-xs font-semibold text-[var(--color-ink-2)]">General</span>}
         <span className="text-xs text-[var(--color-ink-3)]">· {format(new Date(inc.fecha), "d 'de' LLLL", { locale: es })}</span>
         {inc.estado === 'resuelta' && (
           <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-[oklch(45%_.12_150)] dark:text-[oklch(78%_.14_150)]">
@@ -191,6 +193,7 @@ function IncidenciaCard({ inc, puedeGestionar }: { inc: Incidencia; puedeGestion
 function NuevaIncidenciaModal({ autorEmpleadoId, onClose }: { autorEmpleadoId: string | null; onClose: () => void }) {
   const { data: clientes } = useClientesIncidencias()
   const crear = useCrearIncidencia()
+  const [general, setGeneral] = useState(false)
   const [cliente, setCliente] = useState('')
   const [fecha, setFecha] = useState(() => format(new Date(), 'yyyy-MM-dd'))
   const [tipo, setTipo] = useState<IncidenciaTipo>('incidencia')
@@ -198,12 +201,12 @@ function NuevaIncidenciaModal({ autorEmpleadoId, onClose }: { autorEmpleadoId: s
 
   const nombresValidos = new Set((clientes ?? []).map(c => c.nombre_canon))
   const clienteOk = cliente.trim().length > 0 && nombresValidos.has(cliente.trim())
-  const puedeGuardar = clienteOk && descripcion.trim().length > 0
+  const puedeGuardar = (general || clienteOk) && descripcion.trim().length > 0
 
   const guardar = () => {
     if (!puedeGuardar) return
     crear.mutate(
-      { contact_name_canon: cliente.trim(), fecha, tipo, descripcion: descripcion.trim(), autor_empleado_id: autorEmpleadoId },
+      { contact_name_canon: general ? null : cliente.trim(), fecha, tipo, descripcion: descripcion.trim(), autor_empleado_id: autorEmpleadoId },
       {
         onSuccess: () => { toast({ variant: 'success', title: 'Incidencia anotada' }); onClose() },
         onError: () => toast({ variant: 'error', title: 'No se pudo guardar' }),
@@ -217,24 +220,31 @@ function NuevaIncidenciaModal({ autorEmpleadoId, onClose }: { autorEmpleadoId: s
         <h2 className="mb-4 font-display text-lg font-bold text-[var(--color-ink)]">Nueva incidencia</h2>
 
         <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-[var(--color-ink-2)]">Cliente</label>
-            <input
-              list="incidencias-clientes"
-              value={cliente}
-              onChange={e => setCliente(e.target.value)}
-              placeholder="Escribe para buscar…"
-              className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-ink)]"
-            />
-            <datalist id="incidencias-clientes">
-              {(clientes ?? []).map(c => (
-                <option key={c.nombre_canon} value={c.nombre_canon}>{c.poblacion ?? ''}</option>
-              ))}
-            </datalist>
-            {cliente.trim() && !clienteOk && (
-              <p className="mt-1 text-[11px] text-[oklch(50%_.14_25)]">Selecciona un cliente de la lista.</p>
-            )}
-          </div>
+          <label className="flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-sm font-medium text-[var(--color-ink)]">
+            <input type="checkbox" checked={general} onChange={e => setGeneral(e.target.checked)} className="h-4 w-4 accent-[var(--color-primary)]" />
+            Incidencia general (sin cliente concreto)
+          </label>
+
+          {!general && (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[var(--color-ink-2)]">Cliente</label>
+              <input
+                list="incidencias-clientes"
+                value={cliente}
+                onChange={e => setCliente(e.target.value)}
+                placeholder="Escribe para buscar…"
+                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-ink)]"
+              />
+              <datalist id="incidencias-clientes">
+                {(clientes ?? []).map(c => (
+                  <option key={c.nombre_canon} value={c.nombre_canon}>{c.poblacion ?? ''}</option>
+                ))}
+              </datalist>
+              {cliente.trim() && !clienteOk && (
+                <p className="mt-1 text-[11px] text-[oklch(50%_.14_25)]">Selecciona un cliente de la lista.</p>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>

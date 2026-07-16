@@ -6,7 +6,8 @@ export type IncidenciaEstado = 'pendiente' | 'en_proceso' | 'resuelta'
 
 export type Incidencia = {
   id: string
-  contact_name_canon: string
+  /** null = incidencia general del negocio (no asociada a un cliente concreto). */
+  contact_name_canon: string | null
   fecha: string
   tipo: IncidenciaTipo
   descripcion: string
@@ -64,7 +65,7 @@ export function useIncidencias(estado: IncidenciaEstado | 'todas') {
         const emp = Array.isArray(r.empleados) ? r.empleados[0] : r.empleados
         return {
           id: r.id as string,
-          contact_name_canon: r.contact_name_canon as string,
+          contact_name_canon: (r.contact_name_canon as string | null) ?? null,
           fecha: r.fecha as string,
           tipo: r.tipo as IncidenciaTipo,
           descripcion: r.descripcion as string,
@@ -84,7 +85,7 @@ export function useCrearIncidencia() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input: {
-      contact_name_canon: string
+      contact_name_canon: string | null
       fecha: string
       tipo: IncidenciaTipo
       descripcion: string
