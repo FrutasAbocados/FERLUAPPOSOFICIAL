@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { format, endOfMonth, startOfMonth, subMonths } from 'date-fns'
-import { Search } from 'lucide-react'
+import { ChevronLeft, Search } from 'lucide-react'
 import { Input } from '@/shared/components/ui/input'
 import { eurosShort } from '@/shared/lib/format'
 import { cn } from '@/shared/lib/utils'
@@ -147,9 +147,9 @@ export function ProgramaFidelizacionView() {
       {!isLoading && rows.length > 0 && (
         <div className="grid gap-3 lg:grid-cols-[minmax(280px,380px)_1fr]">
 
-          {/* Lista */}
+          {/* Lista — en móvil se oculta al abrir una ficha (el detalle iría debajo, fuera de pantalla) */}
           <div
-            className="overflow-y-auto rounded-[var(--radius-md)]"
+            className={cn('overflow-y-auto rounded-[var(--radius-md)]', selected ? 'hidden lg:block' : 'block')}
             style={{
               maxHeight: '70vh',
               background: 'var(--panel)',
@@ -216,7 +216,7 @@ export function ProgramaFidelizacionView() {
           </div>
 
           {/* Detalle */}
-          <div>
+          <div className={cn(selected ? 'block' : 'hidden lg:block')}>
             {clienteSel ? (
               <div key={clienteSel.contact_name_canon} className="space-y-3" style={{ animation: 'fadeSlideIn .18s ease-out' }}>
                 {/* Cabecera cliente */}
@@ -224,6 +224,14 @@ export function ProgramaFidelizacionView() {
                   className="rounded-[var(--radius-md)] px-4 py-3"
                   style={{ background: 'var(--panel)', border: '1px solid var(--line)' }}
                 >
+                  <button
+                    type="button"
+                    onClick={() => setSelected(null)}
+                    className="mb-2 inline-flex items-center gap-1 text-xs font-semibold lg:hidden"
+                    style={{ color: 'var(--ink-mute)' }}
+                  >
+                    <ChevronLeft className="h-4 w-4" /> Volver a la lista
+                  </button>
                   <div className="flex flex-wrap items-center gap-2">
                     <span
                       className="rounded-[var(--radius-sm)] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider"
