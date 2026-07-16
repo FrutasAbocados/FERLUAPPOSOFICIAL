@@ -51,6 +51,8 @@ export type Preferencias = {
   contact_name_canon: string
   hora_preferida: string | null
   dia_preferido: string | null
+  telefono: string | null
+  direccion: string | null
   tags: string[]
   en_pausa_desde: string | null
   en_pausa_hasta: string | null
@@ -193,7 +195,7 @@ export function usePreferencias(name: string | null) {
       if (!name) return null
       const { data, error } = await supabase
         .from('clientes_preferencias')
-        .select('contact_name_canon, hora_preferida, dia_preferido, tags, en_pausa_desde, en_pausa_hasta, notas, updated_at')
+        .select('contact_name_canon, hora_preferida, dia_preferido, telefono, direccion, tags, en_pausa_desde, en_pausa_hasta, notas, updated_at')
         .eq('contact_name_canon', name)
         .maybeSingle()
       if (error) throw error
