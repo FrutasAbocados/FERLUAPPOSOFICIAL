@@ -3,14 +3,75 @@
 // Body: { pedido_id: uuid }
 // Auth: admin_full | admin_op | responsable
 
-import {
-  HOLDED_BASE, HOLDED_KEY, SUPABASE_URL,
-  cors, dbHeaders,
-  checkAuth, jsonRes,
-} from '../_shared/holded.ts'
+// Helpers inline: los despliegues vía MCP no resuelven imports ../_shared/.
+const HOLDED_BASE = 'https://api.holded.com/api/invoicing/v1/documents'
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const HOLDED_KEY = Deno.env.get('HOLDED_API_KEY') || ''
+
+const dbHeaders = {
+  apikey: SERVICE_KEY,
+  authorization: `Bearer ${SERVICE_KEY}`,
+  'content-type': 'application/json',
+}
+
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+function jsonRes(obj: unknown, status = 200): Response {
+  return new Response(JSON.stringify(obj, null, 2), {
+    status,
+    headers: { ...cors, 'content-type': 'application/json' },
+  })
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  const part = token.split('.')[1]
+  if (!part) throw new Error('jwt sin payload')
+  const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+  const pad = (4 - b64.length % 4) % 4
+  return JSON.parse(atob(b64 + '='.repeat(pad)))
+}
+
+type AppRole = 'admin_full' | 'admin_op' | 'responsable'
+type AuthResult = { ok: true } | { ok: false; status: number; msg: string }
+
+async function checkAuth(
+  req: Request,
+  options: { allowedRoles: AppRole[] },
+): Promise<AuthResult> {
+  const header = req.headers.get('Authorization') ?? ''
+  const token = header.replace(/^Bearer\s+/i, '').trim()
+  if (!token) return { ok: false, status: 401, msg: 'falta Authorization' }
+
+  let payload: Record<string, unknown>
+  try { payload = decodeJwtPayload(token) }
+  catch { return { ok: false, status: 401, msg: 'jwt inválido' } }
+
+  const role = String(payload.role ?? '')
+  if (role === 'service_role') return { ok: true }
+  if (role !== 'authenticated') return { ok: false, status: 403, msg: 'rol JWT no permitido' }
+
+  const userId = String(payload.sub ?? '')
+  if (!userId) return { ok: false, status: 403, msg: 'jwt sin usuario' }
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=role&limit=1`,
+    { headers: dbHeaders },
+  )
+  if (!res.ok) return { ok: false, status: 500, msg: `profiles ${res.status}` }
+  const rows = await res.json() as Array<{ role?: string }>
+  if (!options.allowedRoles.includes((rows[0]?.role ?? '') as AppRole)) {
+    return { ok: false, status: 403, msg: 'usuario no autorizado' }
+  }
+  return { ok: true }
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
+  if (req.method !== 'POST') return jsonRes({ error: 'POST only' }, 405)
   const auth = await checkAuth(req, { allowedRoles: ['admin_full', 'admin_op', 'responsable'] })
   if (!auth.ok) return jsonRes({ error: auth.msg }, auth.status)
   if (!HOLDED_KEY) return jsonRes({ error: 'HOLDED_API_KEY no configurada' }, 500)

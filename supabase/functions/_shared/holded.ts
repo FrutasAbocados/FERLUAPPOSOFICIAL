@@ -52,7 +52,7 @@ export type AuthResult = AuthOk | AuthFail
 /**
  * Valida JWT y rol del usuario.
  * - service_role siempre permitido.
- * - anon permitido (trigger pg_net invoca con anon key) — por eso opt-in con `allowAnon`.
+ * - anon denegado por defecto; solo se permite con opt-in explícito `allowAnon: true`.
  * - authenticated: chequea el rol en `profiles` contra `allowedRoles`.
  */
 export async function checkAuth(
@@ -69,7 +69,7 @@ export async function checkAuth(
 
   const role = String(payload.role ?? '')
   if (role === 'service_role') return { ok: true }
-  if (role === 'anon' && options.allowAnon !== false) return { ok: true }
+  if (role === 'anon' && options.allowAnon === true) return { ok: true }
   if (role !== 'authenticated') {
     return { ok: false, status: 403, msg: `rol JWT no permitido: ${role || '—'}` }
   }

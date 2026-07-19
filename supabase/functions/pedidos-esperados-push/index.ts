@@ -12,6 +12,18 @@ const cors = {
   'access-control-allow-headers': 'authorization, content-type, apikey',
 }
 
+function isServiceRequest(req: Request): boolean {
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
+  try {
+    const part = token.split('.')[1]
+    if (!part) return false
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+    const pad = (4 - b64.length % 4) % 4
+    const payload = JSON.parse(atob(b64 + '='.repeat(pad))) as { role?: string }
+    return payload.role === 'service_role'
+  } catch { return false }
+}
+
 function jsonRes(obj: unknown, status = 200): Response {
   return new Response(JSON.stringify(obj, null, 2), { status, headers: { ...cors, 'content-type': 'application/json' } })
 }
@@ -101,6 +113,7 @@ function construirMensaje(pedidos: PedidoEsperado[]): { titulo: string; cuerpo: 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
   if (req.method !== 'POST') return jsonRes({ error: 'POST only' }, 405)
+  if (!isServiceRequest(req)) return jsonRes({ error: 'forbidden' }, 403)
 
   let body: { force?: boolean } = {}
   try { body = await req.json() } catch { /* */ }

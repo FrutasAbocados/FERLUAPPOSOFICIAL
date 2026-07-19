@@ -3,7 +3,7 @@
 // pedidos_wa_clientes.holded_doc_type. Idempotente vía pedidos_wa.holded_invoice_id.
 //
 // Body: { pedido_id: uuid, dry_run?: boolean, auto?: boolean }
-// Auth: admin_full | admin_op | responsable, o JWT service_role / anon (trigger).
+// Auth: admin_full | admin_op | responsable, o JWT service_role (trigger/cron).
 
 // ── inline de _shared/holded.ts ──────────────────────────────────────────────
 const HOLDED_BASE = 'https://api.holded.com/api/invoicing/v1/documents'
@@ -88,7 +88,7 @@ async function checkAuth(
   catch { return { ok: false, status: 401, msg: 'jwt inválido' } }
   const role = String(payload.role ?? '')
   if (role === 'service_role') return { ok: true }
-  if (role === 'anon' && options.allowAnon !== false) return { ok: true }
+  if (role === 'anon' && options.allowAnon === true) return { ok: true }
   if (role !== 'authenticated') {
     return { ok: false, status: 403, msg: `rol JWT no permitido: ${role || '—'}` }
   }

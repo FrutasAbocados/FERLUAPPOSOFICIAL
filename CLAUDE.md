@@ -134,5 +134,5 @@ Detalle en `~/.claude/projects/-Users-luis/memory/cron_jobs_ferlu.md`.
 - `~/Downloads/PLAN_MAESTRO_GLOBAL.pdf` — Operativa modo dios
 
 ## Contacto operativo
-- Cuenta admin testing: `frutasabocados@gmail.com` / `Ferlu2025`.
+- Cuenta admin testing: usar exclusivamente `E2E_USER`/`E2E_PASS` desde Secrets; nunca documentar credenciales reales.
 - Avisar a Luis (no a Álvaro) sobre cosas digitales — Álvaro no manda en digital.

@@ -27,6 +27,47 @@ const dbHeaders = {
   'content-type': 'application/json',
 }
 
+type AuthResult = { ok: true } | { ok: false; status: number; message: string }
+
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  const part = token.split('.')[1]
+  if (!part) throw new Error('jwt sin payload')
+  const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+  const pad = (4 - b64.length % 4) % 4
+  return JSON.parse(atob(b64 + '='.repeat(pad)))
+}
+
+/**
+ * verify_jwt valida la firma en el gateway. Aquí aplicamos la autorización
+ * de negocio antes de cualquier lectura con service_role o llamada a Claude.
+ */
+async function requireAgentAdmin(req: Request): Promise<AuthResult> {
+  const header = req.headers.get('Authorization') ?? ''
+  const token = header.replace(/^Bearer\s+/i, '').trim()
+  if (!token) return { ok: false, status: 401, message: 'falta Authorization' }
+
+  let payload: Record<string, unknown>
+  try { payload = decodeJwtPayload(token) }
+  catch { return { ok: false, status: 401, message: 'jwt inválido' } }
+
+  if (String(payload.role ?? '') !== 'authenticated') {
+    return { ok: false, status: 403, message: 'usuario no autorizado' }
+  }
+  const userId = String(payload.sub ?? '')
+  if (!userId) return { ok: false, status: 403, message: 'jwt sin usuario' }
+
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=role&limit=1`,
+    { headers: dbHeaders },
+  )
+  if (!res.ok) return { ok: false, status: 500, message: 'no se pudo validar el perfil' }
+  const rows = await res.json() as Array<{ role?: string }>
+  if (!['admin_full', 'admin_op'].includes(rows[0]?.role ?? '')) {
+    return { ok: false, status: 403, message: 'solo administradores' }
+  }
+  return { ok: true }
+}
+
 async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs = TOOL_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -401,6 +442,13 @@ interface Msg {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
+  if (req.method !== 'POST') return json({ error: 'POST only' }, 405)
+
+  const auth = await requireAgentAdmin(req)
+  if (!auth.ok) return json({ error: auth.message }, auth.status)
+
+  const contentLength = Number(req.headers.get('content-length') ?? 0)
+  if (contentLength > 64 * 1024) return json({ error: 'petición demasiado grande' }, 413)
   if (!ANTHROPIC_KEY) {
     return json({ error: 'ANTHROPIC_API_KEY no configurada' }, 500)
   }
@@ -409,6 +457,12 @@ Deno.serve(async (req) => {
   let body: { messages?: Msg[]; currentDate?: string } = {}
   try { body = await req.json() } catch { /* nada */ }
   const userMessages = body.messages ?? []
+  if (!Array.isArray(userMessages) || userMessages.length === 0) {
+    return json({ error: 'messages requerido' }, 400)
+  }
+  if (JSON.stringify(userMessages).length > 32_000) {
+    return json({ error: 'historial demasiado grande' }, 413)
+  }
   const today = body.currentDate || new Date().toISOString().slice(0, 10)
 
   // Cargar contexto de memoria (no bloquea si falla)

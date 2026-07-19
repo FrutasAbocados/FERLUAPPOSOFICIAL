@@ -28,6 +28,18 @@ const dbH = {
   'content-type':  'application/json',
 }
 
+function isServiceRequest(req: Request): boolean {
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
+  try {
+    const part = token.split('.')[1]
+    if (!part) return false
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+    const pad = (4 - b64.length % 4) % 4
+    const payload = JSON.parse(atob(b64 + '='.repeat(pad))) as { role?: string }
+    return payload.role === 'service_role'
+  } catch { return false }
+}
+
 async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs = DB_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -441,6 +453,11 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
   if (req.method !== 'POST')
     return new Response(JSON.stringify({ error: 'POST only' }), { status: 405, headers: cors })
+  if (!isServiceRequest(req)) {
+    return new Response(JSON.stringify({ error: 'forbidden' }), {
+      status: 403, headers: { ...cors, 'content-type': 'application/json' },
+    })
+  }
 
   try {
     const stats = await dispatch()

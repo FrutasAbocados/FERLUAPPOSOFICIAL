@@ -27,6 +27,18 @@ const dbHeaders = {
   'content-type': 'application/json',
 }
 
+function isServiceRequest(req: Request): boolean {
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
+  try {
+    const part = token.split('.')[1]
+    if (!part) return false
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+    const pad = (4 - b64.length % 4) % 4
+    const payload = JSON.parse(atob(b64 + '='.repeat(pad))) as { role?: string }
+    return payload.role === 'service_role'
+  } catch { return false }
+}
+
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 
 type Notif = {
@@ -59,6 +71,8 @@ async function getNotif(id: string): Promise<Notif | null> {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
+  if (req.method !== 'POST') return json({ error: 'POST only' }, 405)
+  if (!isServiceRequest(req)) return json({ error: 'forbidden' }, 403)
   if (!VAPID_PRIVATE_KEY || !VAPID_PUBLIC_KEY) {
     return json({ error: 'VAPID keys no configuradas' }, 500)
   }
