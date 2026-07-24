@@ -432,7 +432,7 @@ function EditorTrabajador({ trabajador, onClose, modo = 'editar' }: { trabajador
                   : t.pack === 3 ? 'Sueldo fijo + crédito frutas'
                   : 'Total mensual base + pluses'}
               </span>
-              <span className="font-display text-xl font-bold tabular-nums text-emerald-700">{eur(totalMensual(t))}</span>
+              <span className="ao-text-success font-display text-xl font-bold tabular-nums">{eur(totalMensual(t))}</span>
             </div>
           </div>
 
@@ -504,7 +504,7 @@ function CondicionesSectionForm({ initial }: { initial: Condiciones }) {
       <div className="mb-2 flex items-center gap-2">
         <FileText className="h-4 w-4 text-[var(--color-primary-2)]" />
         <h3 className="text-sm font-semibold text-[var(--color-ink)]">Condiciones / Contrato</h3>
-        {dirty && <span className="ml-auto text-[10px] uppercase tracking-wider text-amber-700">sin guardar</span>}
+        {dirty && <span className="ao-text-warning ml-auto text-[10px] uppercase tracking-wider">sin guardar</span>}
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">

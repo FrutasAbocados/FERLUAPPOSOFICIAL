@@ -33,9 +33,9 @@ const MODO_LABEL: Record<Modo, string> = {
 }
 
 const APROB_TONO: Record<Aprobacion, string> = {
-  solicitado: 'bg-amber-100 text-amber-800',
-  aprobado: 'bg-blue-100 text-blue-800',
-  rechazado: 'bg-red-100 text-red-800',
+  solicitado: 'ao-tone-warning',
+  aprobado: 'ao-tone-info',
+  rechazado: 'ao-tone-danger',
 }
 
 const fmt = (s: string) => format(parseISO(s), "d 'de' LLLL", { locale: es })
@@ -274,7 +274,7 @@ export function EmpleadoHorasExtrasView({ empleado }: { empleado: EmpleadoPropio
                 </div>
                 <div className="text-xs text-[var(--ink-mute)]">
                   {it.motivo && <span>{it.motivo}</span>}
-                  {it.aprobacion === 'rechazado' && it.motivo_rechazo && <span className="text-red-500"> · {it.motivo_rechazo}</span>}
+                  {it.aprobacion === 'rechazado' && it.motivo_rechazo && <span className="ao-text-danger"> · {it.motivo_rechazo}</span>}
                   {it.aprobacion === 'aprobado' && it.estado === 'liquidado' && <span className="text-emerald-500"> · liquidada</span>}
                 </div>
               </div>
@@ -293,7 +293,7 @@ export function EmpleadoHorasExtrasView({ empleado }: { empleado: EmpleadoPropio
                   disabled={anular.isPending}
                   className="h-7 w-7 p-0"
                 >
-                  <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                  <Trash2 className="ao-text-danger h-3.5 w-3.5" />
                 </Button>
               ) : (
                 <span className="w-7" />

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
+import * as Dialog from '@radix-ui/react-dialog'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { prefetchManagerResumen } from '@/modules/manager/lib/queries'
@@ -8,7 +9,6 @@ import {
   Bot,
   CheckSquare,
   ChevronRight,
-  Command,
   Contact,
   FileText,
   HandCoins,
@@ -96,6 +96,68 @@ function SidebarAvatar({ name }: { name: string }) {
   )
 }
 
+function MobileDrawer({
+  open,
+  onOpenChange,
+  title,
+  Icon,
+  items,
+  preload,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  title: string
+  Icon: React.ComponentType<{ className?: string; strokeWidth?: number }>
+  items: ModuleNav[]
+  preload: (to: string) => void
+}) {
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm md:hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=open]:fade-in" />
+        <Dialog.Content className="fixed bottom-0 right-0 top-0 z-50 w-72 max-w-[85%] border-l border-[var(--line)] bg-[var(--panel)] pt-[env(safe-area-inset-top)] outline-none md:hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right">
+          <div className="flex h-14 items-center justify-between border-b border-[var(--line)] px-4">
+            <Dialog.Title className="flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
+              <Icon className="h-4 w-4 text-[var(--mint)]" strokeWidth={1.6} />
+              {title}
+            </Dialog.Title>
+            <Dialog.Close
+              className="rounded-[var(--radius-sm)] p-2 text-[var(--ink-dim)] transition-colors hover:bg-white/[.04] hover:text-[var(--ink)]"
+              aria-label={`Cerrar menú ${title.toLowerCase()}`}
+            >
+              <X className="h-4 w-4" strokeWidth={1.6} />
+            </Dialog.Close>
+          </div>
+          <nav className="space-y-0.5 p-3" aria-label={`Secciones de ${title.toLowerCase()}`}>
+            {items.map((item) => (
+              <NavLink
+                key={item.key}
+                to={item.to}
+                onTouchStart={() => preload(item.to)}
+                onClick={() => onOpenChange(false)}
+                className={({ isActive }) =>
+                  cn(
+                    'flex min-h-11 items-center justify-between gap-3 rounded-[var(--radius)] px-3 py-3 text-sm transition-colors',
+                    isActive
+                      ? 'bg-[var(--mint-glow)] text-[var(--mint)] font-medium'
+                      : 'text-[var(--ink-dim)] hover:bg-white/[.03] hover:text-[var(--ink)]',
+                  )
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <item.icon className="h-4 w-4" strokeWidth={1.6} />
+                  {item.label}
+                </span>
+                <ChevronRight className="h-4 w-4 text-[var(--ink-mute)]" strokeWidth={1.6} />
+              </NavLink>
+            ))}
+          </nav>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  )
+}
+
 export function AppShell() {
   const { profile, signOut } = useAuth()
   const location = useLocation()
@@ -122,15 +184,6 @@ export function AppShell() {
       socios: open,
     }))
   }, [location.pathname])
-
-  useEffect(() => {
-    if (!equipoOpen && !sociosOpen) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setEquipoOpen(false); setSociosOpen(false) }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [equipoOpen, sociosOpen, setEquipoOpen, setSociosOpen])
 
   const isEquipoActive = equipo.some(m => location.pathname.startsWith(m.to))
   const isSociosActive = socios.some(m => location.pathname.startsWith(m.to))
@@ -176,35 +229,6 @@ export function AppShell() {
             </div>
           </div>
         </Link>
-
-        {/* Command bar (decorativo — ⌘K futuro) */}
-        <button
-          type="button"
-          className="flex items-center gap-2 w-full mb-4"
-          style={{
-            padding: '8px 12px',
-            borderRadius: 'var(--radius)',
-            background: 'rgba(255,255,255,.02)',
-            border: '1px solid var(--line)',
-            color: 'var(--ink-mute)',
-            fontSize: 12,
-            cursor: 'default',
-            textAlign: 'left',
-          }}
-        >
-          <Command className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
-            <span className="flex-1">Buscar o ejecutar...</span>
-          <span
-            className="mono"
-            style={{
-              fontSize: 10, color: 'var(--ink-mute)',
-              border: '1px solid var(--line-2)',
-              borderRadius: 4, padding: '1px 5px',
-            }}
-          >
-            ⌘K
-          </span>
-        </button>
 
         {/* Primary nav */}
         <nav className="flex-1 overflow-y-auto" style={{ marginRight: -4, paddingRight: 4 }}>
@@ -407,119 +431,23 @@ export function AppShell() {
           </nav>
         )}
 
-        {/* Drawer Equipo (móvil) */}
-        {equipoOpen && (
-          <div
-            className="fixed inset-0 z-40 md:hidden"
-            style={{ background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(4px)' }}
-            onClick={() => setEquipoOpen(false)}
-            aria-hidden
-          >
-            <div
-              className="absolute right-0 top-0 h-full w-72 max-w-[85%]"
-              style={{ background: 'var(--panel)', borderLeft: '1px solid var(--line)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div
-                className="flex h-14 items-center justify-between px-4"
-                style={{ borderBottom: '1px solid var(--line)' }}
-              >
-                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--ink)' }}>
-                  <UsersRound className="h-4 w-4" style={{ color: 'var(--mint)' }} strokeWidth={1.6} />
-                  Equipo
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEquipoOpen(false)}
-                  className="rounded-[var(--radius-sm)] p-1.5 transition-colors hover:bg-[rgba(255,255,255,.04)]"
-                  style={{ color: 'var(--ink-mute)' }}
-                  aria-label="Cerrar menú equipo"
-                >
-                  <X className="h-4 w-4" strokeWidth={1.6} />
-                </button>
-              </div>
-              <nav className="space-y-0.5 p-3">
-                {equipo.map((m) => (
-                  <NavLink
-                    key={m.key}
-                    to={m.to}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex items-center justify-between gap-3 rounded-[var(--radius)] px-3 py-3 text-sm transition-colors',
-                        isActive
-                          ? 'bg-[var(--mint-glow)] text-[var(--mint)] font-medium'
-                          : 'text-[var(--ink-dim)] hover:bg-[rgba(255,255,255,.03)] hover:text-[var(--ink)]',
-                      )
-                    }
-                  >
-                    <span className="flex items-center gap-3">
-                      <m.icon className="h-4 w-4" strokeWidth={1.6} />
-                      {m.label}
-                    </span>
-                    <ChevronRight className="h-4 w-4" style={{ color: 'var(--ink-mute)' }} strokeWidth={1.6} />
-                  </NavLink>
-                ))}
-              </nav>
-            </div>
-          </div>
-        )}
+        <MobileDrawer
+          open={equipoOpen}
+          onOpenChange={setEquipoOpen}
+          title="Equipo"
+          Icon={UsersRound}
+          items={equipo}
+          preload={preload}
+        />
 
-        {/* Drawer Socios (móvil) */}
-        {sociosOpen && (
-          <div
-            className="fixed inset-0 z-40 md:hidden"
-            style={{ background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(4px)' }}
-            onClick={() => setSociosOpen(false)}
-            aria-hidden
-          >
-            <div
-              className="absolute right-0 top-0 h-full w-72 max-w-[85%]"
-              style={{ background: 'var(--panel)', borderLeft: '1px solid var(--line)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div
-                className="flex h-14 items-center justify-between px-4"
-                style={{ borderBottom: '1px solid var(--line)' }}
-              >
-                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--ink)' }}>
-                  <Wallet className="h-4 w-4" style={{ color: 'var(--mint)' }} strokeWidth={1.6} />
-                  Socios
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSociosOpen(false)}
-                  className="rounded-[var(--radius-sm)] p-1.5 transition-colors hover:bg-[rgba(255,255,255,.04)]"
-                  style={{ color: 'var(--ink-mute)' }}
-                  aria-label="Cerrar menú socios"
-                >
-                  <X className="h-4 w-4" strokeWidth={1.6} />
-                </button>
-              </div>
-              <nav className="space-y-0.5 p-3">
-                {socios.map((m) => (
-                  <NavLink
-                    key={m.key}
-                    to={m.to}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex items-center justify-between gap-3 rounded-[var(--radius)] px-3 py-3 text-sm transition-colors',
-                        isActive
-                          ? 'bg-[var(--mint-glow)] text-[var(--mint)] font-medium'
-                          : 'text-[var(--ink-dim)] hover:bg-[rgba(255,255,255,.03)] hover:text-[var(--ink)]',
-                      )
-                    }
-                  >
-                    <span className="flex items-center gap-3">
-                      <m.icon className="h-4 w-4" strokeWidth={1.6} />
-                      {m.label}
-                    </span>
-                    <ChevronRight className="h-4 w-4" style={{ color: 'var(--ink-mute)' }} strokeWidth={1.6} />
-                  </NavLink>
-                ))}
-              </nav>
-            </div>
-          </div>
-        )}
+        <MobileDrawer
+          open={sociosOpen}
+          onOpenChange={setSociosOpen}
+          title="Socios"
+          Icon={Wallet}
+          items={socios}
+          preload={preload}
+        />
       </main>
     </div>
   )

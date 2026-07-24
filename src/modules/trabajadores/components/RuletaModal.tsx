@@ -57,6 +57,21 @@ const RIM_R = 158 // aro metálico
 const SPIN_MS = 4400
 const BULBS = 24
 
+function seededUnit(seed: number) {
+  const value = (seed * 1664525 + 1013904223) >>> 0
+  return value / 4294967296
+}
+
+const CONFETTI_PIECES = Array.from({ length: 36 }, (_, i) => ({
+  id: i,
+  left: 6 + seededUnit(i + 1) * 88,
+  delay: seededUnit(i + 101) * 0.4,
+  duration: 1.6 + seededUnit(i + 201) * 1.1,
+  dx: `${Math.round((seededUnit(i + 301) - 0.5) * 60)}px`,
+  rot: seededUnit(i + 401) * 360,
+  color: ['#bef264', '#fbbf24', '#fb923c', '#34d399', '#f472b6'][i % 5],
+}))
+
 function polarXY(angleDeg: number, radius: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180
   return { x: CX + radius * Math.cos(rad), y: CY + radius * Math.sin(rad) }
@@ -440,22 +455,9 @@ function Wheel({
 }
 
 function Confetti() {
-  const pieces = useMemo(
-    () =>
-      Array.from({ length: 36 }, (_, i) => ({
-        id: i,
-        left: 6 + Math.random() * 88,
-        delay: Math.random() * 0.4,
-        duration: 1.6 + Math.random() * 1.1,
-        dx: `${Math.round((Math.random() - 0.5) * 60)}px`,
-        rot: Math.random() * 360,
-        color: ['#bef264', '#fbbf24', '#fb923c', '#34d399', '#f472b6'][i % 5],
-      })),
-    [],
-  )
   return (
     <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
-      {pieces.map((p) => (
+      {CONFETTI_PIECES.map((p) => (
         <span
           key={p.id}
           className="absolute top-0 h-2.5 w-1.5 rounded-[1px]"

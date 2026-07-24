@@ -23,7 +23,7 @@
   /* text */
   --color-ink:      #e8efeb;
   --color-ink-dim:  #a4b3ad;
-  --color-ink-mute: #5d6d66;
+  --color-ink-mute: #7b8e85;
 
   /* accents */
   --color-mint:       oklch(78% 0.14 158);
@@ -245,6 +245,46 @@ body::after {
 .ao-pill {
   padding: 8px 13px;
   font-size: 12px;
+}
+
+/* Semantic dark-first states. Keep status meaning consistent across modules. */
+.ao-tone-success {
+  color: #6ee7a8;
+  background: rgba(52, 211, 153, .12);
+  border-color: rgba(110, 231, 168, .28);
+}
+
+.ao-tone-warning {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, .13);
+  border-color: rgba(252, 211, 77, .30);
+}
+
+.ao-tone-danger {
+  color: #fda4af;
+  background: rgba(244, 63, 94, .12);
+  border-color: rgba(253, 164, 175, .28);
+}
+
+.ao-tone-info {
+  color: #7dd3fc;
+  background: rgba(14, 165, 233, .12);
+  border-color: rgba(125, 211, 252, .28);
+}
+
+.ao-tone-violet {
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, .13);
+  border-color: rgba(196, 181, 253, .28);
+}
+
+.ao-text-success { color: #6ee7a8; }
+.ao-text-warning { color: #fcd34d; }
+.ao-text-danger  { color: #fda4af; }
+.ao-text-info    { color: #7dd3fc; }
+
+.ao-hover-danger:hover {
+  background: rgba(244, 63, 94, .12);
 }
 
 .ao-chip {

@@ -240,7 +240,7 @@ export function HorasExtrasView() {
             <Inbox className="h-4 w-4 text-[var(--color-primary-2)]" /> Solicitudes pendientes
           </h2>
           {solicitudes && solicitudes.length > 0 && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold tabular-nums text-amber-800">
+            <span className="ao-tone-warning rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums">
               {solicitudes.length}
             </span>
           )}
@@ -317,7 +317,7 @@ export function HorasExtrasView() {
           {lista.map((it) => (
             <li key={it.id} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm">
               <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                it.estado === 'liquidado' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                it.estado === 'liquidado' ? 'ao-tone-success' : 'ao-tone-warning'
               }`}>{it.estado}</span>
               <div className="min-w-0">
                 <div className="truncate text-[var(--color-ink)]"><strong>{it.empleado_nombre}</strong> · {it.horas} h{it.modo && ` · ${MODO_LABEL[it.modo]}`}</div>
@@ -342,7 +342,7 @@ export function HorasExtrasView() {
               )}
               {isAdmin && (
                 <Button size="sm" variant="ghost" onClick={() => handleBorrar(it)} disabled={borrar.isPending}
-                  title="Borrar" className="h-7 w-7 p-0 text-red-600 hover:bg-red-50">
+                  title="Borrar" className="ao-text-danger ao-hover-danger h-7 w-7 p-0">
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               )}
@@ -376,7 +376,7 @@ function SolicitudRow({
             {it.motivo && <span> · {it.motivo}</span>}
           </div>
         </div>
-        <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800">
+        <span className="ao-tone-warning rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
           solicitado
         </span>
       </div>
@@ -405,7 +405,7 @@ function SolicitudRow({
               <Check className="mr-1 h-3.5 w-3.5" /> Aprobar
             </Button>
             <Button size="sm" variant="ghost" disabled={pending} onClick={() => setRechazando(true)}
-              className="text-red-600 hover:bg-red-50">
+              className="ao-text-danger ao-hover-danger">
               <X className="mr-1 h-3.5 w-3.5" /> Rechazar
             </Button>
           </div>

@@ -361,11 +361,11 @@ function DetalleEmpleadoModal({
                         <div className="flex items-center gap-2 px-3 py-2">
                           <div className="min-w-0 flex-1">
                             <div className="text-sm tabular-nums text-[var(--color-ink)]">
-                              {horaIn}{' → '}{horaOut ?? <span className="font-semibold text-emerald-600">EN CURSO</span>}
+                              {horaIn}{' → '}{horaOut ?? <span className="ao-text-success font-semibold">EN CURSO</span>}
                               {f.horas != null && <span className="ml-2 text-[var(--color-ink-3)]">· {fmtHoras(f.horas)}</span>}
                             </div>
                             <div className="text-[11px] text-[var(--color-ink-3)]">
-                              <span className={f.fuente === 'manual_admin' ? 'text-amber-600' : ''}>
+                              <span className={f.fuente === 'manual_admin' ? 'ao-text-warning' : ''}>
                                 {f.fuente === 'manual_admin' ? 'manual' : 'app'}
                               </span>
                               {tieneGeo
@@ -390,7 +390,7 @@ function DetalleEmpleadoModal({
                               if (ok) borrar.mutate(f.id)
                             }}
                           >
-                            <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                            <Trash2 className="ao-text-danger h-3.5 w-3.5" />
                           </Button>
                         </div>
                         {open && (

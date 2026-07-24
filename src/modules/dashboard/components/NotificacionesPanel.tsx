@@ -96,7 +96,7 @@ function PushCTA({ inline }: { inline?: boolean }) {
             else setEstado('pendiente')
           }}
           disabled={pending}
-          className="ml-1 inline-flex items-center gap-1 text-[var(--color-ink-3)] hover:text-red-600"
+          className="ml-1 inline-flex items-center gap-1 text-[var(--color-ink-3)] hover:text-[#fda4af]"
         >
           <BellOff className="h-3 w-3" /> desactivar
         </button>
@@ -124,7 +124,7 @@ function PushCTA({ inline }: { inline?: boolean }) {
       >
         {pending ? '…' : 'Activar'}
       </button>
-      {error && <p className="text-[10px] text-red-600">{error}</p>}
+      {error && <p className="ao-text-danger text-[10px]">{error}</p>}
     </div>
   )
 }

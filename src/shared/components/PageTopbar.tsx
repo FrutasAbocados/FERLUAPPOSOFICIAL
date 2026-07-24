@@ -1,5 +1,3 @@
-import { Bell, Command } from 'lucide-react'
-
 interface PageTopbarProps {
   breadcrumb?: string
   title: string
@@ -47,25 +45,9 @@ export function PageTopbar({ breadcrumb, title, subtitle, actions }: PageTopbarP
         )}
       </div>
 
-      {/* Right cluster: module actions + bell + sync + ⌘K */}
+      {/* Right cluster: module actions + connection status */}
       <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
         {actions}
-
-        <button
-          type="button"
-          style={{
-            width: 34, height: 34,
-            borderRadius: 'var(--radius)',
-            display: 'grid', placeItems: 'center',
-            background: 'rgba(255,255,255,.02)',
-            border: '1px solid var(--line)',
-            color: 'var(--ink-mute)',
-            cursor: 'pointer',
-          }}
-          aria-label="Notificaciones"
-        >
-          <Bell size={15} strokeWidth={1.6} />
-        </button>
 
         {/* Sync status pill */}
         <div
@@ -92,28 +74,6 @@ export function PageTopbar({ breadcrumb, title, subtitle, actions }: PageTopbarP
           />
           LIVE
         </div>
-
-        {/* ⌘K primary pill */}
-        <button
-          type="button"
-          className="flex items-center gap-1.5"
-          style={{
-            padding: '8px 14px',
-            borderRadius: 'var(--radius)',
-            background: 'var(--mint)',
-            color: '#0a1310',
-            fontWeight: 600,
-            fontSize: 12,
-            border: 'none',
-            cursor: 'pointer',
-            boxShadow: '0 4px 14px var(--mint-glow)',
-            transition: 'transform .15s ease, box-shadow .15s ease',
-          }}
-          aria-label="Buscar (⌘K)"
-        >
-          <Command size={13} strokeWidth={2} />
-          <span className="mono" style={{ fontSize: 11 }}>⌘K</span>
-        </button>
       </div>
     </header>
   )

@@ -111,11 +111,11 @@ const TIPO_LABEL: Record<Tipo, string> = {
   bonus: 'tirada extra',
 }
 const TIPO_COLOR: Record<Tipo, string> = {
-  puntos: 'bg-amber-100 text-amber-800',
-  euros: 'bg-emerald-100 text-emerald-800',
-  fisico: 'bg-rose-100 text-rose-800',
-  comodin: 'bg-sky-100 text-sky-800',
-  bonus: 'bg-violet-100 text-violet-800',
+  puntos: 'ao-tone-warning',
+  euros: 'ao-tone-success',
+  fisico: 'ao-tone-danger',
+  comodin: 'ao-tone-info',
+  bonus: 'ao-tone-violet',
 }
 const COLOR_OPTS = ['amber', 'emerald', 'rose', 'sky', 'indigo', 'lime', 'violet', 'pink', 'orange', 'teal']
 
@@ -137,7 +137,7 @@ export function RuletaAdminView() {
             size="sm"
             variant="outline"
             onClick={() => setTestOpen(true)}
-            className="w-fit border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+            className="ao-tone-warning w-fit hover:brightness-110"
           >
             <Sparkles className="mr-1 h-4 w-4" /> Ver test
           </Button>
@@ -195,7 +195,7 @@ function ActivaToggle() {
     <section
       className={`mb-3 flex items-center justify-between gap-3 rounded-xl border p-4 ${
         on
-          ? 'border-emerald-300 bg-gradient-to-br from-emerald-50 to-emerald-100/60'
+          ? 'ao-tone-success'
           : 'border-[var(--color-border)] bg-[var(--color-surface-2)]'
       }`}
     >
@@ -288,9 +288,9 @@ function DarTiradaSection() {
   }
 
   return (
-    <section className="mb-5 rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-rose-50 p-4">
+    <section className="ao-tone-warning mb-5 rounded-xl border p-4">
       <div className="mb-3 flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-amber-600" />
+        <Sparkles className="ao-text-warning h-4 w-4" />
         <h2 className="text-sm font-semibold text-[var(--color-ink)]">Otorgar tiradas</h2>
       </div>
       <div className="grid gap-2 md:grid-cols-[1.2fr_2fr_auto_auto]">
@@ -376,7 +376,7 @@ function CanjesPendientesSection() {
     <section className="mb-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <PackageCheck className="h-4 w-4 text-emerald-600" />
+          <PackageCheck className="ao-text-success h-4 w-4" />
           <div>
             <h2 className="text-sm font-semibold text-[var(--color-ink)]">Solicitudes de canje</h2>
             <p className="text-xs text-[var(--color-ink-3)]">
@@ -399,7 +399,7 @@ function CanjesPendientesSection() {
           {solicitados.map((c) => (
             <li
               key={c.tirada_id}
-              className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-md border border-emerald-300 bg-[rgba(16,185,129,.08)] px-3 py-2 text-sm"
+              className="ao-tone-success grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-md border px-3 py-2 text-sm"
             >
               <span className="text-2xl">{c.premio_icono ?? '🎁'}</span>
               <div className="min-w-0">
@@ -474,7 +474,7 @@ function ResumenSection() {
     <section className="mb-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Gift className="h-4 w-4 text-rose-600" />
+          <Gift className="ao-text-danger h-4 w-4" />
           <h2 className="text-sm font-semibold text-[var(--color-ink)]">Estado por empleado</h2>
         </div>
         <div className="flex gap-3 text-right">
@@ -501,7 +501,7 @@ function ResumenSection() {
               </button>
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums ${
-                  r.saldo_pendiente > 0 ? 'bg-amber-200 text-amber-900' : 'bg-[rgba(255,255,255,.06)] text-[var(--color-ink-3)]'
+                  r.saldo_pendiente > 0 ? 'ao-tone-warning' : 'bg-[rgba(255,255,255,.06)] text-[var(--color-ink-3)]'
                 }`}
                 title="Pendientes de tirar"
               >
@@ -509,7 +509,7 @@ function ResumenSection() {
               </span>
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums ${
-                  r.pendientes_entrega > 0 ? 'bg-rose-200 text-rose-900' : 'bg-[rgba(255,255,255,.06)] text-[var(--color-ink-3)]'
+                  r.pendientes_entrega > 0 ? 'ao-tone-danger' : 'bg-[rgba(255,255,255,.06)] text-[var(--color-ink-3)]'
                 }`}
                 title="Premios por entregar"
               >
@@ -532,7 +532,7 @@ function ResumenSection() {
 }
 
 function KPI({ label, value, tone }: { label: string; value: number; tone: 'amber' | 'rose' | 'neutral' }) {
-  const color = tone === 'amber' ? 'text-amber-700' : tone === 'rose' ? 'text-rose-700' : 'text-[var(--color-ink)]'
+  const color = tone === 'amber' ? 'ao-text-warning' : tone === 'rose' ? 'ao-text-danger' : 'text-[var(--color-ink)]'
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">{label}</div>
@@ -662,7 +662,7 @@ function TiradasModal({
                 </div>
                 {/* Flujo único: solo se puede confirmar el canje si el empleado lo ha solicitado */}
                 {!t.premio_id ? (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                  <span className="ao-tone-warning rounded-full px-2 py-0.5 text-[10px] font-semibold">
                     sin tirar
                   </span>
                 ) : t.entregado ? (
@@ -696,7 +696,7 @@ function TiradasModal({
                   size="sm"
                   variant="ghost"
                   onClick={() => handleBorrar(t)}
-                  className="h-7 w-7 p-0 text-red-600 hover:bg-red-50"
+                  className="ao-text-danger ao-hover-danger h-7 w-7 p-0"
                   title="Borrar tirada"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -812,7 +812,7 @@ function CatalogoSection() {
                     prob. {p.peso}/100
                   </span>
                   {p.garantizable && (
-                    <span className="flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700" title="Premio garantizable (pity timer)">
+                    <span className="ao-tone-success flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold" title="Premio garantizable (pity timer)">
                       <ShieldCheck className="h-3 w-3" /> garantizable
                     </span>
                   )}
@@ -839,7 +839,7 @@ function CatalogoSection() {
                   size="sm"
                   variant="ghost"
                   onClick={() => handleBorrar(p)}
-                  className="h-7 w-7 p-0 text-red-600 hover:bg-red-50"
+                  className="ao-text-danger ao-hover-danger h-7 w-7 p-0"
                   title="Borrar"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -982,7 +982,7 @@ function PremioFormModal({ premio, onClose }: { premio: Premio | null; onClose: 
             onChange={(e) => setGarantizable(e.target.checked)}
             className="h-4 w-4 accent-emerald-600"
           />
-          <ShieldCheck className="h-4 w-4 text-emerald-600" />
+          <ShieldCheck className="ao-text-success h-4 w-4" />
           <span className="text-[var(--color-ink-2)]">Garantizable (pity timer)</span>
         </label>
         <div className="flex gap-2">

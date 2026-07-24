@@ -228,7 +228,7 @@ function DetalleModal({ empleado, mesISO, onClose }: { empleado: Resumen; mesISO
           <div>
             <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">{empleado.nombre}</h2>
             <p className="text-xs text-[var(--color-ink-3)]">
-              {format(new Date(mesISO), "LLLL yyyy", { locale: es })} · {empleado.num_clientes} cliente(s) · {eur(empleado.facturacion_mes)} → <span className="font-semibold text-emerald-700">{eur(empleado.comision)}</span>
+              {format(new Date(mesISO), "LLLL yyyy", { locale: es })} · {empleado.num_clientes} cliente(s) · {eur(empleado.facturacion_mes)} → <span className="ao-text-success font-semibold">{eur(empleado.comision)}</span>
             </p>
           </div>
           <Button size="sm" variant="ghost" onClick={onClose}><X className="h-4 w-4" /></Button>
@@ -298,14 +298,14 @@ function DetalleModal({ empleado, mesISO, onClose }: { empleado: Resumen; mesISO
                   <li key={d.contact_id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm">
                     <span className="truncate text-[var(--color-ink)]">{d.nombre}</span>
                     <span className="tabular-nums text-[var(--color-ink-3)]">{eur(d.facturacion)}</span>
-                    <span className="tabular-nums font-semibold text-emerald-700">{eur(d.comision)}</span>
+                    <span className="ao-text-success tabular-nums font-semibold">{eur(d.comision)}</span>
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => submitDesasignar(d)}
                       disabled={desasignar.isPending}
                       title="Quitar cliente"
-                      className="h-7 w-7 shrink-0 p-0 text-red-600 hover:bg-red-50"
+                      className="ao-text-danger ao-hover-danger h-7 w-7 shrink-0 p-0"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>

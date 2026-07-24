@@ -462,8 +462,8 @@ function CategoriaSelector({ label, value, onChange }: { label: string; value: n
                 ? v === 0
                   ? 'border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-ink-2)]'
                   : v === 1
-                  ? 'border-amber-300 bg-amber-200 text-amber-900'
-                  : 'border-emerald-300 bg-emerald-200 text-emerald-900'
+                  ? 'ao-tone-warning'
+                  : 'ao-tone-success'
                 : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-ink-3)] hover:border-[var(--color-primary)]'
             }`}
           >
@@ -498,7 +498,7 @@ function ModoMes() {
         </div>
         <div className="text-right">
           <div className="text-xs text-[var(--color-ink-3)]">Total a pagar (canje)</div>
-          <div className="font-display text-xl font-bold tabular-nums text-emerald-700">{eur(totalEuros)}</div>
+          <div className="ao-text-success font-display text-xl font-bold tabular-nums">{eur(totalEuros)}</div>
         </div>
       </div>
 
@@ -519,7 +519,7 @@ function ModoMes() {
                 <div className="text-xs text-[var(--color-ink-3)]">
                   {r.total_puntos} pts · {r.dias_puntuados} día(s) puntuados
                   {(r.pts_ajustes !== 0 || r.pts_canjeados !== 0) && (
-                    <span className={r.pts_ajustes - r.pts_canjeados >= 0 ? ' text-emerald-700' : ' text-red-700'}>
+                    <span className={r.pts_ajustes - r.pts_canjeados >= 0 ? 'ao-text-success' : 'ao-text-danger'}>
                       {' '}({r.pts_base} base {r.pts_ajustes >= 0 ? '+' : ''}{r.pts_ajustes} ajuste{r.pts_canjeados ? ` -${r.pts_canjeados} canje` : ''})
                     </span>
                   )}
@@ -531,7 +531,7 @@ function ModoMes() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-display text-lg font-bold tabular-nums text-emerald-700">{eur(r.euros)}</div>
+                <div className="ao-text-success font-display text-lg font-bold tabular-nums">{eur(r.euros)}</div>
                 <div className="text-xs text-[var(--color-ink-3)]">canje</div>
               </div>
             </button>
@@ -634,7 +634,7 @@ function DetalleEmpleadoMes({
                       <span className="rounded-md bg-[rgba(255,255,255,.07)] px-2 py-0.5 text-xs tabular-nums text-[var(--color-ink-2)]">P {d.puntualidad}</span>
                       <span className="rounded-md bg-[rgba(255,255,255,.07)] px-2 py-0.5 text-xs tabular-nums text-[var(--color-ink-2)]">R {d.reparto}</span>
                       <span className="rounded-md bg-[rgba(255,255,255,.07)] px-2 py-0.5 text-xs tabular-nums text-[var(--color-ink-2)]">Rs {d.responsabilidad}</span>
-                      <span className="font-display text-base font-bold tabular-nums text-emerald-700">{d.total}</span>
+                      <span className="ao-text-success font-display text-base font-bold tabular-nums">{d.total}</span>
                     </div>
                     {algunaNota && (
                       <div className="mt-1 space-y-0.5 pl-2 text-[11px] text-[var(--color-ink-2)]">
@@ -708,7 +708,7 @@ function DetalleEmpleadoMes({
               <ul className="space-y-1">
                 {ajustes.map(a => (
                   <li key={a.id} className="flex items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm">
-                    <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold tabular-nums ${a.delta_pts > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+                    <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold tabular-nums ${a.delta_pts > 0 ? 'ao-tone-success' : 'ao-tone-danger'}`}>
                       {a.delta_pts > 0 ? '+' : ''}{a.delta_pts}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -722,7 +722,7 @@ function DetalleEmpleadoMes({
                         onClick={() => eliminarAjuste(a)}
                         disabled={borrarAjuste.isPending}
                         title="Borrar ajuste"
-                        className="h-7 w-7 shrink-0 p-0 text-red-600 hover:bg-red-50"
+                        className="ao-text-danger ao-hover-danger h-7 w-7 shrink-0 p-0"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>

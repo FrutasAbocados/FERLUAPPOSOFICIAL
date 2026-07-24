@@ -87,9 +87,9 @@ export default function LoginHero({
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div className="ab-header__status">
           <span className="ab-chip"><span className="ab-dot" /> LIVE</span>
-          <span className="ab-chip"><Clock /></span>
+          <span className="ab-chip ab-header__clock"><Clock /></span>
         </div>
       </header>
 

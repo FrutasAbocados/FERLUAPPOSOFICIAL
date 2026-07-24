@@ -19,9 +19,9 @@ interface Props {
 const DIAS_HEADER = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 
 const TONO: Record<Estado, string> = {
-  disfrutado: 'bg-emerald-400 text-emerald-900',
-  aprobado:   'bg-blue-300 text-blue-900',
-  pendiente:  'bg-amber-300 text-amber-900',
+  disfrutado: 'ao-tone-success',
+  aprobado:   'ao-tone-info',
+  pendiente:  'ao-tone-warning',
 }
 
 export function CalendarioVacaciones({ anio, periodos }: Props) {
@@ -84,7 +84,7 @@ function Mes({
             cls += ` ${TONO[est]} font-bold`
             title = `Vacaciones · ${est}`
           } else if (fes) {
-            cls += ' bg-red-100 text-red-700 font-semibold'
+            cls += ' ao-tone-danger font-semibold'
             title = `Festivo: ${fes.nombre}`
           } else if (finde) {
             cls += ' bg-[var(--color-surface-2)] text-[var(--color-ink-3)]'
@@ -111,7 +111,7 @@ function Leyenda() {
         <li><span className="mr-2 inline-block h-3 w-3 rounded bg-emerald-400 align-middle" />Disfrutado</li>
         <li><span className="mr-2 inline-block h-3 w-3 rounded bg-blue-300 align-middle" />Aprobado</li>
         <li><span className="mr-2 inline-block h-3 w-3 rounded bg-amber-300 align-middle" />Pendiente</li>
-        <li><span className="mr-2 inline-block h-3 w-3 rounded bg-red-100 align-middle" />Festivo</li>
+        <li><span className="ao-tone-danger mr-2 inline-block h-3 w-3 rounded align-middle" />Festivo</li>
         <li><span className="mr-2 inline-block h-3 w-3 rounded bg-[var(--color-surface-2)] align-middle" />Fin de semana</li>
       </ul>
     </div>

@@ -482,8 +482,8 @@ function FestivosCalendario({ anio }: { anio: number }) {
                 <span className="ml-2 text-xs text-[var(--color-ink-3)]">{f.nombre}</span>
               </div>
               <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-                f.ambito === 'nacional' ? 'bg-blue-100 text-blue-800' :
-                f.ambito === 'andalucia' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                f.ambito === 'nacional' ? 'ao-tone-info' :
+                f.ambito === 'andalucia' ? 'ao-tone-success' : 'ao-tone-warning'
               }`}>{ambitoLabel(f.ambito)}</span>
             </div>
             <div className="grid grid-cols-2 gap-1 md:grid-cols-3 lg:grid-cols-4">
@@ -494,9 +494,9 @@ function FestivosCalendario({ anio }: { anio: number }) {
                   disabled={!isAdmin || upsert.isPending || borrar.isPending}
                   className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs transition ${
                     fila.trabajado === true
-                      ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                      ? 'ao-tone-success'
                       : fila.trabajado === false
-                        ? 'border-red-300 bg-red-50 text-red-900'
+                        ? 'ao-tone-danger'
                         : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-ink-3)]'
                   } ${isAdmin ? 'hover:border-[var(--color-primary)]' : 'cursor-default'}`}
                 >
@@ -524,9 +524,9 @@ function PeriodoItem({
   onDelete: () => void
 }) {
   const badge =
-    periodo.estado === 'disfrutado' ? 'bg-emerald-100 text-emerald-800' :
-    periodo.estado === 'aprobado' ? 'bg-blue-100 text-blue-800' :
-    'bg-amber-100 text-amber-800'
+    periodo.estado === 'disfrutado' ? 'ao-tone-success' :
+    periodo.estado === 'aprobado' ? 'ao-tone-info' :
+    'ao-tone-warning'
 
   return (
     <li className="grid grid-cols-[1fr_auto] items-center gap-2 px-4 py-3 md:grid-cols-[1fr_auto_auto]">
@@ -566,7 +566,7 @@ function PeriodoItem({
           </Button>
         )}
         <Button size="sm" variant="ghost" onClick={onDelete} title="Eliminar">
-          <Trash2 className="h-3.5 w-3.5 text-red-600" />
+          <Trash2 className="ao-text-danger h-3.5 w-3.5" />
         </Button>
       </div>
     </li>

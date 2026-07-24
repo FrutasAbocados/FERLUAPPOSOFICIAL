@@ -238,7 +238,7 @@ function DetalleEmpleado({ empleado, mes, onClose }: { empleado: Resumen; mes: D
               <div className="text-sm text-[var(--color-ink-3)]">Sábados marcados</div>
               <div className="text-right">
                 <div className="font-display text-xl font-bold tabular-nums text-[var(--color-ink)]">{numMarcados} / {sabadosDelMes.length}</div>
-                <div className="text-xs text-emerald-700 tabular-nums">{eur(importe)}</div>
+                <div className="ao-text-success text-xs tabular-nums">{eur(importe)}</div>
               </div>
             </div>
           </div>
@@ -254,7 +254,7 @@ function DetalleEmpleado({ empleado, mes, onClose }: { empleado: Resumen; mes: D
                     <button
                       onClick={() => handleToggle(fechaISO)}
                       disabled={toggle.isPending}
-                      className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-md border px-3 py-2 text-left transition ${marcado ? 'border-emerald-300 bg-emerald-50' : 'border-[var(--color-border)] bg-[var(--color-surface)]'} hover:border-[var(--color-primary)]`}
+                      className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-md border px-3 py-2 text-left transition ${marcado ? 'ao-tone-success' : 'border-[var(--color-border)] bg-[var(--color-surface)]'} hover:border-[var(--color-primary)]`}
                     >
                       <div className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-bold ${marcado ? 'bg-emerald-500 text-white' : 'bg-[var(--color-surface-2)] text-[var(--color-ink-3)]'}`}>
                         {d.getDate()}
@@ -262,7 +262,7 @@ function DetalleEmpleado({ empleado, mes, onClose }: { empleado: Resumen; mes: D
                       <span className="text-sm capitalize text-[var(--color-ink)]">
                         {format(d, "EEEE d 'de' LLLL", { locale: es })}
                       </span>
-                      <span className={`text-xs font-semibold uppercase tracking-wider ${marcado ? 'text-emerald-700' : 'text-[var(--color-ink-3)]'}`}>
+                      <span className={`text-xs font-semibold uppercase tracking-wider ${marcado ? 'ao-text-success' : 'text-[var(--color-ink-3)]'}`}>
                         {marcado ? 'trabajado' : '—'}
                       </span>
                     </button>

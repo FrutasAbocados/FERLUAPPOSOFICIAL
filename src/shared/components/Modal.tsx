@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
+import * as Dialog from '@radix-ui/react-dialog'
 
 type Size = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl'
 const SIZE: Record<Size, string> = {
@@ -20,6 +21,8 @@ type Props = {
   /** Click en el overlay cierra. Default: true */
   closeOnOverlay?: boolean
   className?: string
+  /** Nombre accesible del diálogo cuando su título visual vive dentro de children. */
+  ariaLabel?: string
 }
 
 /**
@@ -41,29 +44,32 @@ export function Modal({
   closeOnEscape = true,
   closeOnOverlay = true,
   className = '',
+  ariaLabel = 'Ventana de Abocados OS',
 }: Props) {
-  useEffect(() => {
-    if (!closeOnEscape) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [closeOnEscape, onClose])
-
-  const handleOverlay = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!closeOnOverlay) return
-    if (e.target === e.currentTarget) onClose()
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-2 backdrop-blur-sm md:p-6"
-      onClick={handleOverlay}
-      role="dialog"
-      aria-modal="true"
+    <Dialog.Root
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
     >
-      <div className={`ao-card w-full ${SIZE[size]} [overflow:clip] p-0 ${className}`}>
-        {children}
-      </div>
-    </div>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=open]:fade-in" />
+        <Dialog.Content
+          aria-label={ariaLabel}
+          onEscapeKeyDown={(event) => {
+            if (!closeOnEscape) event.preventDefault()
+          }}
+          onPointerDownOutside={(event) => {
+            if (!closeOnOverlay) event.preventDefault()
+          }}
+          className={`fixed left-1/2 top-2 z-50 max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] -translate-x-1/2 overflow-y-auto outline-none md:top-6 md:max-h-[calc(100dvh-3rem)] ${SIZE[size]}`}
+        >
+          <div className={`ao-card w-full [overflow:clip] p-0 ${className}`}>
+            {children}
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }

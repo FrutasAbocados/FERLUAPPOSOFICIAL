@@ -36,9 +36,9 @@ interface Periodo {
 const fmt = (d: string) => format(parseISO(d), "d 'de' LLLL", { locale: es })
 
 const TONO: Record<Periodo['estado'], string> = {
-  pendiente:  'bg-amber-100 text-amber-800',
-  aprobado:   'bg-blue-100 text-blue-800',
-  disfrutado: 'bg-emerald-100 text-emerald-800',
+  pendiente:  'ao-tone-warning',
+  aprobado:   'ao-tone-info',
+  disfrutado: 'ao-tone-success',
 }
 
 function useResumenPropio(empleadoId: string, anio: number) {
@@ -289,7 +289,7 @@ export function EmpleadoVacacionesView({ empleado }: { empleado: EmpleadoPropio 
                     catch (e) { toast({ title: 'No se pudo anular', description: e instanceof Error ? e.message : '', variant: 'error' }) }
                   }}
                 >
-                  <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                  <Trash2 className="ao-text-danger h-3.5 w-3.5" />
                 </Button>
               )}
             </li>

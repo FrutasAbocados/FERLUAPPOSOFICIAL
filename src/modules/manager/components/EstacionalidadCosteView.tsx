@@ -223,7 +223,7 @@ export function EstacionalidadCosteView() {
                     <span
                       className={
                         p.margen_pct < ALERTA_MARGEN_PCT
-                          ? 'font-semibold text-amber-700'
+                          ? 'ao-text-warning font-semibold'
                           : 'text-[var(--color-ink)]'
                       }
                     >
@@ -241,7 +241,7 @@ export function EstacionalidadCosteView() {
                   <div className="text-xs">
                     <span className="text-[var(--color-ink-2)]">{p.coste_unidad == null ? '—' : `${p.coste_unidad.toFixed(2)}€`}</span>
                     {p.delta_coste_pct != null && (
-                      <span className={p.delta_coste_pct > 0 ? 'text-rose-700' : 'text-emerald-700'}>
+                      <span className={p.delta_coste_pct > 0 ? 'ao-text-danger' : 'ao-text-success'}>
                         {' '}({p.delta_coste_pct > 0 ? '+' : ''}{p.delta_coste_pct.toFixed(0)}%)
                       </span>
                     )}
@@ -249,7 +249,7 @@ export function EstacionalidadCosteView() {
                   <div className="text-xs text-[var(--color-ink-3)]">
                     {p.margen_pct == null ? '—' : `${p.margen_pct.toFixed(0)}% margen`}
                     {p.delta_margen_pp != null && (
-                      <span className={p.delta_margen_pp >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
+                      <span className={p.delta_margen_pp >= 0 ? 'ao-text-success' : 'ao-text-danger'}>
                         {' '}({p.delta_margen_pp >= 0 ? '+' : ''}{p.delta_margen_pp.toFixed(1)}pp)
                       </span>
                     )}
@@ -300,11 +300,11 @@ function DeltaPct({ value, invertColors }: { value: number | null; invertColors?
   const positive = value > 0
   const cls = invertColors
     ? positive
-      ? 'text-rose-700'
-      : 'text-emerald-700'
+      ? 'ao-text-danger'
+      : 'ao-text-success'
     : positive
-      ? 'text-emerald-700'
-      : 'text-rose-700'
+      ? 'ao-text-success'
+      : 'ao-text-danger'
   const Icon = positive ? TrendingUp : TrendingDown
   return (
     <span className={`inline-flex items-center justify-end gap-1 ${cls}`}>
@@ -318,7 +318,7 @@ function DeltaPct({ value, invertColors }: { value: number | null; invertColors?
 function DeltaPp({ value }: { value: number | null }) {
   if (value == null) return <span className="text-[var(--color-ink-3)]">—</span>
   const positive = value >= 0
-  const cls = positive ? 'text-emerald-700' : 'text-rose-700'
+  const cls = positive ? 'ao-text-success' : 'ao-text-danger'
   const Icon = positive ? TrendingUp : TrendingDown
   return (
     <span className={`inline-flex items-center justify-end gap-1 ${cls}`}>

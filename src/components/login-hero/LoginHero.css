@@ -9,7 +9,9 @@
   position: relative;
   width: 100%;
   min-height: 100vh;
-  overflow: hidden;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: #02050a;
   color: #e6fff1;
   font-family: 'Geist', system-ui, -apple-system, sans-serif;
@@ -347,6 +349,13 @@
   gap: 16px;
   padding: 28px 40px;
 }
+.ab-header__status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
 .ab-brand { display: flex; align-items: center; gap: 12px; }
 .ab-brand__mark {
   width: 36px; height: 36px; border-radius: 9px;
@@ -387,9 +396,26 @@
 .ab-form__footnote a { color: #6ee7a8; text-decoration: none; }
 
 @media (max-width: 600px) {
-  .ab-header { padding: 16px 18px; }
+  .ab-header { padding: 14px 16px; }
+  .ab-header__status { flex: 0 0 auto; gap: 6px; }
+  .ab-header__clock { display: none; }
+  .ab-brand { min-width: 0; gap: 9px; }
+  .ab-brand__mark { width: 32px; height: 32px; border-radius: 8px; }
+  .ab-brand__name { white-space: nowrap; }
   .ab-brand__sub { display: none; }
   .ab-greet { white-space: normal; }
+  .ab-main { padding: 4px 16px 28px; gap: 16px; }
+  .ab-form { width: 100%; padding: 20px; }
+}
+
+@media (max-height: 760px) {
+  .ab-main { justify-content: flex-start; }
+  .ab-logo__img,
+  .ab-logo__ghost { width: clamp(170px, 26vh, 240px); }
+  .ab-logo__halo {
+    width: clamp(280px, 46vh, 400px);
+    height: clamp(280px, 46vh, 400px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

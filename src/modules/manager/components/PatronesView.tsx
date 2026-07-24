@@ -183,7 +183,7 @@ export function PatronesView({ period }: Props) {
                     }}
                   >
                     <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink)]">{d.dia.slice(0, 3)}</div>
-                    <div className="mt-1 font-display text-lg font-bold text-emerald-900 tabular-nums">{eur(d.ventas)}</div>
+                    <div className="mt-1 font-display text-lg font-bold text-[var(--color-ink)] tabular-nums">{eur(d.ventas)}</div>
                   </div>
                   <div className="border-t border-[var(--color-border)] px-2 py-1.5 text-center text-[10px] tabular-nums text-[var(--color-ink-3)]">
                     {d.docs} docs · ~{eur(promedioDia)}/día
