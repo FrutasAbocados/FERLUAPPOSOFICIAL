@@ -1,10 +1,5 @@
-import { test } from '@playwright/test'
+import { expect, test, type Page, type TestInfo } from '@playwright/test'
 import { loginAdmin } from './auth'
-
-// Auditoría visual: capturas reales desktop + móvil de cada módulo.
-// Salida: ~/Desktop/REVISION LUIS/visual-audit/
-// Ejecutar: npx playwright test e2e/99-visual-audit.spec.ts
-const OUT = `${process.env.HOME}/Desktop/REVISION LUIS/visual-audit`
 
 const ROUTES: Array<{ slug: string; path: string }> = [
   { slug: 'dashboard', path: '/' },
@@ -20,23 +15,60 @@ const ROUTES: Array<{ slug: string; path: string }> = [
   { slug: 'sueldos', path: '/sueldos' },
 ]
 
-test('capturas desktop + movil', async ({ page }) => {
-  test.setTimeout(180_000)
+const VIEWPORTS = [
+  { slug: 'mobile-320x568', width: 320, height: 568 },
+  { slug: 'mobile-390x844', width: 390, height: 844 },
+  { slug: 'desktop-1440x900', width: 1440, height: 900 },
+] as const
+
+async function capture(
+  page: Page,
+  testInfo: TestInfo,
+  name: string,
+) {
+  const path = testInfo.outputPath(`${name}.png`)
+  await page.screenshot({
+    path,
+    fullPage: true,
+    animations: 'disabled',
+  })
+  await testInfo.attach(name, { path, contentType: 'image/png' })
+}
+
+async function openRoute(page: Page, path: string) {
+  const response = await page.goto(path, { waitUntil: 'domcontentloaded' })
+  expect(response, `Sin respuesta al navegar a ${path}`).not.toBeNull()
+  expect(response?.ok(), `HTTP inválido al navegar a ${path}`).toBe(true)
+  await expect(page.locator('#root')).not.toBeEmpty()
+  await page.waitForTimeout(1_000)
+}
+
+test('capturas admin en desktop y móvil', async ({ page }, testInfo) => {
+  test.setTimeout(300_000)
+  const pageErrors: string[] = []
+  page.on('pageerror', error => pageErrors.push(error.message))
+
+  // Login anónimo: comprueba clipping antes de autenticar.
+  for (const viewport of VIEWPORTS) {
+    await test.step(`login · ${viewport.slug}`, async () => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height })
+      await openRoute(page, '/')
+      await expect(page.locator('#ab-email')).toBeVisible()
+      await capture(page, testInfo, `${viewport.slug}-login`)
+    })
+  }
+
   await loginAdmin(page)
 
-  // Desktop 1440x900
-  await page.setViewportSize({ width: 1440, height: 900 })
-  for (const r of ROUTES) {
-    await page.goto(r.path, { waitUntil: 'networkidle' }).catch(() => {})
-    await page.waitForTimeout(1500)
-    await page.screenshot({ path: `${OUT}/desktop-${r.slug}.png`, fullPage: true }).catch(() => {})
+  for (const viewport of VIEWPORTS) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height })
+    for (const route of ROUTES) {
+      await test.step(`${route.slug} · ${viewport.slug}`, async () => {
+        await openRoute(page, route.path)
+        await capture(page, testInfo, `${viewport.slug}-${route.slug}`)
+      })
+    }
   }
 
-  // Móvil 390x844 (iPhone aprox)
-  await page.setViewportSize({ width: 390, height: 844 })
-  for (const r of ROUTES) {
-    await page.goto(r.path, { waitUntil: 'networkidle' }).catch(() => {})
-    await page.waitForTimeout(1500)
-    await page.screenshot({ path: `${OUT}/mobile-${r.slug}.png`, fullPage: true }).catch(() => {})
-  }
+  expect(pageErrors, `Errores JavaScript durante la auditoría:\n${pageErrors.join('\n')}`).toEqual([])
 })
