@@ -36,11 +36,24 @@ async function capture(
 }
 
 async function openRoute(page: Page, path: string) {
-  const response = await page.goto(path, { waitUntil: 'domcontentloaded' })
+  const response = await page.goto(path, { waitUntil: 'networkidle' })
   expect(response, `Sin respuesta al navegar a ${path}`).not.toBeNull()
   expect(response?.ok(), `HTTP inválido al navegar a ${path}`).toBe(true)
   await expect(page.locator('#root')).not.toBeEmpty()
-  await page.waitForTimeout(1_000)
+  await page.evaluate(() => window.scrollTo(0, 0))
+
+  const layout = await page.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    documentWidth: document.documentElement.scrollWidth,
+    scrollX: window.scrollX,
+  }))
+  expect(layout.scrollX, `Scroll horizontal inesperado en ${path}`).toBe(0)
+  expect(
+    layout.documentWidth,
+    `Overflow horizontal en ${path}: ${layout.documentWidth}px para viewport ${layout.viewportWidth}px`,
+  ).toBeLessThanOrEqual(layout.viewportWidth + 1)
+
+  await page.waitForTimeout(500)
 }
 
 test('capturas admin en desktop y móvil', async ({ page }, testInfo) => {
