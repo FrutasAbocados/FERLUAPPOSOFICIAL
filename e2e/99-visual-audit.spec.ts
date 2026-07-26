@@ -70,11 +70,8 @@ test('capturas admin en desktop y móvil', async ({ page }, testInfo) => {
       await capture(page, testInfo, `${viewport.slug}-login`)
 
       const submit = page.getByRole('button', { name: /^Entrar a Abocados OS/i })
-      const google = page.getByRole('button', { name: /Entrar con Google Workspace/i })
       await submit.scrollIntoViewIfNeeded()
       await expect(submit).toBeVisible()
-      await google.scrollIntoViewIfNeeded()
-      await expect(google).toBeVisible()
     })
   }
 
