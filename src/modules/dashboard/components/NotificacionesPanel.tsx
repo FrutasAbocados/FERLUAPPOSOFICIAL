@@ -30,11 +30,7 @@ export function NotificacionesPanel() {
   const sinNotifs = !data || data.length === 0
 
   if (sinNotifs) {
-    return (
-      <section className="rounded-[var(--radius-xl)] border border-dashed border-[var(--line)] bg-transparent p-3">
-        <PushCTA inline />
-      </section>
-    )
+    return <PushCTA inline />
   }
 
   return (
@@ -105,7 +101,10 @@ function PushCTA({ inline }: { inline?: boolean }) {
   }
   // pendiente
   return (
-    <div className={inline ? 'flex items-center justify-between gap-2' : 'mt-3 flex items-center justify-between gap-2 border-t border-[var(--line)] pt-2'}>
+    <div className={inline
+      ? 'flex items-center justify-between gap-2 rounded-[var(--radius-xl)] border border-dashed border-[var(--line)] bg-transparent p-3'
+      : 'mt-3 flex items-center justify-between gap-2 border-t border-[var(--line)] pt-2'
+    }>
       <p className="flex items-center gap-1.5 text-xs text-[var(--ink-dim)]">
         <Smartphone className="h-3.5 w-3.5 text-[var(--mint)]" />
         {inline ? 'Activa los avisos en tu móvil' : 'Recibe estas notificaciones en el móvil'}
