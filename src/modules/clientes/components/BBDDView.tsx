@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronLeft, Search, X } from 'lucide-react'
+import { ChartNoAxesColumnIncreasing, ChevronDown, ChevronLeft, PackageSearch, ReceiptText, Search, X } from 'lucide-react'
 import { format, parseISO, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Input } from '@/shared/components/ui/input'
@@ -8,6 +8,8 @@ import { cn } from '@/shared/lib/utils'
 import { type ClientePrograma, segmentarClientes } from '@/shared/lib/clientes-segmentacion'
 import {
   type ClienteABC,
+  type ClienteFactura,
+  type ClienteProductoFila,
   useClienteFacturas,
   useClienteProductos,
   useClientesBBDD,
@@ -47,6 +49,14 @@ function rangoFor(p: Periodo): { from: string; to: string } {
 }
 
 const eur = eurosShort
+
+const FICHA_PANELS = [
+  { key: 'productos', label: 'Top productos', icon: PackageSearch },
+  { key: 'facturas', label: 'Facturas / albaranes', icon: ReceiptText },
+  { key: 'margenes', label: 'Márgenes', icon: ChartNoAxesColumnIncreasing },
+] as const
+
+type FichaPanel = typeof FICHA_PANELS[number]['key']
 
 const PROGRAMAS: Array<{ key: ProgramaFilter; label: string }> = [
   { key: null, label: 'Todos' },
@@ -265,7 +275,7 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
       {/* Ficha */}
       <div className={cn(selected ? 'block' : 'hidden lg:block')}>
         {clienteSel
-          ? <Ficha cliente={clienteSel} from={range.from} to={range.to} onClose={() => setSelected(null)} />
+          ? <Ficha key={clienteSel.contact_name_canon} cliente={clienteSel} from={range.from} to={range.to} onClose={() => setSelected(null)} />
           : (
             <div className="ao-card flex h-full min-h-[200px] items-center justify-center border-dashed p-8 text-center text-sm text-[var(--color-ink-3)]">
               Selecciona un cliente a la izquierda para ver su ficha completa.
@@ -279,8 +289,11 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
 // ── Ficha ────────────────────────────────────────────────────────────────────
 
 function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: string; to: string; onClose: () => void }) {
-  const { data: facturas = [] } = useClienteFacturas(cliente.contact_name_canon, from, to)
-  const { data: productos = [] } = useClienteProductos(cliente.contact_name_canon, from, to, 30)
+  const [panelAbierto, setPanelAbierto] = useState<FichaPanel | null>(null)
+  const facturasQ = useClienteFacturas(cliente.contact_name_canon, from, to)
+  const productosQ = useClienteProductos(cliente.contact_name_canon, from, to, 30)
+  const facturas = facturasQ.data ?? []
+  const productos = productosQ.data ?? []
 
   return (
     <div className="space-y-3">
@@ -311,7 +324,65 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
         </div>
       </div>
 
-      {/* KPIs */}
+      {/* Consultas rápidas */}
+      <div className="ao-card p-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="Consultas rápidas del cliente">
+          {FICHA_PANELS.map((panel) => {
+            const active = panelAbierto === panel.key
+            const count = panel.key === 'productos'
+              ? productosQ.data?.length
+              : panel.key === 'facturas'
+                ? facturasQ.data?.length
+                : undefined
+            return (
+              <button
+                key={panel.key}
+                type="button"
+                onClick={() => setPanelAbierto(active ? null : panel.key)}
+                className={cn(
+                  'flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-left text-sm font-semibold transition-colors',
+                  active
+                    ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]'
+                    : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-ink)] hover:bg-[var(--color-surface-2)]',
+                )}
+                aria-expanded={active}
+                aria-controls={`ficha-panel-${panel.key}`}
+              >
+                <panel.icon className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{panel.label}</span>
+                {count != null && (
+                  <span className="mono text-[10px] font-medium tabular-nums text-[var(--color-ink-3)]">{count}</span>
+                )}
+                <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', active && 'rotate-180')} />
+              </button>
+            )
+          })}
+        </div>
+
+        {panelAbierto && (
+          <div
+            id={`ficha-panel-${panelAbierto}`}
+            className="mt-2 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]"
+          >
+            {panelAbierto === 'productos' && (
+              <ProductosPanel productos={productos} isLoading={productosQ.isLoading} />
+            )}
+            {panelAbierto === 'facturas' && (
+              <FacturasPanel facturas={facturas} isLoading={facturasQ.isLoading} />
+            )}
+            {panelAbierto === 'margenes' && (
+              <MargenesDetalle name={cliente.contact_name_canon} from={from} to={to} />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Información operativa del cliente */}
+      <div className="px-1">
+        <h3 className="text-sm font-semibold text-[var(--color-ink)]">Información del cliente</h3>
+        <p className="text-xs text-[var(--color-ink-3)]">Datos principales, seguimiento, contacto y notas internas.</p>
+      </div>
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Kpi label="Documentos" value={cliente.docs.toString()} />
         <Kpi label="Ventas" value={euros(cliente.ventas)} tone="primary" />
@@ -320,98 +391,100 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
         <Kpi label="Última" value={cliente.ultima_compra ? format(parseISO(cliente.ultima_compra), 'd LLL', { locale: es }) : '—'} />
       </div>
 
-      {/* Top productos + Facturas en grid */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <div className="ao-card overflow-hidden p-0">
-          <div className="label-caps border-b border-[var(--color-border)] px-3 py-2">
-            Top productos
-          </div>
-          <div className="max-h-[50vh] overflow-y-auto">
-            {productos.length === 0 ? (
-              <div className="px-3 py-6 text-center text-sm text-[var(--color-ink-3)]">Sin productos en el rango</div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-[rgba(255,255,255,.025)]">
-                  <tr className="label-caps text-left">
-                    <th className="px-3 py-1.5">Producto</th>
-                    <th className="px-3 py-1.5 text-right">Veces</th>
-                    <th className="px-3 py-1.5 text-right">Ventas</th>
-                    <th className="px-3 py-1.5 text-right">% margen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {productos.map(p => (
-                    <tr key={p.product_id ?? p.nombre} className="border-t border-[var(--color-border)]">
-                      <td className="px-3 py-1.5 truncate text-[var(--color-ink)]">{p.nombre}</td>
-                      <td className="px-3 py-1.5 text-right tabular-nums">{p.veces}</td>
-                      <td className="mono px-3 py-1.5 text-right tabular-nums">{eur(p.ventas_subtotal)}</td>
-                      <td className="mono px-3 py-1.5 text-right tabular-nums text-[var(--color-ink-3)]">
-                        {p.margen_pct == null ? '—' : `${p.margen_pct.toFixed(0)}%`}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-
-        <div className="ao-card overflow-hidden p-0">
-          <div className="label-caps border-b border-[var(--color-border)] px-3 py-2">
-            Facturas / albaranes
-          </div>
-          <div className="max-h-[50vh] overflow-y-auto">
-            {facturas.length === 0 ? (
-              <div className="px-3 py-6 text-center text-sm text-[var(--color-ink-3)]">Sin facturas en el rango</div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-[rgba(255,255,255,.025)]">
-                  <tr className="label-caps text-left">
-                    <th className="px-3 py-1.5">Fecha</th>
-                    <th className="px-3 py-1.5">Doc</th>
-                    <th className="px-3 py-1.5 text-right">Total</th>
-                    <th className="px-3 py-1.5 text-right">Pdte</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {facturas.map(f => (
-                    <tr key={f.id} className="border-t border-[var(--color-border)]">
-                      <td className="mono px-3 py-1.5 text-[var(--color-ink-2)] tabular-nums">{format(parseISO(f.fecha), 'd LLL yy', { locale: es })}</td>
-                      <td className="px-3 py-1.5 truncate text-[var(--color-ink-3)]">{f.doc_number ?? '—'}</td>
-                      <td className="mono px-3 py-1.5 text-right tabular-nums text-[var(--color-ink)]">{eur(f.total)}</td>
-                      <td className="mono px-3 py-1.5 text-right tabular-nums">{f.payments_pending > 0 ? <span className="text-[var(--coral)]">{eur(f.payments_pending)}</span> : <span className="text-[var(--color-ink-3)]">—</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Evolución mensual + Calendario actividad (sesión 2) */}
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-        <EvolucionChart name={cliente.contact_name_canon} />
-        <HeatmapDiaCalendario name={cliente.contact_name_canon} dias={90} />
-      </div>
-
-      {/* Márgenes detallados por producto vs media (sesión 2) */}
-      <MargenesDetalle name={cliente.contact_name_canon} from={from} to={to} />
-
-      {/* Preferencias operativas (editable) */}
       <ProgramaFidelizacionCard key={`programa-${cliente.contact_name_canon}`} cliente={cliente} />
       <PreferenciasCard key={`prefs-${cliente.contact_name_canon}`} name={cliente.contact_name_canon} />
 
-      {/* Notas internas + Aliases */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <NotasCard name={cliente.contact_name_canon} />
         <AliasesCard canon={cliente.contact_name_canon} />
+      </div>
+
+      {/* Analítica secundaria */}
+      <div className="px-1 pt-1">
+        <h3 className="text-sm font-semibold text-[var(--color-ink)]">Actividad y evolución</h3>
+        <p className="text-xs text-[var(--color-ink-3)]">Histórico mensual y días habituales de compra.</p>
+      </div>
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <EvolucionChart name={cliente.contact_name_canon} />
+        <HeatmapDiaCalendario name={cliente.contact_name_canon} dias={90} />
       </div>
     </div>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+function ProductosPanel({ productos, isLoading }: { productos: ClienteProductoFila[]; isLoading: boolean }) {
+  if (isLoading) return <PanelSkeleton />
+  if (productos.length === 0) {
+    return <div className="px-3 py-6 text-center text-sm text-[var(--color-ink-3)]">Sin productos en el rango</div>
+  }
+  return (
+    <div className="max-h-[50vh] overflow-auto">
+      <table className="w-full min-w-[520px] text-sm">
+        <thead className="sticky top-0 bg-[var(--color-surface-2)]">
+          <tr className="label-caps text-left">
+            <th className="px-3 py-1.5">Producto</th>
+            <th className="px-3 py-1.5 text-right">Veces</th>
+            <th className="px-3 py-1.5 text-right">Ventas</th>
+            <th className="px-3 py-1.5 text-right">% margen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {productos.map(p => (
+            <tr key={p.product_id ?? p.nombre} className="border-t border-[var(--color-border)]">
+              <td className="px-3 py-1.5 text-[var(--color-ink)]">{p.nombre}</td>
+              <td className="px-3 py-1.5 text-right tabular-nums">{p.veces}</td>
+              <td className="mono px-3 py-1.5 text-right tabular-nums">{eur(p.ventas_subtotal)}</td>
+              <td className="mono px-3 py-1.5 text-right tabular-nums text-[var(--color-ink-3)]">
+                {p.margen_pct == null ? '—' : `${p.margen_pct.toFixed(0)}%`}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function FacturasPanel({ facturas, isLoading }: { facturas: ClienteFactura[]; isLoading: boolean }) {
+  if (isLoading) return <PanelSkeleton />
+  if (facturas.length === 0) {
+    return <div className="px-3 py-6 text-center text-sm text-[var(--color-ink-3)]">Sin facturas en el rango</div>
+  }
+  return (
+    <div className="max-h-[50vh] overflow-auto">
+      <table className="w-full min-w-[520px] text-sm">
+        <thead className="sticky top-0 bg-[var(--color-surface-2)]">
+          <tr className="label-caps text-left">
+            <th className="px-3 py-1.5">Fecha</th>
+            <th className="px-3 py-1.5">Documento</th>
+            <th className="px-3 py-1.5 text-right">Total</th>
+            <th className="px-3 py-1.5 text-right">Pendiente</th>
+          </tr>
+        </thead>
+        <tbody>
+          {facturas.map(f => (
+            <tr key={f.id} className="border-t border-[var(--color-border)]">
+              <td className="mono whitespace-nowrap px-3 py-1.5 text-[var(--color-ink-2)] tabular-nums">{format(parseISO(f.fecha), 'd LLL yy', { locale: es })}</td>
+              <td className="px-3 py-1.5 text-[var(--color-ink-3)]">{f.doc_number ?? '—'}</td>
+              <td className="mono px-3 py-1.5 text-right tabular-nums text-[var(--color-ink)]">{eur(f.total)}</td>
+              <td className="mono px-3 py-1.5 text-right tabular-nums">
+                {f.payments_pending > 0
+                  ? <span className="text-[var(--coral)]">{eur(f.payments_pending)}</span>
+                  : <span className="text-[var(--color-ink-3)]">—</span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function PanelSkeleton() {
+  return <div className="m-3 h-28 animate-pulse rounded bg-[var(--color-surface-2)]" />
+}
 
 function Kpi({ label, value, hint, tone = 'default' }: { label: string; value: string; hint?: string; tone?: 'default' | 'primary' | 'ok' | 'warn' | 'muted' }) {
   const cls =
