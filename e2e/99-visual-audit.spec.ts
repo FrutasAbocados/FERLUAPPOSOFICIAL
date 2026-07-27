@@ -80,6 +80,13 @@ async function openRoute(page: Page, path: string) {
 }
 
 async function simulateEmployeeProfile(page: Page) {
+  await page.route('**/rest/v1/rpc/notificaciones_listar', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '[]',
+    })
+  })
   await page.route('**/rest/v1/profiles*', async route => {
     const response = await route.fetch()
     const profile = await response.json() as Record<string, unknown> | Array<Record<string, unknown>>
