@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MapPin, Phone, Save, StickyNote, Tag, X } from 'lucide-react'
+import { ClipboardList, MapPin, Pencil, Phone, Plus, Save, Trash2, Truck, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -19,12 +19,12 @@ type Form = {
   en_pausa_desde: string
   en_pausa_hasta: string
   notas: string
-  tags: string
+  notas_reparto: string
 }
 
 const empty: Form = {
   hora_preferida: '', dia_preferido: '', telefono: '', direccion: '',
-  en_pausa_desde: '', en_pausa_hasta: '', notas: '', tags: '',
+  en_pausa_desde: '', en_pausa_hasta: '', notas: '', notas_reparto: '',
 }
 
 function fromPrefs(p: Preferencias | null | undefined): Form {
@@ -37,11 +37,14 @@ function fromPrefs(p: Preferencias | null | undefined): Form {
     en_pausa_desde: p.en_pausa_desde ?? '',
     en_pausa_hasta: p.en_pausa_hasta ?? '',
     notas:          p.notas          ?? '',
-    tags:           (p.tags ?? []).join(', '),
+    notas_reparto:  (p.tags ?? []).join('\n'),
   }
 }
 
-const tagsArray = (s: string) => s.split(',').map(t => t.trim()).filter(Boolean)
+const lineasArray = (s: string) => s
+  .split(/\r?\n/)
+  .map(linea => linea.trim().replace(/^[-•]\s*/, ''))
+  .filter(Boolean)
 
 export function PreferenciasCard({ name }: { name: string }) {
   const { data: prefs } = usePreferencias(name)
@@ -52,7 +55,7 @@ function PreferenciasCardInner({ name, prefs }: { name: string; prefs: Preferenc
   const set = useSetPreferencias()
   const [form, setForm] = useState<Form>(() => fromPrefs(prefs))
   const [dirty, setDirty] = useState(false)
-  const [editing, setEditing] = useState<'notas' | 'tags' | null>(null)
+  const [editing, setEditing] = useState<'operativas' | 'reparto' | null>(null)
 
   const update = (patch: Partial<Form>) => {
     setForm((f) => ({ ...f, ...patch }))
@@ -77,7 +80,7 @@ function PreferenciasCardInner({ name, prefs }: { name: string; prefs: Preferenc
           en_pausa_desde: form.en_pausa_desde || null,
           en_pausa_hasta: form.en_pausa_hasta || null,
           notas:          form.notas          || null,
-          tags:           tagsArray(form.tags),
+          tags:           lineasArray(form.notas_reparto),
         },
       })
       toast({ title: 'Preferencias guardadas', variant: 'success' })
@@ -93,7 +96,8 @@ function PreferenciasCardInner({ name, prefs }: { name: string; prefs: Preferenc
   const pausaProgramada = !pausaActiva && !!form.en_pausa_desde && form.en_pausa_desde > hoy
   const hayPausa = !!form.en_pausa_desde || !!form.en_pausa_hasta
 
-  const tagsChips = tagsArray(form.tags)
+  const notasOperativas = lineasArray(form.notas)
+  const notasReparto = lineasArray(form.notas_reparto)
 
   return (
     <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -192,40 +196,25 @@ function PreferenciasCardInner({ name, prefs }: { name: string; prefs: Preferenc
           )}
         </div>
 
-        {/* Tags → botón que abre ventana con líneas de información */}
-        <div className="md:col-span-3">
-          <Label>Tags</Label>
-          <button
-            type="button"
-            onClick={() => setEditing('tags')}
-            className="flex min-h-[42px] w-full flex-wrap items-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-left text-sm hover:border-[var(--color-primary)]"
-          >
-            <Tag className="h-3.5 w-3.5 shrink-0 text-[var(--color-ink-3)]" />
-            {tagsChips.length === 0 ? (
-              <span className="text-[var(--color-ink-3)]">Añadir tags…</span>
-            ) : (
-              tagsChips.map((t, i) => (
-                <span key={i} className="ao-chip">{t}</span>
-              ))
-            )}
-          </button>
-        </div>
-
-        {/* Notas operativas → botón que abre ventana con líneas de información */}
-        <div className="md:col-span-3">
-          <Label>Notas operativas</Label>
-          <button
-            type="button"
-            onClick={() => setEditing('notas')}
-            className="flex min-h-[42px] w-full items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-left text-sm hover:border-[var(--color-primary)]"
-          >
-            <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-ink-3)]" />
-            {form.notas.trim() === '' ? (
-              <span className="text-[var(--color-ink-3)]">Añadir notas (sin tomate verde, no llamar mañanas, llave en escalera…)</span>
-            ) : (
-              <span className="whitespace-pre-wrap text-[var(--color-ink)]">{form.notas}</span>
-            )}
-          </button>
+        {/* Información práctica separada por uso */}
+        <div className="grid grid-cols-1 gap-3 md:col-span-3 lg:grid-cols-2">
+          <NotasResumen
+            title="Notas operativas"
+            description="Montaje, producto, cobro y horarios"
+            icon={ClipboardList}
+            lines={notasOperativas}
+            empty="Sin indicaciones operativas."
+            onEdit={() => setEditing('operativas')}
+          />
+          <NotasResumen
+            title="Notas de reparto"
+            description="Acceso, alarma y lugar de entrega"
+            icon={Truck}
+            lines={notasReparto}
+            empty="Sin instrucciones especiales de reparto."
+            onEdit={() => setEditing('reparto')}
+            tone="delivery"
+          />
         </div>
       </div>
 
@@ -233,26 +222,31 @@ function PreferenciasCardInner({ name, prefs }: { name: string; prefs: Preferenc
         <Modal onClose={() => setEditing(null)} size="lg">
           <div className="flex items-center justify-between gap-2 border-b border-[var(--color-border)] px-4 py-3">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-ink)]">
-              {editing === 'notas'
-                ? <><StickyNote className="h-4 w-4 text-[var(--color-primary)]" />Notas operativas</>
-                : <><Tag className="h-4 w-4 text-[var(--color-primary)]" />Tags del cliente</>}
+              {editing === 'operativas'
+                ? <><ClipboardList className="h-4 w-4 text-[var(--color-primary)]" />Notas operativas</>
+                : <><Truck className="h-4 w-4 text-[var(--color-primary)]" />Notas de reparto</>}
             </h3>
             <button type="button" onClick={() => setEditing(null)} className="rounded-md p-1 text-[var(--color-ink-3)] hover:bg-[var(--color-surface-2)]" aria-label="Cerrar">
               <X className="h-4 w-4" />
             </button>
           </div>
           <div className="p-4">
-            {editing === 'notas' ? (
-              <textarea
-                autoFocus
-                value={form.notas}
-                onChange={(e) => update({ notas: e.target.value })}
-                rows={8}
-                placeholder={"Una línea por cosa importante:\n- Sin tomate verde\n- No llamar por las mañanas\n- Llave en el cuadro de la escalera"}
-                className="w-full resize-y rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-ink)] focus:border-[var(--color-primary)] focus:outline-none"
-              />
+            {editing === 'operativas' ? (
+              <div className="space-y-2">
+                <p className="text-xs text-[var(--color-ink-3)]">
+                  Una indicación por línea. Aquí van especificaciones del producto, montaje, forma de cobro y horarios.
+                </p>
+                <textarea
+                  autoFocus
+                  value={form.notas}
+                  onChange={(e) => update({ notas: e.target.value })}
+                  rows={9}
+                  placeholder={"Ejemplos:\nMontar las cajas por tamaños\nCobro por transferencia a final de mes\nPreparar el tomate sin piezas verdes\nNo entregar antes de las 08:30"}
+                  className="w-full resize-y rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm leading-6 text-[var(--color-ink)] focus:border-[var(--color-primary)] focus:outline-none"
+                />
+              </div>
             ) : (
-              <TagsEditor value={form.tags} onChange={(v) => update({ tags: v })} />
+              <NotasRepartoEditor value={form.notas_reparto} onChange={(v) => update({ notas_reparto: v })} />
             )}
           </div>
           <div className="flex justify-end gap-2 border-t border-[var(--color-border)] px-4 py-3">
@@ -268,47 +262,132 @@ function PreferenciasCardInner({ name, prefs }: { name: string; prefs: Preferenc
   )
 }
 
-// ── Editor de tags como chips (una etiqueta por línea o Enter) ──────────────────
+// ── Bloques de información práctica ───────────────────────────────────────────
 
-function TagsEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const chips = tagsArray(value)
+function NotasResumen({
+  title,
+  description,
+  icon: Icon,
+  lines,
+  empty,
+  onEdit,
+  tone = 'default',
+}: {
+  title: string
+  description: string
+  icon: typeof ClipboardList
+  lines: string[]
+  empty: string
+  onEdit: () => void
+  tone?: 'default' | 'delivery'
+}) {
+  return (
+    <section className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2.5">
+        <span className={tone === 'delivery'
+          ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--color-warn-soft)] text-[var(--amber)]'
+          : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--color-primary-soft)] text-[var(--color-primary-2)]'
+        }>
+          <Icon className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h4 className="text-sm font-semibold text-[var(--color-ink)]">{title}</h4>
+          <p className="truncate text-[10px] text-[var(--color-ink-3)]">{description}</p>
+        </div>
+        {lines.length > 0 && <span className="mono text-[10px] text-[var(--color-ink-3)]">{lines.length}</span>}
+        <button
+          type="button"
+          onClick={onEdit}
+          className="flex h-8 items-center gap-1 rounded-md border border-[var(--color-border)] px-2 text-xs font-medium text-[var(--color-ink-2)] hover:border-[var(--color-primary)] hover:text-[var(--color-ink)]"
+          aria-label={`Editar ${title.toLowerCase()}`}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          Editar
+        </button>
+      </div>
+      {lines.length === 0 ? (
+        <button
+          type="button"
+          onClick={onEdit}
+          className="w-full px-3 py-5 text-left text-xs text-[var(--color-ink-3)] hover:bg-[var(--color-surface-2)]"
+        >
+          {empty} Pulsa para añadir.
+        </button>
+      ) : (
+        <ul className="divide-y divide-[var(--color-border)]">
+          {lines.map((line, index) => (
+            <li key={`${line}-${index}`} className="flex items-start gap-2 px-3 py-2 text-sm">
+              <span className={tone === 'delivery'
+                ? 'mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--amber)]'
+                : 'mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-primary)]'
+              } />
+              <span className="min-w-0 leading-5 text-[var(--color-ink-2)]">{line}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function NotasRepartoEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const notas = lineasArray(value)
   const [draft, setDraft] = useState('')
 
   const commit = (raw: string) => {
-    const nuevas = raw.split(',').map(t => t.trim()).filter(Boolean)
+    const nuevas = lineasArray(raw)
     if (nuevas.length === 0) return
-    const merged = Array.from(new Set([...chips, ...nuevas]))
-    onChange(merged.join(', '))
+    const merged = Array.from(new Set([...notas, ...nuevas]))
+    onChange(merged.join('\n'))
     setDraft('')
   }
 
-  const remove = (t: string) => onChange(chips.filter(c => c !== t).join(', '))
+  const remove = (nota: string) => onChange(notas.filter(n => n !== nota).join('\n'))
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-1.5">
-        {chips.length === 0 && <span className="text-sm text-[var(--color-ink-3)]">Sin tags todavía.</span>}
-        {chips.map((t, i) => (
-          <span key={i} className="ao-chip inline-flex items-center gap-1">
-            {t}
-            <button type="button" onClick={() => remove(t)} className="text-[var(--color-ink-3)] hover:text-[var(--coral)]" aria-label={`Quitar ${t}`}>
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
-      </div>
-      <div className="flex gap-2">
+      <p className="text-xs text-[var(--color-ink-3)]">
+        Instrucciones que debe ver el repartidor al llegar. Cada indicación se guarda por separado.
+      </p>
+      {notas.length === 0 ? (
+        <div className="rounded-md border border-dashed border-[var(--color-border)] px-3 py-5 text-center text-sm text-[var(--color-ink-3)]">
+          Todavía no hay notas de reparto.
+        </div>
+      ) : (
+        <ul className="divide-y divide-[var(--color-border)] overflow-hidden rounded-md border border-[var(--color-border)]">
+          {notas.map((nota, index) => (
+            <li key={`${nota}-${index}`} className="flex items-start gap-2 bg-[var(--color-surface)] px-3 py-2.5">
+              <Truck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--amber)]" />
+              <span className="min-w-0 flex-1 text-sm leading-5 text-[var(--color-ink)]">{nota}</span>
+              <button
+                type="button"
+                onClick={() => remove(nota)}
+                className="rounded-md p-1 text-[var(--color-ink-3)] hover:bg-[var(--color-danger-soft)] hover:text-[var(--coral)]"
+                aria-label={`Quitar nota: ${nota}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex items-center gap-2">
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') { e.preventDefault(); commit(draft) }
           }}
-          placeholder="Escribe una etiqueta y pulsa Enter…"
+          placeholder="Ej: Si no hay nadie, dejar el pedido en el patio"
         />
-        <Button variant="outline" disabled={!draft.trim()} onClick={() => commit(draft)}>Añadir</Button>
+        <Button variant="outline" disabled={!draft.trim()} onClick={() => commit(draft)}>
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          Añadir
+        </Button>
       </div>
-      <p className="text-xs text-[var(--color-ink-3)]">Cada etiqueta es una línea de información (persona de contacto, tipo de local, avisos…).</p>
+      <div className="rounded-md bg-[var(--color-warn-soft)] px-3 py-2 text-xs leading-5 text-[var(--color-ink-2)]">
+        Ejemplos: “A partir de las 09:00 se puede quitar la alarma” o “Si no hay nadie, dejar el pedido junto a la puerta lateral”.
+      </div>
     </div>
   )
 }
