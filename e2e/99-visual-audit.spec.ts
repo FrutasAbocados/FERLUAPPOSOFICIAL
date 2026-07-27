@@ -59,7 +59,16 @@ async function openRoute(page: Page, path: string) {
 test('capturas admin en desktop y móvil', async ({ page }, testInfo) => {
   test.setTimeout(300_000)
   const pageErrors: string[] = []
+  const apiErrors: string[] = []
   page.on('pageerror', error => pageErrors.push(error.message))
+  page.on('response', response => {
+    if (
+      response.status() >= 400
+      && response.url().includes('.supabase.co/rest/v1/')
+    ) {
+      apiErrors.push(`${response.status()} ${response.request().method()} ${response.url()}`)
+    }
+  })
 
   // Login anónimo: comprueba clipping antes de autenticar.
   for (const viewport of VIEWPORTS) {
@@ -88,4 +97,5 @@ test('capturas admin en desktop y móvil', async ({ page }, testInfo) => {
   }
 
   expect(pageErrors, `Errores JavaScript durante la auditoría:\n${pageErrors.join('\n')}`).toEqual([])
+  expect(apiErrors, `Errores de Supabase durante la auditoría:\n${apiErrors.join('\n')}`).toEqual([])
 })
