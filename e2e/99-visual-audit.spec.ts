@@ -15,6 +15,29 @@ const ROUTES: Array<{ slug: string; path: string }> = [
   { slug: 'sueldos', path: '/sueldos' },
 ]
 
+const EMPLOYEE_ROUTES: Array<{ slug: string; path: string }> = [
+  { slug: 'dashboard', path: '/' },
+  { slug: 'pedidos-wa', path: '/pedidos-wa' },
+  { slug: 'clientes', path: '/clientes' },
+  { slug: 'listado-precios', path: '/listado-precios' },
+  { slug: 'trabajadores', path: '/trabajadores' },
+  { slug: 'nominas', path: '/nominas' },
+  { slug: 'condiciones', path: '/condiciones' },
+]
+
+const EMPLOYEE_DENIED_ROUTES = [
+  '/manager',
+  '/cash',
+  '/cobros',
+  '/agente',
+  '/bbdd-trabajadores',
+  '/sueldos',
+  '/gastos',
+  '/tesoreria',
+  '/tareas',
+  '/turnos',
+] as const
+
 const VIEWPORTS = [
   { slug: 'mobile-320x568', width: 320, height: 568 },
   { slug: 'mobile-390x844', width: 390, height: 844 },
@@ -56,8 +79,29 @@ async function openRoute(page: Page, path: string) {
   await page.waitForTimeout(500)
 }
 
-test('capturas admin en desktop y móvil', async ({ page }, testInfo) => {
-  test.setTimeout(300_000)
+async function simulateEmployeeProfile(page: Page) {
+  await page.route('**/rest/v1/profiles*', async route => {
+    const response = await route.fetch()
+    const profile = await response.json() as Record<string, unknown> | Array<Record<string, unknown>>
+    const employeeProfile = Array.isArray(profile)
+      ? profile.map(row => ({ ...row, role: 'empleado' }))
+      : { ...profile, role: 'empleado' }
+
+    await route.fulfill({
+      response,
+      body: JSON.stringify(employeeProfile),
+      headers: {
+        ...response.headers(),
+        'content-type': 'application/json',
+      },
+    })
+  })
+  await page.reload({ waitUntil: 'networkidle' })
+  await expect(page.getByText('Tu panel')).toBeVisible()
+}
+
+test('capturas admin y vista empleado en desktop y móvil', async ({ page }, testInfo) => {
+  test.setTimeout(480_000)
   const pageErrors: string[] = []
   const apiErrors: string[] = []
   page.on('pageerror', error => pageErrors.push(error.message))
@@ -92,6 +136,28 @@ test('capturas admin en desktop y móvil', async ({ page }, testInfo) => {
       await test.step(`${route.slug} · ${viewport.slug}`, async () => {
         await openRoute(page, route.path)
         await capture(page, testInfo, `${viewport.slug}-${route.slug}`)
+      })
+    }
+  }
+
+  // Cobertura visual del frontend con rol empleado sin alterar cuentas reales.
+  // La sesión conserva los permisos API admin: la RLS real se audita por separado.
+  await simulateEmployeeProfile(page)
+
+  for (const path of EMPLOYEE_DENIED_ROUTES) {
+    await test.step(`empleado sin acceso · ${path}`, async () => {
+      await page.goto(path, { waitUntil: 'networkidle' })
+      await expect.poll(() => new URL(page.url()).pathname).toBe('/')
+      await expect(page.getByText('Tu panel')).toBeVisible()
+    })
+  }
+
+  for (const viewport of VIEWPORTS) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height })
+    for (const route of EMPLOYEE_ROUTES) {
+      await test.step(`empleado · ${route.slug} · ${viewport.slug}`, async () => {
+        await openRoute(page, route.path)
+        await capture(page, testInfo, `${viewport.slug}-empleado-${route.slug}`)
       })
     }
   }
