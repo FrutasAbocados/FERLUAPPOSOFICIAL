@@ -1847,7 +1847,13 @@ export type LineaResuelta = {
   es_gratis: boolean
   iva_pct: number
   precio_resuelto: number | null
-  precio_fuente: 'historico_cliente' | 'no_resuelto' | 'gratis'
+  precio_fuente:
+    | 'historico_cliente'
+    | 'tarifa_base'
+    | 'ultima_venta_global'
+    | 'margen_minimo'
+    | 'no_resuelto'
+    | 'gratis'
   precio_fecha: string | null
   total_estimado: number
 }

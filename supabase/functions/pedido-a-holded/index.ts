@@ -168,7 +168,13 @@ interface PrecioResuelto {
   es_gratis: boolean
   iva_pct: number | string
   precio_resuelto: number | string | null
-  precio_fuente: 'historico_cliente' | 'tarifa_base' | 'no_resuelto' | 'gratis'
+  precio_fuente:
+    | 'historico_cliente'
+    | 'tarifa_base'
+    | 'ultima_venta_global'
+    | 'margen_minimo'
+    | 'no_resuelto'
+    | 'gratis'
   precio_fecha: string | null
   total_estimado: number | string
   holded_product_id: string | null
@@ -342,8 +348,9 @@ Deno.serve(async (req) => {
         fecha:        pedido.fecha,
         doc_type:     docType,
         total_lineas: lineas.length,
-        resueltas:    lineas.filter(l => l.precio_fuente === 'historico_cliente').length,
+        resueltas:    lineas.filter(l => !l.es_gratis && l.precio_fuente !== 'no_resuelto').length,
         tarifa_base:  lineas.filter(l => l.precio_fuente === 'tarifa_base').length,
+        margen_minimo: lineas.filter(l => l.precio_fuente === 'margen_minimo').length,
         no_resueltas: noResueltas.length,
         gratis:       lineas.filter(l => l.es_gratis).length,
         total_estimado: lineas.reduce((s, l) => s + Number(l.total_estimado), 0),

@@ -1122,8 +1122,14 @@ function ModalSubirPedidoHolded({
                         <td className="px-2 py-1 text-right">{Number(l.iva_pct)}%</td>
                         <td className="px-2 py-1 text-right">{euros(Number(l.total_estimado))}</td>
                         <td className="px-2 py-1 text-[10px] text-[var(--color-ink-3)]">
-                          {l.precio_fuente === 'historico_cliente' && l.precio_fecha ? (
+                          {l.precio_fuente === 'margen_minimo' ? (
+                            <span className="font-semibold text-[var(--mint)]">suelo margen · 30%</span>
+                          ) : l.precio_fuente === 'historico_cliente' && l.precio_fecha ? (
                             <>hist · {l.precio_fecha}</>
+                          ) : l.precio_fuente === 'tarifa_base' ? (
+                            'tarifa base'
+                          ) : l.precio_fuente === 'ultima_venta_global' ? (
+                            'última venta'
                           ) : l.precio_fuente === 'gratis' ? (
                             'gratis'
                           ) : (
