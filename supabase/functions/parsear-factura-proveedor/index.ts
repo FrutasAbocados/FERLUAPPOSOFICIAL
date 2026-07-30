@@ -35,9 +35,16 @@
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY') || ''
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
+const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 // Sonnet 4.6 para precisión en transcripción de tablas con muchas columnas.
-// El coste por factura sale a ~2 céntimos, irrelevante.
 const MODEL         = Deno.env.get('PARSER_MODEL') || 'claude-sonnet-4-6'
+const EUR_PER_TOKEN = {
+  input: 2.511e-6,
+  output: 12.555e-6,
+  cacheRead: 0.2511e-6,
+  cacheWrite: 3.13875e-6,
+}
 
 const cors = {
   'access-control-allow-origin': '*',
@@ -179,7 +186,26 @@ type Bloque =
   | { type: 'image';    source: { type: 'base64'; media_type: string; data: string } }
   | { type: 'text';     text: string }
 
-async function parsearConClaude(bloques: Bloque[]): Promise<unknown> {
+type ClaudeUsage = {
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
+}
+
+class ClaudeResponseError extends Error {
+  usage: ClaudeUsage
+
+  constructor(message: string, usage: ClaudeUsage) {
+    super(message)
+    this.name = 'ClaudeResponseError'
+    this.usage = usage
+  }
+}
+
+async function parsearConClaude(
+  bloques: Bloque[],
+): Promise<{ parsed: unknown; usage: ClaudeUsage }> {
   const res = await fetch(ANTHROPIC_URL, {
     method: 'POST',
     headers: {
@@ -209,9 +235,27 @@ async function parsearConClaude(bloques: Bloque[]): Promise<unknown> {
   if (!res.ok) {
     throw new Error(`Claude ${res.status}: ${(await res.text()).slice(0, 300)}`)
   }
-  const data = await res.json() as { content: Array<{ type: string; text?: string }>; stop_reason?: string }
+  const data = await res.json() as {
+    content: Array<{ type: string; text?: string }>
+    stop_reason?: string
+    usage?: {
+      input_tokens?: number
+      output_tokens?: number
+      cache_read_input_tokens?: number
+      cache_creation_input_tokens?: number
+    }
+  }
+  const usage = {
+    inputTokens: data.usage?.input_tokens ?? 0,
+    outputTokens: data.usage?.output_tokens ?? 0,
+    cacheReadTokens: data.usage?.cache_read_input_tokens ?? 0,
+    cacheWriteTokens: data.usage?.cache_creation_input_tokens ?? 0,
+  }
   if (data.stop_reason === 'max_tokens') {
-    throw new Error('Factura demasiado larga: Claude alcanzó el límite de tokens (aumentar max_tokens)')
+    throw new ClaudeResponseError(
+      'Factura demasiado larga: Claude alcanzó el límite de tokens (aumentar max_tokens)',
+      usage,
+    )
   }
   const text = data.content.filter(b => b.type === 'text').map(b => b.text ?? '').join('').trim()
   const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
@@ -220,12 +264,83 @@ async function parsearConClaude(bloques: Bloque[]): Promise<unknown> {
   const start = cleaned.indexOf('{')
   const end   = cleaned.lastIndexOf('}')
   if (start === -1 || end === -1 || end <= start) {
-    throw new Error(`Claude no devolvió JSON válido: ${cleaned.slice(0, 300)}`)
+    throw new ClaudeResponseError(
+      `Claude no devolvió JSON válido: ${cleaned.slice(0, 300)}`,
+      usage,
+    )
   }
   try {
-    return JSON.parse(cleaned.slice(start, end + 1))
+    return {
+      parsed: JSON.parse(cleaned.slice(start, end + 1)),
+      usage,
+    }
   } catch {
-    throw new Error(`Claude devolvió JSON inválido: ${cleaned.slice(start, start + 300)}`)
+    throw new ClaudeResponseError(
+      `Claude devolvió JSON inválido: ${cleaned.slice(start, start + 300)}`,
+      usage,
+    )
+  }
+}
+
+async function logOcrInteraction(opts: {
+  usage: ClaudeUsage
+  latencyMs: number
+  success: boolean
+  error?: string
+  inputKind: 'pdf' | 'images'
+  pages: number
+  parsed?: unknown
+}): Promise<void> {
+  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return
+
+  const costEur =
+    opts.usage.inputTokens * EUR_PER_TOKEN.input
+    + opts.usage.outputTokens * EUR_PER_TOKEN.output
+    + opts.usage.cacheReadTokens * EUR_PER_TOKEN.cacheRead
+    + opts.usage.cacheWriteTokens * EUR_PER_TOKEN.cacheWrite
+  const parsed = opts.parsed as { lineas?: unknown[] } | undefined
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/agent_interactions`, {
+      method: 'POST',
+      headers: {
+        apikey: SERVICE_ROLE_KEY,
+        authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+        'content-type': 'application/json',
+        prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        tenant_id: 'ferlu',
+        agent_name: 'parsear-factura-proveedor',
+        model_used: MODEL,
+        event_type: 'invoice_ocr',
+        input_tokens: opts.usage.inputTokens,
+        output_tokens: opts.usage.outputTokens,
+        cache_read_tokens: opts.usage.cacheReadTokens,
+        cache_write_tokens: opts.usage.cacheWriteTokens,
+        cost_eur: Math.round(costEur * 1_000_000) / 1_000_000,
+        latency_ms: opts.latencyMs,
+        success: opts.success,
+        error: opts.error?.slice(0, 500) ?? null,
+        input_summary: `${opts.inputKind}:${opts.pages}`,
+        output_summary: opts.success
+          ? `${Array.isArray(parsed?.lineas) ? parsed.lineas.length : 0} lineas`
+          : null,
+        actions_taken: {
+          input_kind: opts.inputKind,
+          pages: opts.pages,
+        },
+      }),
+      signal: AbortSignal.timeout(3_000),
+    })
+    if (!response.ok) {
+      console.error('[parsear-factura] telemetry:', response.status)
+    }
+  } catch (error) {
+    console.error(
+      '[parsear-factura] telemetry:',
+      error instanceof Error ? error.message : String(error),
+    )
   }
 }
 
@@ -241,13 +356,16 @@ Deno.serve(async (req) => {
     return json({ error: 'Body JSON inválido' }, 400)
   }
   const bloques: Bloque[] = []
+  let inputKind: 'pdf' | 'images'
 
   if (typeof body.pdf_base64 === 'string' && body.pdf_base64.length >= 100) {
+    inputKind = 'pdf'
     bloques.push({
       type: 'document',
       source: { type: 'base64', media_type: 'application/pdf', data: body.pdf_base64 },
     })
   } else if (Array.isArray(body.imagenes) && body.imagenes.length > 0) {
+    inputKind = 'images'
     if (body.imagenes.length > 8) {
       return json({ error: 'Máximo 8 fotos por factura' }, 400)
     }
@@ -270,11 +388,30 @@ Deno.serve(async (req) => {
     return json({ error: 'Envía pdf_base64 o imagenes[] (base64 válido)' }, 400)
   }
 
+  const startedAt = Date.now()
   try {
-    const parsed = await parsearConClaude(bloques)
-    return json(parsed)
+    const result = await parsearConClaude(bloques)
+    await logOcrInteraction({
+      usage: result.usage,
+      latencyMs: Date.now() - startedAt,
+      success: true,
+      inputKind,
+      pages: bloques.length,
+      parsed: result.parsed,
+    })
+    return json(result.parsed)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
+    await logOcrInteraction({
+      usage: e instanceof ClaudeResponseError
+        ? e.usage
+        : { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      latencyMs: Date.now() - startedAt,
+      success: false,
+      error: msg,
+      inputKind,
+      pages: bloques.length,
+    })
     console.error('[parsear-factura] error:', msg)
     return json({ error: msg })
   }
