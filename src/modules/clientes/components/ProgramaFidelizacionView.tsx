@@ -51,6 +51,12 @@ export function ProgramaFidelizacionView() {
     return out
   }, [clientes])
 
+  const facturadoPorPrograma = useMemo(() => {
+    const out: Record<ClientePrograma, number> = { vip: 0, a: 0, b: 0, c: 0, atencion: 0 }
+    for (const c of clientes) out[c.programa] += Number(c.ventas ?? 0)
+    return out
+  }, [clientes])
+
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return clientes
@@ -99,6 +105,15 @@ export function ProgramaFidelizacionView() {
               >
                 {count}
               </span>
+              {!isAll && key !== 'atencion' && (
+                <span
+                  className="border-l pl-1.5 text-[11px] font-bold tabular-nums"
+                  style={{ borderColor: 'var(--line-2)', color: cfg!.accent }}
+                  title={`Total facturado entre ${range.from} y ${range.to}`}
+                >
+                  {eurosShort(facturadoPorPrograma[key as ClientePrograma])}
+                </span>
+              )}
             </button>
           )
         })}

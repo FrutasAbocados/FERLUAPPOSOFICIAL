@@ -1,13 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { FileText, Plus, Trash2 } from 'lucide-react'
+import { Camera, FileText, Loader2, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
 import { euros } from '@/shared/lib/format'
 import { supabase } from '@/shared/lib/supabase'
+import { prepararFoto } from '@/modules/pedidos-wa/lib/imagen'
+import { parsearFacturaProveedorFotos } from '@/modules/pedidos-wa/lib/queries'
 import type { Period } from '../lib/period'
 import {
   useAbueloFacturas, useAbueloLineas,
@@ -61,6 +63,8 @@ export function AbueloView({ period }: Props) {
   const [numero, setNumero] = useState('')
   const [nota, setNota] = useState('')
   const [lineas, setLineas] = useState<LineaForm[]>([nuevaLinea()])
+  const [procesandoOcr, setProcesandoOcr] = useState(false)
+  const camaraRef = useRef<HTMLInputElement>(null)
 
   const subtotalForm = useMemo(() => lineas.reduce((s, l) => s + lineaSubtotal(l), 0), [lineas])
   const ivaForm = useMemo(() => lineas.reduce((s, l) => s + lineaIva(l), 0), [lineas])
@@ -73,6 +77,60 @@ export function AbueloView({ period }: Props) {
   }
   const removeLinea = (i: number) => {
     setLineas(prev => prev.length === 1 ? [nuevaLinea()] : prev.filter((_, idx) => idx !== i))
+  }
+
+  const onFotoOcr = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+
+    setProcesandoOcr(true)
+    try {
+      const foto = await prepararFoto(file)
+      const extraccion = await parsearFacturaProveedorFotos([foto])
+      const lineasExtraidas = (extraccion.lineas ?? [])
+        .filter(l => l.descripcion?.trim() && Number(l.cantidad) > 0)
+        .map<LineaForm>(l => ({
+          product_id: null,
+          nombre: l.descripcion.trim(),
+          units: String(Number(l.cantidad)),
+          price: String(Number(l.precio_unitario)),
+          tax_rate: normalizeIva(l.iva_pct),
+        }))
+
+      if (lineasExtraidas.length === 0) {
+        throw new Error(extraccion.notas_globales || 'No se detectaron líneas legibles en la factura')
+      }
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(extraccion.fecha ?? '')) setFecha(extraccion.fecha)
+      setNumero(extraccion.num_factura === 'SIN-NUMERO' ? '' : (extraccion.num_factura ?? ''))
+      setLineas(lineasExtraidas)
+
+      const avisos = [
+        extraccion.notas_globales,
+        ...extraccion.lineas.map(l => l.notas),
+      ].filter((v): v is string => Boolean(v?.trim()))
+      const totalDigitalizado = lineasExtraidas.reduce((sum, linea) => sum + lineaTotal(linea), 0)
+      if (Number(extraccion.total) > 0 && Math.abs(totalDigitalizado - Number(extraccion.total)) > 0.05) {
+        avisos.push(`REVISAR TOTAL: OCR ${eur(Number(extraccion.total))} · líneas ${eur(totalDigitalizado)}`)
+      }
+      setNota(avisos.join(' · '))
+
+      toast({
+        title: 'Factura digitalizada',
+        description: avisos.length > 0
+          ? `${lineasExtraidas.length} línea(s) rellenadas con avisos en la nota. Revisa antes de guardar.`
+          : `${lineasExtraidas.length} línea(s) rellenadas. Revisa los datos antes de guardar.`,
+      })
+    } catch (error) {
+      toast({
+        title: 'No se pudo leer la factura',
+        description: error instanceof Error ? error.message : String(error),
+        variant: 'error',
+      })
+    } finally {
+      setProcesandoOcr(false)
+    }
   }
 
   const guardar = async () => {
@@ -124,14 +182,42 @@ export function AbueloView({ period }: Props) {
 
       {/* Form factura */}
       <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-[var(--color-ink)]">Nueva factura</h3>
-          <div className="flex items-baseline gap-3 text-sm tabular-nums">
-            <span className="text-[var(--color-ink-3)]">Subtotal {eur(subtotalForm)}</span>
-            <span className="text-[var(--color-ink-3)]">IVA {eur(ivaForm)}</span>
-            <span className="text-base font-bold text-[var(--mint)]">Total {eur(totalForm)}</span>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={procesandoOcr}
+              onClick={() => camaraRef.current?.click()}
+            >
+              {procesandoOcr
+                ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                : <Camera className="mr-1.5 h-4 w-4" />}
+              {procesandoOcr ? 'Digitalizando…' : 'OCR · Cámara'}
+            </Button>
+            <input
+              ref={camaraRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={onFotoOcr}
+            />
+            <div className="flex items-baseline gap-3 text-sm tabular-nums">
+              <span className="text-[var(--color-ink-3)]">Subtotal {eur(subtotalForm)}</span>
+              <span className="text-[var(--color-ink-3)]">IVA {eur(ivaForm)}</span>
+              <span className="text-base font-bold text-[var(--mint)]">Total {eur(totalForm)}</span>
+            </div>
           </div>
         </div>
+
+        {procesandoOcr && (
+          <p className="mt-2 text-xs text-[var(--color-ink-2)]">
+            Leyendo fecha, número, productos, cantidades, precios e IVA de la foto…
+          </p>
+        )}
 
         <div className="mt-3 grid gap-2 md:grid-cols-[160px_140px_1fr]">
           <div>
