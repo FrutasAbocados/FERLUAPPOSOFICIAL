@@ -1642,22 +1642,32 @@ export function useBuscarProveedores(termino: string) {
   })
 }
 
+export type ProveedorAlias = { holded_contact_id: string; holded_nombre: string }
+
+/**
+ * Búsqueda directa del alias (sin hook), para bucles como la cola de PDFs
+ * donde no se puede llamar a `useProveedorAlias` por cada archivo.
+ */
+export async function buscarProveedorAlias(nombreDetectado: string): Promise<ProveedorAlias | null> {
+  const norm = nombreDetectado.trim().toLowerCase()
+  if (!norm) return null
+  const { data, error } = await supabase
+    .from('pedidos_wa_proveedor_alias')
+    .select('holded_contact_id, holded_nombre')
+    .eq('nombre_norm', norm)
+    .eq('activo', true)
+    .maybeSingle()
+  if (error) throw error
+  return data ?? null
+}
+
 /** Vínculo recordado nombre-OCR -> contacto Holded, para autodetectar la próxima vez. */
 export function useProveedorAlias(nombreDetectado: string | null) {
   const norm = (nombreDetectado ?? '').trim().toLowerCase()
   return useQuery({
     queryKey: ['pedidos_wa', 'proveedor-alias', norm] as const,
     enabled: norm.length > 0,
-    queryFn: async (): Promise<{ holded_contact_id: string; holded_nombre: string } | null> => {
-      const { data, error } = await supabase
-        .from('pedidos_wa_proveedor_alias')
-        .select('holded_contact_id, holded_nombre')
-        .eq('nombre_norm', norm)
-        .eq('activo', true)
-        .maybeSingle()
-      if (error) throw error
-      return data ?? null
-    },
+    queryFn: (): Promise<ProveedorAlias | null> => buscarProveedorAlias(norm),
   })
 }
 

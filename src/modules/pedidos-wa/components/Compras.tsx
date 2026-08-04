@@ -3,14 +3,17 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   AlertCircle,
+  Ban,
   Camera,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clock,
   CloudUpload,
   FileText,
   ImageIcon,
   Loader2,
+  RotateCw,
   Search,
   Trash2,
   Upload,
@@ -24,6 +27,7 @@ import { toast } from '@/shared/lib/toast'
 import { cn } from '@/shared/lib/utils'
 import { prepararFoto, type FotoPreparada } from '../lib/imagen'
 import {
+  buscarProveedorAlias,
   parsearFacturaProveedor,
   parsearFacturaProveedorFotos,
   useBuscarProveedores,
@@ -54,6 +58,35 @@ type Borrador = CompraExtraccion & {
 
 const UNIDADES = ['caja', 'kg', 'bolsa', 'saco', 'bandeja', 'manojo', 'bulto', 'unidad', 'lecho', 'carton'] as const
 
+/** Tope de PDFs por tanda. Se procesan de uno en uno, no en paralelo. */
+const MAX_COLA = 20
+/** Diferencia máxima entre la suma de líneas y el bruto para subir sin revisión. */
+const TOLERANCIA_DESVIACION = 0.05
+
+type EstadoItem =
+  | 'espera'
+  | 'ocr'
+  | 'guardando'
+  | 'subiendo'
+  | 'ok'        // guardada Y subida a Holded
+  | 'revisar'   // guardada, pero NO subida: necesita ojo humano
+  | 'error'     // no se pudo guardar/subir
+  | 'cancelado'
+
+type ItemCola = {
+  id: string
+  file: File
+  nombre: string
+  estado: EstadoItem
+  detalle: string | null
+  proveedor: string | null
+  numFactura: string | null
+  total: number | null
+  holdedNum: string | null
+}
+
+const ITEM_TERMINADO: EstadoItem[] = ['ok', 'revisar', 'error', 'cancelado']
+
 export function Compras() {
   const hoy = new Date()
   const [yyyymm, setYyyymm] = useState(format(hoy, 'yyyy-MM'))
@@ -66,6 +99,9 @@ export function Compras() {
   const [borrador, setBorrador] = useState<Borrador | null>(null)
   const [parseando, setParseando] = useState(false)
   const [dragActive, setDragActive] = useState(false)
+  const [cola, setCola] = useState<ItemCola[]>([])
+  const [colaCorriendo, setColaCorriendo] = useState(false)
+  const cancelarColaRef = useRef(false)
   const inputRef   = useRef<HTMLInputElement>(null)
   const camaraRef  = useRef<HTMLInputElement>(null)
   const galeriaRef = useRef<HTMLInputElement>(null)
@@ -189,19 +225,191 @@ export function Compras() {
     }
   }
 
+  // ─── Cola de PDFs (tanda de hasta 20, uno por uno) ─────────────────────────
+
+  const patchItem = (id: string, patch: Partial<ItemCola>) =>
+    setCola((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)))
+
+  /**
+   * Un PDF de principio a fin: OCR → resolver proveedor → guardar → subir a Holded.
+   * Sube SOLO si la factura está limpia: proveedor enlazado, líneas que cuadran con
+   * el bruto y sin avisos del OCR. Lo dudoso se guarda y se marca «revisar» — una
+   * factura de compra en Holded no se deshace desde aquí.
+   */
+  const procesarItemCola = async (item: ItemCola): Promise<'ok' | 'revisar'> => {
+    patchItem(item.id, { estado: 'ocr', detalle: 'Leyendo el PDF…' })
+    const extr = await parsearFacturaProveedor(item.file)
+
+    let holdedId: string | null =
+      extr.proveedor_detectado !== 'otro' ? PROVEEDOR_HOLDED_ID[extr.proveedor_detectado] : null
+    let proveedorNombre = extr.proveedor_nombre
+
+    // Proveedor no autodetectado: probar el alias aprendido en facturas anteriores.
+    if (!holdedId) {
+      const alias = await buscarProveedorAlias(extr.proveedor_nombre).catch(() => null)
+      if (alias) {
+        holdedId = alias.holded_contact_id
+        proveedorNombre = alias.holded_nombre
+      }
+    }
+
+    const sumaLineas = extr.lineas.reduce((s, l) => s + Number(l.importe ?? 0), 0)
+    const desv = Math.abs(sumaLineas - Number(extr.total_bruto ?? 0))
+
+    patchItem(item.id, {
+      estado: 'guardando',
+      detalle: 'Guardando la compra…',
+      proveedor: proveedorNombre,
+      numFactura: extr.num_factura,
+      total: Number(extr.total ?? 0),
+    })
+
+    const compra = await guardar.mutateAsync({
+      proveedor_holded_id: holdedId,
+      proveedor_nombre:    proveedorNombre,
+      num_factura:         extr.num_factura.trim(),
+      fecha:               extr.fecha,
+      total_bruto:         extr.total_bruto,
+      total_iva:           extr.total_iva,
+      total:               extr.total,
+      iva_desglose:        extr.iva_desglose,
+      pdf_filename:        item.file.name,
+      raw_extraction:      extr,
+      notas:               extr.notas_globales ?? null,
+      lineas:              extr.lineas,
+      origen:              'pdf',
+      fotos:               [],
+    })
+
+    const bloqueo = !holdedId
+      ? 'Guardada sin proveedor Holded — enlázalo abajo y súbela a mano'
+      : !extr.num_factura.trim()
+      ? 'Guardada sin nº de factura — complétalo antes de subirla'
+      : desv > TOLERANCIA_DESVIACION
+      ? `Guardada, NO subida: las líneas (${euros(sumaLineas)}) no cuadran con el bruto (${euros(Number(extr.total_bruto ?? 0))}), dif. ${euros(desv)}`
+      : extr.notas_globales
+      ? `Guardada, NO subida: el OCR no se fía — ${extr.notas_globales}`
+      : null
+
+    if (bloqueo) {
+      patchItem(item.id, { estado: 'revisar', detalle: bloqueo })
+      return 'revisar'
+    }
+
+    patchItem(item.id, { estado: 'subiendo', detalle: 'Subiendo a Holded…' })
+    const res = await subir.mutateAsync({ compra_id: compra.id, dry_run: false })
+    if (!('holded_purchase_id' in res)) throw new Error('respuesta inesperada de compra-a-holded')
+    patchItem(item.id, {
+      estado: 'ok',
+      detalle: null,
+      holdedNum: res.holded_purchase_num ?? '✓',
+    })
+    return 'ok'
+  }
+
+  const correrCola = async (items: ItemCola[]) => {
+    cancelarColaRef.current = false
+    setColaCorriendo(true)
+    let subidas = 0
+    let revisar = 0
+    let fallos = 0
+    try {
+      for (const item of items) {
+        if (cancelarColaRef.current) {
+          patchItem(item.id, { estado: 'cancelado', detalle: 'Cancelada antes de empezar' })
+          continue
+        }
+        try {
+          const fin = await procesarItemCola(item)
+          if (fin === 'ok') subidas++
+          else revisar++
+        } catch (e) {
+          fallos++
+          const msg = e instanceof Error ? e.message : String(e)
+          const dup = msg.includes('duplicate key') || msg.includes('unique')
+          patchItem(item.id, {
+            estado: 'error',
+            detalle: dup ? 'Esta factura ya estaba registrada' : msg,
+          })
+        }
+      }
+    } finally {
+      setColaCorriendo(false)
+    }
+    toast({
+      title: cancelarColaRef.current ? 'Tanda cancelada' : 'Tanda terminada',
+      description: [
+        `${subidas} subidas a Holded`,
+        revisar > 0 ? `${revisar} para revisar` : null,
+        fallos  > 0 ? `${fallos} con error` : null,
+      ].filter(Boolean).join(' · '),
+      variant: fallos > 0 ? 'error' : undefined,
+    })
+  }
+
+  const arrancarCola = (pdfs: File[]) => {
+    const lote = pdfs.slice(0, MAX_COLA)
+    if (pdfs.length > MAX_COLA) {
+      toast({
+        title: `Máximo ${MAX_COLA} PDFs por tanda`,
+        description: `Se procesan los ${MAX_COLA} primeros; suelta el resto después.`,
+        variant: 'error',
+      })
+    }
+    const items: ItemCola[] = lote.map((f, i) => ({
+      id: `${Date.now()}-${i}-${f.name}`,
+      file: f,
+      nombre: f.name,
+      estado: 'espera',
+      detalle: null,
+      proveedor: null,
+      numFactura: null,
+      total: null,
+      holdedNum: null,
+    }))
+    setCola(items)
+    void correrCola(items)
+  }
+
+  const reintentarFallidas = () => {
+    const fallidas = cola.filter((it) => it.estado === 'error' || it.estado === 'cancelado')
+    if (fallidas.length === 0) return
+    const reset: ItemCola[] = fallidas.map((it) => ({
+      ...it,
+      estado: 'espera',
+      detalle: null,
+      holdedNum: null,
+    }))
+    setCola((prev) => prev.map((it) => reset.find((r) => r.id === it.id) ?? it))
+    void correrCola(reset)
+  }
+
+  const procesarArchivos = (files: File[]) => {
+    if (files.length === 0) return
+    const imagenes = files.filter((f) => f.type.startsWith('image/'))
+    if (imagenes.length > 0) {
+      // Las fotos siguen siendo UNA factura (una por página), no una tanda.
+      void procesarFotos(imagenes)
+      return
+    }
+    const pdfs = files.filter((f) => f.type === 'application/pdf')
+    if (pdfs.length === 0) {
+      toast({ title: 'Solo PDF o fotos', description: 'Suelta archivos .pdf', variant: 'error' })
+      return
+    }
+    // Un solo PDF mantiene el flujo de siempre: borrador editable antes de guardar.
+    if (pdfs.length === 1) void procesarPdf(pdfs[0])
+    else arrancarCola(pdfs)
+  }
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setDragActive(false)
-    const files = Array.from(e.dataTransfer.files)
-    if (files.length === 0) return
-    const imagenes = files.filter((f) => f.type.startsWith('image/'))
-    if (imagenes.length > 0) procesarFotos(imagenes)
-    else procesarPdf(files[0])
+    procesarArchivos(Array.from(e.dataTransfer.files))
   }
 
   const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) procesarPdf(file)
+    procesarArchivos(Array.from(e.target.files ?? []))
     e.target.value = ''
   }
 
@@ -315,8 +523,19 @@ export function Compras() {
         </div>
       </div>
 
-      {/* Drop zone (oculto si hay borrador para no estorbar) */}
-      {!borrador && (
+      {/* Cola de tanda: mientras hay tanda, la zona de soltar se oculta */}
+      {cola.length > 0 && (
+        <ColaPanel
+          cola={cola}
+          corriendo={colaCorriendo}
+          onCancelar={() => { cancelarColaRef.current = true }}
+          onReintentar={reintentarFallidas}
+          onLimpiar={() => setCola([])}
+        />
+      )}
+
+      {/* Drop zone (oculto si hay borrador o tanda en curso para no estorbar) */}
+      {!borrador && cola.length === 0 && (
         <div className="space-y-2">
           <div
             onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
@@ -339,14 +558,20 @@ export function Compras() {
             ) : (
               <>
                 <Upload className="h-7 w-7 text-[var(--color-ink-2)]" />
-                <div className="text-sm font-medium">Suelta aquí el PDF de la factura</div>
+                <div className="text-sm font-medium">
+                  Suelta aquí los PDFs de las facturas (hasta {MAX_COLA})
+                </div>
                 <div className="text-xs text-[var(--color-ink-2)]">Alcalde · Abasthosur · Agroejido</div>
+                <div className="text-[11px] text-[var(--color-ink-2)]">
+                  1 PDF → lo revisas antes de guardar · varios → se procesan solos y se suben a Holded
+                </div>
               </>
             )}
             <input
               ref={inputRef}
               type="file"
               accept="application/pdf"
+              multiple
               className="hidden"
               onChange={onPickFile}
             />
@@ -513,6 +738,132 @@ export function Compras() {
       )}
     </div>
   )
+}
+
+// ─── Cola de tanda: hasta 20 PDFs, uno por uno, con subida a Holded ──────────
+
+function ColaPanel({
+  cola,
+  corriendo,
+  onCancelar,
+  onReintentar,
+  onLimpiar,
+}: {
+  cola: ItemCola[]
+  corriendo: boolean
+  onCancelar: () => void
+  onReintentar: () => void
+  onLimpiar: () => void
+}) {
+  const hechas    = cola.filter((it) => ITEM_TERMINADO.includes(it.estado)).length
+  const subidas   = cola.filter((it) => it.estado === 'ok').length
+  const revisar   = cola.filter((it) => it.estado === 'revisar').length
+  const fallidas  = cola.filter((it) => it.estado === 'error' || it.estado === 'cancelado').length
+  const pct       = cola.length > 0 ? Math.round((hechas / cola.length) * 100) : 0
+
+  return (
+    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface-2)] p-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 font-display text-sm font-semibold">
+            {corriendo && <Loader2 className="h-4 w-4 animate-spin text-[var(--color-primary)]" />}
+            Tanda de facturas · {hechas}/{cola.length}
+          </div>
+          <div className="mt-0.5 text-xs tabular-nums text-[var(--color-ink-2)]">
+            {subidas} subidas a Holded
+            {revisar  > 0 && <> · <span className="text-[var(--color-primary)]">{revisar} para revisar</span></>}
+            {fallidas > 0 && <> · <span className="text-[var(--coral)]">{fallidas} con error</span></>}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {corriendo && (
+            <Button variant="ghost" onClick={onCancelar}>
+              <Ban className="mr-1.5 h-4 w-4" /> Cancelar tanda
+            </Button>
+          )}
+          {!corriendo && fallidas > 0 && (
+            <Button variant="secondary" onClick={onReintentar}>
+              <RotateCw className="mr-1.5 h-4 w-4" /> Reintentar {fallidas}
+            </Button>
+          )}
+          {!corriendo && (
+            <Button variant="ghost" onClick={onLimpiar}>
+              <X className="mr-1.5 h-4 w-4" /> Cerrar
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Barra de progreso */}
+      <div className="h-1 w-full bg-[var(--color-surface-2)]">
+        <div
+          className="h-full bg-[var(--color-primary)] transition-[width] duration-300"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+
+      <ul className="divide-y divide-[var(--color-border)]">
+        {cola.map((it) => (
+          <li key={it.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
+            <IconoEstado estado={it.estado} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                <span className="truncate font-medium">
+                  {it.proveedor ?? it.nombre}
+                </span>
+                {it.numFactura && (
+                  <span className="text-xs tabular-nums text-[var(--color-ink-2)]">{it.numFactura}</span>
+                )}
+              </div>
+              <div
+                className={cn(
+                  'text-xs',
+                  it.estado === 'error'   && 'text-[var(--coral)]',
+                  it.estado === 'revisar' && 'text-[var(--color-primary)]',
+                  it.estado !== 'error' && it.estado !== 'revisar' && 'text-[var(--color-ink-2)]',
+                )}
+              >
+                {it.detalle ?? etiquetaEstado(it.estado, it.holdedNum)}
+              </div>
+              {it.proveedor && (
+                <div className="truncate text-[10px] text-[var(--color-ink-2)]">{it.nombre}</div>
+              )}
+            </div>
+            {it.total !== null && (
+              <div className="text-right text-sm font-semibold tabular-nums">{euros(it.total)}</div>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {!corriendo && revisar > 0 && (
+        <div className="flex items-start gap-2 border-t border-[var(--color-border)] bg-[oklch(92%_.08_82_/_0.85)] px-3 py-2 text-xs text-[oklch(39%_.11_72)] dark:bg-[oklch(28%_.08_72_/_0.42)] dark:text-[var(--color-primary)]">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          Las marcadas «revisar» están guardadas pero NO en Holded. Corrígelas en la lista de abajo
+          y súbelas con el botón <CloudUpload className="mx-0.5 inline h-3 w-3" /> de cada fila.
+        </div>
+      )}
+    </div>
+  )
+}
+
+function IconoEstado({ estado }: { estado: EstadoItem }) {
+  if (estado === 'espera')    return <Clock className="h-4 w-4 shrink-0 text-[var(--color-ink-2)]" />
+  if (estado === 'ok')        return <CheckCircle2 className="h-4 w-4 shrink-0 text-[var(--mint)]" />
+  if (estado === 'revisar')   return <AlertCircle className="h-4 w-4 shrink-0 text-[var(--color-primary)]" />
+  if (estado === 'error')     return <AlertCircle className="h-4 w-4 shrink-0 text-[var(--coral)]" />
+  if (estado === 'cancelado') return <Ban className="h-4 w-4 shrink-0 text-[var(--color-ink-2)]" />
+  return <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--color-primary)]" />
+}
+
+function etiquetaEstado(estado: EstadoItem, holdedNum: string | null): string {
+  if (estado === 'espera')    return 'En cola'
+  if (estado === 'ocr')       return 'Leyendo el PDF…'
+  if (estado === 'guardando') return 'Guardando la compra…'
+  if (estado === 'subiendo')  return 'Subiendo a Holded…'
+  if (estado === 'ok')        return `Subida a Holded ${holdedNum ?? ''}`.trim()
+  if (estado === 'cancelado') return 'Cancelada'
+  return ''
 }
 
 // ─── Borrador (preview editable) ─────────────────────────────────────────────
