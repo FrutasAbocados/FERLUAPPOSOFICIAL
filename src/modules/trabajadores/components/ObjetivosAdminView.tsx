@@ -5,6 +5,7 @@ import { CheckCircle2, ChevronLeft, ChevronRight, Circle, Target } from 'lucide-
 import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 import { useMarcarMes, useObjetivosAdmin, useUpdateObjetivo, type ObjetivoAdminRow } from '../lib/objetivos-queries'
+import { ObjetivoProgresoBBDD } from './ObjetivoProgresoBBDD'
 
 const ICON_BTN = 'inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)]'
 
@@ -153,6 +154,8 @@ function ObjetivoRow({ row, mesISO }: { row: ObjetivoAdminRow; mesISO: string })
           </div>
         </label>
       </div>
+
+      {row.metrica === 'bbdd_clientes' && <ObjetivoProgresoBBDD mesISO={mesISO} />}
     </section>
   )
 }

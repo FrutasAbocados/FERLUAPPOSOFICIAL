@@ -3,6 +3,7 @@ import { es } from 'date-fns/locale'
 import { Target, CheckCircle2, Clock } from 'lucide-react'
 import { euros } from '@/shared/lib/format'
 import { useObjetivoSelf } from '../lib/objetivos-queries'
+import { ObjetivoProgresoBBDD } from './ObjetivoProgresoBBDD'
 
 export function EmpleadoObjetivoCard() {
   const mesISO = format(startOfMonth(new Date()), 'yyyy-MM-dd')
@@ -34,6 +35,8 @@ export function EmpleadoObjetivoCard() {
           <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">al mes si se cumple</div>
         </div>
       </div>
+
+      {data.metrica === 'bbdd_clientes' && <ObjetivoProgresoBBDD mesISO={mesISO} />}
 
       <div className="mt-3 flex items-center gap-2 border-t border-[var(--line)] pt-3">
         {cumplido ? (

@@ -7,6 +7,8 @@ const KEYS = {
   lista: (desde: string, hasta: string) => ['tesoreria', 'lista', desde, hasta] as const,
 }
 
+const INICIO_OPERATIVO_CONCEPTO = 'Ajuste de apertura · Inicio 14/07/2026'
+
 // ── Queries ──────────────────────────────────────────────────────────────────
 
 export function useTesoreriaKpis(desde: string, hasta: string) {
@@ -33,11 +35,27 @@ export function useTesoreriaLista(desde: string, hasta: string) {
   return useQuery({
     queryKey: KEYS.lista(desde, hasta),
     queryFn: async (): Promise<Movimiento[]> => {
-      const { data, error } = await supabase
+      const { data: inicio, error: inicioError } = await supabase
+        .from('tesoreria_movimientos')
+        .select('created_at')
+        .eq('concepto', INICIO_OPERATIVO_CONCEPTO)
+        .eq('ajuste', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (inicioError) throw inicioError
+
+      let movimientosQuery = supabase
         .from('tesoreria_movimientos')
         .select('*')
         .gte('fecha', desde)
         .lte('fecha', hasta)
+
+      if (inicio?.created_at) {
+        movimientosQuery = movimientosQuery.gt('created_at', inicio.created_at)
+      }
+
+      const { data, error } = await movimientosQuery
         .order('fecha', { ascending: false })
         .order('created_at', { ascending: false })
       if (error) throw error
