@@ -1,15 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCircle2, Coins, Loader2, Plus, Receipt, Search, Trash2, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { CheckCircle2, Coins, Loader2, Plus, Receipt, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { confirm } from '@/shared/lib/confirm'
 import { toast } from '@/shared/lib/toast'
-import { supabase } from '@/shared/lib/supabase'
 import { euros, fmtDate } from '../lib/format'
 import {
+  getUltimaFacturaImporte,
   useActualizarJornada,
   useBorrarJornada,
-  useBuscarContactos,
   useCrearJornada,
   useEmpleadosActivos,
   useGuardarGastos,
@@ -18,6 +17,7 @@ import {
   useJornadaLineas,
   useRevisarCierre,
 } from '../lib/repartos-queries'
+import { ClienteBuscador } from './ClienteBuscador'
 import type {
   ContactoOpt,
   FormaPago,
@@ -161,16 +161,7 @@ function JornadaForm({
         _loading: true,
       },
     ])
-    const { data, error } = await supabase
-      .from('manager_facturas')
-      .select('total')
-      .eq('tipo', 'VENTA')
-      .eq('contact_id', c.id)
-      .in('subtipo', ['waybill', 'invoice', 'salesreceipt'])
-      .order('fecha', { ascending: false })
-      .order('updated_at', { ascending: false })
-      .limit(1)
-    const importe = error ? 0 : Number(data?.[0]?.total ?? 0)
+    const importe = await getUltimaFacturaImporte(c.id).catch(() => 0)
     setLineas((prev) =>
       prev.map((l) => (l._key === key ? { ...l, importe, _loading: false } : l)),
     )
@@ -636,69 +627,6 @@ function ModalShell({
         </header>
         {children}
       </div>
-    </div>
-  )
-}
-
-function ClienteBuscador({ onSelect }: { onSelect: (c: ContactoOpt) => void }) {
-  const [q, setQ] = useState('')
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const resultados = useBuscarContactos(q)
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  return (
-    <div ref={ref} className="relative">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-ink-3)]" />
-        <Input
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value)
-            setOpen(true)
-          }}
-          onFocus={() => setOpen(true)}
-          placeholder="Buscar cliente (mín. 2 letras)…"
-          className="pl-8"
-        />
-      </div>
-      {open && q.trim().length >= 2 && (
-        <div className="absolute left-0 right-0 z-10 mt-1 max-h-60 overflow-y-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg)] shadow-lg">
-          {resultados.isLoading ? (
-            <div className="flex items-center gap-2 p-3 text-xs text-[var(--color-ink-3)]">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Buscando…
-            </div>
-          ) : (resultados.data ?? []).length === 0 ? (
-            <p className="p-3 text-xs text-[var(--color-ink-3)]">Sin resultados.</p>
-          ) : (
-            <ul className="divide-y divide-[var(--color-border)]">
-              {(resultados.data ?? []).map((c) => (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSelect(c)
-                      setQ('')
-                      setOpen(false)
-                    }}
-                    className="block w-full px-3 py-2 text-left text-sm text-[var(--color-ink)] hover:bg-[rgba(255,255,255,.035)]"
-                  >
-                    {c.nombre}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
     </div>
   )
 }

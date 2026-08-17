@@ -14,7 +14,9 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
-import type { FormaPago, GastoTipo } from '@/modules/cash/lib/repartos-types'
+import { ClienteBuscador } from '@/modules/cash/components/ClienteBuscador'
+import { getUltimaFacturaImporte } from '@/modules/cash/lib/repartos-queries'
+import type { ContactoOpt, FormaPago, GastoTipo } from '@/modules/cash/lib/repartos-types'
 import type { EmpleadoPropio } from '../lib/useEmpleadoPropio'
 import { useEnviarCierre, useMiCierre } from '../lib/cierre-propio-queries'
 
@@ -29,6 +31,7 @@ type RepartoUI = {
   contact_nombre: string
   forma_pago: FormaPago
   importe: number | ''
+  _loading?: boolean
 }
 
 type GastoUI = {
@@ -130,8 +133,24 @@ function CierreForm({
     })),
   )
 
-  const addReparto = () =>
-    setRepartos((p) => [...p, { _key: newKey(), contact_id: null, contact_nombre: '', forma_pago: 'efectivo', importe: '' }])
+  const addReparto = async (contacto: ContactoOpt) => {
+    const key = newKey()
+    setRepartos((prev) => [
+      ...prev,
+      {
+        _key: key,
+        contact_id: contacto.id,
+        contact_nombre: contacto.nombre,
+        forma_pago: 'efectivo',
+        importe: '',
+        _loading: true,
+      },
+    ])
+    const importe = await getUltimaFacturaImporte(contacto.id).catch(() => 0)
+    setRepartos((prev) =>
+      prev.map((reparto) => (reparto._key === key ? { ...reparto, importe, _loading: false } : reparto)),
+    )
+  }
 
   const addGasto = () =>
     setGastos((p) => [...p, { _key: newKey(), tipo: 'gasolina', concepto: '', importe: '' }])
@@ -155,6 +174,7 @@ function CierreForm({
   )
 
   const enviado = !!initial?.jornada.enviado_at
+  const cargandoImportes = repartos.some((reparto) => reparto._loading)
 
   const submit = async () => {
     try {
@@ -196,19 +216,17 @@ function CierreForm({
       </Section>
 
       <Section icon={<Truck className="h-4 w-4" />} title="Repartos del día" subtitle="Cada entrega realizada">
+        <ClienteBuscador onSelect={addReparto} />
         {repartos.length === 0 ? (
-          <Empty text="Añade tu primer reparto." />
+          <div className="mt-2">
+            <Empty text="Busca un cliente arriba para añadir el primer reparto." />
+          </div>
         ) : (
-          <ul className="space-y-2">
+          <ul className="mt-2 space-y-2">
             {repartos.map((r) => (
               <li key={r._key} className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
                 <div className="flex items-center gap-2">
-                  <Input
-                    value={r.contact_nombre}
-                    onChange={(e) => setRepartos((p) => p.map((x) => (x._key === r._key ? { ...x, contact_nombre: e.target.value, contact_id: null } : x)))}
-                    placeholder="Nombre del cliente"
-                    className="flex-1"
-                  />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-ink)]">{r.contact_nombre}</span>
                   <Button type="button" variant="ghost" size="icon" aria-label="Quitar reparto" onClick={() => setRepartos((p) => p.filter((x) => x._key !== r._key))}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -230,18 +248,21 @@ function CierreForm({
                       </button>
                     ))}
                   </div>
-                  <ImporteInput
-                    value={r.importe}
-                    onChange={(v) => setRepartos((p) => p.map((x) => (x._key === r._key ? { ...x, importe: v } : x)))}
-                  />
+                  {r._loading ? (
+                    <div className="flex h-9 w-28 items-center justify-center">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-ink-3)]" />
+                    </div>
+                  ) : (
+                    <ImporteInput
+                      value={r.importe}
+                      onChange={(v) => setRepartos((p) => p.map((x) => (x._key === r._key ? { ...x, importe: v } : x)))}
+                    />
+                  )}
                 </div>
               </li>
             ))}
           </ul>
         )}
-        <Button type="button" variant="ghost" onClick={addReparto} className="mt-2 w-full border border-dashed border-[var(--color-border)]">
-          <Plus className="mr-1 h-4 w-4" /> Añadir cliente
-        </Button>
       </Section>
 
       <Section icon={<Receipt className="h-4 w-4" />} title="Gastos del día" subtitle="Gasolina, compras, incidencias… (se pagan de la caja)">
@@ -327,8 +348,8 @@ function CierreForm({
           <span className="text-xs text-[var(--color-ink-3)]">
             {enviado ? '✓ Ya enviado — puedes corregir y reenviar' : 'Aún no enviado'}
           </span>
-          <Button type="button" onClick={submit} disabled={enviar.isPending}>
-            {enviar.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}
+          <Button type="button" onClick={submit} disabled={enviar.isPending || cargandoImportes}>
+            {enviar.isPending || cargandoImportes ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}
             {enviado ? 'Reenviar cierre' : 'Enviar cierre'}
           </Button>
         </div>

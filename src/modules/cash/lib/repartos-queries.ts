@@ -62,6 +62,21 @@ export function useBuscarContactos(query: string) {
   })
 }
 
+// ── Importe de la última factura de venta de un cliente ────────────────
+export async function getUltimaFacturaImporte(contactId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('manager_facturas')
+    .select('total')
+    .eq('tipo', 'VENTA')
+    .eq('contact_id', contactId)
+    .in('subtipo', ['waybill', 'invoice', 'salesreceipt'])
+    .order('fecha', { ascending: false })
+    .order('updated_at', { ascending: false })
+    .limit(1)
+  if (error) throw error
+  return Number(data?.[0]?.total ?? 0)
+}
+
 // ── Jornadas de un día (todas las del repartidor + cabecera) ─────────────
 export function useJornadasDia(fecha: string) {
   return useQuery({
