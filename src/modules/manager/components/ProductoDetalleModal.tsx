@@ -128,7 +128,7 @@ export function ProductoDetalleModal({ producto, period, onClose }: Props) {
           <Tile label="Vendido" value={`${producto.unidades.toFixed(0)} ud`} sub={`${producto.veces} líneas`} />
           <Tile label="Ventas" value={eur0(producto.ventas)} sub="con IVA" />
           <Tile label="Margen" value={eur0(producto.margen)} sub={producto.margen_pct == null ? '' : `${producto.margen_pct.toFixed(1)}%`} tone="positive" />
-          <Tile label="Coste/ud" value={eur(producto.coste_unidad)} sub={producto.es_coste_manual ? 'manual' : 'media 4 últimas'} tone={producto.es_coste_manual ? 'warning' : 'neutral'} />
+          <Tile label="Coste/ud" value={eur(producto.coste_unidad)} sub={producto.es_coste_manual ? 'manual' : 'compras recientes'} tone={producto.es_coste_manual ? 'warning' : 'neutral'} />
           <Tile label="Última compra" value={fmt(producto.ultima_compra)} />
           <Tile label="Última venta" value={fmt(producto.ultima_venta)} />
         </div>
