@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, parseISO, startOfMonth, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Handshake, UsersRound } from 'lucide-react'
+import { Award, ChevronLeft, ChevronRight, Handshake, UsersRound } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { supabase } from '@/shared/lib/supabase'
 import { euros } from '@/shared/lib/format'
 import type { EmpleadoPropio } from '../lib/useEmpleadoPropio'
+import { usePlusesExtraMes } from '../lib/pluses-extra-queries'
 
 type SelfColab = {
   empleado_id: string
@@ -69,6 +70,8 @@ export function EmpleadoColabView({ empleado }: { empleado: EmpleadoPropio }) {
   const isCurrentMonth = mesISO === format(startOfMonth(new Date()), 'yyyy-MM-dd')
   const resumen = useSelfColab(mesISO)
   const detalle = useDetalle(empleado.id, mesISO)
+  const pluses = usePlusesExtraMes(mesISO, empleado.id)
+  const totalPluses = (pluses.data ?? []).reduce((sum, plus) => sum + plus.importe, 0)
 
   return (
     <div className="ao-page max-w-3xl space-y-4 py-5 md:py-7">
@@ -77,7 +80,7 @@ export function EmpleadoColabView({ empleado }: { empleado: EmpleadoPropio }) {
           <Handshake className="h-5 w-5" style={{ color: 'var(--mint)' }} />
           <h1 className="font-display text-2xl font-bold text-[var(--ink)]">Mi colab</h1>
         </div>
-        <p className="mt-1 text-xs text-[var(--ink-mute)]">Clientes asignados y comisión del 5%.</p>
+        <p className="mt-1 text-xs text-[var(--ink-mute)]">Comisiones por clientes y reconocimientos extraordinarios.</p>
       </header>
 
       <div className="ao-panel flex items-center justify-between gap-3 px-4 py-3">
@@ -107,6 +110,7 @@ export function EmpleadoColabView({ empleado }: { empleado: EmpleadoPropio }) {
             <div className="text-right text-xs text-[var(--ink-mute)]">
               <div>Clientes: <span className="tabular-nums text-[var(--ink)]">{resumen.data?.num_clientes ?? 0}</span></div>
               <div>Facturación: <span className="tabular-nums text-[var(--ink)]">{euros(resumen.data?.facturacion_mes ?? 0)}</span></div>
+              <div>Pluses extra: <span className="tabular-nums text-[var(--mint)]">{euros(totalPluses)}</span></div>
             </div>
           </div>
         </div>
@@ -134,6 +138,34 @@ export function EmpleadoColabView({ empleado }: { empleado: EmpleadoPropio }) {
                 <div className="font-display text-base font-bold tabular-nums text-[var(--mint)]">{euros(d.comision)}</div>
                 <div className="text-[10px] text-[var(--ink-mute)]">{euros(d.facturacion)}</div>
               </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="ao-card overflow-hidden p-0">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Award className="h-4 w-4 text-[var(--mint)]" />
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Pluses extraordinarios</h2>
+              <p className="text-[10px] text-[var(--ink-mute)]">Reconocimientos puntuales del mes</p>
+            </div>
+          </div>
+          <span className="font-display text-lg font-bold tabular-nums text-[var(--mint)]">{euros(totalPluses)}</span>
+        </div>
+        {pluses.isLoading && <p className="p-4 text-sm text-[var(--ink-mute)]">Cargando…</p>}
+        {!pluses.isLoading && (pluses.data?.length ?? 0) === 0 && (
+          <p className="p-4 text-sm text-[var(--ink-mute)]">No hay pluses extraordinarios este mes.</p>
+        )}
+        <ul className="divide-y divide-[var(--line)]">
+          {pluses.data?.map((plus) => (
+            <li key={plus.id} className="grid grid-cols-[1fr_auto] items-center gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[var(--ink)]">{plus.concepto}</p>
+                <p className="text-xs text-[var(--ink-mute)]">{format(parseISO(plus.fecha), 'd LLL yyyy', { locale: es })}</p>
+              </div>
+              <span className="font-display text-base font-bold tabular-nums text-[var(--mint)]">{euros(plus.importe)}</span>
             </li>
           ))}
         </ul>

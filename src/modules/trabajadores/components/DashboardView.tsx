@@ -7,6 +7,7 @@ import { supabase } from '@/shared/lib/supabase'
 import { euros } from '@/shared/lib/format'
 import { useAuth } from '@/shared/auth/useAuth'
 import { ColaboradoresView } from './ColaboradoresView'
+import { PlusesExtraAdminView } from './PlusesExtraAdminView'
 import { EmpleadoHero } from './EmpleadoHero'
 import { EmpleadoObjetivoCard } from './EmpleadoObjetivoCard'
 import { useEmpleadoPropio } from '../lib/useEmpleadoPropio'
@@ -249,6 +250,7 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
       )}
 
       <ColaboradoresView />
+      <PlusesExtraAdminView empleados={(empleados ?? []).map(({ id, nombre }) => ({ id, nombre }))} />
     </div>
   )
 }

@@ -10,6 +10,7 @@ import { supabase } from '@/shared/lib/supabase'
 import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
+import { useAuth } from '@/shared/auth/useAuth'
 
 type Resumen = {
   empleado_id: string
@@ -25,6 +26,7 @@ type Detalle = {
   facturacion: number
   comision: number
   asignado_desde: string | null
+  comision_pct: number
 }
 
 type ContactoOpt = { id: string; nombre: string }
@@ -61,6 +63,7 @@ function useDetalle(empleadoId: string | null, mesISO: string) {
         ...r,
         facturacion: Number(r.facturacion),
         comision: Number(r.comision),
+        comision_pct: Number(r.comision_pct ?? 5),
       }))
     },
   })
@@ -121,10 +124,30 @@ function useDesasignar() {
   })
 }
 
+function useActualizarComision() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { empleadoId: string; contactId: string; porcentaje: number }) => {
+      const { error } = await supabase
+        .from('trabajadores_clientes_asignados')
+        .update({ comision_pct: input.porcentaje })
+        .eq('empleado_id', input.empleadoId)
+        .eq('contact_id', input.contactId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['colab-resumen'] })
+      qc.invalidateQueries({ queryKey: ['colab-detalle'] })
+    },
+  })
+}
+
 export function ColaboradoresView() {
+  const { profile } = useAuth()
   const mesISO = format(startOfMonth(new Date()), 'yyyy-MM-dd')
   const { data, isLoading } = useResumen(mesISO)
   const [selected, setSelected] = useState<Resumen | null>(null)
+  const canManage = profile?.role === 'admin_full' || profile?.role === 'admin_op'
 
   const totalComision = useMemo(
     () => (data ?? []).reduce((s, r) => s + r.comision, 0),
@@ -136,7 +159,7 @@ export function ColaboradoresView() {
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-[var(--color-primary-2)]" />
-          <h2 className="text-sm font-semibold text-[var(--color-ink)]">Colaboradores 5%</h2>
+          <h2 className="text-sm font-semibold text-[var(--color-ink)]">Colaboradores</h2>
         </div>
         <div className="text-right">
           <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">Total mes</div>
@@ -165,7 +188,7 @@ export function ColaboradoresView() {
               </div>
               <div className="text-right">
                 <div className="font-display text-base font-bold tabular-nums text-[var(--mint)]">{eur(r.comision)}</div>
-                <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">5%</div>
+                <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">Comisión</div>
               </div>
             </button>
           </li>
@@ -176,6 +199,7 @@ export function ColaboradoresView() {
         <DetalleModal
           empleado={selected}
           mesISO={mesISO}
+          canManage={canManage}
           onClose={() => setSelected(null)}
         />
       )}
@@ -183,13 +207,14 @@ export function ColaboradoresView() {
   )
 }
 
-function DetalleModal({ empleado, mesISO, onClose }: { empleado: Resumen; mesISO: string; onClose: () => void }) {
+function DetalleModal({ empleado, mesISO, canManage, onClose }: { empleado: Resumen; mesISO: string; canManage: boolean; onClose: () => void }) {
   const { data: detalle, isLoading } = useDetalle(empleado.empleado_id, mesISO)
   const desasignar = useDesasignar()
   const [showAdd, setShowAdd] = useState(false)
   const [search, setSearch] = useState('')
   const { data: opts } = useBuscarContactos(search)
   const asignar = useAsignar()
+  const actualizarComision = useActualizarComision()
 
   const yaAsignados = useMemo(() => new Set((detalle ?? []).map((d) => d.contact_id)), [detalle])
 
@@ -238,7 +263,7 @@ function DetalleModal({ empleado, mesISO, onClose }: { empleado: Resumen; mesISO
           <section>
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ink-3)]">Clientes asignados</h3>
-              {!showAdd && (
+              {canManage && !showAdd && (
                 <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}>
                   <Plus className="mr-1 h-3.5 w-3.5" /> Asignar cliente
                 </Button>
@@ -295,20 +320,35 @@ function DetalleModal({ empleado, mesISO, onClose }: { empleado: Resumen; mesISO
             {detalle && detalle.length > 0 && (
               <ul className="space-y-1">
                 {detalle.map((d) => (
-                  <li key={d.contact_id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm">
+                  <li key={d.contact_id} className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm">
                     <span className="truncate text-[var(--color-ink)]">{d.nombre}</span>
                     <span className="tabular-nums text-[var(--color-ink-3)]">{eur(d.facturacion)}</span>
                     <span className="ao-text-success tabular-nums font-semibold">{eur(d.comision)}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => submitDesasignar(d)}
-                      disabled={desasignar.isPending}
-                      title="Quitar cliente"
-                      className="ao-text-danger ao-hover-danger h-7 w-7 shrink-0 p-0"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {canManage ? (
+                      <ComisionInput
+                        detalle={d}
+                        empleadoId={empleado.empleado_id}
+                        pending={actualizarComision.isPending}
+                        onSave={(porcentaje) => actualizarComision.mutate(
+                          { empleadoId: empleado.empleado_id, contactId: d.contact_id, porcentaje },
+                          { onError: (error) => toast({ title: 'No se pudo cambiar la comisión', description: error instanceof Error ? error.message : '', variant: 'error' }) },
+                        )}
+                      />
+                    ) : (
+                      <span className="text-xs tabular-nums text-[var(--color-ink-3)]">{d.comision_pct}%</span>
+                    )}
+                    {canManage ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => submitDesasignar(d)}
+                        disabled={desasignar.isPending}
+                        title="Quitar cliente"
+                        className="ao-text-danger ao-hover-danger h-7 w-7 shrink-0 p-0"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    ) : <span className="w-7" />}
                   </li>
                 ))}
               </ul>
@@ -316,5 +356,45 @@ function DetalleModal({ empleado, mesISO, onClose }: { empleado: Resumen; mesISO
           </section>
         </div>
     </Modal>
+  )
+}
+
+function ComisionInput({
+  detalle,
+  empleadoId,
+  pending,
+  onSave,
+}: {
+  detalle: Detalle
+  empleadoId: string
+  pending: boolean
+  onSave: (porcentaje: number) => void
+}) {
+  const [value, setValue] = useState(String(detalle.comision_pct))
+  const commit = () => {
+    const porcentaje = Number(value)
+    if (!Number.isFinite(porcentaje) || porcentaje <= 0 || porcentaje > 100) {
+      setValue(String(detalle.comision_pct))
+      return
+    }
+    if (porcentaje !== detalle.comision_pct) onSave(porcentaje)
+  }
+  return (
+    <div className="relative w-16">
+      <Input
+        aria-label={`Comisión de ${detalle.nombre} para ${empleadoId}`}
+        type="number"
+        min="0.01"
+        max="100"
+        step="0.25"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }}
+        disabled={pending}
+        className="h-7 pr-5 text-right text-xs tabular-nums"
+      />
+      <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-[var(--ink-mute)]">%</span>
+    </div>
   )
 }

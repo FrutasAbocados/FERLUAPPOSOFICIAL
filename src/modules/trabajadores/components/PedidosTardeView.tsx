@@ -5,7 +5,10 @@ import {
   ArrowLeftRight,
   Banknote,
   Building2,
+  CalendarRange,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   CircleDollarSign,
   CreditCard,
   HandCoins,
@@ -16,7 +19,6 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
-import { Input } from '@/shared/components/ui/input'
 import { euros } from '@/shared/lib/format'
 import { confirm } from '@/shared/lib/confirm'
 import { errorMessage } from '@/shared/lib/errors'
@@ -52,6 +54,19 @@ export function PedidosTardeView() {
   )
   const allSelected = rows.length > 0 && rows.every((row) => selectedIds.has(row.id))
   const isMutating = actualizarEstado.isPending || cambiarMetodo.isPending || eliminar.isPending
+  const currentMonth = format(new Date(), 'yyyy-MM')
+  const monthDate = parseISO(`${month}-01`)
+  const isCurrentMonth = month === currentMonth
+  const monthLabel = format(monthDate, 'LLLL yyyy', { locale: es })
+  const cobradasCount = rows.filter((row) => row.cobrada_cliente).length
+  const pendientesLiquidacion = rows.filter((row) => row.cobrada_cliente && !row.liquidada_empresa).length
+
+  const moveMonth = (offset: number) => {
+    const next = format(addMonths(monthDate, offset), 'yyyy-MM')
+    if (next > currentMonth) return
+    setMonth(next)
+    setSelectedIds(new Set())
+  }
 
   const toggleOne = (id: string) => {
     setSelectedIds((current) => {
@@ -121,34 +136,63 @@ export function PedidosTardeView() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-3 px-3 py-4 pb-28 md:px-6 md:py-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-xl font-bold text-[var(--ink)]">Pedidos Tarde</h1>
-          <p className="text-xs text-[var(--ink-dim)]">Control de cobros y reparto 80% Raúl · 20% empresa.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Input
-            type="month"
-            value={month}
-            onChange={(event) => {
-              setMonth(event.target.value || format(new Date(), 'yyyy-MM'))
-              setSelectedIds(new Set())
-            }}
-            className="h-9 w-[145px]"
-            aria-label="Mes"
-          />
+      <section className="ao-card overflow-hidden p-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-[var(--radius-lg)] bg-[var(--mint-glow)] text-[var(--mint)]">
+              <WalletCards className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--mint)]">Liquidación comercial</p>
+              <h1 className="font-display text-xl font-bold text-[var(--ink)]">Pedidos de tarde</h1>
+              <p className="text-xs text-[var(--ink-dim)]">Seguimiento de facturación, cobros y saldos con la empresa.</p>
+            </div>
+          </div>
           <Button size="sm" onClick={() => setCrearOpen(true)}>
-            <Plus className="mr-1 h-4 w-4" /> Crear factura
+            <Plus className="mr-1 h-4 w-4" /> Incorporar factura
           </Button>
         </div>
-      </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] bg-white/[.015] px-3 py-2.5">
+          <div className="flex items-center gap-1.5">
+            <span className="mr-1 hidden items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-mute)] sm:flex">
+              <CalendarRange className="h-3.5 w-3.5" /> Periodo
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => moveMonth(-1)} aria-label="Mes anterior" className="h-8 w-8 p-0">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="min-w-[132px] text-center font-display text-sm font-bold capitalize text-[var(--ink)] md:min-w-[155px]">
+              {monthLabel}
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => moveMonth(1)}
+              disabled={isCurrentMonth}
+              aria-label="Mes siguiente"
+              className="h-8 w-8 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            {!isCurrentMonth && (
+              <Button size="sm" variant="outline" onClick={() => { setMonth(currentMonth); setSelectedIds(new Set()) }}>
+                Este mes
+              </Button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold text-[var(--ink-dim)]">
+            <span className="rounded-full border border-[var(--line)] px-2 py-1 tabular-nums">{rows.length} facturas</span>
+            <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-emerald-400 tabular-nums">{cobradasCount} cobradas</span>
+            <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-amber-400 tabular-nums">{pendientesLiquidacion} por liquidar</span>
+          </div>
+        </div>
+      </section>
 
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-6">
-        <Kpi icon={<CircleDollarSign />} label="Dinero generado" value={euros(kpis.generado)} />
-        <Kpi icon={<UserRound />} label="Beneficio Raúl · 80%" value={euros(kpis.beneficioRaul)} tone="mint" />
-        <Kpi icon={<Building2 />} label="Beneficio empresa · 20%" value={euros(kpis.beneficioEmpresa)} />
-        <Kpi icon={<Banknote />} label="Raúl debe a empresa" value={euros(kpis.pendienteRaulEmpresa)} tone="warning" />
-        <Kpi icon={<CreditCard />} label="Empresa debe a Raúl" value={euros(kpis.pendienteEmpresaRaul)} tone="info" />
+        <Kpi icon={<CircleDollarSign />} label="Facturación gestionada" value={euros(kpis.generado)} />
+        <Kpi icon={<UserRound />} label="Resultado para Raúl" value={euros(kpis.beneficioRaul)} tone="mint" />
+        <Kpi icon={<Building2 />} label="Participación empresa" value={euros(kpis.beneficioEmpresa)} />
+        <Kpi icon={<Banknote />} label="Raúl → empresa" value={euros(kpis.pendienteRaulEmpresa)} tone="warning" />
+        <Kpi icon={<CreditCard />} label="Empresa → Raúl" value={euros(kpis.pendienteEmpresaRaul)} tone="info" />
         <Kpi
           icon={<ArrowLeftRight />}
           label="Balance pendiente"
@@ -156,6 +200,17 @@ export function PedidosTardeView() {
           detail={kpis.balance > 0 ? 'Empresa → Raúl' : kpis.balance < 0 ? 'Raúl → empresa' : 'Al día'}
           tone={kpis.balance === 0 ? 'mint' : 'warning'}
         />
+      </div>
+
+      <div className="ao-panel grid gap-2 px-3 py-2.5 text-xs text-[var(--ink-dim)] md:grid-cols-2">
+        <div className="flex items-center gap-2">
+          <CreditCard className="h-4 w-4 shrink-0 text-sky-400" />
+          <span><strong className="text-[var(--ink)]">Tarjeta:</strong> cobra la empresa y queda pendiente la parte de Raúl.</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Banknote className="h-4 w-4 shrink-0 text-amber-400" />
+          <span><strong className="text-[var(--ink)]">Efectivo:</strong> cobra Raúl y queda pendiente la liquidación con la empresa.</span>
+        </div>
       </div>
 
       {batchCount > 0 && (
@@ -215,6 +270,13 @@ export function PedidosTardeView() {
 
         {rows.length > 0 && (
           <>
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-3 py-2.5">
+              <div>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-dim)]">Facturas del periodo</h2>
+                <p className="text-[10px] text-[var(--ink-mute)]">Selecciona varias para actualizar su situación conjuntamente.</p>
+              </div>
+              <span className="text-xs tabular-nums text-[var(--ink-mute)]">{rows.length} registros</span>
+            </div>
             <div className="hidden grid-cols-[28px_90px_90px_minmax(150px,1fr)_90px_96px_104px_116px_42px] items-center gap-2 border-b border-[var(--line)] px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-mute)] md:grid">
               <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4" aria-label="Seleccionar todas" />
               <span>Fecha</span>
