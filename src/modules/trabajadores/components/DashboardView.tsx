@@ -10,6 +10,7 @@ import { ColaboradoresView } from './ColaboradoresView'
 import { PlusesExtraAdminView } from './PlusesExtraAdminView'
 import { EmpleadoHero } from './EmpleadoHero'
 import { EmpleadoObjetivoCard } from './EmpleadoObjetivoCard'
+import { EmpleadoBeneficiosMesCard } from './EmpleadoBeneficiosMesCard'
 import { useEmpleadoPropio } from '../lib/useEmpleadoPropio'
 
 interface Empleado {
@@ -74,6 +75,7 @@ function siguienteMes(mesISO: string): string {
 export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean }) {
   const { profile } = useAuth()
   const isAdmin = !modoEmpleado && profile?.role !== 'empleado'
+  const isRaul = profile?.email.trim().toLowerCase() === 'raulpedper@gmail.com'
 
   const mesISO = format(startOfMonth(new Date()), 'yyyy-MM-dd')
   const mesFinISO = siguienteMes(mesISO)
@@ -196,6 +198,12 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
               creditoGastado={cr?.gastado ?? null}
               creditoLimite={cr?.limite_base ?? null}
             />
+            {isRaul && (
+              <EmpleadoBeneficiosMesCard
+                empleadoId={e.id}
+                puntosEuros={pts?.euros ?? 0}
+              />
+            )}
             <div className="mt-4">
               <EmpleadoObjetivoCard />
             </div>

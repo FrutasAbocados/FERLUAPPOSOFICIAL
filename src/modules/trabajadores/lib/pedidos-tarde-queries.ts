@@ -241,17 +241,3 @@ export function useCambiarMetodoPedidoTarde() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
   })
 }
-
-export function useEliminarPedidoTarde() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('trabajadores_pedidos_tarde_facturas')
-        .delete()
-        .eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
-  })
-}

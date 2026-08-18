@@ -14,13 +14,11 @@ import {
   HandCoins,
   Loader2,
   Plus,
-  Trash2,
   UserRound,
   WalletCards,
 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { euros } from '@/shared/lib/format'
-import { confirm } from '@/shared/lib/confirm'
 import { errorMessage } from '@/shared/lib/errors'
 import { toast } from '@/shared/lib/toast'
 import {
@@ -28,7 +26,6 @@ import {
   type PedidoTardeFactura,
   useActualizarEstadoPedidosTarde,
   useCambiarMetodoPedidoTarde,
-  useEliminarPedidoTarde,
   usePedidosTardeFacturaIds,
   usePedidosTardeFacturas,
 } from '../lib/pedidos-tarde-queries'
@@ -45,7 +42,6 @@ export function PedidosTardeView() {
   const facturaIds = usePedidosTardeFacturaIds()
   const actualizarEstado = useActualizarEstadoPedidosTarde()
   const cambiarMetodo = useCambiarMetodoPedidoTarde()
-  const eliminar = useEliminarPedidoTarde()
   const rows = useMemo(() => facturas.data ?? [], [facturas.data])
   const kpis = useMemo(() => calcularPedidosTardeKpis(rows), [rows])
   const selectedRows = useMemo(
@@ -53,7 +49,7 @@ export function PedidosTardeView() {
     [rows, selectedIds],
   )
   const allSelected = rows.length > 0 && rows.every((row) => selectedIds.has(row.id))
-  const isMutating = actualizarEstado.isPending || cambiarMetodo.isPending || eliminar.isPending
+  const isMutating = actualizarEstado.isPending || cambiarMetodo.isPending
   const currentMonth = format(new Date(), 'yyyy-MM')
   const monthDate = parseISO(`${month}-01`)
   const isCurrentMonth = month === currentMonth
@@ -97,27 +93,6 @@ export function PedidosTardeView() {
       toast({ title: successMessage, variant: 'success' })
     } catch (error) {
       toast({ title: 'No se pudo actualizar', description: errorMessage(error), variant: 'error' })
-    }
-  }
-
-  const handleDelete = async (row: PedidoTardeFactura) => {
-    const ok = await confirm({
-      title: `¿Quitar la factura ${row.numero_factura}?`,
-      description: 'Solo se elimina de Pedidos Tarde. La factura original seguirá en Manager y Holded.',
-      confirmLabel: 'Quitar factura',
-      variant: 'danger',
-    })
-    if (!ok) return
-    try {
-      await eliminar.mutateAsync(row.id)
-      setSelectedIds((current) => {
-        const next = new Set(current)
-        next.delete(row.id)
-        return next
-      })
-      toast({ title: 'Factura retirada de Pedidos Tarde', variant: 'success' })
-    } catch (error) {
-      toast({ title: 'No se pudo quitar', description: errorMessage(error), variant: 'error' })
     }
   }
 
@@ -277,7 +252,7 @@ export function PedidosTardeView() {
               </div>
               <span className="text-xs tabular-nums text-[var(--ink-mute)]">{rows.length} registros</span>
             </div>
-            <div className="hidden grid-cols-[28px_90px_90px_minmax(150px,1fr)_90px_96px_104px_116px_42px] items-center gap-2 border-b border-[var(--line)] px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-mute)] md:grid">
+            <div className="hidden grid-cols-[28px_90px_90px_minmax(150px,1fr)_90px_96px_104px_116px] items-center gap-2 border-b border-[var(--line)] px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-mute)] md:grid">
               <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4" aria-label="Seleccionar todas" />
               <span>Fecha</span>
               <span>Factura</span>
@@ -286,7 +261,6 @@ export function PedidosTardeView() {
               <span className="text-right">Total</span>
               <span className="text-right">Beneficio</span>
               <span>Estados</span>
-              <span />
             </div>
             <div className="divide-y divide-[var(--line)]">
               {rows.map((row) => (
@@ -299,7 +273,6 @@ export function PedidosTardeView() {
                   onMetodo={() => handleMetodo(row)}
                   onCobro={() => updateStatus([row.id], 'cobrada', !row.cobrada_cliente, row.cobrada_cliente ? 'Cobro deshecho' : 'Factura cobrada')}
                   onLiquidacion={() => updateStatus([row.id], 'liquidada', !row.liquidada_empresa, row.liquidada_empresa ? 'Liquidación deshecha' : 'Factura liquidada')}
-                  onDelete={() => handleDelete(row)}
                 />
               ))}
             </div>
@@ -356,7 +329,6 @@ function FacturaRow({
   onMetodo,
   onCobro,
   onLiquidacion,
-  onDelete,
 }: {
   row: PedidoTardeFactura
   checked: boolean
@@ -365,12 +337,11 @@ function FacturaRow({
   onMetodo: () => void
   onCobro: () => void
   onLiquidacion: () => void
-  onDelete: () => void
 }) {
   const parteRaul = row.beneficio * 0.8
   const liquidacion = row.metodo_cobro === 'tarjeta' ? parteRaul : row.importe_total - parteRaul
   return (
-    <div className="p-3 md:grid md:grid-cols-[28px_90px_90px_minmax(150px,1fr)_90px_96px_104px_116px_42px] md:items-center md:gap-2">
+    <div className="p-3 md:grid md:grid-cols-[28px_90px_90px_minmax(150px,1fr)_90px_96px_104px_116px] md:items-center md:gap-2">
       <div className="flex items-start gap-3 md:contents">
         <input type="checkbox" checked={checked} onChange={onToggle} className="mt-1 h-4 w-4 md:mt-0" aria-label={`Seleccionar ${row.numero_factura}`} />
         <div className="min-w-0 flex-1 md:contents">
@@ -425,15 +396,6 @@ function FacturaRow({
               </span>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={disabled}
-            className="mt-2 grid h-8 w-8 place-items-center rounded-[var(--radius)] text-[var(--ink-mute)] hover:bg-red-500/10 hover:text-red-400 md:mt-0"
-            aria-label={`Quitar ${row.numero_factura}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
         </div>
       </div>
     </div>

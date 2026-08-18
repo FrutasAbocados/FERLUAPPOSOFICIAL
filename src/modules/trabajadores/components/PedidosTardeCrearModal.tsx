@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Banknote, Check, CreditCard, Loader2, Search, X } from 'lucide-react'
+import { Banknote, Check, CreditCard, Loader2, LockKeyhole, Search, X } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Modal } from '@/shared/components/Modal'
@@ -46,7 +46,7 @@ export function PedidosTardeCrearModal({ existingFacturaIds, onClose }: Props) {
     if (!selected || !margen.data || !metodo || yaAnadida) return
     try {
       await crear.mutateAsync({ factura: selected, margen: margen.data, metodoCobro: metodo })
-      toast({ title: `Factura ${selected.doc_number} añadida`, variant: 'success' })
+      toast({ title: `Factura ${selected.doc_number} confirmada`, variant: 'success' })
       onClose()
     } catch (error) {
       const message = errorMessage(error) ?? 'Error desconocido'
@@ -205,6 +205,13 @@ export function PedidosTardeCrearModal({ existingFacturaIds, onClose }: Props) {
             <strong className="tabular-nums text-[var(--ink)]">{euros(saldo)}</strong>.
           </div>
         )}
+
+        {selected && margen.data && metodo && (
+          <div className="flex items-start gap-2 rounded-[var(--radius)] border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+            <LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>Al confirmar, la factura quedará protegida: no se podrá eliminar ni cambiar sus importes.</span>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-end gap-2 border-t border-[var(--line)] px-4 py-3">
@@ -214,7 +221,7 @@ export function PedidosTardeCrearModal({ existingFacturaIds, onClose }: Props) {
           disabled={!selected || !margen.data || !metodo || yaAnadida || crear.isPending}
         >
           {crear.isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-          Añadir factura
+          Confirmar factura
         </Button>
       </div>
     </Modal>
