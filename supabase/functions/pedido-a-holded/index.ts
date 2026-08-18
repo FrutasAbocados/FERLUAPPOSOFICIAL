@@ -302,6 +302,40 @@ Deno.serve(async (req) => {
     }, 409)
   }
 
+  // Idempotencia de negocio: un cliente solo debe tener un documento por
+  // fecha de pedido. Los reintentos de generación pueden crear otra fila con
+  // distinto id; sin esta guarda ambas filas llegarían a Holded.
+  const siblingRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/pedidos_wa?cliente_id=eq.${pedido.cliente_id}&fecha=eq.${pedido.fecha}&holded_invoice_id=not.is.null&id=neq.${pedido.id}&select=id,holded_invoice_id,holded_invoice_num,holded_invoice_doc_type&limit=1`,
+    { headers: dbHeaders },
+  )
+  if (!siblingRes.ok) {
+    return jsonRes({ error: `comprobar duplicado ${siblingRes.status}` }, 500)
+  }
+  const siblingRows = await siblingRes.json() as Array<{
+    id: string
+    holded_invoice_id: string
+    holded_invoice_num: string | null
+    holded_invoice_doc_type: string | null
+  }>
+  const sibling = siblingRows[0]
+  if (sibling) {
+    const duplicateResult = {
+      ok: true,
+      already: true,
+      duplicate_order: true,
+      duplicate_of_order_id: sibling.id,
+      holded_invoice_id: sibling.holded_invoice_id,
+      holded_invoice_num: sibling.holded_invoice_num,
+      doc_type: sibling.holded_invoice_doc_type as 'invoice' | 'waybill' | null,
+    }
+    if (auto) return jsonRes(duplicateResult)
+    return jsonRes({
+      error: 'ya existe otro pedido del cliente y fecha subido a Holded',
+      ...duplicateResult,
+    }, 409)
+  }
+
   const failValidation = async (msg: string) => {
     if (auto) await writeLog({ pedido_id: pedidoId, source, status: 422, ok: false, error_msg: msg })
     return jsonRes({ error: msg }, 422)
