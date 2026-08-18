@@ -22,8 +22,9 @@ const EmpleadoHorasExtrasView = lazy(() => import('./components/EmpleadoHorasExt
 const RuletaPremiosSelfCard = lazy(() => import('./components/RuletaPremiosSelfCard').then(m => ({ default: m.RuletaPremiosSelfCard })))
 const ObjetivosAdminView = lazy(() => import('./components/ObjetivosAdminView').then(m => ({ default: m.ObjetivosAdminView })))
 const IncidenciasView = lazy(() => import('./components/IncidenciasView').then(m => ({ default: m.IncidenciasView })))
+const PedidosTardeView = lazy(() => import('./components/PedidosTardeView').then(m => ({ default: m.PedidosTardeView })))
 
-type Tab = 'dashboard' | 'puntos' | 'premios' | 'vacaciones' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'incidencias' | 'colab' | 'cierre'
+type Tab = 'dashboard' | 'puntos' | 'premios' | 'vacaciones' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'incidencias' | 'colab' | 'cierre' | 'pedidos_tarde'
 
 const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'dashboard',     l: 'Dashboard',          Icon: BarChart3 },
@@ -38,7 +39,7 @@ const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'incidencias',   l: 'Incidencias',        Icon: ClipboardList },
 ]
 
-const TABS_EMPLEADO: Tab[] = ['dashboard', 'cierre', 'incidencias', 'puntos', 'premios', 'vacaciones', 'horas_extras', 'credito', 'colab']
+const TABS_EMPLEADO: Tab[] = ['dashboard', 'cierre', 'incidencias', 'puntos', 'premios', 'vacaciones', 'horas_extras', 'credito', 'colab', 'pedidos_tarde']
 const TAB_KEYS = new Set<string>([...TABS.map(t => t.k), ...TABS_EMPLEADO])
 
 const isTab = (v: string | null | undefined): v is Tab =>
@@ -106,8 +107,10 @@ function EmpleadoContent({
   setTab: (t: Tab) => void
   isEmpleadoTab: (t: Tab) => t is EmpleadoTab
 }) {
+  const { profile } = useAuth()
   const { data: empleado, isLoading } = useEmpleadoPropio()
-  const empTab = isEmpleadoTab(tab) ? tab : 'dashboard'
+  const showPedidosTarde = profile?.email.trim().toLowerCase() === 'raulpedper@gmail.com'
+  const empTab = isEmpleadoTab(tab) && (tab !== 'pedidos_tarde' || showPedidosTarde) ? tab : 'dashboard'
 
   if (isLoading) {
     return (
@@ -119,7 +122,7 @@ function EmpleadoContent({
 
   return (
     <div>
-      <EmpleadoNav tab={empTab} setTab={(t) => setTab(t)} />
+      <EmpleadoNav tab={empTab} setTab={(t) => setTab(t)} showPedidosTarde={showPedidosTarde} />
 
       <Suspense fallback={<TabFallback />}>
         {empTab === 'dashboard'    && <DashboardView modoEmpleado />}
@@ -131,6 +134,7 @@ function EmpleadoContent({
         {empTab === 'vacaciones'   && (empleado ? <EmpleadoVacacionesView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'horas_extras' && (empleado ? <EmpleadoHorasExtrasView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'colab'        && (empleado ? <EmpleadoColabView empleado={empleado} /> : <DashboardView modoEmpleado />)}
+        {empTab === 'pedidos_tarde' && showPedidosTarde && <PedidosTardeView />}
       </Suspense>
     </div>
   )
@@ -151,4 +155,3 @@ function TabFallback() {
     </div>
   )
 }
-

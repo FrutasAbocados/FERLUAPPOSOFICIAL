@@ -10,11 +10,12 @@ import {
   Gift,
   Handshake,
   MoreHorizontal,
+  ReceiptText,
   ShoppingBasket,
   X,
 } from 'lucide-react'
 
-export type EmpleadoTab = 'dashboard' | 'puntos' | 'premios' | 'credito' | 'colab' | 'vacaciones' | 'cierre' | 'horas_extras' | 'incidencias'
+export type EmpleadoTab = 'dashboard' | 'puntos' | 'premios' | 'credito' | 'colab' | 'vacaciones' | 'cierre' | 'horas_extras' | 'incidencias' | 'pedidos_tarde'
 
 const ALL_TABS = [
   { k: 'dashboard',   l: 'Inicio',      Icon: BarChart3 },
@@ -26,25 +27,29 @@ const ALL_TABS = [
   { k: 'horas_extras', l: 'Horas extras', Icon: Clock4 },
   { k: 'credito',     l: 'Crédito',     Icon: ShoppingBasket },
   { k: 'colab',       l: 'Colab',       Icon: Handshake },
+  { k: 'pedidos_tarde', l: 'Pedidos Tarde', Icon: ReceiptText, soloRaul: true },
 ] as const
 
 const MOBILE_PRIMARY_KEYS = ['dashboard', 'cierre', 'incidencias', 'puntos'] as const
-const MOBILE_PRIMARY_TABS = ALL_TABS.filter(t =>
-  MOBILE_PRIMARY_KEYS.includes(t.k as (typeof MOBILE_PRIMARY_KEYS)[number]),
-)
-const MOBILE_MORE_TABS = ALL_TABS.filter(t =>
-  !MOBILE_PRIMARY_KEYS.includes(t.k as (typeof MOBILE_PRIMARY_KEYS)[number]),
-)
 
 export function EmpleadoNav({
   tab,
   setTab,
+  showPedidosTarde = false,
 }: {
   tab: EmpleadoTab
   setTab: (t: EmpleadoTab) => void
+  showPedidosTarde?: boolean
 }) {
   const [moreOpen, setMoreOpen] = useState(false)
-  const moreActive = MOBILE_MORE_TABS.some(t => t.k === tab)
+  const visibleTabs = ALL_TABS.filter(t => !('soloRaul' in t) || showPedidosTarde)
+  const mobilePrimaryTabs = visibleTabs.filter(t =>
+    MOBILE_PRIMARY_KEYS.includes(t.k as (typeof MOBILE_PRIMARY_KEYS)[number]),
+  )
+  const mobileMoreTabs = visibleTabs.filter(t =>
+    !MOBILE_PRIMARY_KEYS.includes(t.k as (typeof MOBILE_PRIMARY_KEYS)[number]),
+  )
+  const moreActive = mobileMoreTabs.some(t => t.k === tab)
 
   const selectTab = (nextTab: EmpleadoTab) => {
     setTab(nextTab)
@@ -56,7 +61,7 @@ export function EmpleadoNav({
       {/* Desktop: pill tab bar */}
       <div className="emp-desktop-nav hidden md:block">
         <div className="ao-tabbar max-w-full overflow-x-auto no-scrollbar">
-          {ALL_TABS.map(t => (
+          {visibleTabs.map(t => (
             <button
               key={t.k}
               type="button"
@@ -73,7 +78,7 @@ export function EmpleadoNav({
 
       {/* Mobile: fixed bottom navigation */}
       <nav className="emp-bottom-nav md:hidden" aria-label="Navegación personal">
-        {MOBILE_PRIMARY_TABS.map(t => (
+        {mobilePrimaryTabs.map(t => (
           <button
             key={t.k}
             type="button"
@@ -114,7 +119,7 @@ export function EmpleadoNav({
                 </Dialog.Close>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                {MOBILE_MORE_TABS.map(t => (
+                {mobileMoreTabs.map(t => (
                   <button
                     key={t.k}
                     type="button"
