@@ -167,6 +167,19 @@ function JornadaForm({
     )
   }
 
+  const addLineaManual = () =>
+    setLineas((prev) => [
+      ...prev,
+      {
+        _key: newKey(),
+        contact_id: null,
+        contact_nombre: '',
+        importe: 0,
+        forma_pago: 'efectivo',
+        orden: prev.length,
+      },
+    ])
+
   const updLinea = (key: string, patch: Partial<LineaInput>) => {
     setLineas((prev) => prev.map((l) => (l._key === key ? { ...l, ...patch } : l)))
   }
@@ -372,9 +385,18 @@ function JornadaForm({
                     key={l._key}
                     className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 px-3 py-2 text-sm"
                   >
-                    <span className="truncate font-medium text-[var(--color-ink)]">
-                      {l.contact_nombre}
-                    </span>
+                    {l.contact_id ? (
+                      <span className="truncate font-medium text-[var(--color-ink)]">
+                        {l.contact_nombre}
+                      </span>
+                    ) : (
+                      <Input
+                        value={l.contact_nombre}
+                        onChange={(ev) => updLinea(l._key, { contact_nombre: ev.target.value })}
+                        placeholder="Nombre del cliente"
+                        className="h-8 min-w-0"
+                      />
+                    )}
                     {l._loading ? (
                       <div className="flex h-8 w-24 items-center justify-center">
                         <Loader2 className="h-3 w-3 animate-spin text-[var(--color-ink-3)]" />
@@ -418,6 +440,9 @@ function JornadaForm({
                 ))}
               </ul>
             )}
+            <Button type="button" variant="ghost" onClick={addLineaManual} className="mt-2 w-full border border-dashed border-[var(--color-border)]">
+              <Plus className="mr-1 h-4 w-4" /> Añadir línea manual
+            </Button>
           </div>
 
           <div>
