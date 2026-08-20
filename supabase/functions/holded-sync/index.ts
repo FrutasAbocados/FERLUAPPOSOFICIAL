@@ -42,7 +42,7 @@ interface HoldedLine {
 interface HoldedDoc {
   id: string
   docNumber?: string
-  contact?: string
+  contact?: string | number
   contactName?: string
   date?: number
   dueDate?: number
@@ -104,6 +104,24 @@ function cleanName(raw?: string): string {
   const i = raw.toLowerCase().indexOf('trazab')
   if (i >= 0) return raw.slice(0, i).trim()
   return raw.trim()
+}
+
+// Holded representa los documentos sin contacto (p. ej. tickets anónimos)
+// con contact=0/"0". Ese marcador no es un ID real y violaría la FK contra
+// manager_contactos, así que se persiste como NULL.
+function normalizeContactId(raw?: string | number): string | null {
+  const id = String(raw ?? '').trim()
+  return id && id !== '0' ? id : null
+}
+
+function contactRowsFromDocs(docs: HoldedDoc[], from: DocType) {
+  const byId = new Map<string, { id: string; nombre: string; raw: { from: DocType } }>()
+  for (const doc of docs) {
+    const id = normalizeContactId(doc.contact)
+    const nombre = doc.contactName?.trim()
+    if (id && nombre) byId.set(id, { id, nombre, raw: { from } })
+  }
+  return Array.from(byId.values())
 }
 
 function chunkRange(start: Date, end: Date, days = 30): Array<[Date, Date]> {
@@ -332,11 +350,7 @@ Deno.serve(async (req) => {
         if (docs.length === 0) continue
 
         // Contactos (dedup por id)
-        const contactRows = Array.from(new Map(
-          docs.filter(d => d.contact && d.contactName).map(d => [d.contact!, {
-            id: d.contact!, nombre: d.contactName!, raw: { from: docType },
-          }])
-        ).values())
+        const contactRows = contactRowsFromDocs(docs, docType)
         try {
           await pgUpsert('manager_contactos', contactRows, 'id')
           contactRows.forEach(c => contactosSet.add(c.id))
@@ -348,7 +362,7 @@ Deno.serve(async (req) => {
           tipo,
           subtipo: docType,
           doc_number: d.docNumber ?? null,
-          contact_id: d.contact ?? null,
+          contact_id: normalizeContactId(d.contact),
           contact_name: d.contactName ?? null,
           fecha: unixToDate(d.date),
           fecha_vencimiento: unixToDate(d.dueDate),
@@ -403,7 +417,7 @@ Deno.serve(async (req) => {
               tipo,
               subtipo: docType,
               fecha,
-              contact_id: d.contact ?? null,
+              contact_id: normalizeContactId(d.contact),
               nombre: cleanName(p.name),
               nombre_raw: p.name ?? null,
               descripcion: p.desc ?? null,
@@ -446,11 +460,7 @@ Deno.serve(async (req) => {
       const nuevos = draftDocs.filter(d => !processedFacIds.has(d.id) && (!d.date || d.date === 0))
       if (!nuevos.length) continue
 
-      const contactRows = Array.from(new Map(
-        nuevos.filter(d => d.contact && d.contactName).map(d => [d.contact!, {
-          id: d.contact!, nombre: d.contactName!, raw: { from: draftType },
-        }])
-      ).values())
+      const contactRows = contactRowsFromDocs(nuevos, draftType)
       try {
         await pgUpsert('manager_contactos', contactRows, 'id')
         contactRows.forEach(c => contactosSet.add(c.id))
@@ -461,7 +471,7 @@ Deno.serve(async (req) => {
         tipo: 'COMPRA' as const,
         subtipo: draftType,
         doc_number: d.docNumber ?? null,
-        contact_id: d.contact ?? null,
+        contact_id: normalizeContactId(d.contact),
         contact_name: d.contactName ?? null,
         fecha: unixToDate(d.date),
         fecha_vencimiento: unixToDate(d.dueDate),
@@ -503,7 +513,7 @@ Deno.serve(async (req) => {
           const subtotalLinea = (p.price ?? 0) * (p.units ?? 0) * (1 - (p.discount ?? 0) / 100)
           draftLineaRows.push({
             id: lineId, factura_id: d.id, tipo: 'COMPRA', subtipo: draftType, fecha,
-            contact_id: d.contact ?? null, nombre: cleanName(p.name), nombre_raw: p.name ?? null,
+            contact_id: normalizeContactId(d.contact), nombre: cleanName(p.name), nombre_raw: p.name ?? null,
             descripcion: p.desc ?? null, sku: p.sku ?? null, product_id: p.productId ?? null,
             variant_id: p.variantId ?? null, cuenta: p.account ?? null,
             units: p.units ?? null, price: p.price ?? null, cost_price: p.costPrice ?? null,
