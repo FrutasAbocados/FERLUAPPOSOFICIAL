@@ -357,9 +357,15 @@ Deno.serve(async (req) => {
   }
   const bloques: Bloque[] = []
   let inputKind: 'pdf' | 'images'
+  let isSyntheticHealthProbe = false
 
   if (typeof body.pdf_base64 === 'string' && body.pdf_base64.length >= 100) {
     inputKind = 'pdf'
+    // El monitor de disponibilidad envia cada 30 min un PDF basura diminuto
+    // para comprobar que Anthropic responde y detectar saldo/key agotados.
+    // Debe llegar al proveedor, pero no contaminar la telemetria OCR cuando la
+    // respuesta esperada es "PDF specified was not valid".
+    isSyntheticHealthProbe = body.pdf_base64.length < 512
     bloques.push({
       type: 'document',
       source: { type: 'base64', media_type: 'application/pdf', data: body.pdf_base64 },
@@ -391,28 +397,35 @@ Deno.serve(async (req) => {
   const startedAt = Date.now()
   try {
     const result = await parsearConClaude(bloques)
-    await logOcrInteraction({
-      usage: result.usage,
-      latencyMs: Date.now() - startedAt,
-      success: true,
-      inputKind,
-      pages: bloques.length,
-      parsed: result.parsed,
-    })
+    if (!isSyntheticHealthProbe) {
+      await logOcrInteraction({
+        usage: result.usage,
+        latencyMs: Date.now() - startedAt,
+        success: true,
+        inputKind,
+        pages: bloques.length,
+        parsed: result.parsed,
+      })
+    }
     return json(result.parsed)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    await logOcrInteraction({
-      usage: e instanceof ClaudeResponseError
-        ? e.usage
-        : { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
-      latencyMs: Date.now() - startedAt,
-      success: false,
-      error: msg,
-      inputKind,
-      pages: bloques.length,
-    })
-    console.error('[parsear-factura] error:', msg)
+    const healthyProbe = isSyntheticHealthProbe && msg.includes('PDF specified was not valid')
+    if (!healthyProbe) {
+      await logOcrInteraction({
+        usage: e instanceof ClaudeResponseError
+          ? e.usage
+          : { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        latencyMs: Date.now() - startedAt,
+        success: false,
+        error: msg,
+        inputKind,
+        pages: bloques.length,
+      })
+      console.error('[parsear-factura] error:', msg)
+    } else {
+      console.info('[parsear-factura] health probe ok')
+    }
     return json({ error: msg })
   }
 })
