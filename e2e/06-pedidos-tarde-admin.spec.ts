@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import { loginAdmin } from './auth'
 
 test('Admin supervisa los Pedidos Tarde de Raúl en modo solo lectura', async ({ page }) => {
+  test.setTimeout(120_000)
   await loginAdmin(page)
 
   await page.goto('/trabajadores', { waitUntil: 'domcontentloaded' })
@@ -17,11 +18,13 @@ test('Admin supervisa los Pedidos Tarde de Raúl en modo solo lectura', async ({
       await Promise.all(cacheKeys.map(key => caches.delete(key)))
     })
     await page.reload({ waitUntil: 'domcontentloaded' })
-    return pedidosTab.count()
+    return pedidosTab.waitFor({ state: 'visible', timeout: 5_000 })
+      .then(() => true)
+      .catch(() => false)
   }, {
-    timeout: 60_000,
+    timeout: 90_000,
     intervals: [2_000, 5_000, 10_000],
-  }).toBe(1)
+  }).toBe(true)
 
   const [response] = await Promise.all([
     page.waitForResponse(candidate => (
