@@ -25,8 +25,11 @@ export function initSentry(): void {
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration({
-        maskAllText: false,    // app interna, no tenemos PII sensible visible
-        blockAllMedia: true,   // pero sí bloqueamos imágenes/canvas
+        // Replay se envía a un tercero: ocultamos texto y campos por defecto,
+        // incluso en la grabación retrospectiva que acompaña a un error.
+        maskAllText: true,
+        maskAllInputs: true,
+        blockAllMedia: true,
       }),
     ],
     // Sample rates conservadores — 5k eventos/mes free tier

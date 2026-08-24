@@ -43,7 +43,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
       // jspdf importa html2canvas solo en .html() (que no usamos); el alias evita
       // bundlear html2canvas clásico + html2canvas-pro a la vez (~200KB duplicados).
       html2canvas: 'html2canvas-pro',
