@@ -1,6 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Award, BarChart3, CalendarClock, CalendarOff, ClipboardList, Clock4, Fingerprint, ShoppingBasket, Sparkles, Target } from 'lucide-react'
+import { Award, BarChart3, CalendarClock, CalendarOff, ClipboardList, Clock4, Fingerprint, ReceiptText, ShoppingBasket, Sparkles, Target } from 'lucide-react'
 import { useAuth } from '@/shared/auth/useAuth'
 import { EmpleadoNav, type EmpleadoTab } from './components/EmpleadoNav'
 import { useEmpleadoPropio } from './lib/useEmpleadoPropio'
@@ -39,6 +39,12 @@ const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'incidencias',   l: 'Incidencias',        Icon: ClipboardList },
 ]
 
+const PEDIDOS_TARDE_ADMIN_TAB: { k: Tab; l: string; Icon: typeof Award } = {
+  k: 'pedidos_tarde',
+  l: 'Pedidos tarde · Raúl',
+  Icon: ReceiptText,
+}
+
 const TABS_EMPLEADO: Tab[] = ['dashboard', 'cierre', 'incidencias', 'puntos', 'premios', 'vacaciones', 'horas_extras', 'credito', 'colab', 'pedidos_tarde']
 const TAB_KEYS = new Set<string>([...TABS.map(t => t.k), ...TABS_EMPLEADO])
 
@@ -51,14 +57,16 @@ const isEmpleadoTab = (v: Tab): v is EmpleadoTab =>
 export function TrabajadoresOpPage() {
   const { profile } = useAuth()
   const role = profile?.role
+  const isAdmin = role === 'admin_full' || role === 'admin_op'
   const tabsVisibles = useMemo(
-    () => role === 'empleado' ? TABS.filter(t => TABS_EMPLEADO.includes(t.k)) : TABS,
-    [role],
+    () => isAdmin ? [...TABS, PEDIDOS_TARDE_ADMIN_TAB] : TABS,
+    [isAdmin],
   )
   const [searchParams] = useSearchParams()
   const initialTab: Tab = isTab(searchParams.get('tab')) ? (searchParams.get('tab') as Tab) : 'dashboard'
   const [tab, setTab] = useState<Tab>(initialTab)
   const previewEmpleado = role === 'admin_full' && searchParams.get('preview') === 'empleado'
+  const activeTab = tab === 'pedidos_tarde' && !isAdmin ? 'dashboard' : tab
 
   /* ── Vista empleado: nav adaptada + contenido ── */
   if (role === 'empleado' || role === 'gestor_cobros' || previewEmpleado) {
@@ -75,8 +83,8 @@ export function TrabajadoresOpPage() {
               key={t.k}
               type="button"
               onClick={() => setTab(t.k)}
-              data-active={tab === t.k}
-              className={tab === t.k ? 'ao-tab ao-tab-active' : 'ao-tab'}
+              data-active={activeTab === t.k}
+              className={activeTab === t.k ? 'ao-tab ao-tab-active' : 'ao-tab'}
             >
               <t.Icon className="h-3.5 w-3.5" /> {t.l}
             </button>
@@ -85,16 +93,17 @@ export function TrabajadoresOpPage() {
       </div>
 
       <Suspense fallback={<TabFallback />}>
-        {tab === 'dashboard'    && <DashboardView />}
-        {tab === 'puntos'       && <PuntosView />}
-        {tab === 'vacaciones'   && <VacacionesView />}
-        {tab === 'credito'      && <CreditoView />}
-        {tab === 'horas_extras' && <HorasExtrasView />}
-        {tab === 'fichajes'     && <FichajesView />}
-        {tab === 'turnos'       && <TurnosPage />}
-        {tab === 'ruleta'       && <RuletaAdminView />}
-        {tab === 'productividad' && <ObjetivosAdminView />}
-        {tab === 'incidencias'  && <IncidenciasView autorEmpleadoId={null} />}
+        {activeTab === 'dashboard'    && <DashboardView />}
+        {activeTab === 'puntos'       && <PuntosView />}
+        {activeTab === 'vacaciones'   && <VacacionesView />}
+        {activeTab === 'credito'      && <CreditoView />}
+        {activeTab === 'horas_extras' && <HorasExtrasView />}
+        {activeTab === 'fichajes'     && <FichajesView />}
+        {activeTab === 'turnos'       && <TurnosPage />}
+        {activeTab === 'ruleta'       && <RuletaAdminView />}
+        {activeTab === 'productividad' && <ObjetivosAdminView />}
+        {activeTab === 'incidencias'  && <IncidenciasView autorEmpleadoId={null} />}
+        {activeTab === 'pedidos_tarde' && isAdmin && <PedidosTardeView modoSupervision />}
       </Suspense>
     </div>
   )

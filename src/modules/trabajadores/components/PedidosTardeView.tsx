@@ -34,12 +34,12 @@ import { PedidosTardeCrearModal } from './PedidosTardeCrearModal'
 const monthStart = (month: string) => `${month}-01`
 const nextMonthStart = (month: string) => format(addMonths(parseISO(`${month}-01`), 1), 'yyyy-MM-dd')
 
-export function PedidosTardeView() {
+export function PedidosTardeView({ modoSupervision = false }: { modoSupervision?: boolean }) {
   const [month, setMonth] = useState(() => format(new Date(), 'yyyy-MM'))
   const [crearOpen, setCrearOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const facturas = usePedidosTardeFacturas(monthStart(month), nextMonthStart(month))
-  const facturaIds = usePedidosTardeFacturaIds()
+  const facturaIds = usePedidosTardeFacturaIds(!modoSupervision)
   const actualizarEstado = useActualizarEstadoPedidosTarde()
   const cambiarMetodo = useCambiarMetodoPedidoTarde()
   const rows = useMemo(() => facturas.data ?? [], [facturas.data])
@@ -118,14 +118,28 @@ export function PedidosTardeView() {
               <WalletCards className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--mint)]">Liquidación comercial</p>
-              <h1 className="font-display text-xl font-bold text-[var(--ink)]">Pedidos de tarde</h1>
-              <p className="text-xs text-[var(--ink-dim)]">Seguimiento de facturación, cobros y saldos con la empresa.</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--mint)]">
+                {modoSupervision ? 'Supervisión administrativa' : 'Liquidación comercial'}
+              </p>
+              <h1 className="font-display text-xl font-bold text-[var(--ink)]">
+                Pedidos de tarde{modoSupervision ? ' · Raúl' : ''}
+              </h1>
+              <p className="text-xs text-[var(--ink-dim)]">
+                {modoSupervision
+                  ? 'Vista de solo lectura con los pedidos y movimientos registrados desde el panel de Raúl.'
+                  : 'Seguimiento de facturación, cobros y saldos con la empresa.'}
+              </p>
             </div>
           </div>
-          <Button size="sm" onClick={() => setCrearOpen(true)}>
-            <Plus className="mr-1 h-4 w-4" /> Incorporar factura
-          </Button>
+          {modoSupervision ? (
+            <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-sky-400">
+              Solo lectura
+            </span>
+          ) : (
+            <Button size="sm" onClick={() => setCrearOpen(true)}>
+              <Plus className="mr-1 h-4 w-4" /> Incorporar factura
+            </Button>
+          )}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] bg-white/[.015] px-3 py-2.5">
           <div className="flex items-center gap-1.5">
@@ -188,7 +202,7 @@ export function PedidosTardeView() {
         </div>
       </div>
 
-      {batchCount > 0 && (
+      {!modoSupervision && batchCount > 0 && (
         <div className="ao-panel flex flex-wrap items-center gap-2 px-3 py-2">
           <span className="mr-1 text-xs font-semibold text-[var(--ink)] tabular-nums">{batchCount} seleccionadas</span>
           <Button
@@ -248,12 +262,22 @@ export function PedidosTardeView() {
             <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-3 py-2.5">
               <div>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-dim)]">Facturas del periodo</h2>
-                <p className="text-[10px] text-[var(--ink-mute)]">Selecciona varias para actualizar su situación conjuntamente.</p>
+                <p className="text-[10px] text-[var(--ink-mute)]">
+                  {modoSupervision
+                    ? 'Estados y fechas reflejados exactamente como los ha registrado Raúl.'
+                    : 'Selecciona varias para actualizar su situación conjuntamente.'}
+                </p>
               </div>
               <span className="text-xs tabular-nums text-[var(--ink-mute)]">{rows.length} registros</span>
             </div>
-            <div className="hidden grid-cols-[28px_90px_90px_minmax(150px,1fr)_90px_96px_104px_116px] items-center gap-2 border-b border-[var(--line)] px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-mute)] md:grid">
-              <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4" aria-label="Seleccionar todas" />
+            <div className={`hidden items-center gap-2 border-b border-[var(--line)] px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-mute)] md:grid ${
+              modoSupervision
+                ? 'grid-cols-[90px_90px_minmax(150px,1fr)_90px_96px_104px_116px_132px]'
+                : 'grid-cols-[28px_90px_90px_minmax(150px,1fr)_90px_96px_104px_116px]'
+            }`}>
+              {!modoSupervision && (
+                <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4" aria-label="Seleccionar todas" />
+              )}
               <span>Fecha</span>
               <span>Factura</span>
               <span>Cliente</span>
@@ -261,6 +285,7 @@ export function PedidosTardeView() {
               <span className="text-right">Total</span>
               <span className="text-right">Beneficio</span>
               <span>Estados</span>
+              {modoSupervision && <span>Actividad</span>}
             </div>
             <div className="divide-y divide-[var(--line)]">
               {rows.map((row) => (
@@ -269,6 +294,7 @@ export function PedidosTardeView() {
                   row={row}
                   checked={selectedIds.has(row.id)}
                   disabled={isMutating}
+                  modoSupervision={modoSupervision}
                   onToggle={() => toggleOne(row.id)}
                   onMetodo={() => handleMetodo(row)}
                   onCobro={() => updateStatus([row.id], 'cobrada', !row.cobrada_cliente, row.cobrada_cliente ? 'Cobro deshecho' : 'Factura cobrada')}
@@ -280,7 +306,7 @@ export function PedidosTardeView() {
         )}
       </div>
 
-      {crearOpen && (
+      {!modoSupervision && crearOpen && (
         <PedidosTardeCrearModal
           existingFacturaIds={facturaIds.data ?? new Set<string>()}
           onClose={() => setCrearOpen(false)}
@@ -325,6 +351,7 @@ function FacturaRow({
   row,
   checked,
   disabled,
+  modoSupervision,
   onToggle,
   onMetodo,
   onCobro,
@@ -333,6 +360,7 @@ function FacturaRow({
   row: PedidoTardeFactura
   checked: boolean
   disabled: boolean
+  modoSupervision: boolean
   onToggle: () => void
   onMetodo: () => void
   onCobro: () => void
@@ -341,9 +369,15 @@ function FacturaRow({
   const parteRaul = row.beneficio * 0.8
   const liquidacion = row.metodo_cobro === 'tarjeta' ? parteRaul : row.importe_total - parteRaul
   return (
-    <div className="p-3 md:grid md:grid-cols-[28px_90px_90px_minmax(150px,1fr)_90px_96px_104px_116px] md:items-center md:gap-2">
+    <div className={`p-3 md:grid md:items-center md:gap-2 ${
+      modoSupervision
+        ? 'md:grid-cols-[90px_90px_minmax(150px,1fr)_90px_96px_104px_116px_132px]'
+        : 'md:grid-cols-[28px_90px_90px_minmax(150px,1fr)_90px_96px_104px_116px]'
+    }`}>
       <div className="flex items-start gap-3 md:contents">
-        <input type="checkbox" checked={checked} onChange={onToggle} className="mt-1 h-4 w-4 md:mt-0" aria-label={`Seleccionar ${row.numero_factura}`} />
+        {!modoSupervision && (
+          <input type="checkbox" checked={checked} onChange={onToggle} className="mt-1 h-4 w-4 md:mt-0" aria-label={`Seleccionar ${row.numero_factura}`} />
+        )}
         <div className="min-w-0 flex-1 md:contents">
           <span className="hidden text-xs text-[var(--ink-dim)] md:block">
             {format(parseISO(row.fecha), 'd MMM yy', { locale: es })}
@@ -357,14 +391,14 @@ function FacturaRow({
           <div className="truncate text-sm text-[var(--ink)]">{row.cliente}</div>
           <button
             type="button"
-            onClick={onMetodo}
-            disabled={disabled}
+            onClick={modoSupervision ? undefined : onMetodo}
+            disabled={disabled || modoSupervision}
             className={`mt-2 inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold md:mt-0 ${
               row.metodo_cobro === 'tarjeta'
                 ? 'border-sky-500/30 bg-sky-500/10 text-sky-400'
                 : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
             }`}
-            title="Cambiar método de cobro"
+            title={modoSupervision ? 'Método registrado por Raúl' : 'Cambiar método de cobro'}
           >
             {row.metodo_cobro === 'tarjeta' ? <CreditCard className="h-3 w-3" /> : <Banknote className="h-3 w-3" />}
             {row.metodo_cobro === 'tarjeta' ? 'Tarjeta' : 'Efectivo'}
@@ -380,13 +414,14 @@ function FacturaRow({
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-1.5 md:mt-0 md:block md:space-y-1">
-            <StatusButton active={row.cobrada_cliente} onClick={onCobro} disabled={disabled}>
+            <StatusButton active={row.cobrada_cliente} onClick={onCobro} disabled={disabled} readOnly={modoSupervision}>
               {row.cobrada_cliente ? 'Cobrada' : 'Sin cobrar'}
             </StatusButton>
             <StatusButton
               active={row.liquidada_empresa}
               onClick={onLiquidacion}
               disabled={disabled || !row.cobrada_cliente}
+              readOnly={modoSupervision}
             >
               {row.liquidada_empresa ? 'Liquidada' : 'Sin liquidar'}
             </StatusButton>
@@ -396,6 +431,7 @@ function FacturaRow({
               </span>
             )}
           </div>
+          {modoSupervision && <ActividadPedido row={row} />}
         </div>
       </div>
     </div>
@@ -405,27 +441,45 @@ function FacturaRow({
 function StatusButton({
   active,
   disabled,
+  readOnly,
   onClick,
   children,
 }: {
   active: boolean
   disabled: boolean
+  readOnly: boolean
   onClick: () => void
   children: ReactNode
 }) {
   return (
     <button
       type="button"
-      disabled={disabled}
+      disabled={disabled || readOnly}
       onClick={onClick}
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold transition-colors ${
         active
           ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
           : 'border-[var(--line)] bg-white/[.02] text-[var(--ink-mute)] hover:border-[var(--line-2)]'
-      }`}
+      } ${readOnly ? 'cursor-default' : 'disabled:cursor-not-allowed disabled:opacity-45'}`}
     >
       {active ? <CheckCircle2 className="h-3 w-3" /> : <HandCoins className="h-3 w-3" />}
       {children}
     </button>
+  )
+}
+
+function ActividadPedido({ row }: { row: PedidoTardeFactura }) {
+  const fechaHora = (value: string) => format(parseISO(value), 'd MMM · HH:mm', { locale: es })
+
+  return (
+    <div className="mt-3 space-y-0.5 text-[9px] leading-4 text-[var(--ink-mute)] md:mt-0">
+      <span className="block"><strong className="text-[var(--ink-dim)]">Alta:</strong> {fechaHora(row.created_at)}</span>
+      {row.cobrada_at && (
+        <span className="block"><strong className="text-emerald-400">Cobro:</strong> {fechaHora(row.cobrada_at)}</span>
+      )}
+      {row.liquidada_at && (
+        <span className="block"><strong className="text-sky-400">Liquidación:</strong> {fechaHora(row.liquidada_at)}</span>
+      )}
+    </div>
   )
 }

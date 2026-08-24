@@ -114,9 +114,10 @@ export function usePedidosTardeFacturas(from: string, toExclusive: string) {
   })
 }
 
-export function usePedidosTardeFacturaIds() {
+export function usePedidosTardeFacturaIds(enabled = true) {
   return useQuery({
     queryKey: [...QUERY_KEY, 'factura-ids'] as const,
+    enabled,
     queryFn: async (): Promise<Set<string>> => {
       const { data, error } = await supabase
         .from('trabajadores_pedidos_tarde_facturas')
