@@ -1597,7 +1597,9 @@ export async function parsearFacturaProveedorFotos(
   return repararLineasExtraccion(data as CompraExtraccion)
 }
 
-/** Sube las fotos al bucket privado y devuelve sus rutas. */
+const GESTORIA_DOCUMENTOS_BUCKET = 'gestoria-documentos'
+
+/** Sube las fotos al bucket privado de gestoría y devuelve sus rutas. */
 export async function subirFotosFactura(
   fotos: FotoPreparada[],
   compraId: string,
@@ -1606,7 +1608,7 @@ export async function subirFotosFactura(
   for (const [i, f] of fotos.entries()) {
     const path = `compras/${compraId}/${i + 1}-${Date.now()}.jpg`
     const { error } = await supabase.storage
-      .from('abuelo-facturas')
+      .from(GESTORIA_DOCUMENTOS_BUCKET)
       .upload(path, f.blob, { contentType: 'image/jpeg', upsert: false })
     if (error) throw error
     paths.push(path)
@@ -1614,10 +1616,20 @@ export async function subirFotosFactura(
   return paths
 }
 
+/** Conserva el PDF original que se utilizó para el OCR. */
+export async function subirPdfFactura(file: File, compraId: string): Promise<string> {
+  const path = `compras/${compraId}/original-${crypto.randomUUID()}.pdf`
+  const { error } = await supabase.storage
+    .from(GESTORIA_DOCUMENTOS_BUCKET)
+    .upload(path, file, { contentType: 'application/pdf', upsert: false })
+  if (error) throw error
+  return path
+}
+
 /** URL firmada temporal para ver una foto guardada (bucket privado). */
 export async function urlFotoFactura(path: string, segundos = 300): Promise<string> {
   const { data, error } = await supabase.storage
-    .from('abuelo-facturas')
+    .from(GESTORIA_DOCUMENTOS_BUCKET)
     .createSignedUrl(path, segundos)
   if (error) throw error
   return data.signedUrl
@@ -1705,6 +1717,8 @@ type GuardarCompraInput = {
   notas:               string | null
   lineas:              CompraLineaExtraida[]
   origen?:             OrigenCompra
+  /** PDF original usado para OCR; se conserva en Storage tras insertar. */
+  pdf?:                File | null
   /** Fotos ya preparadas; se suben a Storage tras insertar la cabecera. */
   fotos?:              FotoPreparada[]
 }
@@ -1733,15 +1747,30 @@ export function useGuardarCompra() {
         .single()
       if (errCab) throw errCab
 
-      // Fotos: se suben DESPUÉS de tener el id de compra (van en carpeta por compra).
+      // Archivos: se suben DESPUÉS de tener el id de compra (carpeta por compra).
       // Si Storage falla, la compra ya está guardada — no la tiramos, solo avisamos.
+      const archivos: { pdf_path?: string; foto_paths?: string[] } = {}
+      if (input.pdf) {
+        try {
+          archivos.pdf_path = await subirPdfFactura(input.pdf, compra.id)
+        } catch (e) {
+          console.error('[compras] PDF original no subido:', e)
+        }
+      }
       if (input.fotos?.length) {
         try {
           const paths = await subirFotosFactura(input.fotos, compra.id)
-          await supabase.from('pedidos_wa_compras').update({ foto_paths: paths }).eq('id', compra.id)
+          archivos.foto_paths = paths
         } catch (e) {
           console.error('[compras] fotos no subidas:', e)
         }
+      }
+      if (Object.keys(archivos).length > 0) {
+        const { error: errArchivos } = await supabase
+          .from('pedidos_wa_compras')
+          .update(archivos)
+          .eq('id', compra.id)
+        if (errArchivos) console.error('[compras] rutas de documentos no guardadas:', errArchivos)
       }
 
       if (input.lineas.length > 0) {

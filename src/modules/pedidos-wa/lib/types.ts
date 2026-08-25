@@ -137,6 +137,7 @@ export type CompraDB = {
   total: number
   iva_desglose: { base: number; tipo: number; importe: number }[] | null
   pdf_filename: string | null
+  pdf_path: string | null
   notas: string | null
   origen: OrigenCompra
   foto_paths: string[]

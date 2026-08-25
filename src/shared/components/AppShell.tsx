@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Contact,
   FileText,
+  FileSpreadsheet,
   HandCoins,
   Home,
   LogOut,
@@ -45,6 +46,7 @@ const MODULES: ModuleNav[] = [
   { key: 'gastos',     label: 'Gastos',     to: '/gastos',     icon: Receipt },
   { key: 'tesoreria',  label: 'Tesorería',  to: '/tesoreria',  icon: Vault },
   { key: 'listado_precios', label: 'Listado Precios', to: '/listado-precios', icon: Tags },
+  { key: 'gestoria',        label: 'Gestoría',        to: '/gestoria',        icon: FileSpreadsheet },
 ]
 
 const EQUIPO: ModuleNav[] = [
@@ -69,6 +71,7 @@ const PRELOADERS: Record<string, () => void> = {
   '/gastos':           () => { void import('@/modules/gastos/GastosPage') },
   '/tesoreria':        () => { void import('@/modules/tesoreria/TesoreriaPage') },
   '/listado-precios':  () => { void import('@/modules/listado-precios/ListadoPreciosPage') },
+  '/gestoria':         () => { void import('@/modules/gestoria/GestoriaPage') },
   '/trabajadores':     () => { void import('@/modules/trabajadores/TrabajadoresOpPage') },
   '/bbdd-trabajadores':() => { void import('@/modules/trabajadores/TrabajadoresPage') },
   '/nominas':          () => { void import('@/modules/nominas/NominasPage') },
@@ -162,6 +165,7 @@ export function AppShell() {
   const { profile, signOut } = useAuth()
   const location = useLocation()
   const role = profile?.role
+  const isGestorGedofu = role === 'gestor_gedofu'
   const qc = useQueryClient()
   const preload = useCallback((to: string) => { PRELOADERS[to]?.() }, [])
   const visible = MODULES.filter((m) => role && canAccess(m.key, role))
@@ -204,7 +208,7 @@ export function AppShell() {
       >
         {/* Brand block */}
         <Link
-          to="/"
+          to={isGestorGedofu ? '/gestoria' : '/'}
           className="flex items-center gap-3 mb-5 px-1 group"
           style={{ textDecoration: 'none' }}
         >
@@ -232,15 +236,17 @@ export function AppShell() {
 
         {/* Primary nav */}
         <nav className="flex-1 overflow-y-auto" style={{ marginRight: -4, paddingRight: 4 }}>
-          <NavLink
-            to="/"
-            end
-            onMouseEnter={() => preload('/')}
-            className={({ isActive }) => cn('sidebar-nav-item', isActive && 'sidebar-nav-active')}
-          >
-            <Home className="h-4 w-4 shrink-0" strokeWidth={1.6} />
-            Dashboard
-          </NavLink>
+          {!isGestorGedofu && (
+            <NavLink
+              to="/"
+              end
+              onMouseEnter={() => preload('/')}
+              className={({ isActive }) => cn('sidebar-nav-item', isActive && 'sidebar-nav-active')}
+            >
+              <Home className="h-4 w-4 shrink-0" strokeWidth={1.6} />
+              Dashboard
+            </NavLink>
+          )}
 
           {visible.map((m) => (
             <NavLink
@@ -331,7 +337,7 @@ export function AppShell() {
         <div className="bg-[var(--color-panel)] pt-[env(safe-area-inset-top)] md:hidden">
           <header className="flex h-14 items-center justify-between gap-2 border-b border-[var(--line)] px-4">
             <Link
-              to="/"
+              to={isGestorGedofu ? '/gestoria' : '/'}
               className="text-base font-bold"
               style={{ color: 'var(--ink)', textDecoration: 'none' }}
             >
@@ -398,20 +404,22 @@ export function AppShell() {
               scrollbarWidth: 'none',
             }}
           >
-            <NavLink
-              to="/"
-              end
-              onTouchStart={() => preload('/')}
-              className={({ isActive }) =>
-                cn(
-                  'flex min-w-[72px] flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] uppercase tracking-wider transition-colors',
-                  isActive ? 'text-[var(--color-mint)]' : 'text-[var(--ink-mute)]',
-                )
-              }
-            >
-              <Home className="h-5 w-5 shrink-0" strokeWidth={1.6} />
-              <span className="w-full truncate text-center">Inicio</span>
-            </NavLink>
+            {!isGestorGedofu && (
+              <NavLink
+                to="/"
+                end
+                onTouchStart={() => preload('/')}
+                className={({ isActive }) =>
+                  cn(
+                    'flex min-w-[72px] flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] uppercase tracking-wider transition-colors',
+                    isActive ? 'text-[var(--color-mint)]' : 'text-[var(--ink-mute)]',
+                  )
+                }
+              >
+                <Home className="h-5 w-5 shrink-0" strokeWidth={1.6} />
+                <span className="w-full truncate text-center">Inicio</span>
+              </NavLink>
+            )}
             {visible.map((m) => (
               <NavLink
                 key={m.key}

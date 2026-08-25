@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import {
   BarChart3, Banknote, Bot, CalendarClock,
   CheckSquare, CalendarDays, EyeOff, HandCoins, Package, RotateCcw, Tags, TrendingUp, UserMinus, Users, Wallet, X,
@@ -60,6 +60,7 @@ export function HomePage() {
   const { profile } = useAuth()
   const role = profile?.role
 
+  if (role === 'gestor_gedofu') return <Navigate to="/gestoria" replace />
   if (role === 'empleado') return <HomeEmpleado />
 
   return <HomeAdmin />

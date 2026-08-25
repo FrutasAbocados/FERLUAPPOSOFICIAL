@@ -97,6 +97,7 @@ export function Compras() {
   const subir    = useSubirCompraAHolded()
 
   const [borrador, setBorrador] = useState<Borrador | null>(null)
+  const [pdfOriginal, setPdfOriginal] = useState<File | null>(null)
   const [parseando, setParseando] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [cola, setCola] = useState<ItemCola[]>([])
@@ -183,6 +184,7 @@ export function Compras() {
           ? PROVEEDOR_HOLDED_ID[extr.proveedor_detectado]
           : null
       setBorrador({ ...extr, pdf_filename: file.name, proveedor_holded_id: holdedId, origen: 'pdf', fotos: [] })
+      setPdfOriginal(file)
       avisarExtraccion(extr)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -216,6 +218,7 @@ export function Compras() {
         origen: 'foto',
         fotos,
       })
+      setPdfOriginal(null)
       avisarExtraccion(extr)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -278,6 +281,7 @@ export function Compras() {
       notas:               extr.notas_globales ?? null,
       lineas:              extr.lineas,
       origen:              'pdf',
+      pdf:                 item.file,
       fotos:               [],
     })
 
@@ -465,6 +469,7 @@ export function Compras() {
         notas:               borrador.notas_globales ?? null,
         lineas:              borrador.lineas,
         origen:              borrador.origen,
+        pdf:                 pdfOriginal,
         fotos:               borrador.fotos,
       })
       toast({
@@ -474,6 +479,7 @@ export function Compras() {
           : `${borrador.num_factura} · archivada, no cuenta para el coste`,
       })
       setBorrador(null)
+      setPdfOriginal(null)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       const dup = msg.includes('duplicate key') || msg.includes('unique')
@@ -635,7 +641,10 @@ export function Compras() {
           totalLineas={totalLineas}
           desviacion={desviacion}
           guardando={guardar.isPending}
-          onCancelar={() => setBorrador(null)}
+          onCancelar={() => {
+            setBorrador(null)
+            setPdfOriginal(null)
+          }}
           onCambiar={(patch) => setBorrador({ ...borrador, ...patch })}
           onCambiarLinea={editarLinea}
           onEliminarLinea={eliminarLinea}
