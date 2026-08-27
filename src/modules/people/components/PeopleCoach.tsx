@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import { Lock, Mic, MicOff, RefreshCw, Sparkles, Square, X } from 'lucide-react'
+import { Lock, Mic, MicOff, Power, RefreshCw, Save, Sparkles, Square, X } from 'lucide-react'
 import { Modal } from '@/shared/components/Modal'
 import { useAuth } from '@/shared/auth/useAuth'
 import { env } from '@/shared/lib/env'
@@ -21,6 +21,19 @@ interface PrivateSummary {
   points: string[]
   objective: string | null
   firstStep: string | null
+}
+
+interface OperationalSummary {
+  points: string[]
+  requestedSupport: string | null
+}
+
+interface CoachAdminControl {
+  enabled: boolean
+  monthlyBudgetUsd: number
+  spentUsd: number
+  reservedUsd: number
+  totalCommittedUsd: number
 }
 
 interface SessionUsage {
@@ -119,8 +132,10 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
   const [muted, setMuted] = useState(false)
   const [message, setMessage] = useState('Estoy contigo.')
   const [summary, setSummary] = useState<PrivateSummary | null>(null)
+  const [operationalSummary, setOperationalSummary] = useState<OperationalSummary | null>(null)
   const [usage, setUsage] = useState<SessionUsage | null>(null)
   const [budgetClosed, setBudgetClosed] = useState(false)
+  const [controlClosedReason, setControlClosedReason] = useState<'coach_disabled' | 'monthly_budget_reached' | null>(null)
 
   const peerRef = useRef<RTCPeerConnection | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -178,18 +193,42 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
 
   useEffect(() => () => closeMedia(), [closeMedia])
 
-  const apiFetch = useCallback(async (method: 'POST' | 'PUT', body: BodyInit, contentType: string) => {
+  const apiFetch = useCallback(async (method: 'GET' | 'POST' | 'PUT', body?: BodyInit, contentType?: string) => {
     if (!accessToken) throw new Error('missing_session')
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${accessToken}`,
+      apikey: env.supabaseAnonKey,
+    }
+    if (contentType) headers['Content-Type'] = contentType
     return fetch(`${env.supabaseUrl}/functions/v1/people-coach`, {
       method,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        apikey: env.supabaseAnonKey,
-        'Content-Type': contentType,
-      },
+      headers,
       body,
     })
   }, [accessToken])
+
+  useEffect(() => {
+    if (state !== 'listening' && state !== 'speaking') return
+    let checking = false
+    const checkControl = async () => {
+      if (checking || endingRef.current) return
+      checking = true
+      try {
+        const response = await apiFetch('GET')
+        if (!response.ok) return
+        const payload = await response.json() as { continueAllowed?: boolean; reason?: string | null }
+        if (payload.continueAllowed === false) {
+          const reason = payload.reason === 'monthly_budget_reached' ? 'monthly_budget_reached' : 'coach_disabled'
+          setControlClosedReason(reason)
+          void endRef.current()
+        }
+      } finally {
+        checking = false
+      }
+    }
+    const timer = window.setInterval(() => { void checkControl() }, 15_000)
+    return () => window.clearInterval(timer)
+  }, [apiFetch, state])
 
   const rememberTurn = (event: Record<string, unknown>, role: TemporaryTurn['role']) => {
     const text = typeof event.transcript === 'string' ? event.transcript.trim() : ''
@@ -239,8 +278,10 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
     setState('connecting')
     setMessage('Conectando de forma segura…')
     setSummary(null)
+    setOperationalSummary(null)
     setUsage(null)
     setBudgetClosed(false)
+    setControlClosedReason(null)
     setMuted(false)
     endingRef.current = false
     sessionIdRef.current = null
@@ -312,6 +353,10 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
             ? 'Has alcanzado el máximo de 3 sesiones esta semana.'
             : code === 'session_in_progress'
               ? 'Ya hay una conversación abierta. Espera unos minutos antes de volver a entrar.'
+              : code === 'coach_disabled'
+                ? 'El coach está pausado temporalmente por administración.'
+                : code === 'monthly_budget_reached'
+                  ? 'El presupuesto mensual del coach se ha agotado temporalmente.'
               : 'No he podido empezar. Revisa el micrófono e inténtalo de nuevo.',
       )
     }
@@ -345,11 +390,12 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
         realtimeUsage: realtimeUsageRef.current,
       }), 'application/json')
       if (!response.ok) throw new Error('finish_failed')
-      const result = await response.json() as { summary?: unknown; usage?: unknown }
+      const result = await response.json() as { summary?: unknown; operationalSummary?: unknown; usage?: unknown }
       setSummary(readSummary(result.summary))
+      setOperationalSummary(readOperationalSummary(result.operationalSummary))
       setUsage(readUsage(result.usage))
       setState('ended')
-      setMessage('Conversación terminada. Tu resumen privado está listo.')
+      setMessage('Conversación terminada. Tus resúmenes están listos.')
       await onCompleted()
     } catch {
       setState('error')
@@ -433,6 +479,13 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
               {budgetClosed && (
                 <p className="mt-2 text-xs text-[var(--amber)]">Sesión cerrada automáticamente para proteger el límite de coste.</p>
               )}
+              {controlClosedReason && (
+                <p className="mt-2 text-xs text-[var(--amber)]">
+                  {controlClosedReason === 'coach_disabled'
+                    ? 'Sesión cerrada porque administración ha pausado el coach.'
+                    : 'Sesión cerrada porque se ha alcanzado el presupuesto mensual.'}
+                </p>
+              )}
 
               {state === 'idle' || state === 'error' ? (
                 <div className="mt-7 w-full max-w-sm space-y-3">
@@ -479,8 +532,25 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
                     {summary.objective && <p className="mt-3 text-sm"><strong className="text-[var(--mint)]">Objetivo: </strong>{summary.objective}</p>}
                     {summary.firstStep && <p className="mt-2 text-sm"><strong className="text-[var(--mint)]">Primer paso: </strong>{summary.firstStep}</p>}
                   </section>
+                  <section className="rounded-2xl border border-[var(--amber)]/30 bg-[oklch(18%_.035_75_/_0.45)] p-4">
+                    <p className="label-caps text-[var(--amber)]">Enviado a administración</p>
+                    {operationalSummary && (operationalSummary.points.length > 0 || operationalSummary.requestedSupport) ? (
+                      <>
+                        {operationalSummary.points.length > 0 && (
+                          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--ink)]">
+                            {operationalSummary.points.map((point) => <li key={point}>{point}</li>)}
+                          </ul>
+                        )}
+                        {operationalSummary.requestedSupport && (
+                          <p className="mt-3 text-sm"><strong className="text-[var(--amber)]">Apoyo solicitado: </strong>{operationalSummary.requestedSupport}</p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="mt-3 text-sm text-[var(--ink-mute)]">No había información operativa segura que compartir.</p>
+                    )}
+                  </section>
                   {usage && <UsageCard usage={usage} />}
-                  <p className="text-center text-[11px] text-[var(--ink-mute)]">El resumen operativo ya se ha enviado a administración.</p>
+                  <p className="text-center text-[11px] text-[var(--ink-mute)]">Administración solo recibe el bloque operativo mostrado aquí.</p>
                 </div>
               )}
             </div>
@@ -504,8 +574,26 @@ function UsageCard({ usage }: { usage: SessionUsage }) {
 
 export function PeopleSharedSummariesCard() {
   const [rows, setRows] = useState<Array<{ id: string; acceptedAt: string; name: string; points: string[]; requestedSupport: string | null }>>([])
+  const [control, setControl] = useState<CoachAdminControl | null>(null)
+  const [budgetDraft, setBudgetDraft] = useState('20')
+  const [savingControl, setSavingControl] = useState(false)
+  const [controlError, setControlError] = useState<string | null>(null)
+
+  const loadControl = useCallback(async () => {
+    const { data, error } = await supabase.rpc('people_coach_admin_status')
+    if (error) {
+      setControlError('No se pudo cargar el control del coach.')
+      return
+    }
+    const next = readAdminControl(data)
+    if (!next) return
+    setControl(next)
+    setBudgetDraft(next.monthlyBudgetUsd.toFixed(2))
+    setControlError(null)
+  }, [])
 
   useEffect(() => {
+    const controlTimer = window.setTimeout(() => { void loadControl() }, 0)
     void (async () => {
       const { data } = await supabase
         .from('people_coach_shares')
@@ -526,14 +614,113 @@ export function PeopleSharedSummariesCard() {
       })
       setRows(parsed)
     })()
-  }, [])
+    return () => window.clearTimeout(controlTimer)
+  }, [loadControl])
+
+  const saveControl = async (enabled: boolean, monthlyBudgetUsd: number) => {
+    if (!Number.isFinite(monthlyBudgetUsd) || monthlyBudgetUsd < 1 || monthlyBudgetUsd > 500) {
+      setControlError('El presupuesto debe estar entre 1 y 500 US$.')
+      return
+    }
+    setSavingControl(true)
+    setControlError(null)
+    const { data, error } = await supabase.rpc('people_coach_admin_update', {
+      p_enabled: enabled,
+      p_monthly_budget_usd: monthlyBudgetUsd,
+    })
+    setSavingControl(false)
+    if (error) {
+      setControlError('No se pudo guardar el control del coach.')
+      return
+    }
+    const next = readAdminControl(data)
+    if (!next) return
+    setControl(next)
+    setBudgetDraft(next.monthlyBudgetUsd.toFixed(2))
+  }
+
+  const committedPct = control
+    ? Math.min(100, (control.totalCommittedUsd / Math.max(control.monthlyBudgetUsd, 0.01)) * 100)
+    : 0
 
   return (
     <section className="ao-panel p-4 sm:p-5">
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-[var(--mint)]" />
-        <h2 className="text-sm font-semibold text-[var(--ink)]">Coach · resúmenes operativos</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-[var(--mint)]" />
+          <h2 className="text-sm font-semibold text-[var(--ink)]">Coach · control y resúmenes</h2>
+        </div>
+        {control && (
+          <button
+            type="button"
+            aria-pressed={control.enabled}
+            disabled={savingControl}
+            onClick={() => void saveControl(!control.enabled, control.monthlyBudgetUsd)}
+            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${
+              control.enabled
+                ? 'border-[var(--coral)]/35 text-[var(--coral)] hover:bg-[var(--coral)]/10'
+                : 'border-[var(--mint)]/35 text-[var(--mint)] hover:bg-[var(--mint)]/10'
+            }`}
+          >
+            <Power className="h-3.5 w-3.5" />
+            {control.enabled ? 'Pausar coach' : 'Activar coach'}
+          </button>
+        )}
       </div>
+
+      {control && (
+        <div className="mt-3 rounded-xl border border-[var(--line)] bg-[oklch(16%_.02_165_/_0.55)] p-3">
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+            <div>
+              <div className="flex items-center justify-between gap-3 text-xs">
+                <span className="text-[var(--ink-mute)]">Consumo mensual comprometido</span>
+                <strong className="tabular-nums text-[var(--ink)]">
+                  {control.totalCommittedUsd.toFixed(2).replace('.', ',')} / {control.monthlyBudgetUsd.toFixed(2).replace('.', ',')} US$
+                </strong>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--line)]">
+                <div
+                  className={`h-full rounded-full ${committedPct >= 90 ? 'bg-[var(--coral)]' : committedPct >= 70 ? 'bg-[var(--amber)]' : 'bg-[var(--mint)]'}`}
+                  style={{ width: `${committedPct}%` }}
+                />
+              </div>
+              <p className="mt-1.5 text-[10px] text-[var(--ink-mute)]">
+                Gastado: {control.spentUsd.toFixed(2).replace('.', ',')} US$ · reservado en sesiones abiertas: {control.reservedUsd.toFixed(2).replace('.', ',')} US$
+              </p>
+            </div>
+            <div className="flex items-end gap-2">
+              <label className="text-[10px] font-medium text-[var(--ink-mute)]">
+                Presupuesto US$/mes
+                <input
+                  type="number"
+                  min="1"
+                  max="500"
+                  step="1"
+                  value={budgetDraft}
+                  onChange={(event) => setBudgetDraft(event.target.value)}
+                  className="mt-1 block w-28 rounded-lg border border-[var(--line)] bg-[oklch(13%_.018_165)] px-2.5 py-2 text-right text-xs tabular-nums text-[var(--ink)] outline-none focus:border-[var(--mint)]"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={savingControl}
+                onClick={() => void saveControl(control.enabled, Number(budgetDraft))}
+                className="flex h-9 items-center gap-1.5 rounded-lg bg-[var(--mint)] px-3 text-xs font-semibold text-[oklch(15%_.03_158)] disabled:opacity-50"
+              >
+                <Save className="h-3.5 w-3.5" /> Guardar
+              </button>
+            </div>
+          </div>
+          <p className={`mt-2 text-[10px] font-medium ${control.enabled ? 'text-[var(--mint)]' : 'text-[var(--coral)]'}`}>
+            {control.enabled
+              ? 'Activo · el backend bloqueará nuevas sesiones antes de superar el presupuesto.'
+              : 'Pausado · no se pueden abrir sesiones y las activas se cerrarán automáticamente.'}
+          </p>
+        </div>
+      )}
+      {controlError && <p className="mt-2 text-xs text-[var(--coral)]">{controlError}</p>}
+
+      <p className="label-caps mt-4">Últimos resúmenes operativos</p>
       {rows.length === 0 ? (
         <p className="mt-3 text-xs text-[var(--ink-mute)]">Aún no hay resúmenes operativos.</p>
       ) : (
@@ -562,6 +749,26 @@ function readSummary(value: unknown): PrivateSummary | null {
     points,
     objective: typeof row.objective === 'string' ? row.objective : null,
     firstStep: typeof row.firstStep === 'string' ? row.firstStep : null,
+  }
+}
+
+function readOperationalSummary(value: unknown): OperationalSummary | null {
+  const row = record(value)
+  const points = Array.isArray(row.points) ? row.points.filter((point): point is string => typeof point === 'string') : []
+  const requestedSupport = typeof row.requestedSupport === 'string' ? row.requestedSupport : null
+  return points.length || requestedSupport ? { points, requestedSupport } : null
+}
+
+function readAdminControl(value: unknown): CoachAdminControl | null {
+  const first = Array.isArray(value) ? value[0] : value
+  const row = record(first)
+  if (typeof row.enabled !== 'boolean') return null
+  return {
+    enabled: row.enabled,
+    monthlyBudgetUsd: numeric(row.monthly_budget_usd),
+    spentUsd: numeric(row.spent_usd),
+    reservedUsd: numeric(row.reserved_usd),
+    totalCommittedUsd: numeric(row.total_committed_usd),
   }
 }
 
@@ -596,6 +803,11 @@ function record(value: unknown): Record<string, unknown> {
 
 function number(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function numeric(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : 0
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 function formatDuration(seconds: number) {

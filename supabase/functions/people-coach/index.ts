@@ -9,7 +9,7 @@ const SUMMARY_MODEL = 'gpt-5-mini'
 const TRANSCRIPTION_MODEL = 'gpt-live-transcribe'
 const VOICE = 'marin'
 const PROMPT_VERSION = 'abocados-people-v1'
-const CONSENT_VERSION = 'abocados-people-privacy-v1'
+const CONSENT_VERSION = 'abocados-people-privacy-v2'
 const AUTOCLOSE_USD = 0.35
 const COST_LIMIT_USD = 0.5
 const MAX_DURATION_SECONDS = 10 * 60
@@ -47,6 +47,7 @@ Deno.serve(async (req) => {
   if (!worker.ok) return json({ error: worker.error }, worker.status, cors)
 
   try {
+    if (req.method === 'GET') return await workerControlStatus(cors)
     if (req.method === 'POST' && req.headers.get('content-type')?.includes('application/sdp')) {
       return await startRealtime(req, worker.value, cors)
     }
@@ -132,22 +133,30 @@ async function startRealtime(req: Request, worker: Worker, cors: Record<string, 
   const previousRows = await previous.json() as Array<{ private_summary?: unknown }>
   const sessionType = previousRows.length ? 'need_to_talk' : 'initial_interview'
 
-  const sessionResponse = await fetch(`${SUPABASE_URL}/rest/v1/people_coach_sessions`, {
+  const sessionResponse = await fetch(`${SUPABASE_URL}/rest/v1/rpc/people_coach_reserve_session`, {
     method: 'POST',
-    headers: { ...dbHeaders, Prefer: 'return=representation' },
+    headers: dbHeaders,
     body: JSON.stringify({
-      user_id: worker.userId,
-      employee_id: worker.employeeId,
-      session_type: sessionType,
-      status: 'pending',
-      transcript_storage_enabled: false,
-      prompt_version: PROMPT_VERSION,
+      p_user_id: worker.userId,
+      p_employee_id: worker.employeeId,
+      p_session_type: sessionType,
+      p_prompt_version: PROMPT_VERSION,
     }),
     signal: AbortSignal.timeout(8_000),
   })
   await ensureDatabaseResponse(sessionResponse)
-  const sessions = await sessionResponse.json() as Array<{ id?: string }>
-  const sessionId = sessions[0]?.id
+  const sessions = await sessionResponse.json() as Array<{ session_id?: string; error_code?: string }>
+  const reservationError = sessions[0]?.error_code
+  if (reservationError === 'coach_disabled') {
+    return json({ error: reservationError }, 423, cors)
+  }
+  if (reservationError === 'monthly_budget_reached') {
+    return json({ error: reservationError }, 429, cors)
+  }
+  if (reservationError === 'session_in_progress') {
+    return json({ error: reservationError, retryAfterSeconds: 20 * 60 }, 409, cors)
+  }
+  const sessionId = sessions[0]?.session_id
   if (!sessionId) throw new Error('session_create_failed')
 
   const form = new FormData()
@@ -343,7 +352,30 @@ async function finishSession(req: Request, worker: Worker, cors: Record<string, 
   })
   await ensureDatabaseResponse(shareResponse)
   await logLumoConsumption(usage)
-  return json({ sessionId, summary, usage, operationalShared: true }, 200, cors)
+  return json({ sessionId, summary, operationalSummary, usage, operationalShared: true }, 200, cors)
+}
+
+async function workerControlStatus(cors: Record<string, string>): Promise<Response> {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/people_coach_budget_snapshot`, {
+    method: 'POST',
+    headers: dbHeaders,
+    body: '{}',
+    signal: AbortSignal.timeout(8_000),
+  })
+  await ensureDatabaseResponse(response)
+  const rows = await response.json() as Array<{
+    enabled?: boolean
+    monthly_budget_usd?: number | string
+    total_committed_usd?: number | string
+  }>
+  const row = rows[0]
+  const budget = Number(row?.monthly_budget_usd ?? 0)
+  const committed = Number(row?.total_committed_usd ?? 0)
+  const enabled = row?.enabled === true
+  return json({
+    continueAllowed: enabled && committed <= budget,
+    reason: !enabled ? 'coach_disabled' : committed > budget ? 'monthly_budget_reached' : null,
+  }, 200, cors)
 }
 
 async function createSummary(turns: Turn[], userId: string) {
@@ -585,7 +617,7 @@ function corsHeaders(req: Request): Record<string, string> | null {
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
-    'Access-Control-Allow-Methods': 'POST, PUT, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
     'Access-Control-Expose-Headers': [
       'X-Abocados-People-Session',
       'X-Abocados-People-Realtime-Model',
