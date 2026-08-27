@@ -579,7 +579,7 @@ export function PeopleSharedSummariesCard() {
   const [savingControl, setSavingControl] = useState(false)
   const [controlError, setControlError] = useState<string | null>(null)
 
-  const loadControl = useCallback(async () => {
+  const loadControl = useCallback(async (syncBudgetDraft = true) => {
     const { data, error } = await supabase.rpc('people_coach_admin_status')
     if (error) {
       setControlError('No se pudo cargar el control del coach.')
@@ -588,34 +588,46 @@ export function PeopleSharedSummariesCard() {
     const next = readAdminControl(data)
     if (!next) return
     setControl(next)
-    setBudgetDraft(next.monthlyBudgetUsd.toFixed(2))
+    if (syncBudgetDraft) setBudgetDraft(next.monthlyBudgetUsd.toFixed(2))
     setControlError(null)
   }, [])
 
+  const loadRows = useCallback(async () => {
+    const { data } = await supabase
+      .from('people_coach_shares')
+      .select('id, accepted_at, shared_summary, empleados(nombre)')
+      .is('revoked_at', null)
+      .order('accepted_at', { ascending: false })
+      .limit(6)
+    const parsed = (data ?? []).map((row) => {
+      const employee = Array.isArray(row.empleados) ? row.empleados[0] : row.empleados
+      const shared = record(row.shared_summary)
+      return {
+        id: row.id,
+        acceptedAt: row.accepted_at,
+        name: employee?.nombre ?? 'Trabajador',
+        points: Array.isArray(shared.points) ? shared.points.filter((point): point is string => typeof point === 'string') : [],
+        requestedSupport: typeof shared.requestedSupport === 'string' ? shared.requestedSupport : null,
+      }
+    })
+    setRows(parsed)
+  }, [])
+
   useEffect(() => {
-    const controlTimer = window.setTimeout(() => { void loadControl() }, 0)
-    void (async () => {
-      const { data } = await supabase
-        .from('people_coach_shares')
-        .select('id, accepted_at, shared_summary, empleados(nombre)')
-        .is('revoked_at', null)
-        .order('accepted_at', { ascending: false })
-        .limit(6)
-      const parsed = (data ?? []).map((row) => {
-        const employee = Array.isArray(row.empleados) ? row.empleados[0] : row.empleados
-        const shared = record(row.shared_summary)
-        return {
-          id: row.id,
-          acceptedAt: row.accepted_at,
-          name: employee?.nombre ?? 'Trabajador',
-          points: Array.isArray(shared.points) ? shared.points.filter((point): point is string => typeof point === 'string') : [],
-          requestedSupport: typeof shared.requestedSupport === 'string' ? shared.requestedSupport : null,
-        }
-      })
-      setRows(parsed)
-    })()
-    return () => window.clearTimeout(controlTimer)
-  }, [loadControl])
+    const initialTimer = window.setTimeout(() => {
+      void loadControl(true)
+      void loadRows()
+    }, 0)
+    const refreshTimer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      void loadControl(false)
+      void loadRows()
+    }, 15_000)
+    return () => {
+      window.clearTimeout(initialTimer)
+      window.clearInterval(refreshTimer)
+    }
+  }, [loadControl, loadRows])
 
   const saveControl = async (enabled: boolean, monthlyBudgetUsd: number) => {
     if (!Number.isFinite(monthlyBudgetUsd) || monthlyBudgetUsd < 1 || monthlyBudgetUsd > 500) {
@@ -687,6 +699,7 @@ export function PeopleSharedSummariesCard() {
               <p className="mt-1.5 text-[10px] text-[var(--ink-mute)]">
                 Gastado: {control.spentUsd.toFixed(2).replace('.', ',')} US$ · reservado en sesiones abiertas: {control.reservedUsd.toFixed(2).replace('.', ',')} US$
               </p>
+              <p className="mt-1 text-[10px] text-[var(--ink-mute)]">Actualización automática cada 15 segundos.</p>
             </div>
             <div className="flex items-end gap-2">
               <label className="text-[10px] font-medium text-[var(--ink-mute)]">
