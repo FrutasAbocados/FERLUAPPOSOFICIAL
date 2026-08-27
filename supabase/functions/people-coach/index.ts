@@ -224,18 +224,18 @@ async function checkSessionQuota(userId: string): Promise<
   const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1_000).toISOString()
   const openSince = new Date(now - 20 * 60 * 1_000).toISOString()
   const encodedUser = encodeURIComponent(userId)
-  const [openResponse, completedResponse] = await Promise.all([
+  const [openResponse, usedResponse] = await Promise.all([
     fetch(
       `${SUPABASE_URL}/rest/v1/people_coach_sessions?user_id=eq.${encodedUser}&status=in.(pending,active,processing)&select=created_at&order=created_at.desc&limit=10`,
       { headers: dbHeaders, signal: AbortSignal.timeout(8_000) },
     ),
     fetch(
-      `${SUPABASE_URL}/rest/v1/people_coach_sessions?user_id=eq.${encodedUser}&status=eq.completed&created_at=gte.${encodeURIComponent(sevenDaysAgo)}&select=created_at&order=created_at.desc&limit=${MAX_SESSIONS_PER_7_DAYS}`,
+      `${SUPABASE_URL}/rest/v1/people_coach_sessions?user_id=eq.${encodedUser}&started_at=not.is.null&started_at=gte.${encodeURIComponent(sevenDaysAgo)}&select=started_at&order=started_at.desc&limit=${MAX_SESSIONS_PER_7_DAYS}`,
       { headers: dbHeaders, signal: AbortSignal.timeout(8_000) },
     ),
   ])
   await ensureDatabaseResponse(openResponse)
-  await ensureDatabaseResponse(completedResponse)
+  await ensureDatabaseResponse(usedResponse)
   const openRows = await openResponse.json() as Array<{ created_at?: string }>
   const openSinceMs = Date.parse(openSince)
   if (openRows.some((row) => Date.parse(row.created_at ?? '') >= openSinceMs)) {
@@ -254,23 +254,25 @@ async function checkSessionQuota(userId: string): Promise<
     await ensureDatabaseResponse(cleanup)
   }
 
-  const completedRows = await completedResponse.json() as Array<{ created_at?: string }>
-  const lastCompletedAt = Date.parse(completedRows[0]?.created_at ?? '')
+  // Cuenta toda conexión que llegó a OpenAI, incluso si se cerró la pestaña sin finalizar.
+  // Los intentos técnicos fallidos quedan con started_at = null y no consumen cuota.
+  const usedRows = await usedResponse.json() as Array<{ started_at?: string }>
+  const lastStartedAt = Date.parse(usedRows[0]?.started_at ?? '')
   const dayWindowMs = 24 * 60 * 60 * 1_000
   if (
     MAX_SESSIONS_PER_24_HOURS === 1
-    && Number.isFinite(lastCompletedAt)
-    && now - lastCompletedAt < dayWindowMs
+    && Number.isFinite(lastStartedAt)
+    && now - lastStartedAt < dayWindowMs
   ) {
     return {
       ok: false,
       status: 429,
       error: 'daily_limit',
-      retryAfterSeconds: Math.ceil((dayWindowMs - (now - lastCompletedAt)) / 1_000),
+      retryAfterSeconds: Math.ceil((dayWindowMs - (now - lastStartedAt)) / 1_000),
     }
   }
-  if (completedRows.length >= MAX_SESSIONS_PER_7_DAYS) {
-    const oldestCountedAt = Date.parse(completedRows[MAX_SESSIONS_PER_7_DAYS - 1]?.created_at ?? '')
+  if (usedRows.length >= MAX_SESSIONS_PER_7_DAYS) {
+    const oldestCountedAt = Date.parse(usedRows[MAX_SESSIONS_PER_7_DAYS - 1]?.started_at ?? '')
     return {
       ok: false,
       status: 429,
