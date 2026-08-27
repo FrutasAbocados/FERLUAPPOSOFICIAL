@@ -23,6 +23,7 @@ import { PvpSugeridoCard } from '@/modules/dashboard/components/PvpSugeridoCard'
 import { FichajeCard } from '@/modules/trabajadores/components/FichajeCard'
 import { RuletaPremiosSelfCard } from '@/modules/trabajadores/components/RuletaPremiosSelfCard'
 import { RuletaSelfCard } from '@/modules/trabajadores/components/RuletaSelfCard'
+import { PeopleCoachCard, PeopleSharedSummariesCard } from '@/modules/people/components/PeopleCoach'
 import {
   useClientesProgramaPendientes, useClientesRiesgoFuga, useCostesSubiendo,
   usePedidosEsperados, useProductosAnomalos, useTopDeudoresCobros,
@@ -168,6 +169,7 @@ function HomeAdmin() {
             {/* 0 — Ruleta (semiadmins también juegan como un trabajador más) */}
             {esTrabajador && (
               <div className="space-y-[22px]">
+                <PeopleCoachCard />
                 <RuletaSelfCard />
                 <RuletaPremiosSelfCard compact />
               </div>
@@ -175,6 +177,8 @@ function HomeAdmin() {
 
             {/* 1 — Estado ejecutivo empresa */}
             <PanelEmpresa />
+
+            {isAdmin && <PeopleSharedSummariesCard />}
 
             {/* 2 — Centro de alertas: feed expandible por categoría */}
             {(isAdmin || isGestorCobros) && (
@@ -345,6 +349,7 @@ function HomeEmpleado() {
 
       <div className="space-y-[22px]">
         <NotificacionesPanel />
+        <PeopleCoachCard />
         <FichajeCard />
         <RuletaSelfCard />
         <RuletaPremiosSelfCard compact />
