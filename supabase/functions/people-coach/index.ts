@@ -13,6 +13,7 @@ const CONSENT_VERSION = 'abocados-people-privacy-v1'
 const AUTOCLOSE_USD = 0.35
 const COST_LIMIT_USD = 0.5
 const MAX_DURATION_SECONDS = 10 * 60
+const USD_TO_EUR_ACCOUNTING_RATE = 0.86
 
 const ALLOWED_ORIGINS = new Set([
   'https://abocadosos.vercel.app',
@@ -267,6 +268,7 @@ async function finishSession(req: Request, worker: Worker, cors: Record<string, 
     signal: AbortSignal.timeout(8_000),
   })
   await ensureDatabaseResponse(shareResponse)
+  await logLumoConsumption(usage)
   return json({ sessionId, summary, usage, operationalShared: true }, 200, cors)
 }
 
@@ -445,6 +447,43 @@ async function updateSession(id: string, userId: string, body: Record<string, un
 
 async function markFailed(id: string, userId: string) {
   await updateSession(id, userId, { status: 'failed', ended_at: new Date().toISOString() }).catch(() => undefined)
+}
+
+async function logLumoConsumption(usage: ReturnType<typeof calculateUsage>): Promise<void> {
+  const realtime = usage.realtimeTokens
+  const summary = usage.summaryTokens
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/agent_interactions`, {
+    method: 'POST',
+    headers: { ...dbHeaders, Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      tenant_id: 'ferlu',
+      agent_name: 'people-coach',
+      model_used: `${REALTIME_MODEL} + ${SUMMARY_MODEL}`,
+      event_type: 'voice_coach',
+      input_tokens: realtime.inputTokens + summary.inputTokens,
+      output_tokens: realtime.outputTokens + summary.outputTokens,
+      cache_read_tokens:
+        realtime.cachedInputTextTokens
+        + realtime.cachedInputAudioTokens
+        + summary.cachedInputTokens,
+      cache_write_tokens: 0,
+      cost_eur: round(usage.estimatedCostUsd * USD_TO_EUR_ACCOUNTING_RATE),
+      success: true,
+      input_summary: 'Sesión de voz; audio y transcript no almacenados',
+      output_summary: 'Resúmenes privado y operativo generados',
+      actions_taken: [{
+        duration_seconds: usage.durationSeconds,
+        estimated_cost_usd: usage.estimatedCostUsd,
+        usd_to_eur_rate: USD_TO_EUR_ACCOUNTING_RATE,
+        pricing_version: usage.pricingVersion,
+      }],
+    }),
+    signal: AbortSignal.timeout(8_000),
+  })
+  if (!response.ok) {
+    // La contabilidad técnica no debe invalidar una sesión ya terminada.
+    console.error(`people-coach: usage_log_${response.status}`)
+  }
 }
 
 async function ensureDatabaseResponse(response: Response) {
