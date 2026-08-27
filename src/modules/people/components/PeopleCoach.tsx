@@ -294,14 +294,26 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
       await peer.setLocalDescription(offer)
       if (!offer.sdp) throw new Error('missing_offer')
       const response = await apiFetch('POST', offer.sdp, 'application/sdp')
-      if (!response.ok) throw new Error('realtime_rejected')
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({})) as { error?: string }
+        throw new Error(payload.error ?? 'realtime_rejected')
+      }
       sessionIdRef.current = response.headers.get('X-Abocados-People-Session')
       const answer = await response.text()
       await peer.setRemoteDescription({ type: 'answer', sdp: answer })
-    } catch {
+    } catch (error) {
       closeMedia()
       setState('error')
-      setMessage('No he podido empezar. Revisa el micrófono e inténtalo de nuevo.')
+      const code = error instanceof Error ? error.message : ''
+      setMessage(
+        code === 'daily_limit'
+          ? 'Ya has hecho tu sesión de hoy. Podrás volver dentro de 24 horas.'
+          : code === 'weekly_limit'
+            ? 'Has alcanzado el máximo de 3 sesiones esta semana.'
+            : code === 'session_in_progress'
+              ? 'Ya hay una conversación abierta. Espera unos minutos antes de volver a entrar.'
+              : 'No he podido empezar. Revisa el micrófono e inténtalo de nuevo.',
+      )
     }
   }
 
@@ -440,7 +452,7 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
                   <button type="button" onClick={startConversation} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--mint)] px-4 py-3 text-sm font-semibold text-[oklch(15%_.03_158)]">
                     <Mic className="h-5 w-5" /> Empezar conversación
                   </button>
-                  <p className="text-[11px] text-[var(--ink-mute)]">Máximo 10 minutos · coste protegido por debajo de {PEOPLE_COST_LIMIT_USD.toFixed(2).replace('.', ',')} US$</p>
+                  <p className="text-[11px] text-[var(--ink-mute)]">Máximo 10 minutos · 1 sesión cada 24 h · 3 por semana · coste protegido por debajo de {PEOPLE_COST_LIMIT_USD.toFixed(2).replace('.', ',')} US$</p>
                 </div>
               ) : null}
 

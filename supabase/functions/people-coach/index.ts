@@ -14,6 +14,8 @@ const AUTOCLOSE_USD = 0.35
 const COST_LIMIT_USD = 0.5
 const MAX_DURATION_SECONDS = 10 * 60
 const USD_TO_EUR_ACCOUNTING_RATE = 0.86
+const MAX_SESSIONS_PER_24_HOURS = 1
+const MAX_SESSIONS_PER_7_DAYS = 3
 
 const ALLOWED_ORIGINS = new Set([
   'https://abocadosos.vercel.app',
@@ -97,6 +99,10 @@ async function requireActiveWorker(req: Request): Promise<
 }
 
 async function startRealtime(req: Request, worker: Worker, cors: Record<string, string>): Promise<Response> {
+  const quota = await checkSessionQuota(worker.userId)
+  if (!quota.ok) {
+    return json({ error: quota.error, retryAfterSeconds: quota.retryAfterSeconds }, quota.status, cors)
+  }
   const contentLength = Number(req.headers.get('content-length') ?? 0)
   if (contentLength > 200_000) return json({ error: 'offer_too_large' }, 413, cors)
   const sdp = await req.text()
@@ -209,6 +215,72 @@ async function startRealtime(req: Request, worker: Worker, cors: Record<string, 
       'X-Abocados-People-Max-Duration-Seconds': String(MAX_DURATION_SECONDS),
     },
   })
+}
+
+async function checkSessionQuota(userId: string): Promise<
+  { ok: true } | { ok: false; status: number; error: string; retryAfterSeconds: number }
+> {
+  const now = Date.now()
+  const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1_000).toISOString()
+  const openSince = new Date(now - 20 * 60 * 1_000).toISOString()
+  const encodedUser = encodeURIComponent(userId)
+  const [openResponse, completedResponse] = await Promise.all([
+    fetch(
+      `${SUPABASE_URL}/rest/v1/people_coach_sessions?user_id=eq.${encodedUser}&status=in.(pending,active,processing)&select=created_at&order=created_at.desc&limit=10`,
+      { headers: dbHeaders, signal: AbortSignal.timeout(8_000) },
+    ),
+    fetch(
+      `${SUPABASE_URL}/rest/v1/people_coach_sessions?user_id=eq.${encodedUser}&status=eq.completed&created_at=gte.${encodeURIComponent(sevenDaysAgo)}&select=created_at&order=created_at.desc&limit=${MAX_SESSIONS_PER_7_DAYS}`,
+      { headers: dbHeaders, signal: AbortSignal.timeout(8_000) },
+    ),
+  ])
+  await ensureDatabaseResponse(openResponse)
+  await ensureDatabaseResponse(completedResponse)
+  const openRows = await openResponse.json() as Array<{ created_at?: string }>
+  const openSinceMs = Date.parse(openSince)
+  if (openRows.some((row) => Date.parse(row.created_at ?? '') >= openSinceMs)) {
+    return { ok: false, status: 409, error: 'session_in_progress', retryAfterSeconds: 20 * 60 }
+  }
+  if (openRows.length) {
+    const cleanup = await fetch(
+      `${SUPABASE_URL}/rest/v1/people_coach_sessions?user_id=eq.${encodedUser}&status=in.(pending,active,processing)&created_at=lt.${encodeURIComponent(openSince)}`,
+      {
+        method: 'PATCH',
+        headers: { ...dbHeaders, Prefer: 'return=minimal' },
+        body: JSON.stringify({ status: 'failed', ended_at: new Date(now).toISOString() }),
+        signal: AbortSignal.timeout(8_000),
+      },
+    )
+    await ensureDatabaseResponse(cleanup)
+  }
+
+  const completedRows = await completedResponse.json() as Array<{ created_at?: string }>
+  const lastCompletedAt = Date.parse(completedRows[0]?.created_at ?? '')
+  const dayWindowMs = 24 * 60 * 60 * 1_000
+  if (
+    MAX_SESSIONS_PER_24_HOURS === 1
+    && Number.isFinite(lastCompletedAt)
+    && now - lastCompletedAt < dayWindowMs
+  ) {
+    return {
+      ok: false,
+      status: 429,
+      error: 'daily_limit',
+      retryAfterSeconds: Math.ceil((dayWindowMs - (now - lastCompletedAt)) / 1_000),
+    }
+  }
+  if (completedRows.length >= MAX_SESSIONS_PER_7_DAYS) {
+    const oldestCountedAt = Date.parse(completedRows[MAX_SESSIONS_PER_7_DAYS - 1]?.created_at ?? '')
+    return {
+      ok: false,
+      status: 429,
+      error: 'weekly_limit',
+      retryAfterSeconds: Number.isFinite(oldestCountedAt)
+        ? Math.max(60, Math.ceil((oldestCountedAt + 7 * dayWindowMs - now) / 1_000))
+        : dayWindowMs,
+    }
+  }
+  return { ok: true }
 }
 
 async function finishSession(req: Request, worker: Worker, cors: Record<string, string>): Promise<Response> {
