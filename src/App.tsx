@@ -27,6 +27,7 @@ const ClientesPage      = lazy(() => import('@/modules/clientes/ClientesPage').t
 const TesoreriaPage     = lazy(() => import('@/modules/tesoreria/TesoreriaPage').then(m => ({ default: m.TesoreriaPage })))
 const ListadoPreciosPage = lazy(() => import('@/modules/listado-precios/ListadoPreciosPage').then(m => ({ default: m.ListadoPreciosPage })))
 const GestoriaPage       = lazy(() => import('@/modules/gestoria/GestoriaPage').then(m => ({ default: m.GestoriaPage })))
+const RrhhPage           = lazy(() => import('@/modules/rrhh/RrhhPage').then(m => ({ default: m.RrhhPage })))
 
 function PageFallback() {
   return (
@@ -83,6 +84,9 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute module="bbdd_trabajadores" />}>
                     <Route path="bbdd-trabajadores" element={<Suspense fallback={<PageFallback />}><TrabajadoresPage /></Suspense>} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="rrhh" />}>
+                    <Route path="rrhh" element={<Suspense fallback={<PageFallback />}><RrhhPage /></Suspense>} />
                   </Route>
                   <Route element={<ProtectedRoute module="nominas" />}>
                     <Route path="nominas" element={<Suspense fallback={<PageFallback />}><NominasPage /></Suspense>} />

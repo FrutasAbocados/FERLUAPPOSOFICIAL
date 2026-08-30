@@ -28,6 +28,15 @@ interface OperationalSummary {
   requestedSupport: string | null
 }
 
+type ProfileCategory = 'motivator' | 'communication_preference' | 'support_preference' | 'energizer' | 'friction' | 'strength_candidate' | 'growth_interest'
+
+interface ProfileCandidate {
+  id: string
+  category: ProfileCategory
+  statement: string
+  managerGuidance: string | null
+}
+
 interface CoachAdminControl {
   enabled: boolean
   monthlyBudgetUsd: number
@@ -55,6 +64,16 @@ interface TemporaryTurn {
 interface AudioDevice {
   deviceId: string
   label: string
+}
+
+const PROFILE_CATEGORY_LABELS: Record<ProfileCategory, string> = {
+  motivator: 'Qué te mueve',
+  communication_preference: 'Cómo comunicar contigo',
+  support_preference: 'Qué apoyo te ayuda',
+  energizer: 'Qué te activa',
+  friction: 'Fricción operativa',
+  strength_candidate: 'Fortaleza que reconoces',
+  growth_interest: 'Dónde quieres crecer',
 }
 
 export function PeopleCoachCard() {
@@ -133,6 +152,9 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
   const [message, setMessage] = useState('Estoy contigo.')
   const [summary, setSummary] = useState<PrivateSummary | null>(null)
   const [operationalSummary, setOperationalSummary] = useState<OperationalSummary | null>(null)
+  const [profileCandidates, setProfileCandidates] = useState<ProfileCandidate[]>([])
+  const [selectedProfileItems, setSelectedProfileItems] = useState<Set<string>>(new Set())
+  const [profileDecision, setProfileDecision] = useState<'pending' | 'saving' | 'shared' | 'declined' | 'error'>('pending')
   const [usage, setUsage] = useState<SessionUsage | null>(null)
   const [budgetClosed, setBudgetClosed] = useState(false)
   const [controlClosedReason, setControlClosedReason] = useState<'coach_disabled' | 'monthly_budget_reached' | null>(null)
@@ -193,7 +215,7 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
 
   useEffect(() => () => closeMedia(), [closeMedia])
 
-  const apiFetch = useCallback(async (method: 'GET' | 'POST' | 'PUT', body?: BodyInit, contentType?: string) => {
+  const apiFetch = useCallback(async (method: 'GET' | 'POST' | 'PUT' | 'PATCH', body?: BodyInit, contentType?: string) => {
     if (!accessToken) throw new Error('missing_session')
     const headers: Record<string, string> = {
       Authorization: `Bearer ${accessToken}`,
@@ -279,6 +301,9 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
     setMessage('Conectando de forma segura…')
     setSummary(null)
     setOperationalSummary(null)
+    setProfileCandidates([])
+    setSelectedProfileItems(new Set())
+    setProfileDecision('pending')
     setUsage(null)
     setBudgetClosed(false)
     setControlClosedReason(null)
@@ -390,9 +415,10 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
         realtimeUsage: realtimeUsageRef.current,
       }), 'application/json')
       if (!response.ok) throw new Error('finish_failed')
-      const result = await response.json() as { summary?: unknown; operationalSummary?: unknown; usage?: unknown }
+      const result = await response.json() as { summary?: unknown; operationalSummary?: unknown; profileCandidates?: unknown; usage?: unknown }
       setSummary(readSummary(result.summary))
       setOperationalSummary(readOperationalSummary(result.operationalSummary))
+      setProfileCandidates(readProfileCandidates(result.profileCandidates))
       setUsage(readUsage(result.usage))
       setState('ended')
       setMessage('Conversación terminada. Tus resúmenes están listos.')
@@ -406,6 +432,32 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
   }, [apiFetch, closeMedia, onCompleted])
 
   useEffect(() => { endRef.current = endConversation }, [endConversation])
+
+  const saveProfileDecision = async (approvedItemIds: string[]) => {
+    const sessionId = sessionIdRef.current
+    if (!sessionId || profileDecision === 'saving') return
+    setProfileDecision('saving')
+    try {
+      const response = await apiFetch('PATCH', JSON.stringify({
+        action: 'profile_decision',
+        sessionId,
+        approvedItemIds,
+      }), 'application/json')
+      if (!response.ok) throw new Error('profile_decision_failed')
+      setProfileDecision(approvedItemIds.length ? 'shared' : 'declined')
+    } catch {
+      setProfileDecision('error')
+    }
+  }
+
+  const toggleProfileItem = (id: string) => {
+    setSelectedProfileItems((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const toggleMute = () => {
     const next = !muted
@@ -549,6 +601,55 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
                       <p className="mt-3 text-sm text-[var(--ink-mute)]">No había información operativa segura que compartir.</p>
                     )}
                   </section>
+                  {profileCandidates.length > 0 && (
+                    <section className="rounded-2xl border border-[oklch(76%_.12_235_/_0.30)] bg-[oklch(17%_.035_235_/_0.35)] p-4">
+                      <p className="label-caps text-[oklch(76%_.12_235)]">Tu perfil de colaboración</p>
+                      <p className="mt-2 text-xs leading-relaxed text-[var(--ink-mute)]">
+                        Estas ideas siguen siendo privadas. Marca solo las que te representen si quieres que RRHH las vea para colaborar mejor contigo.
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        {profileCandidates.map((candidate) => (
+                          <label key={candidate.id} className="flex cursor-pointer gap-3 rounded-xl border border-[var(--line)] bg-[oklch(14%_.02_165_/_0.60)] p-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedProfileItems.has(candidate.id)}
+                              disabled={profileDecision !== 'pending' && profileDecision !== 'error'}
+                              onChange={() => toggleProfileItem(candidate.id)}
+                              className="mt-0.5 h-4 w-4 accent-[var(--mint)]"
+                            />
+                            <span className="min-w-0">
+                              <span className="block text-[10px] font-semibold uppercase tracking-wide text-[oklch(76%_.12_235)]">{PROFILE_CATEGORY_LABELS[candidate.category]}</span>
+                              <span className="mt-1 block text-sm leading-relaxed text-[var(--ink)]">{candidate.statement}</span>
+                              {candidate.managerGuidance && <span className="mt-1 block text-xs text-[var(--ink-mute)]">Cómo puede ayudar la empresa: {candidate.managerGuidance}</span>}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                      {(profileDecision === 'pending' || profileDecision === 'error') && (
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          <button
+                            type="button"
+                            disabled={selectedProfileItems.size === 0}
+                            onClick={() => void saveProfileDecision([...selectedProfileItems])}
+                            className="rounded-xl bg-[var(--mint)] px-3 py-2.5 text-xs font-semibold text-[oklch(15%_.03_158)] disabled:opacity-40"
+                          >
+                            Compartir seleccionados con RRHH
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void saveProfileDecision([])}
+                            className="rounded-xl border border-[var(--line)] px-3 py-2.5 text-xs font-semibold text-[var(--ink-mute)]"
+                          >
+                            No compartir ninguno
+                          </button>
+                        </div>
+                      )}
+                      {profileDecision === 'saving' && <p className="mt-3 text-xs text-[var(--ink-mute)]">Guardando tu decisión…</p>}
+                      {profileDecision === 'shared' && <p className="mt-3 text-xs font-medium text-[var(--mint)]">Solo los elementos marcados se han añadido a tu perfil RRHH.</p>}
+                      {profileDecision === 'declined' && <p className="mt-3 text-xs text-[var(--ink-mute)]">No se ha añadido nada a tu perfil RRHH.</p>}
+                      {profileDecision === 'error' && <p className="mt-3 text-xs text-[var(--coral)]">No se pudo guardar la decisión. Puedes intentarlo de nuevo.</p>}
+                    </section>
+                  )}
                   {usage && <UsageCard usage={usage} />}
                   <p className="text-center text-[11px] text-[var(--ink-mute)]">Administración solo recibe el bloque operativo mostrado aquí.</p>
                 </div>
@@ -770,6 +871,26 @@ function readOperationalSummary(value: unknown): OperationalSummary | null {
   const points = Array.isArray(row.points) ? row.points.filter((point): point is string => typeof point === 'string') : []
   const requestedSupport = typeof row.requestedSupport === 'string' ? row.requestedSupport : null
   return points.length || requestedSupport ? { points, requestedSupport } : null
+}
+
+function readProfileCandidates(value: unknown): ProfileCandidate[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((item) => {
+    const row = record(item)
+    const category = typeof row.category === 'string' ? row.category as ProfileCategory : null
+    if (
+      typeof row.id !== 'string'
+      || !category
+      || !(category in PROFILE_CATEGORY_LABELS)
+      || typeof row.statement !== 'string'
+    ) return []
+    return [{
+      id: row.id,
+      category,
+      statement: row.statement,
+      managerGuidance: typeof row.managerGuidance === 'string' ? row.managerGuidance : null,
+    }]
+  }).slice(0, 5)
 }
 
 function readAdminControl(value: unknown): CoachAdminControl | null {

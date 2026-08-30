@@ -31,8 +31,32 @@ const dbHeaders = {
 
 let cachedOpenAIKey = OPENAI_ENV_KEY
 
-type Worker = { userId: string; employeeId: string; name: string; role: string }
+type ActiveWorker = { userId: string; employeeId: string; name: string; role: string }
 type Turn = { role: 'employee' | 'coach'; text: string }
+type ProfileCategory =
+  | 'motivator'
+  | 'communication_preference'
+  | 'support_preference'
+  | 'energizer'
+  | 'friction'
+  | 'strength_candidate'
+  | 'growth_interest'
+type ProfileCandidate = {
+  id?: string
+  category: ProfileCategory
+  statement: string
+  managerGuidance: string | null
+}
+
+const PROFILE_CATEGORIES = new Set<ProfileCategory>([
+  'motivator',
+  'communication_preference',
+  'support_preference',
+  'energizer',
+  'friction',
+  'strength_candidate',
+  'growth_interest',
+])
 
 Deno.serve(async (req) => {
   const cors = corsHeaders(req)
@@ -52,6 +76,7 @@ Deno.serve(async (req) => {
       return await startRealtime(req, worker.value, cors)
     }
     if (req.method === 'PUT') return await finishSession(req, worker.value, cors)
+    if (req.method === 'PATCH') return await updateProfileDecision(req, worker.value, cors)
     return json({ error: 'method_not_allowed' }, 405, cors)
   } catch (error) {
     console.error('people-coach:', error instanceof Error ? error.message : 'unknown_error')
@@ -60,7 +85,7 @@ Deno.serve(async (req) => {
 })
 
 async function requireActiveWorker(req: Request): Promise<
-  { ok: true; value: Worker } | { ok: false; status: number; error: string }
+  { ok: true; value: ActiveWorker } | { ok: false; status: number; error: string }
 > {
   const authorization = req.headers.get('Authorization') ?? ''
   if (!authorization.startsWith('Bearer ')) return { ok: false, status: 401, error: 'missing_session' }
@@ -99,7 +124,7 @@ async function requireActiveWorker(req: Request): Promise<
   }
 }
 
-async function startRealtime(req: Request, worker: Worker, cors: Record<string, string>): Promise<Response> {
+async function startRealtime(req: Request, worker: ActiveWorker, cors: Record<string, string>): Promise<Response> {
   const quota = await checkSessionQuota(worker.userId)
   if (!quota.ok) {
     return json({ error: quota.error, retryAfterSeconds: quota.retryAfterSeconds }, quota.status, cors)
@@ -294,7 +319,7 @@ async function checkSessionQuota(userId: string): Promise<
   return { ok: true }
 }
 
-async function finishSession(req: Request, worker: Worker, cors: Record<string, string>): Promise<Response> {
+async function finishSession(req: Request, worker: ActiveWorker, cors: Record<string, string>): Promise<Response> {
   const contentLength = Number(req.headers.get('content-length') ?? 0)
   if (contentLength > 60_000) return json({ error: 'payload_too_large' }, 413, cors)
   const body = await req.json() as Record<string, unknown>
@@ -317,11 +342,13 @@ async function finishSession(req: Request, worker: Worker, cors: Record<string, 
 
   let summary = { points: [] as string[], objective: null as string | null, firstStep: null as string | null }
   let operationalSummary = { points: [] as string[], requestedSupport: null as string | null }
+  let profileCandidates: ProfileCandidate[] = []
   let summaryUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 }
   if (turns.length) {
     const result = await createSummary(turns, worker.userId)
     summary = result.summary
     operationalSummary = result.operationalSummary
+    profileCandidates = result.profileCandidates
     summaryUsage = result.usage
   }
 
@@ -336,9 +363,9 @@ async function finishSession(req: Request, worker: Worker, cors: Record<string, 
   })
   // Este contenido es una salida distinta y profesional. Nunca copiamos el
   // resumen privado ni el transcript a la tabla visible por administración.
-  const shareResponse = await fetch(`${SUPABASE_URL}/rest/v1/people_coach_shares?on_conflict=session_id`, {
+  const shareResponse = await fetch(`${SUPABASE_URL}/rest/v1/people_coach_shares?on_conflict=session_id&select=id`, {
     method: 'POST',
-    headers: { ...dbHeaders, Prefer: 'resolution=merge-duplicates,return=minimal' },
+    headers: { ...dbHeaders, Prefer: 'resolution=merge-duplicates,return=representation' },
     body: JSON.stringify({
       session_id: sessionId,
       user_id: worker.userId,
@@ -351,8 +378,189 @@ async function finishSession(req: Request, worker: Worker, cors: Record<string, 
     signal: AbortSignal.timeout(8_000),
   })
   await ensureDatabaseResponse(shareResponse)
+  const shares = await shareResponse.json() as Array<{ id?: string }>
+  const storedCandidates = await storeProfileCandidates(sessionId, worker, profileCandidates)
+  if (shares[0]?.id) {
+    // Una incidencia de Meta nunca invalida una sesión ya terminada.
+    await sendOperationalWhatsApp(shares[0].id, worker.name, operationalSummary).catch((error) => {
+      console.error('people-coach:', error instanceof Error ? error.message : 'whatsapp_unknown_error')
+    })
+  }
   await logLumoConsumption(usage)
-  return json({ sessionId, summary, operationalSummary, usage, operationalShared: true }, 200, cors)
+  return json({
+    sessionId,
+    summary,
+    operationalSummary,
+    profileCandidates: storedCandidates,
+    usage,
+    operationalShared: true,
+  }, 200, cors)
+}
+
+async function updateProfileDecision(req: Request, worker: ActiveWorker, cors: Record<string, string>): Promise<Response> {
+  const contentLength = Number(req.headers.get('content-length') ?? 0)
+  if (contentLength > 12_000) return json({ error: 'payload_too_large' }, 413, cors)
+  const body = await req.json() as Record<string, unknown>
+  if (body.action !== 'profile_decision') return json({ error: 'invalid_action' }, 400, cors)
+  const sessionId = typeof body.sessionId === 'string' ? body.sessionId : ''
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return json({ error: 'invalid_session_id' }, 400, cors)
+  const approvedItemIds = Array.isArray(body.approvedItemIds)
+    ? [...new Set(body.approvedItemIds.filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)))].slice(0, 5)
+    : []
+
+  const pendingResponse = await fetch(
+    `${SUPABASE_URL}/rest/v1/people_coach_profile_items?session_id=eq.${encodeURIComponent(sessionId)}&user_id=eq.${encodeURIComponent(worker.userId)}&decision=eq.pending&select=id`,
+    { headers: dbHeaders, signal: AbortSignal.timeout(8_000) },
+  )
+  await ensureDatabaseResponse(pendingResponse)
+  const pending = await pendingResponse.json() as Array<{ id?: string }>
+  const pendingIds = pending.map((row) => row.id).filter((id): id is string => typeof id === 'string')
+  if (!pendingIds.length) return json({ error: 'profile_decision_unavailable' }, 409, cors)
+
+  const approved = approvedItemIds.filter((id) => pendingIds.includes(id))
+  if (approved.length) {
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/people_coach_profile_items?id=in.(${approved.map(encodeURIComponent).join(',')})&user_id=eq.${encodeURIComponent(worker.userId)}&decision=eq.pending`,
+      {
+        method: 'PATCH',
+        headers: { ...dbHeaders, Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          decision: 'approved',
+          visibility: 'shared_company',
+          employee_confirmed: true,
+          shared_at: new Date().toISOString(),
+          revoked_at: null,
+        }),
+        signal: AbortSignal.timeout(8_000),
+      },
+    )
+    await ensureDatabaseResponse(response)
+  }
+
+  const declined = pendingIds.filter((id) => !approved.includes(id))
+  if (declined.length) {
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/people_coach_profile_items?id=in.(${declined.map(encodeURIComponent).join(',')})&user_id=eq.${encodeURIComponent(worker.userId)}&decision=eq.pending`,
+      {
+        method: 'PATCH',
+        headers: { ...dbHeaders, Prefer: 'return=minimal' },
+        body: JSON.stringify({ decision: 'declined', visibility: 'private_employee', employee_confirmed: false }),
+        signal: AbortSignal.timeout(8_000),
+      },
+    )
+    await ensureDatabaseResponse(response)
+  }
+  return json({ approvedCount: approved.length, declinedCount: declined.length }, 200, cors)
+}
+
+async function storeProfileCandidates(sessionId: string, worker: ActiveWorker, candidates: ProfileCandidate[]): Promise<ProfileCandidate[]> {
+  if (!candidates.length) return []
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/people_coach_profile_items?select=id,category,statement,manager_guidance`, {
+    method: 'POST',
+    headers: { ...dbHeaders, Prefer: 'return=representation' },
+    body: JSON.stringify(candidates.map((candidate) => ({
+      session_id: sessionId,
+      user_id: worker.userId,
+      employee_id: worker.employeeId,
+      category: candidate.category,
+      statement: candidate.statement,
+      manager_guidance: candidate.managerGuidance,
+      decision: 'pending',
+      visibility: 'private_employee',
+      employee_confirmed: false,
+    }))),
+    signal: AbortSignal.timeout(8_000),
+  })
+  await ensureDatabaseResponse(response)
+  const rows = await response.json() as Array<Record<string, unknown>>
+  return rows.map((row) => ({
+    id: typeof row.id === 'string' ? row.id : undefined,
+    category: row.category as ProfileCategory,
+    statement: typeof row.statement === 'string' ? row.statement : '',
+    managerGuidance: typeof row.manager_guidance === 'string' ? row.manager_guidance : null,
+  })).filter((candidate) => candidate.id && PROFILE_CATEGORIES.has(candidate.category) && candidate.statement)
+}
+
+async function sendOperationalWhatsApp(
+  shareId: string,
+  workerName: string,
+  summary: { points: string[]; requestedSupport: string | null },
+): Promise<void> {
+  const settingsResponse = await fetch(
+    `${SUPABASE_URL}/rest/v1/app_settings?key=in.(people_coach_whatsapp_enabled,people_coach_whatsapp_recipient,people_coach_whatsapp_template)&select=key,value`,
+    { headers: dbHeaders, signal: AbortSignal.timeout(8_000) },
+  )
+  await ensureDatabaseResponse(settingsResponse)
+  const settingsRows = await settingsResponse.json() as Array<{ key?: string; value?: string }>
+  const settings = new Map(settingsRows.map((row) => [row.key ?? '', row.value ?? '']))
+  if (settings.get('people_coach_whatsapp_enabled') !== 'true') return
+
+  const accessToken = Deno.env.get('WHATSAPP_ACCESS_TOKEN') ?? ''
+  const phoneNumberId = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID') ?? ''
+  const graphVersion = Deno.env.get('WHATSAPP_GRAPH_VERSION') ?? 'v26.0'
+  const recipient = (settings.get('people_coach_whatsapp_recipient') ?? '').replace(/\D/g, '')
+  const template = settings.get('people_coach_whatsapp_template') || 'lumo_people_resumen_operativo'
+  if (!accessToken || !/^\d+$/.test(phoneNumberId) || !/^\d{8,16}$/.test(recipient)) {
+    await logShareDelivery(shareId, 'failed', null, 'whatsapp_not_configured')
+    return
+  }
+
+  const operationalText = [
+    ...summary.points.map((point) => `• ${point}`),
+    summary.requestedSupport ? `Apoyo solicitado: ${summary.requestedSupport}` : '',
+  ].filter(Boolean).join('\n').slice(0, 900) || 'Sin información operativa adicional.'
+  const response = await fetch(`https://graph.facebook.com/${encodeURIComponent(graphVersion)}/${encodeURIComponent(phoneNumberId)}/messages`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: recipient,
+      type: 'template',
+      template: {
+        name: template,
+        language: { code: 'es' },
+        components: [{
+          type: 'body',
+          parameters: [
+            { type: 'text', text: workerName.slice(0, 100) },
+            { type: 'text', text: operationalText },
+          ],
+        }],
+      },
+    }),
+    signal: AbortSignal.timeout(12_000),
+  })
+  const payload = await response.json().catch(() => ({})) as Record<string, unknown>
+  const firstMessage = Array.isArray(payload.messages) ? record(payload.messages[0]) : {}
+  const error = record(payload.error)
+  await logShareDelivery(
+    shareId,
+    response.ok ? 'sent' : 'failed',
+    typeof firstMessage.id === 'string' ? firstMessage.id : null,
+    response.ok ? null : typeof error.code === 'number' ? `meta_${error.code}` : `meta_http_${response.status}`,
+  )
+}
+
+async function logShareDelivery(
+  shareId: string,
+  status: 'sent' | 'failed' | 'skipped',
+  providerMessageId: string | null,
+  errorCode: string | null,
+): Promise<void> {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/people_coach_share_deliveries?on_conflict=share_id,channel`, {
+    method: 'POST',
+    headers: { ...dbHeaders, Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({
+      share_id: shareId,
+      channel: 'whatsapp',
+      status,
+      provider_message_id: providerMessageId,
+      error_code: errorCode,
+      attempted_at: new Date().toISOString(),
+    }),
+    signal: AbortSignal.timeout(8_000),
+  })
+  if (!response.ok) console.error(`people-coach: delivery_log_${response.status}`)
 }
 
 async function workerControlStatus(cors: Record<string, string>): Promise<Response> {
@@ -389,7 +597,7 @@ async function createSummary(turns: Turn[], userId: string) {
       safety_identifier: await sha256(`abocados-people:${userId}`),
       instructions: SUMMARY_INSTRUCTIONS,
       input: `<transcript_no_confiable>\n${transcript}\n</transcript_no_confiable>`,
-      max_output_tokens: 900,
+      max_output_tokens: 1_500,
       text: {
         format: {
           type: 'json_schema',
@@ -411,8 +619,22 @@ async function createSummary(turns: Turn[], userId: string) {
                 },
                 required: ['points', 'requestedSupport'],
               },
+              profileCandidates: {
+                type: 'array',
+                maxItems: 5,
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  properties: {
+                    category: { type: 'string', enum: [...PROFILE_CATEGORIES] },
+                    statement: { type: 'string', maxLength: 350 },
+                    managerGuidance: { type: ['string', 'null'], maxLength: 350 },
+                  },
+                  required: ['category', 'statement', 'managerGuidance'],
+                },
+              },
             },
-            required: ['points', 'objective', 'firstStep', 'operationalSummary'],
+            required: ['points', 'objective', 'firstStep', 'operationalSummary', 'profileCandidates'],
           },
         },
       },
@@ -431,6 +653,12 @@ async function createSummary(turns: Turn[], userId: string) {
   const operationalPoints = Array.isArray(operational.points)
     ? operational.points.filter((point): point is string => typeof point === 'string').slice(0, 3)
     : []
+  const profileCandidates = Array.isArray(parsed.profileCandidates)
+    ? parsed.profileCandidates
+      .map(readProfileCandidate)
+      .filter((candidate): candidate is ProfileCandidate => candidate !== null)
+      .slice(0, 5)
+    : []
   const usage = record(payload.usage)
   const inputDetails = record(usage.input_tokens_details)
   return {
@@ -443,6 +671,7 @@ async function createSummary(turns: Turn[], userId: string) {
       points: operationalPoints,
       requestedSupport: typeof operational.requestedSupport === 'string' ? operational.requestedSupport : null,
     },
+    profileCandidates,
     usage: {
       inputTokens: tokenCount(usage.input_tokens),
       cachedInputTokens: tokenCount(inputDetails.cached_tokens),
@@ -477,7 +706,13 @@ El objetivo y el primer paso deben ser concretos; usa null si no hay evidencia.
 Además genera operationalSummary, que sí verá administración. Incluye únicamente hechos operativos confirmados,
 necesidades de organización/formación y acciones útiles para la empresa. Redáctalo de forma neutral y profesional.
 Nunca incluyas intimidades, salud, estados emocionales, citas textuales, insultos, diagnósticos, hipótesis psicológicas,
-valoraciones de rendimiento ni acusaciones personales. Si no existe información operativa segura, usa puntos vacíos y null.`
+valoraciones de rendimiento ni acusaciones personales. Si no existe información operativa segura, usa puntos vacíos y null.
+Genera también profileCandidates: señales profesionales tentativas que podrían ayudar a colaborar mejor con esa persona.
+Solo usa contenido laboral expresado explícitamente. Categorías permitidas: motivator, communication_preference,
+support_preference, energizer, friction, strength_candidate y growth_interest. Cada statement debe estar redactado
+para que el trabajador pueda confirmarlo o rechazarlo. managerGuidance debe ser una orientación respetuosa y operativa,
+nunca una técnica de manipulación. No infieras personalidad, emociones por la voz, salud, intimidades, rasgos protegidos,
+capacidad, rendimiento ni riesgo. Devuelve como máximo cinco; si no hay evidencia suficiente, devuelve una lista vacía.`
 
 function calculateUsage(durationSeconds: number, realtime: ReturnType<typeof sanitizeRealtimeUsage>, summary: { inputTokens: number; cachedInputTokens: number; outputTokens: number }) {
   const cachedText = Math.min(realtime.cachedInputTextTokens, realtime.inputTextTokens)
@@ -617,7 +852,7 @@ function corsHeaders(req: Request): Record<string, string> | null {
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, OPTIONS',
     'Access-Control-Expose-Headers': [
       'X-Abocados-People-Session',
       'X-Abocados-People-Realtime-Model',
@@ -642,6 +877,17 @@ function record(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {}
+}
+
+function readProfileCandidate(value: unknown): ProfileCandidate | null {
+  const row = record(value)
+  const category = typeof row.category === 'string' ? row.category as ProfileCategory : null
+  const statement = typeof row.statement === 'string' ? row.statement.trim().slice(0, 350) : ''
+  const managerGuidance = typeof row.managerGuidance === 'string'
+    ? row.managerGuidance.trim().slice(0, 350) || null
+    : null
+  if (!category || !PROFILE_CATEGORIES.has(category) || !statement) return null
+  return { category, statement, managerGuidance }
 }
 
 function tokenCount(value: unknown): number {

@@ -52,6 +52,7 @@ const MODULES: ModuleNav[] = [
 const EQUIPO: ModuleNav[] = [
   { key: 'trabajadores',      label: 'Trabajadores', to: '/trabajadores',      icon: CheckSquare },
   { key: 'bbdd_trabajadores', label: 'BBDD',         to: '/bbdd-trabajadores', icon: Users },
+  { key: 'rrhh',              label: 'RRHH',         to: '/rrhh',              icon: UsersRound },
   { key: 'nominas',           label: 'Nóminas',      to: '/nominas',           icon: FileText },
   { key: 'condiciones',       label: 'Condiciones',  to: '/condiciones',       icon: ScrollText },
 ]
@@ -74,6 +75,7 @@ const PRELOADERS: Record<string, () => void> = {
   '/gestoria':         () => { void import('@/modules/gestoria/GestoriaPage') },
   '/trabajadores':     () => { void import('@/modules/trabajadores/TrabajadoresOpPage') },
   '/bbdd-trabajadores':() => { void import('@/modules/trabajadores/TrabajadoresPage') },
+  '/rrhh':             () => { void import('@/modules/rrhh/RrhhPage') },
   '/nominas':          () => { void import('@/modules/nominas/NominasPage') },
   '/condiciones':      () => { void import('@/modules/condiciones/CondicionesPage') },
   '/sueldos':          () => { void import('@/modules/sueldos/SueldosPage') },

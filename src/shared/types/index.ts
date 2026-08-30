@@ -8,7 +8,7 @@ export type Profile = {
   created_at: string
 }
 
-export type ModuleKey = 'manager' | 'cash' | 'trabajadores' | 'tareas' | 'turnos' | 'cobros' | 'agente' | 'bbdd_trabajadores' | 'nominas' | 'condiciones' | 'sueldos' | 'pedidos_wa' | 'gastos' | 'clientes' | 'tesoreria' | 'listado_precios' | 'gestoria'
+export type ModuleKey = 'manager' | 'cash' | 'trabajadores' | 'tareas' | 'turnos' | 'cobros' | 'agente' | 'bbdd_trabajadores' | 'rrhh' | 'nominas' | 'condiciones' | 'sueldos' | 'pedidos_wa' | 'gastos' | 'clientes' | 'tesoreria' | 'listado_precios' | 'gestoria'
 
 export const MODULE_ACCESS: Record<ModuleKey, Role[]> = {
   manager:           ['admin_full', 'admin_op', 'responsable', 'gestor_cobros'],
@@ -19,6 +19,7 @@ export const MODULE_ACCESS: Record<ModuleKey, Role[]> = {
   cobros:            ['admin_full', 'admin_op', 'responsable', 'gestor_cobros'],
   agente:            ['admin_full', 'admin_op'],
   bbdd_trabajadores: ['admin_full', 'admin_op', 'responsable'],
+  rrhh:              ['admin_full', 'admin_op'],
   nominas:           ['admin_full', 'admin_op', 'responsable', 'empleado', 'gestor_cobros'],
   condiciones:       ['admin_full', 'admin_op', 'responsable', 'empleado', 'gestor_cobros'],
   sueldos:           ['admin_full', 'admin_op'],
