@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, HandCoins, Search, Trash2 } from 'lucide-react'
+import { AlertTriangle, ChevronLeft, ChevronRight, HandCoins, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { eurosOrDash } from '@/shared/lib/format'
@@ -54,6 +54,8 @@ export function FacturasView({ period }: Props) {
     () => (data ?? []).filter(f => marcadas.has(f.id)),
     [data, marcadas]
   )
+  const facturasConCostePendiente = (data ?? []).filter(f => f.costes_pendientes > 0).length
+  const lineasConCostePendiente = (data ?? []).reduce((sum, f) => sum + f.costes_pendientes, 0)
   const totalMarcado = facturasMarcadas.reduce((s, f) => s + Number(f.total ?? 0), 0)
   const allOnPage = (data ?? []).every(f => marcadas.has(f.id)) && (data ?? []).length > 0
 
@@ -136,6 +138,18 @@ export function FacturasView({ period }: Props) {
         </div>
       </div>
 
+      {tipo === 'VENTA' && facturasConCostePendiente > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-400/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            <span className="font-semibold">Margen provisional:</span>{' '}
+            {lineasConCostePendiente} {lineasConCostePendiente === 1 ? 'línea' : 'líneas'} sin coste en{' '}
+            {facturasConCostePendiente} {facturasConCostePendiente === 1 ? 'factura' : 'facturas'} de esta página.
+            Esas líneas cuentan temporalmente con margen 0 €, nunca como beneficio completo.
+          </p>
+        </div>
+      )}
+
       <div className="ao-card overflow-hidden p-0">
         {isLoading && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
         {!isLoading && data?.length === 0 && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Sin facturas con esos filtros</p>}
@@ -183,7 +197,9 @@ export function FacturasView({ period }: Props) {
                   <div className="text-right tabular-nums md:hidden">
                     <div className="text-[var(--color-ink)]">{eur(f.total)}</div>
                     {f.tipo === 'VENTA' && f.margen != null && (
-                      <div className="text-xs text-[var(--mint)]">{eur(f.margen)} {f.margen_pct == null ? '' : `(${f.margen_pct.toFixed(0)}%)`}</div>
+                      <div className={`text-xs ${f.costes_pendientes > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-[var(--mint)]'}`}>
+                        {eur(f.margen)} {f.costes_pendientes > 0 ? `· provisional (${f.costes_pendientes})` : f.margen_pct == null ? '' : `(${f.margen_pct.toFixed(0)}%)`}
+                      </div>
                     )}
                   </div>
 
@@ -194,11 +210,16 @@ export function FacturasView({ period }: Props) {
                   <div className="hidden text-[var(--color-ink-3)] md:block">{f.doc_number ?? '—'}</div>
                   <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">{eur(f.subtotal)}</div>
                   <div className="hidden text-right tabular-nums font-medium text-[var(--color-ink)] md:block">{eur(f.total)}</div>
-                  <div className="hidden text-right tabular-nums text-[var(--mint)] md:block">
-                    {f.tipo === 'VENTA' ? eur(f.margen) : '—'}
+                  <div className={`hidden text-right tabular-nums md:block ${f.costes_pendientes > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-[var(--mint)]'}`}>
+                    {f.tipo === 'VENTA' ? (
+                      <>
+                        <div>{eur(f.margen)}</div>
+                        {f.costes_pendientes > 0 && <div className="text-[10px]">provisional · {f.costes_pendientes} pend.</div>}
+                      </>
+                    ) : '—'}
                   </div>
                   <div className="hidden text-right tabular-nums text-[var(--color-ink-3)] md:block">
-                    {f.tipo === 'VENTA' && f.margen_pct != null ? `${f.margen_pct.toFixed(0)}%` : '—'}
+                    {f.tipo === 'VENTA' && f.margen_pct != null && f.costes_pendientes === 0 ? `${f.margen_pct.toFixed(0)}%` : '—'}
                   </div>
                 </button>
               </div>

@@ -223,6 +223,7 @@ export interface FacturaListItem {
   cogs: number | null
   margen: number | null
   margen_pct: number | null
+  costes_pendientes: number
   payments_pending: number | null
   status: number | null
   total_count: number

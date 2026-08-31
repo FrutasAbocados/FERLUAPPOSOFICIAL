@@ -650,6 +650,7 @@ export function useFacturasLista(period: Period, f: FacturaFiltros) {
         cogs:               num(r.cogs),
         margen:             num(r.margen),
         margen_pct:         num(r.margen_pct),
+        costes_pendientes:  Number(r.costes_pendientes ?? 0),
         payments_pending:   num(r.payments_pending),
         status:             r.status == null ? null : Number(r.status),
         total_count:        Number(r.total_count ?? 0),
