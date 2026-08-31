@@ -1,11 +1,17 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO, startOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronDown, ChevronRight, ShoppingBasket } from 'lucide-react'
+import { ChevronDown, ChevronRight, Send, ShoppingBasket, Trash2 } from 'lucide-react'
+import { Button } from '@/shared/components/ui/button'
+import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
 import { euros, numDec } from '@/shared/lib/format'
+import { toast } from '@/shared/lib/toast'
+import { confirm } from '@/shared/lib/confirm'
 import type { EmpleadoPropio } from '../lib/useEmpleadoPropio'
+
+type EstadoSolicitud = 'pendiente' | 'aprobada' | 'rechazada'
 
 type EstadoActual = {
   empleado_id: string
@@ -33,6 +39,8 @@ type FacturaCabecera = {
   fecha: string
   total: number
   nota: string | null
+  estado: EstadoSolicitud
+  motivo_rechazo: string | null
   created_at: string
 }
 
@@ -102,7 +110,7 @@ function useFacturasMes(empleadoId: string, mesISO: string) {
     queryFn: async (): Promise<FacturaCabecera[]> => {
       const { data, error } = await supabase
         .from('trabajadores_credito_facturas')
-        .select('id, empleado_id, fecha, total, nota, created_at')
+        .select('id, empleado_id, fecha, total, nota, estado, motivo_rechazo, created_at')
         .eq('empleado_id', empleadoId)
         .gte('fecha', mesISO)
         .lt('fecha', mesSiguiente(mesISO))
@@ -135,11 +143,59 @@ function useLineasFactura(facturaId: string | null) {
 }
 
 export function EmpleadoCreditoView({ empleado }: { empleado: EmpleadoPropio }) {
+  const qc = useQueryClient()
   const mesISO = format(startOfMonth(new Date()), 'yyyy-MM-dd')
   const [facturaAbierta, setFacturaAbierta] = useState<string | null>(null)
+  const [fecha, setFecha] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [articulo, setArticulo] = useState('')
+  const [pesoStr, setPesoStr] = useState('')
+  const [nota, setNota] = useState('')
   const actual = useCreditoActual(empleado.id, mesISO)
   const historico = useHistorico(empleado.id)
   const facturas = useFacturasMes(empleado.id, mesISO)
+
+  const peso = Number(pesoStr.replace(',', '.'))
+  const solicitar = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('trabajadores_credito_solicitar', {
+        p_fecha: fecha,
+        p_nota: nota.trim() || null,
+        p_lineas: [{ nombre: articulo.trim(), units: peso }],
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['emp-credito-facturas'] })
+      setArticulo('')
+      setPesoStr('')
+      setNota('')
+      toast({
+        title: 'Solicitud enviada',
+        description: 'Álvaro asignará el precio y la aprobará.',
+        variant: 'success',
+      })
+    },
+    onError: (e) => toast({
+      title: 'No se pudo enviar',
+      description: e instanceof Error ? e.message : '',
+      variant: 'error',
+    }),
+  })
+
+  const cancelar = useMutation({
+    mutationFn: async (facturaId: string) => {
+      const { error } = await supabase.rpc('trabajadores_credito_cancelar_propia', {
+        p_factura_id: facturaId,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['emp-credito-facturas'] }),
+    onError: (e) => toast({
+      title: 'No se pudo anular',
+      description: e instanceof Error ? e.message : '',
+      variant: 'error',
+    }),
+  })
 
   const usadoPct = useMemo(() => {
     const limite = actual.data?.limite_base ?? 0
@@ -190,6 +246,49 @@ export function EmpleadoCreditoView({ empleado }: { empleado: EmpleadoPropio }) 
         </div>
       </section>
 
+      <section className="ao-card p-4">
+        <div className="mb-3">
+          <h2 className="text-sm font-semibold text-[var(--ink)]">Apuntar fruta o verdura</h2>
+          <p className="mt-0.5 text-xs text-[var(--ink-mute)]">
+            Indica qué te llevas y su peso. El precio se añadirá al aprobar la solicitud.
+          </p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-[130px_1fr_110px]">
+          <div>
+            <label className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Fecha</label>
+            <Input type="date" value={fecha} max={format(new Date(), 'yyyy-MM-dd')} onChange={(e) => setFecha(e.target.value)} className="h-9" />
+          </div>
+          <div>
+            <label className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Artículo</label>
+            <Input value={articulo} onChange={(e) => setArticulo(e.target.value)} placeholder="Ej. tomates pera" className="h-9" />
+          </div>
+          <div>
+            <label className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Peso (kg)</label>
+            <Input
+              type="text"
+              inputMode="decimal"
+              value={pesoStr}
+              onChange={(e) => setPesoStr(e.target.value.replace(/[^0-9.,]/g, ''))}
+              placeholder="1,5"
+              className="h-9 text-right tabular-nums"
+            />
+          </div>
+        </div>
+        <div className="mt-2">
+          <label className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Nota (opcional)</label>
+          <Input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ej. para casa" className="h-9" />
+        </div>
+        <div className="mt-3 flex justify-end">
+          <Button
+            onClick={() => solicitar.mutate()}
+            disabled={!fecha || !articulo.trim() || !Number.isFinite(peso) || peso <= 0 || solicitar.isPending}
+          >
+            <Send className="mr-1 h-4 w-4" />
+            {solicitar.isPending ? 'Enviando…' : 'Enviar solicitud'}
+          </Button>
+        </div>
+      </section>
+
       <section className="ao-card overflow-hidden p-0">
         <div className="border-b border-[var(--line)] px-4 py-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Movimientos del mes</h2>
@@ -205,6 +304,15 @@ export function EmpleadoCreditoView({ empleado }: { empleado: EmpleadoPropio }) 
               factura={f}
               abierta={facturaAbierta === f.id}
               onToggle={() => setFacturaAbierta(prev => prev === f.id ? null : f.id)}
+              onCancel={f.estado === 'pendiente' ? async () => {
+                const ok = await confirm({
+                  title: '¿Anular esta solicitud?',
+                  description: 'Solo puedes anularla mientras siga pendiente.',
+                  confirmLabel: 'Anular',
+                  variant: 'danger',
+                })
+                if (ok) cancelar.mutate(f.id)
+              } : undefined}
             />
           ))}
         </ul>
@@ -234,35 +342,54 @@ function FacturaItem({
   factura,
   abierta,
   onToggle,
+  onCancel,
 }: {
   factura: FacturaCabecera
   abierta: boolean
   onToggle: () => void
+  onCancel?: () => void
 }) {
   const lineas = useLineasFactura(abierta ? factura.id : null)
 
   return (
     <li>
-      <button
-        type="button"
-        onClick={onToggle}
-        className="grid w-full grid-cols-[1fr_auto_auto] items-center gap-3 px-4 py-3 text-left"
-      >
-        <div>
+      <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 px-4 py-3">
+        <button type="button" onClick={onToggle} className="min-w-0 text-left">
           <div className="text-sm font-semibold text-[var(--ink)]">{format(parseISO(factura.fecha), 'd LLL yyyy', { locale: es })}</div>
-          {factura.nota && <div className="text-xs text-[var(--ink-mute)]">{factura.nota}</div>}
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--ink-mute)]">
+            <span className={
+              factura.estado === 'aprobada' ? 'text-emerald-500' :
+              factura.estado === 'rechazada' ? 'text-[var(--coral)]' : 'text-[var(--amber)]'
+            }>{factura.estado}</span>
+            {factura.nota && <span>· {factura.nota}</span>}
+            {factura.estado === 'rechazada' && factura.motivo_rechazo && <span>· {factura.motivo_rechazo}</span>}
+          </div>
+        </button>
+        <div className="font-display text-base font-bold tabular-nums text-[var(--ink)]">
+          {factura.estado === 'aprobada' ? euros(factura.total) : '—'}
         </div>
-        <div className="font-display text-base font-bold tabular-nums text-[var(--ink)]">{euros(factura.total)}</div>
-        {abierta ? <ChevronDown className="h-4 w-4 text-[var(--ink-mute)]" /> : <ChevronRight className="h-4 w-4 text-[var(--ink-mute)]" />}
-      </button>
+        {onCancel ? (
+          <Button size="sm" variant="ghost" onClick={onCancel} title="Anular solicitud" className="h-8 w-8 p-0">
+            <Trash2 className="ao-text-danger h-3.5 w-3.5" />
+          </Button>
+        ) : <span className="w-8" />}
+        <button type="button" onClick={onToggle} className="text-[var(--ink-mute)]">
+          {abierta ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </button>
+      </div>
       {abierta && (
         <div className="border-t border-[var(--line)] bg-[var(--color-surface-2)] px-4 py-3">
           {lineas.isLoading && <p className="text-xs text-[var(--ink-mute)]">Cargando líneas…</p>}
           <ul className="space-y-1">
             {lineas.data?.map(l => (
               <li key={l.id} className="grid grid-cols-[1fr_auto] gap-2 text-xs">
-                <span className="truncate text-[var(--ink-dim)]">{l.nombre} · {numDec(l.units)} x {euros(l.price)}</span>
-                <span className="tabular-nums text-[var(--ink)]">{euros(l.subtotal)}</span>
+                <span className="truncate text-[var(--ink-dim)]">
+                  {l.nombre} · {numDec(l.units)} kg
+                  {factura.estado === 'aprobada' && ` × ${euros(l.price)}/kg`}
+                </span>
+                <span className="tabular-nums text-[var(--ink)]">
+                  {factura.estado === 'aprobada' ? euros(l.subtotal) : 'Precio pendiente'}
+                </span>
               </li>
             ))}
           </ul>

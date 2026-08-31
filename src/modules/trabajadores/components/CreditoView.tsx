@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronDown, ChevronRight, Plus, ShoppingBasket, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, Inbox, Plus, ShoppingBasket, Trash2, X } from 'lucide-react'
 import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -13,6 +13,8 @@ import { confirm } from '@/shared/lib/confirm'
 import { ProductoAutocomplete } from '@/modules/manager/components/ProductoAutocomplete'
 
 const eur = eurosOrDash
+
+type EstadoSolicitud = 'pendiente' | 'aprobada' | 'rechazada'
 
 const fmtFecha = (d: string | null | undefined) =>
   d == null ? '—' : format(parseISO(d), 'd LLL yyyy', { locale: es })
@@ -36,6 +38,8 @@ interface FacturaCabecera {
   fecha: string
   total: number
   nota: string | null
+  estado: EstadoSolicitud
+  motivo_rechazo: string | null
   created_at: string
 }
 
@@ -54,6 +58,24 @@ interface LineaDB {
   units: number
   price: number
   subtotal: number
+}
+
+interface SolicitudPendienteLinea {
+  id: string
+  product_id: string | null
+  nombre: string
+  units: number
+  price: number
+}
+
+interface SolicitudPendiente {
+  id: string
+  empleado_id: string
+  empleado_nombre: string
+  fecha: string
+  nota: string | null
+  created_at: string
+  lineas: SolicitudPendienteLinea[]
 }
 
 interface MesHistorico {
@@ -91,6 +113,52 @@ function useEstadoActual() {
   })
 }
 
+function useSolicitudesPendientes() {
+  return useQuery({
+    queryKey: ['credito-solicitudes-pendientes'] as const,
+    queryFn: async (): Promise<SolicitudPendiente[]> => {
+      const { data, error } = await supabase.rpc('trabajadores_credito_solicitudes_pendientes')
+      if (error) throw error
+      return ((data ?? []) as SolicitudPendiente[]).map((solicitud) => ({
+        ...solicitud,
+        lineas: (solicitud.lineas ?? []).map((linea) => ({
+          ...linea,
+          units: Number(linea.units),
+          price: Number(linea.price),
+        })),
+      }))
+    },
+  })
+}
+
+function useResolverSolicitud() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      facturaId: string
+      aprobar: boolean
+      lineas?: Array<{ id: string; price: number }>
+    }) => {
+      const { error } = await supabase.rpc('trabajadores_credito_resolver', {
+        p_factura_id: input.facturaId,
+        p_aprobar: input.aprobar,
+        p_lineas: input.lineas ?? [],
+        p_motivo_rechazo: null,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['credito-solicitudes-pendientes'] })
+      qc.invalidateQueries({ queryKey: ['credito-estado-actual'] })
+      qc.invalidateQueries({ queryKey: ['credito-historico'] })
+      qc.invalidateQueries({ queryKey: ['credito-facturas-mes'] })
+      qc.invalidateQueries({ queryKey: ['emp-credito-actual'] })
+      qc.invalidateQueries({ queryKey: ['emp-credito-historico'] })
+      qc.invalidateQueries({ queryKey: ['emp-credito-facturas'] })
+    },
+  })
+}
+
 function useHistorico(empleadoId: string | null) {
   return useQuery({
     queryKey: ['credito-historico', empleadoId] as const,
@@ -120,7 +188,7 @@ function useFacturasMes(empleadoId: string | null, mesISO: string | null) {
       const fin = format(new Date(new Date(mesISO!).getFullYear(), new Date(mesISO!).getMonth() + 1, 1), 'yyyy-MM-dd')
       const { data, error } = await supabase
         .from('trabajadores_credito_facturas')
-        .select('id, empleado_id, fecha, total, nota, created_at')
+        .select('id, empleado_id, fecha, total, nota, estado, motivo_rechazo, created_at')
         .eq('empleado_id', empleadoId)
         .gte('fecha', inicio)
         .lt('fecha', fin)
@@ -201,6 +269,8 @@ function useDeleteFactura() {
 
 export function CreditoView() {
   const { data, isLoading } = useEstadoActual()
+  const pendientes = useSolicitudesPendientes()
+  const resolver = useResolverSolicitud()
   const [selected, setSelected] = useState<EstadoActual | null>(null)
 
   return (
@@ -212,6 +282,50 @@ export function CreditoView() {
           Productos que se llevan a casa los trabajadores pack 1. Crédito mensual configurable. El exceso se descuenta del mes siguiente.
         </p>
       </header>
+
+      <section className="mb-5 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Inbox className="h-4 w-4 text-[var(--color-primary-2)]" />
+            <h2 className="text-sm font-semibold text-[var(--color-ink)]">Solicitudes pendientes</h2>
+          </div>
+          <span className="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-primary-2)]">
+            {pendientes.data?.length ?? 0}
+          </span>
+        </div>
+        {pendientes.isLoading && <p className="px-4 py-5 text-sm text-[var(--color-ink-3)]">Cargando solicitudes…</p>}
+        {pendientes.isError && (
+          <p className="px-4 py-5 text-sm text-[var(--coral)]">No se pudieron cargar las solicitudes.</p>
+        )}
+        {!pendientes.isLoading && !pendientes.isError && pendientes.data?.length === 0 && (
+          <p className="px-4 py-5 text-sm text-[var(--color-ink-3)]">No hay fruta o verdura pendiente de aprobar.</p>
+        )}
+        <ul className="divide-y divide-[var(--color-border)]">
+          {pendientes.data?.map((solicitud) => (
+            <SolicitudPendienteCard
+              key={solicitud.id}
+              solicitud={solicitud}
+              resolviendo={resolver.isPending && resolver.variables?.facturaId === solicitud.id}
+              onAprobar={async (lineas) => {
+                try {
+                  await resolver.mutateAsync({ facturaId: solicitud.id, aprobar: true, lineas })
+                  toast({ title: 'Solicitud aprobada', description: 'El importe ya descuenta del crédito del trabajador.', variant: 'success' })
+                } catch (e) {
+                  toast({ title: 'No se pudo aprobar', description: e instanceof Error ? e.message : '', variant: 'error' })
+                }
+              }}
+              onRechazar={async () => {
+                try {
+                  await resolver.mutateAsync({ facturaId: solicitud.id, aprobar: false })
+                  toast({ title: 'Solicitud rechazada', variant: 'success' })
+                } catch (e) {
+                  toast({ title: 'No se pudo rechazar', description: e instanceof Error ? e.message : '', variant: 'error' })
+                }
+              }}
+            />
+          ))}
+        </ul>
+      </section>
 
       {isLoading && <p className="text-sm text-[var(--color-ink-3)]">Cargando…</p>}
       {data?.length === 0 && (
@@ -260,6 +374,107 @@ export function CreditoView() {
         />
       )}
     </div>
+  )
+}
+
+function SolicitudPendienteCard({
+  solicitud,
+  resolviendo,
+  onAprobar,
+  onRechazar,
+}: {
+  solicitud: SolicitudPendiente
+  resolviendo: boolean
+  onAprobar: (lineas: Array<{ id: string; price: number }>) => Promise<void>
+  onRechazar: () => Promise<void>
+}) {
+  const [precios, setPrecios] = useState<Record<string, string>>(() => Object.fromEntries(
+    solicitud.lineas.map((linea) => [linea.id, linea.price > 0 ? String(linea.price) : '']),
+  ))
+
+  const lineasConPrecio = solicitud.lineas.map((linea) => ({
+    id: linea.id,
+    price: Number((precios[linea.id] ?? '').replace(',', '.')),
+  }))
+  const preciosValidos = lineasConPrecio.length > 0
+    && lineasConPrecio.every((linea) => Number.isFinite(linea.price) && linea.price > 0)
+  const total = solicitud.lineas.reduce((suma, linea) => {
+    const price = Number((precios[linea.id] ?? '').replace(',', '.'))
+    return suma + linea.units * (Number.isFinite(price) ? price : 0)
+  }, 0)
+
+  const aprobar = async () => {
+    if (!preciosValidos) {
+      toast({ title: 'Asigna el precio €/kg de todos los artículos', variant: 'error' })
+      return
+    }
+    const ok = await confirm({
+      title: '¿Aprobar esta solicitud?',
+      description: `${solicitud.empleado_nombre} · ${eur(total)} se descontarán de su crédito.`,
+      confirmLabel: 'Aprobar',
+    })
+    if (ok) await onAprobar(lineasConPrecio)
+  }
+
+  const rechazar = async () => {
+    const ok = await confirm({
+      title: '¿Rechazar esta solicitud?',
+      description: 'No descontará nada del crédito del trabajador.',
+      confirmLabel: 'Rechazar',
+      variant: 'danger',
+    })
+    if (ok) await onRechazar()
+  }
+
+  return (
+    <li className="p-4">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="font-semibold text-[var(--color-ink)]">{solicitud.empleado_nombre}</div>
+          <div className="text-xs text-[var(--color-ink-3)]">
+            {fmtFecha(solicitud.fecha)}
+            {solicitud.nota && <span> · {solicitud.nota}</span>}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="font-display text-xl font-bold tabular-nums text-[var(--mint)]">{eur(total)}</div>
+          <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">total calculado</div>
+        </div>
+      </div>
+
+      <ul className="space-y-2">
+        {solicitud.lineas.map((linea) => (
+          <li key={linea.id} className="grid grid-cols-[1fr_90px_115px] items-center gap-2 rounded-md bg-[var(--color-surface-2)] px-3 py-2">
+            <span className="min-w-0 truncate text-sm text-[var(--color-ink)]">{linea.nombre}</span>
+            <span className="text-right text-sm tabular-nums text-[var(--color-ink-2)]">{linea.units} kg</span>
+            <label className="relative">
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={precios[linea.id] ?? ''}
+                onChange={(e) => setPrecios((prev) => ({
+                  ...prev,
+                  [linea.id]: e.target.value.replace(/[^0-9.,]/g, ''),
+                }))}
+                placeholder="€/kg"
+                aria-label={`Precio por kilo de ${linea.nombre}`}
+                className="h-9 pr-10 text-right tabular-nums"
+              />
+              <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--color-ink-3)]">€/kg</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-3 flex justify-end gap-2">
+        <Button size="sm" variant="outline" onClick={rechazar} disabled={resolviendo}>
+          <X className="mr-1 h-3.5 w-3.5" /> Rechazar
+        </Button>
+        <Button size="sm" onClick={aprobar} disabled={!preciosValidos || resolviendo}>
+          <Check className="mr-1 h-3.5 w-3.5" /> {resolviendo ? 'Guardando…' : 'Aprobar'}
+        </Button>
+      </div>
+    </li>
   )
 }
 
@@ -392,10 +607,10 @@ function DetalleEmpleado({ empleado, onClose }: { empleado: EstadoActual; onClos
                         placeholder="Producto (catálogo Holded)"
                       />
                       <div className="grid grid-cols-[1fr_1fr_auto_auto] items-end gap-2 md:contents">
-                        <Input type="number" step="0.01" min="0" placeholder="Ud" value={l.units}
+                        <Input type="number" step="0.01" min="0" placeholder="Kg" value={l.units}
                           onChange={(e) => updateLinea(i, { units: e.target.value })}
                           className="h-9 tabular-nums text-right" />
-                        <Input type="number" step="0.01" min="0" placeholder="Precio" value={l.price}
+                        <Input type="number" step="0.01" min="0" placeholder="€/kg" value={l.price}
                           onChange={(e) => updateLinea(i, { price: e.target.value })}
                           className="h-9 tabular-nums text-right" />
                         <span className="px-2 text-right text-sm font-medium tabular-nums text-[var(--color-ink)]">
@@ -487,6 +702,11 @@ function FacturaItem({ factura, onDelete }: { factura: FacturaCabecera; onDelete
         </button>
         <button onClick={() => setOpen(o => !o)} className="flex items-baseline gap-3 text-left">
           <span className="text-[var(--color-ink)]">{fmtFecha(factura.fecha)}</span>
+          {factura.estado !== 'aprobada' && (
+            <span className={factura.estado === 'pendiente' ? 'text-[var(--amber)]' : 'text-[var(--coral)]'}>
+              {factura.estado}
+            </span>
+          )}
           {factura.nota && <span className="truncate text-xs text-[var(--color-ink-3)]">{factura.nota}</span>}
         </button>
         <span className="font-medium tabular-nums text-[var(--color-ink)]">{eur(factura.total)}</span>
@@ -499,8 +719,8 @@ function FacturaItem({ factura, onDelete }: { factura: FacturaCabecera; onDelete
           {lineas.map(l => (
             <li key={l.id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 py-0.5">
               <span className="truncate text-[var(--color-ink)]">{l.nombre}</span>
-              <span className="tabular-nums text-[var(--color-ink-3)]">{l.units} ud</span>
-              <span className="tabular-nums text-[var(--color-ink-3)]">{eur(l.price)}/ud</span>
+              <span className="tabular-nums text-[var(--color-ink-3)]">{l.units} kg</span>
+              <span className="tabular-nums text-[var(--color-ink-3)]">{eur(l.price)}/kg</span>
               <span className="tabular-nums font-medium text-[var(--color-ink)]">{eur(l.subtotal)}</span>
             </li>
           ))}
@@ -541,8 +761,8 @@ function FacturaItemSimple({ factura }: { factura: FacturaCabecera }) {
           {lineas.map(l => (
             <li key={l.id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3">
               <span className="truncate text-[var(--color-ink-2)]">{l.nombre}</span>
-              <span className="tabular-nums text-[var(--color-ink-3)]">{l.units} ud</span>
-              <span className="tabular-nums text-[var(--color-ink-3)]">{eur(l.price)}/ud</span>
+              <span className="tabular-nums text-[var(--color-ink-3)]">{l.units} kg</span>
+              <span className="tabular-nums text-[var(--color-ink-3)]">{eur(l.price)}/kg</span>
               <span className="tabular-nums text-[var(--color-ink-2)]">{eur(l.subtotal)}</span>
             </li>
           ))}
