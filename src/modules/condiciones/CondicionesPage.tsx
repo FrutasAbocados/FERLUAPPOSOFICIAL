@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { ScrollText, Users } from 'lucide-react'
 import { useAuth } from '@/shared/auth/useAuth'
+import { INCENTIVOS_TRABAJADORES_VISIBLES } from '@/modules/trabajadores/lib/features'
 import { supabase } from '@/shared/lib/supabase'
 import { euros } from '@/shared/lib/format'
 
@@ -77,7 +78,7 @@ export function CondicionesPage() {
             Cada empleado ve aquí sus condiciones laborales en solo lectura.
           </p>
           <p className="mt-1 text-sm text-[var(--color-ink-2)]">
-            Para editar sueldos, pluses y condiciones de cada trabajador, ve a la BBDD.
+            Para editar sueldos y condiciones de cada trabajador, ve a la BBDD.
           </p>
           <Link
             to="/bbdd-trabajadores"
@@ -109,9 +110,9 @@ export function CondicionesPage() {
     )
   }
 
-  const totalMes =
-    N(data.sueldo_base) + N(data.plus_transporte) +
-    N(data.plus_responsabilidad) + N(data.plus_otros)
+  const totalMes = N(data.sueldo_base) + (INCENTIVOS_TRABAJADORES_VISIBLES
+    ? N(data.plus_transporte) + N(data.plus_responsabilidad) + N(data.plus_otros)
+    : 0)
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-5 pb-28 md:px-6 md:py-8">
@@ -124,17 +125,21 @@ export function CondicionesPage() {
         </h2>
         <div className="space-y-1.5">
           <Row label="Sueldo base" value={euros(N(data.sueldo_base))} />
-          {N(data.plus_transporte) > 0 && (
-            <Row label="Plus transporte" value={euros(N(data.plus_transporte))} />
-          )}
-          {N(data.plus_responsabilidad) > 0 && (
-            <Row label="Plus responsabilidad" value={euros(N(data.plus_responsabilidad))} />
-          )}
-          {N(data.plus_otros) > 0 && (
-            <Row
-              label={data.plus_otros_concepto || 'Plus productividad (si se cumple objetivo)'}
-              value={euros(N(data.plus_otros))}
-            />
+          {INCENTIVOS_TRABAJADORES_VISIBLES && (
+            <>
+              {N(data.plus_transporte) > 0 && (
+                <Row label="Plus transporte" value={euros(N(data.plus_transporte))} />
+              )}
+              {N(data.plus_responsabilidad) > 0 && (
+                <Row label="Plus responsabilidad" value={euros(N(data.plus_responsabilidad))} />
+              )}
+              {N(data.plus_otros) > 0 && (
+                <Row
+                  label={data.plus_otros_concepto || 'Plus productividad (si se cumple objetivo)'}
+                  value={euros(N(data.plus_otros))}
+                />
+              )}
+            </>
           )}
           <div className="mt-2 flex items-center justify-between border-t border-[var(--line)] pt-2.5">
             <span className="text-sm font-semibold text-[var(--ink)]">Total bruto/mes</span>

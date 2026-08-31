@@ -3,6 +3,7 @@ import { es } from 'date-fns/locale'
 import { Award, CalendarOff, Plus, ShoppingBasket, CalendarDays } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { euros } from '@/shared/lib/format'
+import { INCENTIVOS_TRABAJADORES_VISIBLES } from '../lib/features'
 import { FicharButton } from './FicharButton'
 
 interface EmpleadoHeroProps {
@@ -61,7 +62,7 @@ export function EmpleadoHero({
       ? Math.min(100, (creditoGastado / creditoLimite) * 100)
       : null
 
-  const showPuntos = pack === 1
+  const showPuntos = INCENTIVOS_TRABAJADORES_VISIBLES && pack === 1
   const showCredito = (pack === 1 || pack === 3) && creditoDisponible != null
   const showVac = false
   const showSabados = false

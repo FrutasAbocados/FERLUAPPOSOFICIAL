@@ -7,6 +7,7 @@ import { AppShell } from '@/shared/components/AppShell'
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
 import { Toaster } from '@/shared/components/Toaster'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
+import { INCENTIVOS_TRABAJADORES_VISIBLES } from '@/modules/trabajadores/lib/features'
 
 const LoginPage         = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })))
 const HomePage          = lazy(() => import('@/pages/HomePage').then(m => ({ default: m.HomePage })))
@@ -72,7 +73,10 @@ export default function App() {
                     <Route path="tareas" element={<Suspense fallback={<PageFallback />}><TareasPage /></Suspense>} />
                   </Route>
                   <Route element={<ProtectedRoute module="turnos" />}>
-                    <Route path="turnos" element={<Navigate to="/trabajadores?tab=turnos" replace />} />
+                    <Route
+                      path="turnos"
+                      element={<Navigate to={INCENTIVOS_TRABAJADORES_VISIBLES ? '/trabajadores?tab=turnos' : '/trabajadores'} replace />}
+                    />
                   </Route>
                   <Route element={<ProtectedRoute module="cobros" />}>
                     <Route path="cobros" element={<Suspense fallback={<PageFallback />}><CobrosPage /></Suspense>} />

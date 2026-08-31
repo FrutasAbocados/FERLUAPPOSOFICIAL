@@ -162,10 +162,11 @@ export function AppShell() {
   const location = useLocation()
   const role = profile?.role
   const isGestorGedofu = role === 'gestor_gedofu'
+  const isAdmin = role === 'admin_full' || role === 'admin_op'
   const qc = useQueryClient()
   const preload = useCallback((to: string) => { PRELOADERS[to]?.() }, [])
   const visible = MODULES.filter((m) => role && canAccess(m.key, role))
-  const equipo  = EQUIPO.filter((m) => role && canAccess(m.key, role))
+  const equipo  = EQUIPO.filter((m) => role && canAccess(m.key, role) && (!isAdmin || m.key !== 'condiciones'))
   const socios  = SOCIOS.filter((m) => role && canAccess(m.key, role))
   const [menuOpen, setMenuOpen] = useState({ path: location.pathname, equipo: false, socios: false })
   const equipoOpen = menuOpen.path === location.pathname && menuOpen.equipo

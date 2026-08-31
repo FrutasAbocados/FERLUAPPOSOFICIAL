@@ -24,9 +24,10 @@ const mapPlus = (row: Record<string, unknown>): PlusExtra => ({
   created_at: String(row.created_at),
 })
 
-export function usePlusesExtraMes(mesISO: string, empleadoId?: string) {
+export function usePlusesExtraMes(mesISO: string, empleadoId?: string, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: [...QUERY_KEY, mesISO, empleadoId ?? 'todos'] as const,
+    enabled: options.enabled ?? true,
     queryFn: async (): Promise<PlusExtra[]> => {
       let query = supabase
         .from('trabajadores_pluses_extra')

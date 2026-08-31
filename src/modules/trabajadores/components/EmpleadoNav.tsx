@@ -11,16 +11,19 @@ import {
   Handshake,
   MoreHorizontal,
   ReceiptText,
+  ShieldAlert,
   ShoppingBasket,
   X,
 } from 'lucide-react'
+import { INCENTIVOS_TRABAJADORES_VISIBLES, esTabIncentivos } from '../lib/features'
 
-export type EmpleadoTab = 'dashboard' | 'puntos' | 'premios' | 'credito' | 'colab' | 'vacaciones' | 'cierre' | 'horas_extras' | 'incidencias' | 'pedidos_tarde'
+export type EmpleadoTab = 'dashboard' | 'puntos' | 'premios' | 'credito' | 'colab' | 'vacaciones' | 'cierre' | 'horas_extras' | 'incidencias' | 'disciplina' | 'pedidos_tarde'
 
 const ALL_TABS = [
   { k: 'dashboard',   l: 'Inicio',      Icon: BarChart3 },
   { k: 'cierre',      l: 'Mi cierre',   Icon: ClipboardCheck },
   { k: 'incidencias', l: 'Incidencias', Icon: ClipboardList },
+  { k: 'disciplina',  l: 'Disciplina',  Icon: ShieldAlert },
   { k: 'puntos',      l: 'Puntos',      Icon: Award },
   { k: 'premios',     l: 'Premios',     Icon: Gift },
   { k: 'vacaciones',  l: 'Vacaciones',  Icon: CalendarOff },
@@ -42,7 +45,10 @@ export function EmpleadoNav({
   showPedidosTarde?: boolean
 }) {
   const [moreOpen, setMoreOpen] = useState(false)
-  const visibleTabs = ALL_TABS.filter(t => !('soloRaul' in t) || showPedidosTarde)
+  const visibleTabs = ALL_TABS.filter(t =>
+    (!('soloRaul' in t) || showPedidosTarde)
+    && (INCENTIVOS_TRABAJADORES_VISIBLES || !esTabIncentivos(t.k))
+  )
   const mobilePrimaryTabs = visibleTabs.filter(t =>
     MOBILE_PRIMARY_KEYS.includes(t.k as (typeof MOBILE_PRIMARY_KEYS)[number]),
   )

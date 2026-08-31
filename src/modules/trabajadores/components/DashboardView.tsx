@@ -12,6 +12,7 @@ import { EmpleadoHero } from './EmpleadoHero'
 import { EmpleadoObjetivoCard } from './EmpleadoObjetivoCard'
 import { EmpleadoBeneficiosMesCard } from './EmpleadoBeneficiosMesCard'
 import { useEmpleadoPropio } from '../lib/useEmpleadoPropio'
+import { INCENTIVOS_TRABAJADORES_VISIBLES } from '../lib/features'
 
 interface Empleado {
   id: string
@@ -83,7 +84,7 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
 
   const { data: puntosPropios } = useQuery({
     queryKey: ['dash-trab-self-puntos', empleadoPropio.data?.id, mesISO] as const,
-    enabled: modoEmpleado && !!empleadoPropio.data?.id,
+    enabled: INCENTIVOS_TRABAJADORES_VISIBLES && modoEmpleado && !!empleadoPropio.data?.id,
     queryFn: async (): Promise<PuntosFila | null> => {
       const empleadoId = empleadoPropio.data!.id
       const [diasRes, ajustesRes, canjesRes] = await Promise.all([
@@ -147,7 +148,7 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
 
   const { data: empleados } = useQuery({
     queryKey: ['dash-trab-empleados'] as const,
-    enabled: !modoEmpleado,
+    enabled: INCENTIVOS_TRABAJADORES_VISIBLES && !modoEmpleado,
     queryFn: async (): Promise<Empleado[]> => {
       const { data, error } = await supabase
         .from('empleados_equipo')
@@ -161,7 +162,7 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
 
   const { data: puntos } = useQuery({
     queryKey: ['dash-trab-puntos', mesISO] as const,
-    enabled: !modoEmpleado,
+    enabled: INCENTIVOS_TRABAJADORES_VISIBLES && !modoEmpleado,
     queryFn: async (): Promise<PuntosFila[]> => {
       const { data, error } = await supabase.rpc('trabajadores_puntos_resumen_mes', { p_mes: mesISO })
       if (error) throw error
@@ -198,15 +199,17 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
               creditoGastado={cr?.gastado ?? null}
               creditoLimite={cr?.limite_base ?? null}
             />
-            {isRaul && (
+            {INCENTIVOS_TRABAJADORES_VISIBLES && isRaul && (
               <EmpleadoBeneficiosMesCard
                 empleadoId={e.id}
                 puntosEuros={pts?.euros ?? 0}
               />
             )}
-            <div className="mt-4">
-              <EmpleadoObjetivoCard />
-            </div>
+            {INCENTIVOS_TRABAJADORES_VISIBLES && (
+              <div className="mt-4">
+                <EmpleadoObjetivoCard />
+              </div>
+            )}
           </>
         ) : (
           <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 text-sm text-[var(--color-ink-3)]">
@@ -229,7 +232,7 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
       </header>
 
       {/* Ranking puntos */}
-      {ranking.length > 0 && ranking.some(r => r.total_puntos > 0) && (
+      {INCENTIVOS_TRABAJADORES_VISIBLES && ranking.length > 0 && ranking.some(r => r.total_puntos > 0) && (
         <section className="ao-card mb-5 p-4">
           <div className="mb-3 flex items-center gap-2">
             <Award className="h-4 w-4 text-[var(--color-primary)]" />
@@ -258,7 +261,9 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
       )}
 
       <ColaboradoresView />
-      <PlusesExtraAdminView empleados={(empleados ?? []).map(({ id, nombre }) => ({ id, nombre }))} />
+      {INCENTIVOS_TRABAJADORES_VISIBLES && (
+        <PlusesExtraAdminView empleados={(empleados ?? []).map(({ id, nombre }) => ({ id, nombre }))} />
+      )}
     </div>
   )
 }

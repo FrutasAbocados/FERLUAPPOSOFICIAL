@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
+import { INCENTIVOS_TRABAJADORES_VISIBLES, esNotificacionIncentivos } from '@/modules/trabajadores/lib/features'
 
 export type NotificacionTipo =
   | 'vacaciones_solicitada'
@@ -50,7 +51,12 @@ export function useNotificaciones() {
     return () => { supabase.removeChannel(channel) }
   }, [qc])
 
-  return query
+  if (INCENTIVOS_TRABAJADORES_VISIBLES || !query.data) return query
+
+  return {
+    ...query,
+    data: query.data.filter((notificacion) => !esNotificacionIncentivos(notificacion.tipo)),
+  }
 }
 
 // Descartar = DELETE de la fila. No es "marcar leída" — pierde trazabilidad.

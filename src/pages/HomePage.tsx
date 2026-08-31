@@ -25,6 +25,7 @@ import { FichajeCard } from '@/modules/trabajadores/components/FichajeCard'
 import { RuletaPremiosSelfCard } from '@/modules/trabajadores/components/RuletaPremiosSelfCard'
 import { RuletaSelfCard } from '@/modules/trabajadores/components/RuletaSelfCard'
 import { PeopleCoachCard, PeopleSharedSummariesCard } from '@/modules/people/components/PeopleCoach'
+import { INCENTIVOS_TRABAJADORES_VISIBLES } from '@/modules/trabajadores/lib/features'
 import {
   useClientesProgramaPendientes, useClientesRiesgoFuga, usePedidosEsperados,
   useProductosAnomalos, usePvpSugerido, useTopDeudoresCobros,
@@ -99,7 +100,9 @@ export function HomePage() {
 function HomeAdmin() {
   const { profile } = useAuth()
   const role = profile?.role
-  const moduleEntries = MODULOS.filter(m => role && canAccess(m.key as ModuleKey, role))
+  const moduleEntries = MODULOS.filter(m =>
+    role && canAccess(m.key as ModuleKey, role) && (INCENTIVOS_TRABAJADORES_VISIBLES || m.key !== 'turnos')
+  )
 
   const isAdmin        = role === 'admin_full' || role === 'admin_op'
   const isGestorCobros = role === 'gestor_cobros'
@@ -211,7 +214,7 @@ function HomeAdmin() {
           <div className="min-w-0 space-y-6">
 
             {/* 0 — Ruleta (semiadmins también juegan como un trabajador más) */}
-            {esTrabajador && (
+            {INCENTIVOS_TRABAJADORES_VISIBLES && esTrabajador && (
               <div className="space-y-[22px]">
                 <PeopleCoachCard />
                 <RuletaSelfCard />
@@ -384,7 +387,9 @@ function HomeAdmin() {
 function HomeEmpleado() {
   const { profile } = useAuth()
   const role = profile?.role
-  const moduleEntries = MODULOS.filter(m => role && canAccess(m.key as ModuleKey, role))
+  const moduleEntries = MODULOS.filter(m =>
+    role && canAccess(m.key as ModuleKey, role) && (INCENTIVOS_TRABAJADORES_VISIBLES || m.key !== 'turnos')
+  )
 
   return (
     <div>
@@ -395,8 +400,12 @@ function HomeEmpleado() {
         <NotificacionesPanel />
         <PeopleCoachCard />
         <FichajeCard />
-        <RuletaSelfCard />
-        <RuletaPremiosSelfCard compact />
+        {INCENTIVOS_TRABAJADORES_VISIBLES && (
+          <>
+            <RuletaSelfCard />
+            <RuletaPremiosSelfCard compact />
+          </>
+        )}
 
         <section>
           <h2 className="label-caps mb-3">Tus módulos</h2>

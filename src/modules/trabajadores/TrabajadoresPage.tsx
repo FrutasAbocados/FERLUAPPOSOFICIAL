@@ -8,6 +8,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
 import { toast } from '@/shared/lib/toast'
+import { INCENTIVOS_TRABAJADORES_VISIBLES } from './lib/features'
 
 interface Trabajador {
   id: string
@@ -164,6 +165,7 @@ function useGuardarTrabajador() {
 
 const totalMensual = (t: Trabajador) => {
   const base = Number(t.sueldo_base ?? 0)
+  if (!INCENTIVOS_TRABAJADORES_VISIBLES) return base
   // pack 2 (sueldo neto sin pluses) y pack 3 (prácticas, sueldo fijo)
   if (t.pack === 2 || t.pack === 3) return base
   return base +
@@ -195,21 +197,31 @@ export function TrabajadoresPage() {
   const { data, isLoading } = useTrabajadores()
   const [editing, setEditing] = useState<Trabajador | null>(null)
   const [creating, setCreating] = useState(false)
+  const [mostrarBajas, setMostrarBajas] = useState(false)
 
   const totalNomina = useMemo(() =>
     (data ?? []).filter(t => t.activo).reduce((s, t) => s + totalMensual(t), 0),
     [data])
+  const trabajadoresVisibles = useMemo(
+    () => (data ?? []).filter(t => mostrarBajas || t.activo),
+    [data, mostrarBajas],
+  )
 
   return (
     <div>
       <PageTopbar
         breadcrumb="EQUIPO · BBDD TRABAJADORES"
         title="Trabajadores"
-        subtitle="Plantilla, condiciones y pluses individualizados."
+        subtitle="Plantilla y condiciones individualizadas."
         actions={
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <UserPlus className="mr-1 h-4 w-4" /> Nuevo trabajador
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setMostrarBajas(v => !v)}>
+              {mostrarBajas ? 'Ocultar bajas' : 'Mostrar bajas'}
+            </Button>
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <UserPlus className="mr-1 h-4 w-4" /> Nuevo trabajador
+            </Button>
+          </div>
         }
       />
       <div className="ao-page max-w-5xl py-6 md:py-8">
@@ -224,9 +236,9 @@ export function TrabajadoresPage() {
 
       <div className="ao-card overflow-hidden p-0">
         {isLoading && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Cargando…</p>}
-        {data?.length === 0 && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Sin trabajadores</p>}
+        {!isLoading && trabajadoresVisibles.length === 0 && <p className="px-4 py-3 text-sm text-[var(--color-ink-3)]">Sin trabajadores</p>}
         <ul className="divide-y divide-[var(--color-border)]">
-          {data?.map(t => (
+          {trabajadoresVisibles.map(t => (
             <li key={t.id}>
               <button
                 onClick={() => setEditing(t)}
@@ -334,14 +346,22 @@ function EditorTrabajador({ trabajador, onClose, modo = 'editar' }: { trabajador
                 <input type="radio" name="pack" checked={t.pack === 1} onChange={() => set('pack', 1)} className="mt-0.5" />
                 <div>
                   <div className="font-semibold">Pack 1</div>
-                  <div className="text-xs text-[var(--color-ink-3)]">60d vac · desayuno · objetivos · productividad · crédito · 5% nuevos</div>
+                  <div className="text-xs text-[var(--color-ink-3)]">
+                    {INCENTIVOS_TRABAJADORES_VISIBLES
+                      ? '60d vac · desayuno · objetivos · productividad · crédito · 5% nuevos'
+                      : '60d vac · crédito frutas'}
+                  </div>
                 </div>
               </label>
               <label className={`flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm ${t.pack === 2 ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]' : 'border-[var(--color-border)]'}`}>
                 <input type="radio" name="pack" checked={t.pack === 2} onChange={() => set('pack', 2)} className="mt-0.5" />
                 <div>
                   <div className="font-semibold">Pack 2</div>
-                  <div className="text-xs text-[var(--color-ink-3)]">48d vac · sueldo neto · 70€/sábado · 5% nuevos · sin pluses</div>
+                  <div className="text-xs text-[var(--color-ink-3)]">
+                    {INCENTIVOS_TRABAJADORES_VISIBLES
+                      ? '48d vac · sueldo neto · 70€/sábado · 5% nuevos · sin pluses'
+                      : '48d vac · sueldo neto'}
+                  </div>
                 </div>
               </label>
               <label className={`flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm ${t.pack === 3 ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]' : 'border-[var(--color-border)]'}`}>
@@ -370,7 +390,7 @@ function EditorTrabajador({ trabajador, onClose, modo = 'editar' }: { trabajador
                   <strong className="text-[var(--color-ink)] tabular-nums">
                     {Math.round((t.pack === 1 ? 60 : t.pack === 2 ? 48 : 0) * (t.jornada_factor ?? 1))} días/año
                   </strong>
-                  {t.jornada_factor !== 1 && <span> · pluses se ajustan a mano</span>}
+                  {INCENTIVOS_TRABAJADORES_VISIBLES && t.jornada_factor !== 1 && <span> · pluses se ajustan a mano</span>}
                 </p>
               </div>
             </div>
@@ -388,7 +408,7 @@ function EditorTrabajador({ trabajador, onClose, modo = 'editar' }: { trabajador
                 </Field>
               </div>
             )}
-            {t.pack === 2 && (
+            {INCENTIVOS_TRABAJADORES_VISIBLES && t.pack === 2 && (
               <div className="mt-3">
                 <Field label="Tarifa por sábado trabajado (€)">
                   <Input
@@ -412,7 +432,7 @@ function EditorTrabajador({ trabajador, onClose, modo = 'editar' }: { trabajador
               <Field label={t.pack === 2 ? 'Sueldo neto' : 'Sueldo base'}>
                 <Input type="number" step="0.01" value={t.sueldo_base ?? ''} onChange={(e) => setNum('sueldo_base', e.target.value)} className="h-9 tabular-nums text-right" />
               </Field>
-              {t.pack === 1 && (
+              {INCENTIVOS_TRABAJADORES_VISIBLES && t.pack === 1 && (
                 <>
                   <Field label="Plus desayuno">
                     <Input type="number" step="0.01" value={t.plus_transporte ?? ''} onChange={(e) => setNum('plus_transporte', e.target.value)} className="h-9 tabular-nums text-right" />
@@ -428,9 +448,9 @@ function EditorTrabajador({ trabajador, onClose, modo = 'editar' }: { trabajador
             </div>
             <div className="mt-3 flex items-center justify-between border-t border-[var(--color-border)] pt-3">
               <span className="text-sm text-[var(--color-ink-3)]">
-                {t.pack === 2 ? 'Sueldo neto + sábados se calculan en pestaña Sábados'
+                {INCENTIVOS_TRABAJADORES_VISIBLES && t.pack === 2 ? 'Sueldo neto + sábados se calculan en pestaña Sábados'
                   : t.pack === 3 ? 'Sueldo fijo + crédito frutas'
-                  : 'Total mensual base + pluses'}
+                  : INCENTIVOS_TRABAJADORES_VISIBLES ? 'Total mensual base + pluses' : 'Sueldo mensual base'}
               </span>
               <span className="ao-text-success font-display text-xl font-bold tabular-nums">{eur(totalMensual(t))}</span>
             </div>
