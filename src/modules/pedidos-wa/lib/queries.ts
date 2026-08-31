@@ -334,7 +334,7 @@ export function useVincularTelefonoWhatsapp() {
           telefono_display: input.telefono.trim() || telefono,
           etiqueta: input.etiqueta ?? null,
           activo: true,
-        }, { onConflict: 'telefono_norm' })
+        }, { onConflict: 'cliente_id,telefono_norm' })
       if (upsertErr) throw upsertErr
 
       const { error: msgErr } = await supabase

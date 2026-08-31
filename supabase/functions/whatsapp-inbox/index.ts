@@ -84,7 +84,25 @@ type WhatsappMessage = {
   interactive?: {
     button_reply?: { title?: string }
     list_reply?: { title?: string; description?: string }
+    nfm_reply?: { name?: string; response_json?: string }
   }
+}
+
+// Contrato de respuesta del WhatsApp Flow (lo produce la edge `whatsapp-flow`).
+// OJO: aquí NO hay cliente_id. El cliente se resuelve por `flow_token` contra
+// pedidos_wa_flow_sesiones, que se fijó en servidor al ENVIAR el Flow. Aceptar
+// un cliente_id del payload sería un IDOR: cualquiera podría pedir (y hacer
+// facturar) a nombre de otro establecimiento.
+type FlowReply = {
+  flow_token: string
+  lineas: Array<{
+    producto: string
+    cantidad: number
+    unidad?: string | null
+    subseccion?: string | null
+    notas?: string | null
+  }>
+  notas?: string | null
 }
 
 type AdminAction = {
@@ -177,6 +195,7 @@ async function handleWebhook(payload: WhatsappPayload) {
   const inbound = extractMessages(payload)
   const processKeys = new Map<string, { clienteId: string; fecha: string }>()
   const saved: StoredMessage[] = []
+  const flowPedidos: Array<{ clienteId: string; pedidoId: string; lineas: number }> = []
 
   for (const msg of inbound) {
     const telefono = normalizePhone(msg.from)
@@ -187,22 +206,59 @@ async function handleWebhook(payload: WhatsappPayload) {
     const receivedAt = whatsappTimestampToIso(msg.timestamp)
     const fechaNegocio = businessDateIso(new Date(receivedAt))
     const texto = extractText(msg)
-    const cliente = await lookupClienteByPhone(telefono)
-    const estado = !cliente ? 'sin_cliente' : !texto ? 'sin_texto' : 'recibido'
 
-    const row = await upsertMessage({
+    const base = {
       wa_message_id: waId,
       phone_number_id: findPhoneNumberId(payload),
       telefono_norm: telefono,
       perfil_nombre: contact?.profile?.name ?? null,
-      cliente_id: cliente?.id ?? null,
       fecha_negocio: fechaNegocio,
       received_at: receivedAt,
       message_type: msg.type ?? 'unknown',
-      texto,
       raw_payload: msg,
+    }
+
+    // --- Vía estructurada: respuesta de un WhatsApp Flow ---------------------
+    // No pasa por IA. El pedido ya viene con producto y cantidad explícitos,
+    // así que no hay nada que interpretar ni margen de error de parseo.
+    const flow = parseFlowReply(msg)
+    if (flow) {
+      try {
+        const res = await ingestFlowPedido(flow, telefono, fechaNegocio)
+        saved.push(await upsertMessage({
+          ...base,
+          cliente_id: res.clienteId,
+          texto: `[Flow] ${res.lineas} líneas`,
+          estado: 'pedido_flow',
+          error: null,
+        }))
+        flowPedidos.push(res)
+      } catch (e) {
+        saved.push(await upsertMessage({
+          ...base, cliente_id: null, texto, estado: 'error', error: errMsg(e),
+        }))
+      }
+      continue
+    }
+
+    // --- Vía texto libre: se mantiene como fallback --------------------------
+    // lookupClientesByPhone devuelve TODOS los clientes del número. Antes se
+    // hacía `limit 1`: con un dueño de varios locales, el pedido se atribuía
+    // a uno al azar y en silencio. Ahora eso queda marcado como 'ambiguo'.
+    const clientes = await lookupClientesByPhone(telefono)
+    const cliente = clientes.length === 1 ? clientes[0] : null
+    const estado = clientes.length > 1
+      ? 'ambiguo'
+      : !cliente ? 'sin_cliente' : !texto ? 'sin_texto' : 'recibido'
+
+    const row = await upsertMessage({
+      ...base,
+      cliente_id: cliente?.id ?? null,
+      texto,
       estado,
-      error: null,
+      error: clientes.length > 1
+        ? `Teléfono asignado a ${clientes.length} clientes: ${clientes.map(c => c.nombre).join(', ')}`
+        : null,
     })
     saved.push(row)
 
@@ -216,7 +272,88 @@ async function handleWebhook(payload: WhatsappPayload) {
     processed.push(await processClienteFecha(item.clienteId, item.fecha))
   }
 
-  return { received: inbound.length, saved: saved.length, processed }
+  return {
+    received: inbound.length,
+    saved: saved.length,
+    processed,
+    flow_pedidos: flowPedidos,
+  }
+}
+
+function parseFlowReply(msg: WhatsappMessage): FlowReply | null {
+  const raw = msg.interactive?.nfm_reply?.response_json
+  if (!raw) return null
+  let parsed: FlowReply
+  try {
+    parsed = JSON.parse(raw) as FlowReply
+  } catch {
+    throw new Error(`nfm_reply con JSON inválido: ${raw.slice(0, 160)}`)
+  }
+  if (!parsed?.flow_token) throw new Error('nfm_reply sin flow_token')
+  if (!Array.isArray(parsed.lineas) || parsed.lineas.length === 0) {
+    throw new Error('nfm_reply sin líneas de pedido')
+  }
+  return parsed
+}
+
+// Crea pedido + líneas desde la respuesta del Flow.
+// El trigger `pedidos_wa_confirmado_dispatch` se encarga de Holded a partir de
+// aquí, y el cron de reconcile cubre los fallos. No se duplica esa lógica.
+async function ingestFlowPedido(flow: FlowReply, telefono: string, fechaNegocio: string) {
+  const sesiones = await dbGet<Array<{ token: string; cliente_id: string; telefono_norm: string; consumido_at: string | null }>>(
+    `pedidos_wa_flow_sesiones?select=token,cliente_id,telefono_norm,consumido_at` +
+    `&token=eq.${encodeURIComponent(flow.flow_token)}&expira_at=gt.${new Date().toISOString()}&limit=1`,
+  )
+  const sesion = sesiones[0]
+  if (!sesion) throw new Error('flow_token desconocido o caducado')
+  // El token se emitió para un teléfono concreto: si responde otro, se rechaza.
+  if (sesion.telefono_norm !== telefono) throw new Error('flow_token no corresponde a este teléfono')
+  if (sesion.consumido_at) throw new Error('flow_token ya consumido')
+
+  const lineas = flow.lineas
+    .map((l, i) => ({
+      orden: i + 1,
+      producto_normalizado: String(l.producto ?? '').trim(),
+      producto_raw: String(l.producto ?? '').trim(),
+      cantidad: Number(l.cantidad ?? 0),
+      unidad: l.unidad ?? 'unidad',
+      subseccion: l.subseccion ?? null,
+      notas: l.notas ?? null,
+      es_gratis: false,
+      metodo: 'flow',
+    }))
+    .filter(l => l.producto_normalizado && Number.isFinite(l.cantidad) && l.cantidad > 0)
+
+  if (lineas.length === 0) throw new Error('ninguna línea válida tras normalizar')
+
+  const pedidos = await dbJson<Array<{ id: string }>>('pedidos_wa', {
+    method: 'POST',
+    headers: { prefer: 'return=representation' },
+    body: JSON.stringify({
+      cliente_id: sesion.cliente_id,
+      fecha: fechaNegocio,
+      estado: 'confirmado',
+      notas: flow.notas ?? null,
+    }),
+  })
+  const pedidoId = pedidos[0]?.id
+  if (!pedidoId) throw new Error('no se pudo crear el pedido')
+
+  await dbJson('pedidos_wa_lineas', {
+    method: 'POST',
+    headers: { prefer: 'return=minimal' },
+    body: JSON.stringify(lineas.map(l => ({ ...l, pedido_id: pedidoId }))),
+  })
+
+  // Consumir el token: un Flow = un pedido. Si el cliente vuelve a enviar el
+  // mismo formulario, el segundo intento falla en vez de duplicar el pedido.
+  await dbJson(`pedidos_wa_flow_sesiones?token=eq.${encodeURIComponent(flow.flow_token)}`, {
+    method: 'PATCH',
+    headers: { prefer: 'return=minimal' },
+    body: JSON.stringify({ consumido_at: new Date().toISOString(), pedido_id: pedidoId }),
+  })
+
+  return { clienteId: sesion.cliente_id, pedidoId, lineas: lineas.length }
 }
 
 function extractMessages(payload: WhatsappPayload): WhatsappMessage[] {
@@ -263,16 +400,22 @@ function extractText(msg: WhatsappMessage): string | null {
   return trimmed ? trimmed : null
 }
 
-async function lookupClienteByPhone(phone: string): Promise<Cliente | null> {
+// Devuelve TODOS los clientes activos de un teléfono, no el primero.
+// Un mismo dueño puede tener varios locales con el mismo móvil (caso real:
+// dos establecimientos de la misma propiedad). Con `limit 1` el pedido se
+// asignaba a uno al azar y sin dejar rastro; ahora quien llama decide.
+async function lookupClientesByPhone(phone: string): Promise<Cliente[]> {
   const maps = await dbGet<PhoneMap[]>(
-    `pedidos_wa_cliente_telefonos?select=cliente_id&telefono_norm=eq.${encodeURIComponent(phone)}&activo=eq.true&limit=1`,
+    `pedidos_wa_cliente_telefonos?select=cliente_id&telefono_norm=eq.${encodeURIComponent(phone)}&activo=eq.true`,
   )
-  const clienteId = maps[0]?.cliente_id
-  if (!clienteId) return null
+  const ids = [...new Set(maps.map(m => m.cliente_id).filter(Boolean))]
+  if (ids.length === 0) return []
+  const inList = ids.map(id => `"${id}"`).join(',')
   const clientes = await dbGet<Cliente[]>(
-    `pedidos_wa_clientes?select=id,nombre,horario,tipo_factura,repartidor,notas,activo&id=eq.${encodeURIComponent(clienteId)}&limit=1`,
+    `pedidos_wa_clientes?select=id,nombre,horario,tipo_factura,repartidor,notas,activo` +
+    `&id=in.(${encodeURIComponent(inList)})&activo=eq.true`,
   )
-  return clientes[0] ?? null
+  return clientes ?? []
 }
 
 async function getCliente(clienteId: string): Promise<Cliente> {
