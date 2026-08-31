@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import {
-  BarChart3, Banknote, Bot, CalendarClock,
+  BarChart3, Banknote, CalendarClock,
   CheckSquare, CalendarDays, EyeOff, HandCoins, Package, RotateCcw, Tags, TrendingUp, UserMinus, Users, Wallet, X,
   UsersRound,
   ChevronDown, ArrowRight,
@@ -26,8 +26,8 @@ import { RuletaPremiosSelfCard } from '@/modules/trabajadores/components/RuletaP
 import { RuletaSelfCard } from '@/modules/trabajadores/components/RuletaSelfCard'
 import { PeopleCoachCard, PeopleSharedSummariesCard } from '@/modules/people/components/PeopleCoach'
 import {
-  useClientesProgramaPendientes, useClientesRiesgoFuga, useCostesSubiendo,
-  usePedidosEsperados, useProductosAnomalos, useTopDeudoresCobros,
+  useClientesProgramaPendientes, useClientesRiesgoFuga, usePedidosEsperados,
+  useProductosAnomalos, usePvpSugerido, useTopDeudoresCobros,
   type ClienteProgramaPendiente, type DeudorCobros, type PedidoEsperado, type ClienteRiesgoFuga, type CosteSubiendo, type ProductoAnomalo,
 } from '@/modules/dashboard/lib/queries'
 import {
@@ -46,9 +46,36 @@ const eur = eurosShort
 const fmt = (d: string | null) =>
   d == null ? '—' : format(parseISO(d), 'd LLL', { locale: es })
 
+function useDashboardAnalyticsReady(delayMs = 700) {
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    const idleApi = window as unknown as {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number
+      cancelIdleCallback?: (handle: number) => void
+    }
+
+    let idleId: number | undefined
+    const timerId = setTimeout(() => {
+      if (idleApi.requestIdleCallback) {
+        idleId = idleApi.requestIdleCallback(() => setReady(true), { timeout: 500 })
+        return
+      }
+
+      setReady(true)
+    }, delayMs)
+
+    return () => {
+      clearTimeout(timerId)
+      if (idleId != null) idleApi.cancelIdleCallback?.(idleId)
+    }
+  }, [delayMs])
+
+  return ready
+}
+
 const MODULOS = [
   { key: 'manager',           title: 'Manager',      to: '/manager',           Icon: BarChart3,    color: 'oklch(78% 0.14 158)', bg: 'oklch(22% 0.10 158 / 0.55)' },
-  { key: 'agente',            title: 'Agente IA',    to: '/agente',            Icon: Bot,          color: 'oklch(76% 0.12 235)', bg: 'oklch(20% 0.09 235 / 0.55)' },
   { key: 'cash',              title: 'Caja',         to: '/cash',              Icon: Banknote,     color: 'oklch(78% 0.16 70)',  bg: 'oklch(22% 0.10 70  / 0.55)' },
   { key: 'trabajadores',      title: 'Trabajadores', to: '/trabajadores',      Icon: CheckSquare,  color: 'oklch(75% 0.14 310)', bg: 'oklch(20% 0.09 310 / 0.55)' },
   { key: 'turnos',            title: 'Turnos',       to: '/turnos',            Icon: CalendarDays, color: 'oklch(76% 0.13 195)', bg: 'oklch(20% 0.08 195 / 0.55)' },
@@ -80,11 +107,16 @@ function HomeAdmin() {
   // ven la ruleta como un empleado. Los admin plenos (Luis/Álvaro) no.
   const esTrabajador   = !!role && !isAdmin
   const canSeeCobros   = isAdmin || isGestorCobros
+  // Las analíticas de producto son las RPC más costosas del Dashboard. Dejamos
+  // que KPIs, deuda y riesgo pinten primero y las arrancamos al quedar libre el navegador.
+  const analyticsReady = useDashboardAnalyticsReady()
   const deudoresQ   = useTopDeudoresCobros({ enabled: canSeeCobros })
   const esperadosQ  = usePedidosEsperados({ enabled: isAdmin })
-  const anomalosQ   = useProductosAnomalos(30, { enabled: isAdmin })
+  const anomalosQ   = useProductosAnomalos(30, { enabled: isAdmin && analyticsReady })
   const riesgoFugaQ = useClientesRiesgoFuga({ enabled: isAdmin })
-  const costesQ     = useCostesSubiendo(14, 15, { enabled: isAdmin })
+  // PVP ya calcula la misma subida de coste (14d, ≥15%). Reutilizar esta query
+  // evita ejecutar además dashboard_costes_subiendo en cada visita.
+  const pvpQ        = usePvpSugerido(25, { enabled: isAdmin && analyticsReady })
   const programaQ   = useClientesProgramaPendientes({ enabled: isAdmin })
 
   const dismissed      = useAlertasDescartadas()
@@ -133,9 +165,19 @@ function HomeAdmin() {
     data: (riesgoFugaQ.data ?? []).filter((c) => !dismissed.isDescartada('riesgo_fuga', c.contact_name_canon)),
   }), [riesgoFugaQ, dismissed])
   const costes = useMemo(() => ({
-    ...costesQ,
-    data: (costesQ.data ?? []).filter((p) => !dismissed.isDescartada('coste_subiendo', p.product_id)),
-  }), [costesQ, dismissed])
+    ...pvpQ,
+    data: (pvpQ.data ?? [])
+      .slice(0, 20)
+      .map((p): CosteSubiendo => ({
+        product_id: p.product_id,
+        nombre: p.nombre,
+        coste_actual: p.coste_actual,
+        coste_anterior: p.coste_anterior,
+        variacion_pct: p.coste_variacion_pct,
+        ultima_compra: p.ultima_compra,
+      }))
+      .filter((p) => !dismissed.isDescartada('coste_subiendo', p.product_id)),
+  }), [pvpQ, dismissed])
 
   const totalDeuda        = (deudores.data ?? []).reduce((s, d) => s + d.pendiente, 0)
   const totalVencido      = (deudores.data ?? []).reduce((s, d) => s + d.vencido, 0)
@@ -245,7 +287,7 @@ function HomeAdmin() {
                     count={anomalos.data?.length ?? 0}
                     meta="últimos 30 días"
                     to="/manager"
-                    loading={anomalosQ.isLoading}
+                    loading={!analyticsReady || anomalosQ.isLoading}
                   >
                     <ProductosList rows={anomalos.data} onDismiss={(id, label) => handleDismiss('producto_anomalo', id, label)} />
                   </AlertRow>
@@ -287,7 +329,7 @@ function HomeAdmin() {
                     count={costes.data?.length ?? 0}
                     meta="≥15% últimos 14d vs 90d"
                     to="/manager"
-                    loading={costesQ.isLoading}
+                    loading={!analyticsReady || pvpQ.isLoading}
                   >
                     <CostesList rows={costes.data} onDismiss={(id, label) => handleDismiss('coste_subiendo', id, label)} />
                   </AlertRow>
@@ -297,7 +339,7 @@ function HomeAdmin() {
 
                 {/* PVP a revisar — dentro del bloque de alertas */}
                 <div className="mt-3">
-                  <PvpSugeridoCard />
+                  <PvpSugeridoCard enabled={analyticsReady} />
                 </div>
               </section>
             )}

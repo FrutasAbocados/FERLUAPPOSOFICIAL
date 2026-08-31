@@ -16,13 +16,11 @@ const CashPage          = lazy(() => import('@/modules/cash/CashPage').then(m =>
 const TareasPage        = lazy(() => import('@/modules/tareas/TareasPage').then(m => ({ default: m.TareasPage })))
 const TrabajadoresOpPage = lazy(() => import('@/modules/trabajadores/TrabajadoresOpPage').then(m => ({ default: m.TrabajadoresOpPage })))
 const CobrosPage        = lazy(() => import('@/modules/cobros/CobrosPage').then(m => ({ default: m.CobrosPage })))
-const AgentePage        = lazy(() => import('@/modules/agente/AgentePage').then(m => ({ default: m.AgentePage })))
 const TrabajadoresPage  = lazy(() => import('@/modules/trabajadores/TrabajadoresPage').then(m => ({ default: m.TrabajadoresPage })))
 const NominasPage       = lazy(() => import('@/modules/nominas/NominasPage').then(m => ({ default: m.NominasPage })))
 const CondicionesPage   = lazy(() => import('@/modules/condiciones/CondicionesPage').then(m => ({ default: m.CondicionesPage })))
 const SueldosPage       = lazy(() => import('@/modules/sueldos/SueldosPage').then(m => ({ default: m.SueldosPage })))
 const PedidosWaPage     = lazy(() => import('@/modules/pedidos-wa/PedidosWaPage').then(m => ({ default: m.PedidosWaPage })))
-const GastosPage        = lazy(() => import('@/modules/gastos/GastosPage').then(m => ({ default: m.GastosPage })))
 const ClientesPage      = lazy(() => import('@/modules/clientes/ClientesPage').then(m => ({ default: m.ClientesPage })))
 const TesoreriaPage     = lazy(() => import('@/modules/tesoreria/TesoreriaPage').then(m => ({ default: m.TesoreriaPage })))
 const ListadoPreciosPage = lazy(() => import('@/modules/listado-precios/ListadoPreciosPage').then(m => ({ default: m.ListadoPreciosPage })))
@@ -79,9 +77,6 @@ export default function App() {
                   <Route element={<ProtectedRoute module="cobros" />}>
                     <Route path="cobros" element={<Suspense fallback={<PageFallback />}><CobrosPage /></Suspense>} />
                   </Route>
-                  <Route element={<ProtectedRoute module="agente" />}>
-                    <Route path="agente" element={<Suspense fallback={<PageFallback />}><AgentePage /></Suspense>} />
-                  </Route>
                   <Route element={<ProtectedRoute module="bbdd_trabajadores" />}>
                     <Route path="bbdd-trabajadores" element={<Suspense fallback={<PageFallback />}><TrabajadoresPage /></Suspense>} />
                   </Route>
@@ -99,9 +94,6 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute module="pedidos_wa" />}>
                     <Route path="pedidos-wa" element={<Suspense fallback={<PageFallback />}><PedidosWaPage /></Suspense>} />
-                  </Route>
-                  <Route element={<ProtectedRoute module="gastos" />}>
-                    <Route path="gastos" element={<Suspense fallback={<PageFallback />}><GastosPage /></Suspense>} />
                   </Route>
                   <Route element={<ProtectedRoute module="clientes" />}>
                     <Route path="clientes" element={<Suspense fallback={<PageFallback />}><ClientesPage /></Suspense>} />

@@ -6,7 +6,6 @@ import { prefetchManagerResumen } from '@/modules/manager/lib/queries'
 import {
   BarChart3,
   Banknote,
-  Bot,
   CheckSquare,
   ChevronRight,
   Contact,
@@ -16,7 +15,6 @@ import {
   Home,
   LogOut,
   MessageSquare,
-  Receipt,
   ScrollText,
   Tags,
   Users,
@@ -38,12 +36,10 @@ type ModuleNav = {
 
 const MODULES: ModuleNav[] = [
   { key: 'manager',    label: 'Manager',  to: '/manager',    icon: BarChart3 },
-  { key: 'agente',     label: 'Agente',   to: '/agente',     icon: Bot },
   { key: 'pedidos_wa', label: 'Pedidos',  to: '/pedidos-wa', icon: MessageSquare },
   { key: 'cash',       label: 'Caja',     to: '/cash',       icon: Banknote },
   { key: 'clientes',   label: 'Clientes', to: '/clientes',   icon: Contact },
   { key: 'cobros',     label: 'Cobros',     to: '/cobros',     icon: HandCoins },
-  { key: 'gastos',     label: 'Gastos',     to: '/gastos',     icon: Receipt },
   { key: 'tesoreria',  label: 'Tesorería',  to: '/tesoreria',  icon: Vault },
   { key: 'listado_precios', label: 'Listado Precios', to: '/listado-precios', icon: Tags },
   { key: 'gestoria',        label: 'Gestoría',        to: '/gestoria',        icon: FileSpreadsheet },
@@ -64,12 +60,10 @@ const SOCIOS: ModuleNav[] = [
 const PRELOADERS: Record<string, () => void> = {
   '/':                 () => { void import('@/pages/HomePage') },
   '/manager':          () => { void import('@/modules/manager/ManagerPage') },
-  '/agente':           () => { void import('@/modules/agente/AgentePage') },
   '/pedidos-wa':       () => { void import('@/modules/pedidos-wa/PedidosWaPage') },
   '/cash':             () => { void import('@/modules/cash/CashPage') },
   '/clientes':         () => { void import('@/modules/clientes/ClientesPage') },
   '/cobros':           () => { void import('@/modules/cobros/CobrosPage') },
-  '/gastos':           () => { void import('@/modules/gastos/GastosPage') },
   '/tesoreria':        () => { void import('@/modules/tesoreria/TesoreriaPage') },
   '/listado-precios':  () => { void import('@/modules/listado-precios/ListadoPreciosPage') },
   '/gestoria':         () => { void import('@/modules/gestoria/GestoriaPage') },

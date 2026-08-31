@@ -8,9 +8,9 @@ import { useAlertasDescartadas, useDescartarAlerta } from '../lib/dismiss'
 
 const eur = eurosOrDash
 
-export function PvpSugeridoCard() {
+export function PvpSugeridoCard({ enabled = true }: { enabled?: boolean }) {
   const [margenObjetivo, setMargenObjetivo] = useState<number>(25)
-  const { data, isLoading } = usePvpSugerido(margenObjetivo)
+  const { data, isLoading } = usePvpSugerido(margenObjetivo, { enabled })
   const { isDescartada } = useAlertasDescartadas()
   const descartar = useDescartarAlerta()
 

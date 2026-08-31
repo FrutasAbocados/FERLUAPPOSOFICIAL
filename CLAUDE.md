@@ -15,19 +15,20 @@ Producción: `https://abocadosos.vercel.app`. Repo: `FrutasAbocados/FERLUAPPOSOF
 - **Despliegue**: Vercel team `frutasabocados-1900s-projects` auto-deploy desde `main`. `.npmrc` con `legacy-peer-deps=true` por `vite-plugin-pwa@1.2.0`.
 - **Path alias**: `@/*` → `src/*`.
 
-## Módulos LIVE en producción (12)
+## Módulos LIVE en producción (10)
 1. **Dashboard** `/` — centro de alertas + Riesgo de fuga (3 motivos)
 2. **Manager** `/manager` — 9 tabs analíticas + heatmap cliente×día + mapa Leaflet
-3. **Agente IA** `/agente` (admin only) — chat Claude con 12 tools
-4. **Caja** `/cash` — Calendario 7×N + Cierre día por repartidor
-5. **Trabajadores** `/trabajadores` — 5 sub-tabs + Ruleta (default OFF)
-6. **Turnos** `/turnos` — vista semanal del equipo
-7. **Cobros** `/cobros` — control deuda + import Excel + filtro fechas + multi-select
-8. **Sueldos socios** `/sueldos` — retiros mensuales Luis/Álvaro
-9. **BBDD Trabajadores** `/bbdd-trabajadores` — sueldos+pluses
-10. **Pedidos WhatsApp** `/pedidos-wa` — 8 tabs, automatización Holded completa
-11. **Gastos** `/gastos` — fijos + variables + stats
-12. **Clientes** `/clientes` — ficha 360° + seguimiento semanal
+3. **Caja** `/cash` — Calendario 7×N + Cierre día por repartidor
+4. **Trabajadores** `/trabajadores` — 5 sub-tabs + Ruleta (default OFF)
+5. **Turnos** `/turnos` — vista semanal del equipo
+6. **Cobros** `/cobros` — control deuda + import Excel + filtro fechas + multi-select
+7. **Sueldos socios** `/sueldos` — retiros mensuales Luis/Álvaro
+8. **BBDD Trabajadores** `/bbdd-trabajadores` — sueldos+pluses
+9. **Pedidos WhatsApp** `/pedidos-wa` — 8 tabs, automatización Holded completa
+10. **Clientes** `/clientes` — ficha 360° + seguimiento semanal
+
+Retirados del frontend el 30-08-2026: `/agente` y `/gastos`. Se conservan datos,
+migraciones históricas y procesos de gastos integrados en Caja/Trabajadores.
 
 ## Edge Functions (16)
 `parser-pedido` · `parsear-factura-proveedor` · `compra-a-holded` · `pedido-a-holded` · `borrar-borrador-holded` · `holded-webhook` · `holded-sync` · `holded-sync-contactos` · `geocode-contactos` · `notif-push-send` · `notificaciones-ia` · `agent-chat` · `cobros-backup-diario` · `dashboard-briefing-diario` · `pedidos-esperados-push` · `event-dispatcher`.
