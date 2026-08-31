@@ -15,17 +15,24 @@ Producción: `https://abocadosos.vercel.app`. Repo: `FrutasAbocados/FERLUAPPOSOF
 - **Despliegue**: Vercel team `frutasabocados-1900s-projects` auto-deploy desde `main`. `.npmrc` con `legacy-peer-deps=true` por `vite-plugin-pwa@1.2.0`.
 - **Path alias**: `@/*` → `src/*`.
 
-## Módulos LIVE en producción (10)
+## Módulos LIVE en producción (17)
 1. **Dashboard** `/` — centro de alertas + Riesgo de fuga (3 motivos)
 2. **Manager** `/manager` — 9 tabs analíticas + heatmap cliente×día + mapa Leaflet
 3. **Caja** `/cash` — Calendario 7×N + Cierre día por repartidor
 4. **Trabajadores** `/trabajadores` — 5 sub-tabs + Ruleta (default OFF)
-5. **Turnos** `/turnos` — vista semanal del equipo
-6. **Cobros** `/cobros` — control deuda + import Excel + filtro fechas + multi-select
-7. **Sueldos socios** `/sueldos` — retiros mensuales Luis/Álvaro
+5. **Tareas** `/tareas` — gestión operativa del equipo
+6. **Turnos** `/turnos` — vista semanal del equipo
+7. **Cobros** `/cobros` — control deuda + import Excel + filtro fechas + multi-select
 8. **BBDD Trabajadores** `/bbdd-trabajadores` — sueldos+pluses
-9. **Pedidos WhatsApp** `/pedidos-wa` — 8 tabs, automatización Holded completa
-10. **Clientes** `/clientes` — ficha 360° + seguimiento semanal
+9. **RRHH** `/rrhh` — perfiles de colaboración confirmados
+10. **Nóminas** `/nominas` — nóminas del equipo
+11. **Condiciones** `/condiciones` — condiciones laborales
+12. **Sueldos socios** `/sueldos` — retiros mensuales Luis/Álvaro
+13. **Pedidos WhatsApp** `/pedidos-wa` — 8 tabs, automatización Holded completa
+14. **Clientes** `/clientes` — ficha 360° + seguimiento semanal
+15. **Tesorería** `/tesoreria` — movimientos y control de caja
+16. **Listado Precios** `/listado-precios` — catálogo operativo de precios
+17. **Gestoría** `/gestoria` — exportaciones y acceso gestor
 
 Retirados del frontend el 30-08-2026: `/agente` y `/gastos`. Se conservan datos,
 migraciones históricas y procesos de gastos integrados en Caja/Trabajadores.
