@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { AlertTriangle, CheckCircle2, ClipboardList, Loader2, Plus } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ClipboardList, Loader2, Plus, Printer } from 'lucide-react'
 import { Modal } from '@/shared/components/Modal'
 import { toast } from '@/shared/lib/toast'
+import { imprimirIncidencias } from '../lib/incidenciasPrint'
 import {
   useActualizarEstadoIncidencia,
   useClientesIncidencias,
@@ -42,6 +43,18 @@ export function IncidenciasView({ autorEmpleadoId }: { autorEmpleadoId: string |
   const { data: incidencias, isLoading } = useIncidencias(filtro)
   const { data: puedeGestionar } = usePuedeGestionarIncidencias()
 
+  const total = (incidencias ?? []).length
+
+  // Se imprime exactamente lo que hay en pantalla, filtro incluido, para que el
+  // papel no diga una cosa distinta de la que se acaba de mirar.
+  const imprimir = () => {
+    if (total === 0) {
+      toast({ variant: 'error', title: 'No hay incidencias que imprimir' })
+      return
+    }
+    imprimirIncidencias(incidencias ?? [], FILTROS.find(f => f.k === filtro)?.l ?? 'Todas')
+  }
+
   return (
     <div className="ao-page py-5 pb-28 md:py-7">
       <header className="mb-4 flex items-start justify-between gap-3 border-b border-[var(--line)] pb-4">
@@ -50,13 +63,24 @@ export function IncidenciasView({ autorEmpleadoId }: { autorEmpleadoId: string |
           <h1 className="font-display text-2xl font-bold text-[var(--color-ink)] md:text-3xl">Incidencias</h1>
           <p className="mt-0.5 text-sm text-[var(--color-ink-2)]">Faltas, abonos e incidencias por cliente o generales. Seguimiento del equipo.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowForm(true)}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90"
-        >
-          <Plus className="h-4 w-4" /> Nueva
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={imprimir}
+            disabled={total === 0}
+            title={total === 0 ? 'No hay incidencias que imprimir' : `Imprimir ${total} incidencia(s) agrupadas por cliente`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)] disabled:opacity-40"
+          >
+            <Printer className="h-4 w-4" /> Imprimir
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowForm(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" /> Nueva
+          </button>
+        </div>
       </header>
 
       {/* Filtros */}
