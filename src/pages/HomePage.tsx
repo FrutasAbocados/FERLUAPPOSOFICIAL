@@ -25,6 +25,7 @@ import { FichajeCard } from '@/modules/trabajadores/components/FichajeCard'
 import { RuletaPremiosSelfCard } from '@/modules/trabajadores/components/RuletaPremiosSelfCard'
 import { RuletaSelfCard } from '@/modules/trabajadores/components/RuletaSelfCard'
 import { PeopleCoachCard, PeopleSharedSummariesCard } from '@/modules/people/components/PeopleCoach'
+import { PeopleSharedProfileCard } from '@/modules/people/components/PeopleSharedProfileCard'
 import { INCENTIVOS_TRABAJADORES_VISIBLES } from '@/modules/trabajadores/lib/features'
 import {
   useClientesProgramaPendientes, useClientesRiesgoFuga, usePedidosEsperados,
@@ -217,6 +218,7 @@ function HomeAdmin() {
             {INCENTIVOS_TRABAJADORES_VISIBLES && esTrabajador && (
               <div className="space-y-[22px]">
                 <PeopleCoachCard />
+                <PeopleSharedProfileCard />
                 <RuletaSelfCard />
                 <RuletaPremiosSelfCard compact />
               </div>
@@ -399,6 +401,7 @@ function HomeEmpleado() {
       <div className="space-y-[22px]">
         <NotificacionesPanel />
         <PeopleCoachCard />
+        <PeopleSharedProfileCard />
         <FichajeCard />
         {INCENTIVOS_TRABAJADORES_VISIBLES && (
           <>

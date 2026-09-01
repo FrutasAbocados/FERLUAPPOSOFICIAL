@@ -8,8 +8,8 @@ const REALTIME_MODEL = 'gpt-realtime-2.1-mini'
 const SUMMARY_MODEL = 'gpt-5-mini'
 const TRANSCRIPTION_MODEL = 'gpt-live-transcribe'
 const VOICE = 'marin'
-const PROMPT_VERSION = 'abocados-people-v1'
-const CONSENT_VERSION = 'abocados-people-privacy-v2'
+const PROMPT_VERSION = 'abocados-people-v2-safety'
+const CONSENT_VERSION = 'abocados-people-privacy-v3'
 const AUTOCLOSE_USD = 0.35
 const COST_LIMIT_USD = 0.5
 const MAX_DURATION_SECONDS = 10 * 60
@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
       return await startRealtime(req, worker.value, cors)
     }
     if (req.method === 'PUT') return await finishSession(req, worker.value, cors)
-    if (req.method === 'PATCH') return await updateProfileDecision(req, worker.value, cors)
+    if (req.method === 'PATCH') return await updateWorkerData(req, worker.value, cors)
     return json({ error: 'method_not_allowed' }, 405, cors)
   } catch (error) {
     console.error('people-coach:', error instanceof Error ? error.message : 'unknown_error')
@@ -143,7 +143,7 @@ async function startRealtime(req: Request, worker: ActiveWorker, cors: Record<st
       user_id: worker.userId,
       employee_id: worker.employeeId,
       consent_version: CONSENT_VERSION,
-      consent_text: 'No se guarda audio ni transcript. La reflexión personal es privada. Al finalizar se envía a administración un resumen operativo sin intimidades ni citas textuales.',
+      consent_text: 'No se guarda audio ni transcript. La reflexión personal es privada. Al finalizar se envía a administración un resumen operativo sin intimidades ni citas textuales. Una crisis o denuncia de acoso no genera avisos ocultos; ante peligro inmediato se prioriza el 112 y ayuda humana.',
       accepted_at: new Date().toISOString(),
       revoked_at: null,
     }),
@@ -397,11 +397,19 @@ async function finishSession(req: Request, worker: ActiveWorker, cors: Record<st
   }, 200, cors)
 }
 
-async function updateProfileDecision(req: Request, worker: ActiveWorker, cors: Record<string, string>): Promise<Response> {
+async function updateWorkerData(req: Request, worker: ActiveWorker, cors: Record<string, string>): Promise<Response> {
   const contentLength = Number(req.headers.get('content-length') ?? 0)
   if (contentLength > 12_000) return json({ error: 'payload_too_large' }, 413, cors)
   const body = await req.json() as Record<string, unknown>
-  if (body.action !== 'profile_decision') return json({ error: 'invalid_action' }, 400, cors)
+  if (body.action === 'profile_decision') return updateProfileDecision(body, worker, cors)
+  if (body.action === 'profile_update') return updateProfileItem(body, worker, cors)
+  if (body.action === 'profile_withdraw') return withdrawProfileItem(body, worker, cors)
+  if (body.action === 'profile_forget') return forgetProfileItem(body, worker, cors)
+  if (body.action === 'feedback') return saveSessionFeedback(body, worker, cors)
+  return json({ error: 'invalid_action' }, 400, cors)
+}
+
+async function updateProfileDecision(body: Record<string, unknown>, worker: ActiveWorker, cors: Record<string, string>): Promise<Response> {
   const sessionId = typeof body.sessionId === 'string' ? body.sessionId : ''
   if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return json({ error: 'invalid_session_id' }, 400, cors)
   const approvedItemIds = Array.isArray(body.approvedItemIds)
@@ -451,6 +459,135 @@ async function updateProfileDecision(req: Request, worker: ActiveWorker, cors: R
     await ensureDatabaseResponse(response)
   }
   return json({ approvedCount: approved.length, declinedCount: declined.length }, 200, cors)
+}
+
+async function updateProfileItem(body: Record<string, unknown>, worker: ActiveWorker, cors: Record<string, string>): Promise<Response> {
+  const itemId = readUuid(body.itemId)
+  const statement = typeof body.statement === 'string' ? body.statement.trim().slice(0, 350) : ''
+  const managerGuidance = typeof body.managerGuidance === 'string'
+    ? body.managerGuidance.trim().slice(0, 350) || null
+    : null
+  if (!itemId || !statement) return json({ error: 'invalid_profile_item' }, 400, cors)
+  if (!await ownsConfirmedProfileItem(itemId, worker.userId)) {
+    return json({ error: 'profile_item_not_found' }, 404, cors)
+  }
+
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/people_coach_profile_items?id=eq.${encodeURIComponent(itemId)}&user_id=eq.${encodeURIComponent(worker.userId)}&decision=eq.approved`,
+    {
+      method: 'PATCH',
+      headers: { ...dbHeaders, Prefer: 'return=minimal' },
+      body: JSON.stringify({ statement, manager_guidance: managerGuidance }),
+      signal: AbortSignal.timeout(8_000),
+    },
+  )
+  await ensureDatabaseResponse(response)
+  await logPrivacyEvent(worker, 'profile_updated', itemId)
+  return json({ updated: true }, 200, cors)
+}
+
+async function withdrawProfileItem(body: Record<string, unknown>, worker: ActiveWorker, cors: Record<string, string>): Promise<Response> {
+  const itemId = readUuid(body.itemId)
+  if (!itemId || !await ownsConfirmedProfileItem(itemId, worker.userId, true)) {
+    return json({ error: 'profile_item_not_found' }, 404, cors)
+  }
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/people_coach_profile_items?id=eq.${encodeURIComponent(itemId)}&user_id=eq.${encodeURIComponent(worker.userId)}&decision=eq.approved&visibility=eq.shared_company&revoked_at=is.null`,
+    {
+      method: 'PATCH',
+      headers: { ...dbHeaders, Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        visibility: 'private_employee',
+        employee_confirmed: false,
+        revoked_at: new Date().toISOString(),
+      }),
+      signal: AbortSignal.timeout(8_000),
+    },
+  )
+  await ensureDatabaseResponse(response)
+  await logPrivacyEvent(worker, 'profile_withdrawn', itemId)
+  return json({ withdrawn: true }, 200, cors)
+}
+
+async function forgetProfileItem(body: Record<string, unknown>, worker: ActiveWorker, cors: Record<string, string>): Promise<Response> {
+  const itemId = readUuid(body.itemId)
+  if (!itemId || !await ownsConfirmedProfileItem(itemId, worker.userId)) {
+    return json({ error: 'profile_item_not_found' }, 404, cors)
+  }
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/people_coach_profile_items?id=eq.${encodeURIComponent(itemId)}&user_id=eq.${encodeURIComponent(worker.userId)}&decision=eq.approved`,
+    {
+      method: 'DELETE',
+      headers: { ...dbHeaders, Prefer: 'return=minimal' },
+      signal: AbortSignal.timeout(8_000),
+    },
+  )
+  await ensureDatabaseResponse(response)
+  await logPrivacyEvent(worker, 'profile_forgotten', itemId)
+  return json({ forgotten: true }, 200, cors)
+}
+
+async function saveSessionFeedback(body: Record<string, unknown>, worker: ActiveWorker, cors: Record<string, string>): Promise<Response> {
+  const sessionId = readUuid(body.sessionId)
+  const usefulScore = readScore(body.usefulScore)
+  const heardScore = readScore(body.heardScore)
+  const privacyScore = readScore(body.privacyScore)
+  if (!sessionId || !usefulScore || !heardScore || !privacyScore) {
+    return json({ error: 'invalid_feedback' }, 400, cors)
+  }
+
+  const ownedResponse = await fetch(
+    `${SUPABASE_URL}/rest/v1/people_coach_sessions?id=eq.${encodeURIComponent(sessionId)}&user_id=eq.${encodeURIComponent(worker.userId)}&status=eq.completed&select=id&limit=1`,
+    { headers: dbHeaders, signal: AbortSignal.timeout(8_000) },
+  )
+  await ensureDatabaseResponse(ownedResponse)
+  const owned = await ownedResponse.json() as Array<{ id?: string }>
+  if (!owned[0]?.id) return json({ error: 'session_not_found' }, 404, cors)
+
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/people_coach_feedback?on_conflict=session_id`, {
+    method: 'POST',
+    headers: { ...dbHeaders, Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({
+      session_id: sessionId,
+      user_id: worker.userId,
+      employee_id: worker.employeeId,
+      useful_score: usefulScore,
+      heard_score: heardScore,
+      privacy_score: privacyScore,
+      updated_at: new Date().toISOString(),
+    }),
+    signal: AbortSignal.timeout(8_000),
+  })
+  await ensureDatabaseResponse(response)
+  return json({ saved: true }, 200, cors)
+}
+
+async function ownsConfirmedProfileItem(itemId: string, userId: string, requireShared = false): Promise<boolean> {
+  const filters = requireShared ? '&visibility=eq.shared_company&revoked_at=is.null' : ''
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/people_coach_profile_items?id=eq.${encodeURIComponent(itemId)}&user_id=eq.${encodeURIComponent(userId)}&decision=eq.approved${filters}&select=id&limit=1`,
+    { headers: dbHeaders, signal: AbortSignal.timeout(8_000) },
+  )
+  await ensureDatabaseResponse(response)
+  const rows = await response.json() as Array<{ id?: string }>
+  return Boolean(rows[0]?.id)
+}
+
+async function logPrivacyEvent(worker: ActiveWorker, eventType: string, entityId: string): Promise<void> {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/people_coach_privacy_events`, {
+    method: 'POST',
+    headers: { ...dbHeaders, Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      user_id: worker.userId,
+      employee_id: worker.employeeId,
+      event_type: eventType,
+      entity_type: 'profile_item',
+      entity_id: entityId,
+      affected_rows: 1,
+    }),
+    signal: AbortSignal.timeout(8_000),
+  })
+  if (!response.ok) console.error(`people-coach: privacy_log_${response.status}`)
 }
 
 async function storeProfileCandidates(sessionId: string, worker: ActiveWorker, candidates: ProfileCandidate[]): Promise<ProfileCandidate[]> {
@@ -690,7 +827,11 @@ No recomiendes contratación, despido, sanciones, salario o ascensos.
 Escucha antes de preguntar. Haz normalmente UNA sola pregunta. No conviertas la charla en una encuesta.
 Decide en cada turno si escuchar, reflejar, aclarar, profundizar, cuestionar suavemente, resumir, proponer acción o cambiar de tema.
 Las interpretaciones son tentativas y la persona siempre debe poder corregirlas.
-Si aparecen intimidades, reconoce brevemente y vuelve al ámbito laboral. Si hay peligro inmediato, prioriza ayuda humana y emergencias.
+Si aparecen intimidades, reconoce brevemente y vuelve al ámbito laboral.
+PROTOCOLO DE SEGURIDAD OBLIGATORIO:
+- Si hay peligro inmediato de autolesión, violencia, emergencia médica o amenaza creíble, deja de explorar el problema. Indica con claridad que llame ahora al 112, que se sitúe en un lugar seguro y que contacte con una persona de confianza que pueda estar físicamente presente. Pregunta solo si está a salvo y puede pedir ayuda. No diagnostiques ni intentes gestionar la emergencia tú solo.
+- Si relata acoso o discriminación sin peligro inmediato, reconoce el impacto sin dar por probados hechos ni convertirlos en una acusación. Pregunta si está a salvo ahora y ofrece apoyo humano y canales formales elegidos por la persona.
+- Nunca avises automáticamente a administración, RRHH, compañeros o familiares. No existe ninguna alerta oculta. Explica esta limitación con honestidad y anima a que la persona contacte directamente con ayuda humana.
 La persona ya fue informada de que al final se crea un resumen operativo para administración, separado de su reflexión privada.
 No conviertas la conversación en una recogida de datos para el jefe. Termina buscando un paso concreto útil.
 No digas constantemente «entiendo», «gracias por compartir» o «es totalmente válido».
@@ -706,13 +847,23 @@ El objetivo y el primer paso deben ser concretos; usa null si no hay evidencia.
 Además genera operationalSummary, que sí verá administración. Incluye únicamente hechos operativos confirmados,
 necesidades de organización/formación y acciones útiles para la empresa. Redáctalo de forma neutral y profesional.
 Nunca incluyas intimidades, salud, estados emocionales, citas textuales, insultos, diagnósticos, hipótesis psicológicas,
-valoraciones de rendimiento ni acusaciones personales. Si no existe información operativa segura, usa puntos vacíos y null.
+valoraciones de rendimiento ni acusaciones personales. Tampoco incluyas crisis, autolesión, violencia, emergencias,
+acoso, discriminación, amenazas ni quejas sobre personas: esos temas nunca generan un aviso oculto. Si no existe
+información operativa segura, usa puntos vacíos y null.
 Genera también profileCandidates: señales profesionales tentativas que podrían ayudar a colaborar mejor con esa persona.
 Solo usa contenido laboral expresado explícitamente. Categorías permitidas: motivator, communication_preference,
 support_preference, energizer, friction, strength_candidate y growth_interest. Cada statement debe estar redactado
 para que el trabajador pueda confirmarlo o rechazarlo. managerGuidance debe ser una orientación respetuosa y operativa,
 nunca una técnica de manipulación. No infieras personalidad, emociones por la voz, salud, intimidades, rasgos protegidos,
 capacidad, rendimiento ni riesgo. Devuelve como máximo cinco; si no hay evidencia suficiente, devuelve una lista vacía.`
+
+function readUuid(value: unknown): string | null {
+  return typeof value === 'string' && /^[0-9a-f-]{36}$/i.test(value) ? value : null
+}
+
+function readScore(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 5 ? value : null
+}
 
 function calculateUsage(durationSeconds: number, realtime: ReturnType<typeof sanitizeRealtimeUsage>, summary: { inputTokens: number; cachedInputTokens: number; outputTokens: number }) {
   const cachedText = Math.min(realtime.cachedInputTextTokens, realtime.inputTextTokens)

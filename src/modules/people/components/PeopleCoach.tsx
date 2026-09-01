@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import { Lock, Mic, MicOff, Power, RefreshCw, Save, Sparkles, Square, X } from 'lucide-react'
+import { Lock, Mic, MicOff, Power, RefreshCw, Save, ShieldCheck, Sparkles, Square, Star, X } from 'lucide-react'
 import { Modal } from '@/shared/components/Modal'
 import { useAuth } from '@/shared/auth/useAuth'
 import { env } from '@/shared/lib/env'
@@ -53,6 +53,15 @@ interface SessionUsage {
   transcriptionCostUsd: number
   realtimeTokens: RealtimeUsage
   summaryTokens: { inputTokens: number; outputTokens: number }
+}
+
+interface CoachFeedbackMetrics {
+  participantCount: number
+  responseCount: number
+  usefulAverage: number | null
+  heardAverage: number | null
+  privacyAverage: number | null
+  suppressed: boolean
 }
 
 interface TemporaryTurn {
@@ -158,6 +167,8 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
   const [usage, setUsage] = useState<SessionUsage | null>(null)
   const [budgetClosed, setBudgetClosed] = useState(false)
   const [controlClosedReason, setControlClosedReason] = useState<'coach_disabled' | 'monthly_budget_reached' | null>(null)
+  const [feedback, setFeedback] = useState({ usefulScore: 0, heardScore: 0, privacyScore: 0 })
+  const [feedbackStatus, setFeedbackStatus] = useState<'pending' | 'saving' | 'saved' | 'error'>('pending')
 
   const peerRef = useRef<RTCPeerConnection | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -307,6 +318,8 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
     setUsage(null)
     setBudgetClosed(false)
     setControlClosedReason(null)
+    setFeedback({ usefulScore: 0, heardScore: 0, privacyScore: 0 })
+    setFeedbackStatus('pending')
     setMuted(false)
     endingRef.current = false
     sessionIdRef.current = null
@@ -459,6 +472,27 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
     })
   }
 
+  const saveFeedback = async () => {
+    const sessionId = sessionIdRef.current
+    if (!sessionId || feedbackStatus === 'saving') return
+    if (!feedback.usefulScore || !feedback.heardScore || !feedback.privacyScore) {
+      setFeedbackStatus('error')
+      return
+    }
+    setFeedbackStatus('saving')
+    try {
+      const response = await apiFetch('PATCH', JSON.stringify({
+        action: 'feedback',
+        sessionId,
+        ...feedback,
+      }), 'application/json')
+      if (!response.ok) throw new Error('feedback_failed')
+      setFeedbackStatus('saved')
+    } catch {
+      setFeedbackStatus('error')
+    }
+  }
+
   const toggleMute = () => {
     const next = !muted
     streamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !next })
@@ -505,6 +539,7 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
               <p><strong className="text-[var(--ink)]">No guardamos el audio ni la conversación completa.</strong> El texto temporal se elimina al crear los resúmenes.</p>
               <p>Tu reflexión y tu resumen personal son privados.</p>
               <p><strong className="text-[var(--amber)]">Al finalizar se enviará a administración un resumen operativo</strong> limitado a mejoras, necesidades y acciones de trabajo, sin intimidades ni citas textuales.</p>
+              <p><strong className="text-[var(--ink)]">No hay alertas ocultas.</strong> Una crisis o denuncia de acoso no se envía automáticamente a RRHH. Si existe peligro inmediato, Lumo priorizará llamar al 112 y buscar ayuda humana.</p>
             </div>
             <button
               type="button"
@@ -650,6 +685,25 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
                       {profileDecision === 'error' && <p className="mt-3 text-xs text-[var(--coral)]">No se pudo guardar la decisión. Puedes intentarlo de nuevo.</p>}
                     </section>
                   )}
+                  <section className="rounded-2xl border border-[var(--line)] bg-[oklch(16%_.02_165_/_0.75)] p-4">
+                    <div className="flex items-center gap-2">
+                      <Star className="h-4 w-4 text-[var(--amber)]" />
+                      <p className="label-caps text-[var(--amber)]">Ayúdanos a mejorar el piloto</p>
+                    </div>
+                    <p className="mt-2 text-xs leading-relaxed text-[var(--ink-mute)]">Tus respuestas individuales son privadas. RRHH solo ve promedios si han participado al menos tres trabajadores.</p>
+                    <div className="mt-3 space-y-3">
+                      <ScoreSelector label="¿Te ha resultado útil?" value={feedback.usefulScore} disabled={feedbackStatus === 'saving' || feedbackStatus === 'saved'} onChange={(usefulScore) => { setFeedback((current) => ({ ...current, usefulScore })); setFeedbackStatus('pending') }} />
+                      <ScoreSelector label="¿Te has sentido escuchado?" value={feedback.heardScore} disabled={feedbackStatus === 'saving' || feedbackStatus === 'saved'} onChange={(heardScore) => { setFeedback((current) => ({ ...current, heardScore })); setFeedbackStatus('pending') }} />
+                      <ScoreSelector label="¿Ha quedado clara la privacidad?" value={feedback.privacyScore} disabled={feedbackStatus === 'saving' || feedbackStatus === 'saved'} onChange={(privacyScore) => { setFeedback((current) => ({ ...current, privacyScore })); setFeedbackStatus('pending') }} />
+                    </div>
+                    {feedbackStatus !== 'saved' && (
+                      <button type="button" disabled={feedbackStatus === 'saving'} onClick={() => void saveFeedback()} className="mt-3 w-full rounded-xl bg-[var(--mint)] px-3 py-2.5 text-xs font-semibold text-[oklch(15%_.03_158)] disabled:opacity-50">
+                        {feedbackStatus === 'saving' ? 'Guardando…' : 'Enviar feedback privado'}
+                      </button>
+                    )}
+                    {feedbackStatus === 'saved' && <p className="mt-3 text-xs font-medium text-[var(--mint)]">Feedback guardado. Gracias.</p>}
+                    {feedbackStatus === 'error' && <p className="mt-2 text-xs text-[var(--coral)]">Marca las tres respuestas para poder guardarlo.</p>}
+                  </section>
                   {usage && <UsageCard usage={usage} />}
                   <p className="text-center text-[11px] text-[var(--ink-mute)]">Administración solo recibe el bloque operativo mostrado aquí.</p>
                 </div>
@@ -659,6 +713,34 @@ function PeopleCoachModal({ onClose, onCompleted }: { onClose: () => void; onCom
         )}
       </div>
     </Modal>
+  )
+}
+
+function ScoreSelector({ label, value, disabled, onChange }: { label: string; value: number; disabled: boolean; onChange: (score: number) => void }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-xs text-[var(--ink)]">{label}</p>
+      <div className="flex shrink-0 gap-1" role="radiogroup" aria-label={label}>
+        {[1, 2, 3, 4, 5].map((score) => (
+          <button
+            key={score}
+            type="button"
+            role="radio"
+            aria-checked={value === score}
+            aria-label={`${score} de 5`}
+            disabled={disabled}
+            onClick={() => onChange(score)}
+            className={`flex h-7 w-7 items-center justify-center rounded-lg border text-[10px] font-semibold tabular-nums disabled:opacity-50 ${
+              value === score
+                ? 'border-[var(--mint)] bg-[var(--mint)] text-[oklch(15%_.03_158)]'
+                : 'border-[var(--line)] text-[var(--ink-mute)]'
+            }`}
+          >
+            {score}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -676,6 +758,7 @@ function UsageCard({ usage }: { usage: SessionUsage }) {
 export function PeopleSharedSummariesCard() {
   const [rows, setRows] = useState<Array<{ id: string; acceptedAt: string; name: string; points: string[]; requestedSupport: string | null }>>([])
   const [control, setControl] = useState<CoachAdminControl | null>(null)
+  const [feedbackMetrics, setFeedbackMetrics] = useState<CoachFeedbackMetrics | null>(null)
   const [budgetDraft, setBudgetDraft] = useState('20')
   const [savingControl, setSavingControl] = useState(false)
   const [controlError, setControlError] = useState<string | null>(null)
@@ -714,21 +797,29 @@ export function PeopleSharedSummariesCard() {
     setRows(parsed)
   }, [])
 
+  const loadFeedbackMetrics = useCallback(async () => {
+    const { data, error } = await supabase.rpc('people_coach_feedback_metrics')
+    if (error) return
+    setFeedbackMetrics(readFeedbackMetrics(data))
+  }, [])
+
   useEffect(() => {
     const initialTimer = window.setTimeout(() => {
       void loadControl(true)
       void loadRows()
+      void loadFeedbackMetrics()
     }, 0)
     const refreshTimer = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return
       void loadControl(false)
       void loadRows()
+      void loadFeedbackMetrics()
     }, 15_000)
     return () => {
       window.clearTimeout(initialTimer)
       window.clearInterval(refreshTimer)
     }
-  }, [loadControl, loadRows])
+  }, [loadControl, loadFeedbackMetrics, loadRows])
 
   const saveControl = async (enabled: boolean, monthlyBudgetUsd: number) => {
     if (!Number.isFinite(monthlyBudgetUsd) || monthlyBudgetUsd < 1 || monthlyBudgetUsd > 500) {
@@ -834,6 +925,27 @@ export function PeopleSharedSummariesCard() {
       )}
       {controlError && <p className="mt-2 text-xs text-[var(--coral)]">{controlError}</p>}
 
+      {feedbackMetrics && (
+        <section className="mt-4 rounded-xl border border-[var(--line)] bg-[oklch(16%_.02_165_/_0.55)] p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-[var(--mint)]" />
+              <p className="label-caps">Feedback agregado · 90 días</p>
+            </div>
+            {!feedbackMetrics.suppressed && <span className="text-[10px] tabular-nums text-[var(--ink-mute)]">{feedbackMetrics.participantCount} personas · {feedbackMetrics.responseCount} respuestas</span>}
+          </div>
+          {feedbackMetrics.suppressed ? (
+            <p className="mt-2 text-xs leading-relaxed text-[var(--ink-mute)]">Oculto hasta que participen al menos tres trabajadores. No se muestran respuestas individuales ni el número exacto por debajo del umbral.</p>
+          ) : (
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <MetricScore label="Utilidad" value={feedbackMetrics.usefulAverage} />
+              <MetricScore label="Escucha" value={feedbackMetrics.heardAverage} />
+              <MetricScore label="Privacidad" value={feedbackMetrics.privacyAverage} />
+            </div>
+          )}
+        </section>
+      )}
+
       <p className="label-caps mt-4">Últimos resúmenes operativos</p>
       {rows.length === 0 ? (
         <p className="mt-3 text-xs text-[var(--ink-mute)]">Aún no hay resúmenes operativos.</p>
@@ -853,6 +965,29 @@ export function PeopleSharedSummariesCard() {
       )}
     </section>
   )
+}
+
+function MetricScore({ label, value }: { label: string; value: number | null }) {
+  return (
+    <div className="rounded-lg border border-[var(--line)] bg-[oklch(13%_.018_165)] px-2 py-2">
+      <p className="text-[9px] text-[var(--ink-mute)]">{label}</p>
+      <p className="mt-1 text-sm font-semibold tabular-nums text-[var(--mint)]">{value === null ? '—' : `${value.toFixed(2).replace('.', ',')} / 5`}</p>
+    </div>
+  )
+}
+
+function readFeedbackMetrics(value: unknown): CoachFeedbackMetrics | null {
+  const first = Array.isArray(value) ? value[0] : value
+  const row = record(first)
+  if (typeof row.suppressed !== 'boolean') return null
+  return {
+    participantCount: numeric(row.participant_count),
+    responseCount: numeric(row.response_count),
+    usefulAverage: nullableNumeric(row.useful_average),
+    heardAverage: nullableNumeric(row.heard_average),
+    privacyAverage: nullableNumeric(row.privacy_average),
+    suppressed: row.suppressed,
+  }
 }
 
 function readSummary(value: unknown): PrivateSummary | null {
@@ -942,6 +1077,12 @@ function number(value: unknown): number {
 function numeric(value: unknown): number {
   const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : 0
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function nullableNumeric(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 function formatDuration(seconds: number) {
