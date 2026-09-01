@@ -22,6 +22,7 @@ import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
 import { cn, getBusinessDate } from '@/shared/lib/utils'
 import { exportarCompra } from '../lib/exportacion/excel'
+import { LimpiarPedidoExcel } from './LimpiarPedidoExcel'
 import { UnificacionProductos } from './UnificacionProductos'
 import { parsearPedido } from '../lib/parser'
 import {
@@ -224,6 +225,7 @@ export function Compra() {
             {totalPedidos} {totalPedidos === 1 ? 'pedido' : 'pedidos'} · {tieneInventario ? 'inventario cargado' : 'sin inventario aún'}
           </p>
         </div>
+        <LimpiarPedidoExcel />
       </div>
 
       {/* Sección 1: Inventario */}
