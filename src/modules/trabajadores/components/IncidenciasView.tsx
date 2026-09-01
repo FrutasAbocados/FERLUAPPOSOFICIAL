@@ -10,6 +10,7 @@ import {
   useClientesIncidencias,
   useCrearIncidencia,
   useIncidencias,
+  useIncidenciasSinResolver,
   usePuedeGestionarIncidencias,
   type Incidencia,
   type IncidenciaEstado,
@@ -43,16 +44,17 @@ export function IncidenciasView({ autorEmpleadoId }: { autorEmpleadoId: string |
   const { data: incidencias, isLoading } = useIncidencias(filtro)
   const { data: puedeGestionar } = usePuedeGestionarIncidencias()
 
-  const total = (incidencias ?? []).length
+  // El parte impreso NO depende del filtro de pantalla: siempre son las que
+  // quedan por hacer. Una resuelta no se imprime nunca.
+  const { data: sinResolver } = useIncidenciasSinResolver()
+  const totalImprimible = (sinResolver ?? []).length
 
-  // Se imprime exactamente lo que hay en pantalla, filtro incluido, para que el
-  // papel no diga una cosa distinta de la que se acaba de mirar.
   const imprimir = () => {
-    if (total === 0) {
-      toast({ variant: 'error', title: 'No hay incidencias que imprimir' })
+    if (totalImprimible === 0) {
+      toast({ variant: 'success', title: 'No queda ninguna incidencia sin resolver' })
       return
     }
-    imprimirIncidencias(incidencias ?? [], FILTROS.find(f => f.k === filtro)?.l ?? 'Todas')
+    imprimirIncidencias(sinResolver ?? [], 'Sin resolver')
   }
 
   return (
@@ -67,8 +69,10 @@ export function IncidenciasView({ autorEmpleadoId }: { autorEmpleadoId: string |
           <button
             type="button"
             onClick={imprimir}
-            disabled={total === 0}
-            title={total === 0 ? 'No hay incidencias que imprimir' : `Imprimir ${total} incidencia(s) agrupadas por cliente`}
+            disabled={totalImprimible === 0}
+            title={totalImprimible === 0
+              ? 'No queda ninguna incidencia sin resolver'
+              : `Imprimir ${totalImprimible} incidencia(s) sin resolver, agrupadas por cliente`}
             className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-ink-2)] hover:bg-[var(--color-surface-2)] disabled:opacity-40"
           >
             <Printer className="h-4 w-4" /> Imprimir

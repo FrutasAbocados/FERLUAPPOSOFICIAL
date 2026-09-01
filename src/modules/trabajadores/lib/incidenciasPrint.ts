@@ -6,7 +6,10 @@ import type { Incidencia, IncidenciaEstado, IncidenciaTipo } from './incidencias
  * Parte de incidencias para imprimir por la mañana.
  *
  * Una sección por cliente, ordenadas alfabéticamente, con las generales al
- * final. Mismo patrón que `registroJornadaPdf.ts` y `pedidos-wa/exportacion/print.ts`:
+ * final. Recibe sólo incidencias sin resolver (ver `useIncidenciasSinResolver`):
+ * el papel de la mañana es lo que queda por hacer, no un histórico.
+ *
+ * Mismo patrón que `registroJornadaPdf.ts` y `pedidos-wa/exportacion/print.ts`:
  * se construye un HTML autocontenido y se abre en pestaña nueva con botón de
  * imprimir; el navegador se encarga del PDF.
  */
@@ -65,7 +68,7 @@ function buildFila(inc: Incidencia): string {
   const autor = inc.autor_nombre ? `<div class="autor">Anotada por ${esc(inc.autor_nombre)}</div>` : ''
 
   return `
-    <tr class="${inc.estado === 'resuelta' ? 'fila-resuelta' : ''}">
+    <tr>
       <td class="c-fecha">
         <div class="fecha">${esc(fechaCorta(inc.fecha))}</div>
         <div class="dia">${esc(diaSemana(inc.fecha))}</div>
@@ -82,16 +85,18 @@ function buildFila(inc: Incidencia): string {
 }
 
 function buildSeccion(cliente: string, incidencias: Incidencia[]): string {
-  const pendientes = incidencias.filter(i => i.estado !== 'resuelta').length
-  const aviso = pendientes > 0
-    ? `<span class="sec-pend">${pendientes} sin resolver</span>`
-    : '<span class="sec-ok">todo resuelto</span>'
+  const pendientes = incidencias.filter(i => i.estado === 'pendiente').length
+  const enProceso = incidencias.filter(i => i.estado === 'en_proceso').length
+  const aviso = [
+    pendientes > 0 ? `<span class="sec-pend">${pendientes} pendiente${pendientes === 1 ? '' : 's'}</span>` : '',
+    enProceso > 0 ? `<span class="sec-proc">${enProceso} en proceso</span>` : '',
+  ].filter(Boolean).join(' ')
 
   return `
     <section class="cli-section">
       <header class="cli-header">
         <span class="cli-nombre">${esc(cliente)}</span>
-        <span class="cli-meta">${incidencias.length} ${incidencias.length === 1 ? 'apunte' : 'apuntes'} &middot; ${aviso}</span>
+        <span class="cli-meta">${aviso}</span>
       </header>
       <table>
         <thead>
@@ -133,7 +138,6 @@ export function imprimirIncidencias(incidencias: Incidencia[], filtroLabel: stri
     .join('')
 
   const totalClientes = [...porCliente.keys()].filter(k => k !== GENERAL_KEY).length
-  const sinResolver = incidencias.filter(i => i.estado !== 'resuelta').length
   const conteoTipos = (Object.keys(TIPO_LABEL) as IncidenciaTipo[])
     .map(t => ({ t, n: incidencias.filter(i => i.tipo === t).length }))
     .filter(x => x.n > 0)
@@ -160,7 +164,7 @@ export function imprimirIncidencias(incidencias: Incidencia[], filtroLabel: stri
   .cli-nombre{font-size:11.5pt;font-weight:bold;letter-spacing:.01em}
   .cli-meta{font-size:8.5pt;opacity:.9;white-space:nowrap}
   .sec-pend{background:#fbbf24;color:#7c2d12;border-radius:9px;padding:1px 7px;font-weight:bold}
-  .sec-ok{background:#86efac;color:#14532d;border-radius:9px;padding:1px 7px;font-weight:bold}
+  .sec-proc{background:#c7d2fe;color:#312e81;border-radius:9px;padding:1px 7px;font-weight:bold}
 
   table{width:100%;border-collapse:collapse}
   th{background:#e8efe9;color:${VERDE};font-size:7.5pt;padding:4px 8px;text-align:left;border-bottom:1px solid #c3d3c6;text-transform:uppercase;letter-spacing:.04em}
@@ -180,7 +184,6 @@ export function imprimirIncidencias(incidencias: Incidencia[], filtroLabel: stri
   .autor{margin-top:3px;font-size:7.5pt;color:#6b7280;font-style:italic}
   .badge{display:inline-block;border-radius:9px;padding:1.5px 7px;font-size:7.5pt;font-weight:bold;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
   .casilla{display:inline-block;width:14px;height:14px;border:1.5px solid #9ca3af;border-radius:3px}
-  .fila-resuelta .desc{color:#6b7280}
 
   .vacio{text-align:center;color:#888;font-style:italic;padding:40px 0}
   .btn-print{position:fixed;top:12px;right:12px;background:${VERDE};color:#fff;border:none;padding:8px 18px;border-radius:6px;font-size:10pt;cursor:pointer;font-weight:bold;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,.25)}
@@ -198,7 +201,7 @@ export function imprimirIncidencias(incidencias: Incidencia[], filtroLabel: stri
   <button class="btn-print no-print" onclick="window.print()">Imprimir / PDF</button>
   <div class="doc-head">
     <div class="doc-title">Parte de incidencias</div>
-    <div class="doc-sub">${esc(filtroLabel)} &middot; ${incidencias.length} ${incidencias.length === 1 ? 'apunte' : 'apuntes'} &middot; ${totalClientes} cliente(s)${sinResolver > 0 ? ` &middot; ${sinResolver} sin resolver` : ''}</div>
+    <div class="doc-sub">${esc(filtroLabel)} &middot; ${incidencias.length} ${incidencias.length === 1 ? 'apunte' : 'apuntes'} &middot; ${totalClientes} cliente(s)</div>
     <div class="doc-meta">${conteoTipos ? `${conteoTipos} &middot; ` : ''}${MARCA} &middot; Generado el ${esc(generado)}</div>
   </div>
   ${secciones || '<p class="vacio">No hay incidencias en este filtro.</p>'}

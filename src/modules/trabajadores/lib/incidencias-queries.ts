@@ -47,6 +47,30 @@ export function useClientesIncidencias() {
   })
 }
 
+const SELECT_INCIDENCIA =
+  'id, contact_name_canon, fecha, tipo, descripcion, estado, autor_empleado_id, resuelto_at, resolucion_nota, created_at, empleados:autor_empleado_id(nombre)'
+
+type FilaCruda = Record<string, unknown> & {
+  empleados: { nombre: string } | { nombre: string }[] | null
+}
+
+function mapIncidencia(r: FilaCruda): Incidencia {
+  const emp = Array.isArray(r.empleados) ? r.empleados[0] : r.empleados
+  return {
+    id: r.id as string,
+    contact_name_canon: (r.contact_name_canon as string | null) ?? null,
+    fecha: r.fecha as string,
+    tipo: r.tipo as IncidenciaTipo,
+    descripcion: r.descripcion as string,
+    estado: r.estado as IncidenciaEstado,
+    autor_empleado_id: (r.autor_empleado_id as string) ?? null,
+    autor_nombre: emp?.nombre ?? null,
+    resuelto_at: (r.resuelto_at as string) ?? null,
+    resolucion_nota: (r.resolucion_nota as string) ?? null,
+    created_at: r.created_at as string,
+  }
+}
+
 /** Tablero compartido de incidencias, opcionalmente filtrado por estado. */
 export function useIncidencias(estado: IncidenciaEstado | 'todas') {
   return useQuery({
@@ -54,29 +78,39 @@ export function useIncidencias(estado: IncidenciaEstado | 'todas') {
     queryFn: async (): Promise<Incidencia[]> => {
       let q = supabase
         .from('incidencias')
-        .select('id, contact_name_canon, fecha, tipo, descripcion, estado, autor_empleado_id, resuelto_at, resolucion_nota, created_at, empleados:autor_empleado_id(nombre)')
+        .select(SELECT_INCIDENCIA)
         .order('fecha', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(300)
       if (estado !== 'todas') q = q.eq('estado', estado)
       const { data, error } = await q
       if (error) throw error
-      return ((data ?? []) as unknown as Array<Record<string, unknown> & { empleados: { nombre: string } | { nombre: string }[] | null }>).map(r => {
-        const emp = Array.isArray(r.empleados) ? r.empleados[0] : r.empleados
-        return {
-          id: r.id as string,
-          contact_name_canon: (r.contact_name_canon as string | null) ?? null,
-          fecha: r.fecha as string,
-          tipo: r.tipo as IncidenciaTipo,
-          descripcion: r.descripcion as string,
-          estado: r.estado as IncidenciaEstado,
-          autor_empleado_id: (r.autor_empleado_id as string) ?? null,
-          autor_nombre: emp?.nombre ?? null,
-          resuelto_at: (r.resuelto_at as string) ?? null,
-          resolucion_nota: (r.resolucion_nota as string) ?? null,
-          created_at: r.created_at as string,
-        }
-      })
+      return ((data ?? []) as unknown as FilaCruda[]).map(mapIncidencia)
+    },
+  })
+}
+
+/**
+ * Incidencias vivas (pendientes + en proceso) para el parte impreso.
+ *
+ * Va aparte del filtro de pantalla a propósito: el papel de la mañana es
+ * siempre lo que queda por hacer. Una resuelta no se imprime nunca, y una
+ * "en proceso" sí, porque sigue abierta. Cuelga de la clave 'lista' para que
+ * las mutaciones existentes la invaliden sin tocarlas.
+ */
+export function useIncidenciasSinResolver() {
+  return useQuery({
+    queryKey: ['incidencias', 'lista', 'sin-resolver'] as const,
+    queryFn: async (): Promise<Incidencia[]> => {
+      const { data, error } = await supabase
+        .from('incidencias')
+        .select(SELECT_INCIDENCIA)
+        .in('estado', ['pendiente', 'en_proceso'])
+        .order('fecha', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(300)
+      if (error) throw error
+      return ((data ?? []) as unknown as FilaCruda[]).map(mapIncidencia)
     },
   })
 }
