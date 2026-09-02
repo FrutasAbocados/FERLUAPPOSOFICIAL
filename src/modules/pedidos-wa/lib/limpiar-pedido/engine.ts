@@ -31,6 +31,25 @@ export type LineaLimpia = {
   revisar: boolean
   /** Texto original del que salió la línea, para poder auditarla. */
   origen: string
+  /**
+   * Claves crudas (normalizadas) de las que salió esta fila. Si Luis corrige el
+   * nombre, se aprende un alias para cada una de ellas.
+   */
+  clavesRaw: string[]
+  /**
+   * true si la unidad venía escrita en el pedido. Cuando es true, corregirla
+   * es un ajuste puntual y NO se aprende como formato habitual: el texto manda.
+   */
+  unidadExplicita: boolean
+}
+
+/**
+ * Diccionario aprendido que se superpone al estático de `diccionario.ts`.
+ * Lo que Luis corrige gana siempre sobre lo que viene de fábrica.
+ */
+export type DiccionarioExtra = {
+  aliases?: Record<string, string>
+  unidades?: Record<string, UnidadLimpia>
 }
 
 export type ResultadoLimpieza = {
@@ -104,21 +123,25 @@ export function normalizeUnit(raw: string | null | undefined): UnidadLimpia | nu
  *
  * `enDiccionario` distingue el caso 3 para poder marcarlo en la UI.
  */
-export function normalizeProduct(raw: string): { producto: string; enDiccionario: boolean } {
+export function normalizeProduct(
+  raw: string,
+  extra?: DiccionarioExtra,
+): { producto: string; enDiccionario: boolean } {
   const k = clave(raw)
   if (!k) return { producto: '', enDiccionario: false }
+  const aliases = extra?.aliases
   // Igual que `clave` pero conservando acentos: es lo que se muestra cuando el
   // producto no está en el diccionario ("producto extraño" → "Producto extraño").
   const literal = raw.toLowerCase().replace(/\s+/g, ' ').trim()
 
-  const exacto = PRODUCT_ALIASES[k]
+  const exacto = aliases?.[k] ?? PRODUCT_ALIASES[k]
   if (exacto) return { producto: exacto, enDiccionario: true }
 
   const palabras = k.split(' ').filter(Boolean)
   for (let largo = palabras.length; largo >= 1; largo--) {
     for (let ini = 0; ini + largo <= palabras.length; ini++) {
       const ventana = palabras.slice(ini, ini + largo).join(' ')
-      const hit = PRODUCT_ALIASES[ventana]
+      const hit = aliases?.[ventana] ?? PRODUCT_ALIASES[ventana]
       if (hit) return { producto: hit, enDiccionario: true }
     }
   }
@@ -127,8 +150,9 @@ export function normalizeProduct(raw: string): { producto: string; enDiccionario
 }
 
 /** Formato habitual de un producto cuando el pedido no escribe unidad. */
-export function unidadPorDefecto(producto: string): UnidadLimpia {
-  return DEFAULT_UNITS[clave(producto)] ?? 'unidad'
+export function unidadPorDefecto(producto: string, extra?: DiccionarioExtra): UnidadLimpia {
+  const k = clave(producto)
+  return extra?.unidades?.[k] ?? DEFAULT_UNITS[k] ?? 'unidad'
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -185,7 +209,7 @@ function parseCantidad(raw: string): number {
   return Number.parseFloat(raw.replace(',', '.'))
 }
 
-function parseToken(token: string): LineaLimpia | null {
+function parseToken(token: string, extra?: DiccionarioExtra): LineaLimpia | null {
   const m = token.match(PATRON_LINEA)
   if (!m) return null
 
@@ -196,17 +220,19 @@ function parseToken(token: string): LineaLimpia | null {
   const resto = (restoRaw ?? '').trim()
   if (!resto) return null
 
-  const { producto, enDiccionario } = normalizeProduct(resto)
+  const { producto, enDiccionario } = normalizeProduct(resto, extra)
   if (!producto) return null
 
-  const unidadExplicita = normalizeUnit(unidadRaw)
+  const escrita = normalizeUnit(unidadRaw)
   return {
     producto,
     cantidad,
     // Una unidad escrita manda siempre sobre el formato habitual.
-    unidad: unidadExplicita ?? unidadPorDefecto(producto),
-    revisar: !enDiccionario && !unidadExplicita,
+    unidad: escrita ?? unidadPorDefecto(producto, extra),
+    revisar: !enDiccionario && !escrita,
     origen: token,
+    clavesRaw: [clave(resto)],
+    unidadExplicita: escrita != null,
   }
 }
 
@@ -215,7 +241,7 @@ function parseToken(token: string): LineaLimpia | null {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Texto bruto → líneas sueltas, sin unificar ni ordenar. */
-export function parseRawOrder(texto: string): ResultadoLimpieza {
+export function parseRawOrder(texto: string, extra?: DiccionarioExtra): ResultadoLimpieza {
   const lineas: LineaLimpia[] = []
   const notas: string[] = []
   const noReconocidos: string[] = []
@@ -228,13 +254,13 @@ export function parseRawOrder(texto: string): ResultadoLimpieza {
       // Rescate conservador: sólo si lo que queda es una línea de producto
       // inequívoca (un único grupo numérico al principio).
       if (resto && (resto.match(GRUPOS_NUMERICOS) ?? []).length === 1 && /^\d/.test(resto)) {
-        const linea = parseToken(resto)
+        const linea = parseToken(resto, extra)
         if (linea) lineas.push({ ...linea, origen: token, revisar: true })
       }
       continue
     }
 
-    const linea = parseToken(token)
+    const linea = parseToken(token, extra)
     if (linea) {
       lineas.push(linea)
     } else {
@@ -262,8 +288,15 @@ export function aggregateProducts(lineas: LineaLimpia[]): LineaLimpia[] {
       previa.cantidad += linea.cantidad
       previa.revisar = previa.revisar || linea.revisar
       previa.origen = `${previa.origen} · ${linea.origen}`
+      // El rastro se acumula sin repetir: al corregir el nombre se aprenden
+      // todas las formas en que Luis escribió ese mismo producto.
+      for (const k of linea.clavesRaw) {
+        if (!previa.clavesRaw.includes(k)) previa.clavesRaw.push(k)
+      }
+      // Basta una unidad escrita para que la fila deje de ser "inferida".
+      previa.unidadExplicita = previa.unidadExplicita || linea.unidadExplicita
     } else {
-      mapa.set(k, { ...linea })
+      mapa.set(k, { ...linea, clavesRaw: [...linea.clavesRaw] })
     }
   }
 
@@ -290,8 +323,8 @@ export function formatCantidad(cantidad: number, unidad: UnidadLimpia): string {
 }
 
 /** Atajo del pipeline completo: pegar → procesar. */
-export function procesarPedido(texto: string): ResultadoLimpieza {
-  const r = parseRawOrder(texto)
+export function procesarPedido(texto: string, extra?: DiccionarioExtra): ResultadoLimpieza {
+  const r = parseRawOrder(texto, extra)
   return { ...r, lineas: aggregateProducts(r.lineas) }
 }
 

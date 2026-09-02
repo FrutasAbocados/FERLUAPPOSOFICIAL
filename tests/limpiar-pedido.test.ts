@@ -7,6 +7,7 @@ import {
   formatForList,
   normalizeProduct,
   normalizeUnit,
+  unidadPorDefecto,
   parseRawOrder,
   procesarPedido,
 } from '../src/modules/pedidos-wa/lib/limpiar-pedido/engine.ts'
@@ -199,6 +200,62 @@ describe('limpiar pedido para Excel', () => {
       const r = parseRawOrder('perejil suelto sin cantidad')
       assert.equal(r.lineas.length, 0)
       assert.deepEqual(r.noReconocidos, ['perejil suelto sin cantidad'])
+    })
+  })
+
+  describe('diccionario aprendido', () => {
+    it('un alias aprendido gana sobre el nombre capitalizado por defecto', () => {
+      const extra = { aliases: { 'vitacres': 'Vitacres baby leaf' } }
+      assert.equal(normalizeProduct('vitacres').producto, 'Vitacres')
+      assert.equal(normalizeProduct('vitacres', extra).producto, 'Vitacres baby leaf')
+      assert.equal(normalizeProduct('vitacres', extra).enDiccionario, true)
+    })
+
+    it('un alias aprendido gana sobre el estático de fábrica', () => {
+      const extra = { aliases: { 'champi': 'Champiñón laminado' } }
+      assert.equal(formatForExcel(procesarPedido('1 c champi').lineas), 'Champiñón\t1 caja')
+      assert.equal(formatForExcel(procesarPedido('1 c champi', extra).lineas), 'Champiñón laminado\t1 caja')
+    })
+
+    it('una unidad aprendida se aplica cuando el pedido no la escribe', () => {
+      const extra = { unidades: { 'vitacres': 'bolsa' as const } }
+      assert.equal(unidadPorDefecto('Vitacres'), 'unidad')
+      assert.equal(unidadPorDefecto('Vitacres', extra), 'bolsa')
+      assert.equal(formatForExcel(procesarPedido('3 vitacres', extra).lineas), 'Vitacres\t3 bolsas')
+    })
+
+    it('la unidad escrita sigue mandando sobre la aprendida', () => {
+      const extra = { unidades: { 'vitacres': 'bolsa' as const } }
+      assert.equal(formatForExcel(procesarPedido('3 c vitacres', extra).lineas), 'Vitacres\t3 cajas')
+    })
+
+    it('sin diccionario aprendido el resultado no cambia', () => {
+      assert.equal(tsv(PEDIDO_REAL), formatForExcel(procesarPedido(PEDIDO_REAL, {}).lineas))
+    })
+  })
+
+  describe('rastro para aprender', () => {
+    it('guarda la clave cruda de la que salió cada fila', () => {
+      const { lineas } = procesarPedido('1 c pim rojo')
+      assert.deepEqual(lineas[0].clavesRaw, ['pim rojo'])
+    })
+
+    it('acumula todas las formas de escribir el mismo producto', () => {
+      const { lineas } = procesarPedido('1 c pim rojo / 2 c pimiento rojo / 1 c pim. rojo')
+      assert.equal(lineas.length, 1)
+      assert.deepEqual(lineas[0].clavesRaw, ['pim rojo', 'pimiento rojo', 'pim. rojo'])
+    })
+
+    it('distingue unidad escrita de unidad inferida', () => {
+      assert.equal(procesarPedido('2 c melon').lineas[0].unidadExplicita, true)
+      assert.equal(procesarPedido('2 melon').lineas[0].unidadExplicita, false)
+    })
+
+    it('una sola unidad escrita basta para marcar la fila como explícita', () => {
+      const { lineas } = procesarPedido('2 melon / 1 melon')
+      assert.equal(lineas[0].unidadExplicita, false)
+      const mixto = procesarPedido('2 unidades melon / 1 melon')
+      assert.equal(mixto.lineas[0].unidadExplicita, true)
     })
   })
 

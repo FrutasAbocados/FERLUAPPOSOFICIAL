@@ -6,6 +6,7 @@ import {
   Eraser,
   List,
   Plus,
+  GraduationCap,
   Sparkles,
   Table2,
   Trash2,
@@ -16,6 +17,11 @@ import { Modal } from '@/shared/components/Modal'
 import { toast } from '@/shared/lib/toast'
 import { cn } from '@/shared/lib/utils'
 import { UNIDAD_LABEL, type UnidadLimpia } from '../lib/limpiar-pedido/diccionario'
+import {
+  deducirAprendizaje,
+  useDiccionarioAprendido,
+  useGuardarAprendizaje,
+} from '../lib/limpiar-pedido/aprendizaje'
 import {
   formatCantidadNumero,
   formatForExcel,
@@ -32,6 +38,12 @@ const EJEMPLO = `1 c banana amarilla
 COBRAR FACTURA SABADO`
 
 type Copiado = 'excel' | 'lista' | null
+
+/** Fila de la tabla. El id es local: sobrevive a borrados y reordenaciones. */
+type Fila = LineaLimpia & { _id: string }
+
+let contadorFilas = 0
+const nuevaFila = (l: LineaLimpia): Fila => ({ ...l, _id: `f${++contadorFilas}` })
 
 /**
  * Herramienta "Limpiar pedido para Excel".
@@ -55,17 +67,29 @@ export function LimpiarPedidoExcel() {
 
 function LimpiarPedidoModal({ onClose }: { onClose: () => void }) {
   const [texto, setTexto] = useState('')
-  const [filas, setFilas] = useState<LineaLimpia[] | null>(null)
+  const [filas, setFilas] = useState<Fila[] | null>(null)
+  // Cómo salió cada fila del parser, para saber qué ha cambiado a mano.
+  const [originales, setOriginales] = useState<Map<string, LineaLimpia>>(new Map())
+  const [aprendido, setAprendido] = useState<string | null>(null)
   const [notas, setNotas] = useState<string[]>([])
   const [noReconocidos, setNoReconocidos] = useState<string[]>([])
   const [encabezados, setEncabezados] = useState(false)
   const [copiado, setCopiado] = useState<Copiado>(null)
+
+  const { data: diccionario } = useDiccionarioAprendido()
+  const guardarAprendizaje = useGuardarAprendizaje()
 
   useEffect(() => {
     if (!copiado) return
     const id = setTimeout(() => setCopiado(null), 2200)
     return () => clearTimeout(id)
   }, [copiado])
+
+  useEffect(() => {
+    if (!aprendido) return
+    const id = setTimeout(() => setAprendido(null), 3200)
+    return () => clearTimeout(id)
+  }, [aprendido])
 
   const aRevisar = useMemo(() => filas?.filter(f => f.revisar).length ?? 0, [filas])
 
@@ -75,8 +99,10 @@ function LimpiarPedidoModal({ onClose }: { onClose: () => void }) {
       toast({ title: 'Pega primero el pedido', variant: 'error' })
       return
     }
-    const r = procesarPedido(t)
-    setFilas(r.lineas)
+    const r = procesarPedido(t, diccionario)
+    const conId = r.lineas.map(nuevaFila)
+    setFilas(conId)
+    setOriginales(new Map(conId.map(f => [f._id, { ...f }])))
     setNotas(r.notas)
     setNoReconocidos(r.noReconocidos)
     if (r.lineas.length === 0) {
@@ -91,23 +117,57 @@ function LimpiarPedidoModal({ onClose }: { onClose: () => void }) {
   const limpiar = () => {
     setTexto('')
     setFilas(null)
+    setOriginales(new Map())
     setNotas([])
     setNoReconocidos([])
   }
 
-  const editar = (i: number, patch: Partial<LineaLimpia>) => {
-    setFilas(prev => prev && prev.map((f, idx) => (idx === i ? { ...f, ...patch } : f)))
+  const editar = (id: string, patch: Partial<LineaLimpia>) => {
+    setFilas(prev => prev && prev.map(f => (f._id === id ? { ...f, ...patch } : f)))
   }
 
-  const eliminarFila = (i: number) => {
-    setFilas(prev => prev && prev.filter((_, idx) => idx !== i))
+  const eliminarFila = (id: string) => {
+    setFilas(prev => prev && prev.filter(f => f._id !== id))
   }
 
   const anadirFila = () => {
     setFilas(prev => [
       ...(prev ?? []),
-      { producto: '', cantidad: 1, unidad: 'caja', revisar: true, origen: 'manual' },
+      nuevaFila({
+        producto: '', cantidad: 1, unidad: 'caja', revisar: true,
+        origen: 'manual', clavesRaw: [], unidadExplicita: true,
+      }),
     ])
+  }
+
+  /**
+   * Se llama al confirmar una edición (blur del nombre, cambio de formato).
+   * Compara con cómo salió del parser y graba lo que se pueda aprender, para
+   * que el próximo pedido ya salga bien sin tocar nada.
+   */
+  const aprender = (id: string, fila: Fila) => {
+    const original = originales.get(id)
+    if (!original) return
+
+    const a = deducirAprendizaje(original, fila)
+    if (a.aliases.length === 0 && a.unidades.length === 0) return
+
+    guardarAprendizaje.mutate(a, {
+      onSuccess: () => {
+        // El original pasa a ser lo corregido: no se reaprende lo mismo.
+        setOriginales(prev => new Map(prev).set(id, { ...fila }))
+        setFilas(prev => prev && prev.map(f => (f._id === id ? { ...f, revisar: false } : f)))
+        const que = a.aliases.length > 0
+          ? `${a.aliases.map(x => x.alias).join(', ')} → ${fila.producto}`
+          : `${fila.producto} → ${UNIDAD_LABEL[fila.unidad].uno}`
+        setAprendido(que)
+      },
+      onError: (e: Error) => toast({
+        title: 'No se pudo guardar el aprendizaje',
+        description: e.message,
+        variant: 'error',
+      }),
+    })
   }
 
   const copiar = async (modo: Exclude<Copiado, null>) => {
@@ -203,13 +263,27 @@ function LimpiarPedidoModal({ onClose }: { onClose: () => void }) {
                   {filas.length} {filas.length === 1 ? 'producto' : 'productos'}
                 </span>
               </h3>
-              {aRevisar > 0 && (
-                <span className="mono inline-flex items-center gap-1 rounded-full border border-[oklch(75%_.15_75_/_0.35)] bg-[oklch(35%_.10_75_/_0.22)] px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-[var(--amber)]">
-                  <AlertTriangle className="h-3 w-3" />
-                  {aRevisar} por revisar
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {aprendido && (
+                  <span className="mono inline-flex max-w-[22rem] items-center gap-1 truncate rounded-full border border-[var(--mint-glow)] bg-[var(--mint-glow)] px-2 py-0.5 text-[10px] text-[var(--mint)]" title={aprendido}>
+                    <GraduationCap className="h-3 w-3 shrink-0" />
+                    Aprendido: {aprendido}
+                  </span>
+                )}
+                {aRevisar > 0 && (
+                  <span className="mono inline-flex items-center gap-1 rounded-full border border-[oklch(75%_.15_75_/_0.35)] bg-[oklch(35%_.10_75_/_0.22)] px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-[var(--amber)]">
+                    <AlertTriangle className="h-3 w-3" />
+                    {aRevisar} por revisar
+                  </span>
+                )}
+              </div>
             </header>
+
+            <p className="text-[11px] text-[var(--ink-mute)]">
+              Corrige aquí lo que esté mal: el nombre y el formato se guardan y se aplican solos
+              en los próximos pedidos. El formato sólo se aprende cuando el pedido no lo escribía —
+              si el texto decía “2 c melón”, la “c” seguirá mandando.
+            </p>
 
             <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--line)]">
               <table className="w-full text-sm">
@@ -231,7 +305,7 @@ function LimpiarPedidoModal({ onClose }: { onClose: () => void }) {
                   )}
                   {filas.map((f, i) => (
                     <tr
-                      key={`${f.producto}-${f.unidad}-${i}`}
+                      key={f._id}
                       className={cn(
                         'border-b border-[var(--line)] last:border-0',
                         f.revisar && 'bg-[oklch(35%_.10_75_/_0.12)]',
@@ -240,7 +314,8 @@ function LimpiarPedidoModal({ onClose }: { onClose: () => void }) {
                       <td className="px-1 py-0.5">
                         <CellInput
                           value={f.producto}
-                          onChange={v => editar(i, { producto: v })}
+                          onChange={v => editar(f._id, { producto: v })}
+                          onBlur={() => aprender(f._id, f)}
                           placeholder="Producto"
                           aria-label={`Producto fila ${i + 1}`}
                         />
@@ -250,7 +325,7 @@ function LimpiarPedidoModal({ onClose }: { onClose: () => void }) {
                           value={formatCantidadNumero(f.cantidad)}
                           onChange={v => {
                             const n = Number.parseFloat(v.replace(',', '.'))
-                            editar(i, { cantidad: Number.isFinite(n) && n > 0 ? n : 0 })
+                            editar(f._id, { cantidad: Number.isFinite(n) && n > 0 ? n : 0 })
                           }}
                           className="tabular-nums"
                           inputMode="decimal"
@@ -260,7 +335,13 @@ function LimpiarPedidoModal({ onClose }: { onClose: () => void }) {
                       <td className="px-1 py-0.5">
                         <select
                           value={f.unidad}
-                          onChange={e => editar(i, { unidad: e.target.value as UnidadLimpia })}
+                          onChange={e => {
+                            const unidad = e.target.value as UnidadLimpia
+                            editar(f._id, { unidad })
+                            // No se puede leer del estado aquí: React todavía no
+                            // ha re-renderizado. Se pasa la fila ya actualizada.
+                            aprender(f._id, { ...f, unidad })
+                          }}
                           aria-label={`Formato fila ${i + 1}`}
                           className="w-full rounded-[var(--radius-sm)] border border-transparent bg-transparent px-1.5 py-1 text-sm text-[var(--ink)] hover:border-[var(--line)] focus-visible:border-[var(--mint)] focus-visible:outline-none"
                         >
@@ -274,7 +355,7 @@ function LimpiarPedidoModal({ onClose }: { onClose: () => void }) {
                       <td className="px-1 py-0.5 text-right">
                         <button
                           type="button"
-                          onClick={() => eliminarFila(i)}
+                          onClick={() => eliminarFila(f._id)}
                           className="rounded-md p-1 text-[var(--ink-mute)] hover:bg-[oklch(30%_.12_25_/_0.18)] hover:text-[var(--coral)]"
                           aria-label={`Eliminar ${f.producto || `fila ${i + 1}`}`}
                         >
