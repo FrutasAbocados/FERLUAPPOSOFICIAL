@@ -58,6 +58,17 @@ function normalizeLine(row: Record<string, unknown>): GestoriaFila {
   }
 }
 
+function visibleParaGestoria(row: GestoriaFila): boolean {
+  // Las ventas internas de la frutería propia siguen vivas en Manager, pero no
+  // forman parte de la documentación que debe recibir Gedofu. En ventas solo
+  // entran facturas: los albaranes se consolidan a fin de mes y duplicarían el
+  // importe si apareciesen junto a su factura. Holded muestra en "Facturas"
+  // tanto invoice como salesreceipt (facturas simplificadas/tickets).
+  const subtipo = row.subtipo.trim().toLocaleLowerCase('es')
+  if (subtipo === 'abuelo') return false
+  return row.tipo !== 'VENTA' || subtipo === 'invoice' || subtipo === 'salesreceipt'
+}
+
 export async function createGestoriaDocumentUrl(
   path: string,
   download?: string,
@@ -83,7 +94,7 @@ export function useGestoriaDatos(filtros: GestoriaFiltros) {
       })
       if (error) throw error
       const normalize = filtros.nivel === 'documentos' ? normalizeDocument : normalizeLine
-      return ((data ?? []) as Record<string, unknown>[]).map(normalize)
+      return ((data ?? []) as Record<string, unknown>[]).map(normalize).filter(visibleParaGestoria)
     },
   })
 }

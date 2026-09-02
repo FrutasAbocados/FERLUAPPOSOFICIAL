@@ -10,6 +10,7 @@ import {
   Eye,
   Image,
   Info,
+  Loader2,
   Search,
 } from 'lucide-react'
 import { PageTopbar } from '@/shared/components/PageTopbar'
@@ -20,12 +21,18 @@ import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 import { cn } from '@/shared/lib/utils'
 import { exportGestoriaExcel, exportGestoriaPdf, formatGestoriaValue } from './lib/exportar'
+import {
+  downloadGestoriaDocumentBundle,
+  gestoriaDocumentKey,
+  gestoriaRowHasDocument,
+} from './lib/combinarDocumentos'
 import { createGestoriaDocumentUrl, useGestoriaDatos } from './lib/queries'
 import {
   DOCUMENT_COLUMNS,
   LINE_COLUMNS,
   columnsForLevel,
   type GestoriaColumn,
+  type GestoriaFila,
   type GestoriaFiltros,
   type GestoriaNivel,
   type GestoriaTipo,
@@ -76,6 +83,8 @@ export function GestoriaPage() {
   const [selected, setSelected] = useState(DEFAULT_SELECTED)
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
   const [openingFile, setOpeningFile] = useState<string | null>(null)
+  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set())
+  const [bundling, setBundling] = useState<{ current: number; total: number } | null>(null)
   const query = useGestoriaDatos(filters)
 
   const availableColumns = columnsForLevel(filters.nivel)
@@ -93,6 +102,21 @@ export function GestoriaPage() {
     ))
   }, [query.data, search])
 
+  const selectableDocuments = useMemo(
+    () => (query.data ?? []).filter(gestoriaRowHasDocument),
+    [query.data],
+  )
+  const selectableFilteredDocuments = useMemo(
+    () => filteredRows.filter(gestoriaRowHasDocument),
+    [filteredRows],
+  )
+  const selectedDocumentRows = useMemo(
+    () => selectableDocuments.filter((row) => selectedDocuments.has(gestoriaDocumentKey(row))),
+    [selectableDocuments, selectedDocuments],
+  )
+  const allFilteredDocumentsSelected = selectableFilteredDocuments.length > 0
+    && selectableFilteredDocuments.every((row) => selectedDocuments.has(gestoriaDocumentKey(row)))
+
   const totals = useMemo(() => {
     if (filters.nivel === 'documentos') {
       return {
@@ -109,6 +133,7 @@ export function GestoriaPage() {
   }, [filteredRows, filters.nivel])
 
   const updateFilter = <K extends keyof GestoriaFiltros>(key: K, value: GestoriaFiltros[K]) => {
+    setSelectedDocuments(new Set())
     setFilters((current) => ({ ...current, [key]: value }))
   }
 
@@ -173,6 +198,49 @@ export function GestoriaPage() {
     }
   }
 
+  const toggleDocument = (row: GestoriaFila) => {
+    const key = gestoriaDocumentKey(row)
+    setSelectedDocuments((current) => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const toggleAllFilteredDocuments = () => {
+    setSelectedDocuments((current) => {
+      const next = new Set(current)
+      selectableFilteredDocuments.forEach((row) => {
+        const key = gestoriaDocumentKey(row)
+        if (allFilteredDocumentsSelected) next.delete(key)
+        else next.add(key)
+      })
+      return next
+    })
+  }
+
+  const downloadSelectedDocuments = async () => {
+    if (selectedDocumentRows.length === 0) return
+    setBundling({ current: 0, total: selectedDocumentRows.length })
+    try {
+      const result = await downloadGestoriaDocumentBundle(
+        selectedDocumentRows,
+        filters,
+        (current, total) => setBundling({ current, total }),
+      )
+      toast({
+        title: 'PDF conjunto descargado',
+        description: `${result.documentos} facturas · ${result.paginas} páginas`,
+        variant: 'success',
+      })
+    } catch (error) {
+      toast({ title: 'No se pudo crear el PDF conjunto', description: errorMessage(error), variant: 'error' })
+    } finally {
+      setBundling(null)
+    }
+  }
+
   return (
     <div>
       <PageTopbar
@@ -214,7 +282,7 @@ export function GestoriaPage() {
               >
                 <option value="AMBAS">Compras y ventas</option>
                 <option value="COMPRA">Solo compras</option>
-                <option value="VENTA">Solo ventas</option>
+                <option value="VENTA">Solo facturas de venta</option>
               </select>
             </FilterField>
             <FilterField label="Nivel de detalle">
@@ -247,7 +315,7 @@ export function GestoriaPage() {
           <Kpi label={filters.nivel === 'documentos' ? 'Documentos' : 'Líneas'} value={String(filteredRows.length)} />
           <Kpi label={filters.nivel === 'documentos' ? 'Base imponible' : 'Importe líneas'} value={euros(totals.base)} />
           <Kpi label="IVA documentos" value={filters.nivel === 'documentos' ? euros(totals.iva) : 'Según documento'} />
-          <Kpi label="Total seleccionado" value={euros(totals.total)} accent />
+          <Kpi label={filters.nivel === 'documentos' ? 'Total facturas' : 'Total líneas'} value={euros(totals.total)} accent />
         </div>
 
         <section className="ao-panel p-4">
@@ -320,7 +388,27 @@ export function GestoriaPage() {
                 {filteredRows.length > 200 ? `Mostrando 200 de ${filteredRows.length}; la descarga incluirá todas.` : `${filteredRows.length} filas.`}
               </p>
             </div>
-            {query.isFetching && <span className="text-xs text-[var(--mint)]">Actualizando…</span>}
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {query.isFetching && <span className="text-xs text-[var(--mint)]">Actualizando…</span>}
+              {filters.nivel === 'documentos' && (
+                <>
+                  {selectedDocumentRows.length > 0 && (
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedDocuments(new Set())} disabled={bundling !== null}>
+                      Quitar selección
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => void downloadSelectedDocuments()}
+                    disabled={selectedDocumentRows.length === 0 || bundling !== null}
+                  >
+                    {bundling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    {bundling
+                      ? `Uniendo ${bundling.current}/${bundling.total}…`
+                      : `Descargar juntas (${selectedDocumentRows.length})`}
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
 
           {query.isLoading ? (
@@ -341,6 +429,19 @@ export function GestoriaPage() {
               <table className="min-w-full border-collapse text-xs">
                 <thead className="sticky top-0 z-10 bg-[var(--panel)]">
                   <tr>
+                    {filters.nivel === 'documentos' && (
+                      <th className="w-10 border-b border-[var(--line-2)] px-3 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={allFilteredDocumentsSelected}
+                          onChange={toggleAllFilteredDocuments}
+                          disabled={selectableFilteredDocuments.length === 0 || bundling !== null}
+                          className="h-4 w-4 accent-[var(--mint)]"
+                          aria-label="Seleccionar todas las facturas visibles con archivo"
+                          title="Seleccionar todas las facturas visibles con archivo"
+                        />
+                      </th>
+                    )}
                     {selectedColumns.map((column) => (
                       <th key={column.key} className="whitespace-nowrap border-b border-[var(--line-2)] px-3 py-2 text-left font-semibold text-[var(--ink-dim)]">
                         {column.label}
@@ -356,6 +457,18 @@ export function GestoriaPage() {
                 <tbody>
                   {previewRows.map((row, index) => (
                     <tr key={`${row.fecha}-${row.numero}-${row.sku}-${index}`} className="odd:bg-white/[.012] hover:bg-white/[.025]">
+                      {filters.nivel === 'documentos' && (
+                        <td className="border-b border-[var(--line)] px-3 py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedDocuments.has(gestoriaDocumentKey(row))}
+                            onChange={() => toggleDocument(row)}
+                            disabled={!gestoriaRowHasDocument(row) || bundling !== null}
+                            className="h-4 w-4 accent-[var(--mint)] disabled:opacity-30"
+                            aria-label={`Seleccionar factura ${row.numero || row.tercero}`}
+                          />
+                        </td>
+                      )}
                       {selectedColumns.map((column) => (
                         <td
                           key={column.key}

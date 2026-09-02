@@ -475,8 +475,9 @@ export function Compras() {
       toast({
         title: 'Compra guardada',
         description: borrador.proveedor_holded_id
-          ? `${borrador.num_factura} · súbela a Holded para que cuente en el coste`
-          : `${borrador.num_factura} · archivada, no cuenta para el coste`,
+          ? `${borrador.num_factura} · archivo físico guardado · súbela a Holded para que cuente en el coste`
+          : `${borrador.num_factura} · archivo físico guardado · no cuenta para el coste`,
+        variant: 'success',
       })
       setBorrador(null)
       setPdfOriginal(null)

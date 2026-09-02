@@ -1605,13 +1605,23 @@ export async function subirFotosFactura(
   compraId: string,
 ): Promise<string[]> {
   const paths: string[] = []
-  for (const [i, f] of fotos.entries()) {
-    const path = `compras/${compraId}/${i + 1}-${Date.now()}.jpg`
-    const { error } = await supabase.storage
-      .from(GESTORIA_DOCUMENTOS_BUCKET)
-      .upload(path, f.blob, { contentType: 'image/jpeg', upsert: false })
-    if (error) throw error
-    paths.push(path)
+  try {
+    for (const [i, f] of fotos.entries()) {
+      const path = `compras/${compraId}/${i + 1}-${Date.now()}.jpg`
+      const { error } = await supabase.storage
+        .from(GESTORIA_DOCUMENTOS_BUCKET)
+        .upload(path, f.blob, { contentType: 'image/jpeg', upsert: false })
+      if (error) throw error
+      paths.push(path)
+    }
+  } catch (error) {
+    if (paths.length > 0) {
+      const { error: cleanupError } = await supabase.storage
+        .from(GESTORIA_DOCUMENTOS_BUCKET)
+        .remove(paths)
+      if (cleanupError) console.error('[compras] fotos parciales no limpiadas:', cleanupError)
+    }
+    throw error
   }
   return paths
 }
@@ -1748,13 +1758,16 @@ export function useGuardarCompra() {
       if (errCab) throw errCab
 
       // Archivos: se suben DESPUÉS de tener el id de compra (carpeta por compra).
-      // Si Storage falla, la compra ya está guardada — no la tiramos, solo avisamos.
+      // El registro y su archivo físico forman una sola operación para la UI.
+      // Si Storage falla, revertimos la cabecera para que se pueda reintentar.
       const archivos: { pdf_path?: string; foto_paths?: string[] } = {}
+      const documentosErrores: string[] = []
       if (input.pdf) {
         try {
           archivos.pdf_path = await subirPdfFactura(input.pdf, compra.id)
         } catch (e) {
           console.error('[compras] PDF original no subido:', e)
+          documentosErrores.push('el PDF original no se pudo archivar')
         }
       }
       if (input.fotos?.length) {
@@ -1763,6 +1776,7 @@ export function useGuardarCompra() {
           archivos.foto_paths = paths
         } catch (e) {
           console.error('[compras] fotos no subidas:', e)
+          documentosErrores.push('las fotos no se pudieron archivar')
         }
       }
       if (Object.keys(archivos).length > 0) {
@@ -1770,7 +1784,29 @@ export function useGuardarCompra() {
           .from('pedidos_wa_compras')
           .update(archivos)
           .eq('id', compra.id)
-        if (errArchivos) console.error('[compras] rutas de documentos no guardadas:', errArchivos)
+        if (errArchivos) {
+          console.error('[compras] rutas de documentos no guardadas:', errArchivos)
+          documentosErrores.push('las rutas del archivo no se pudieron vincular a la factura')
+        }
+      }
+
+      if (documentosErrores.length > 0) {
+        const uploadedPaths = [
+          ...(archivos.pdf_path ? [archivos.pdf_path] : []),
+          ...(archivos.foto_paths ?? []),
+        ]
+        if (uploadedPaths.length > 0) {
+          const { error: cleanupError } = await supabase.storage
+            .from(GESTORIA_DOCUMENTOS_BUCKET)
+            .remove(uploadedPaths)
+          if (cleanupError) console.error('[compras] archivos de rollback no limpiados:', cleanupError)
+        }
+        const { error: rollbackError } = await supabase
+          .from('pedidos_wa_compras')
+          .delete()
+          .eq('id', compra.id)
+        if (rollbackError) console.error('[compras] cabecera de rollback no eliminada:', rollbackError)
+        throw new Error(`No se archivó la factura física: ${documentosErrores.join(' · ')}`)
       }
 
       if (input.lineas.length > 0) {
@@ -1790,7 +1826,16 @@ export function useGuardarCompra() {
           .from('pedidos_wa_compras_lineas')
           .insert(filas)
         if (errLin) {
-          // rollback
+          const uploadedPaths = [
+            ...(archivos.pdf_path ? [archivos.pdf_path] : []),
+            ...(archivos.foto_paths ?? []),
+          ]
+          if (uploadedPaths.length > 0) {
+            const { error: cleanupError } = await supabase.storage
+              .from(GESTORIA_DOCUMENTOS_BUCKET)
+              .remove(uploadedPaths)
+            if (cleanupError) console.error('[compras] archivos sin líneas no limpiados:', cleanupError)
+          }
           await supabase.from('pedidos_wa_compras').delete().eq('id', compra.id)
           throw errLin
         }
