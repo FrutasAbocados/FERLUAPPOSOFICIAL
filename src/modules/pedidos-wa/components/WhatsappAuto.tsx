@@ -21,14 +21,17 @@ import {
   useActualizarWhatsappFila,
   useCrearPedido,
   useCrearWhatsappMensajeManual,
+  useGuardarTelefonoWhatsapp,
   useProcesarWhatsappPendientes,
   useTodosLosClientesPedidos,
+  useToggleTelefonoWhatsapp,
   useVincularTelefonoWhatsapp,
   useWhatsappFilas,
   useWhatsappMensajes,
   useWhatsappTelefonos,
   type WhatsappFila,
   type WhatsappMensaje,
+  type WhatsappTelefono,
 } from '../lib/queries'
 import { parsearPedido } from '../lib/parser'
 import type { ClientePedido } from '../lib/types'
@@ -196,6 +199,8 @@ export function WhatsappAuto() {
           loading={loadingMensajes}
         />
       )}
+
+      <TelefonosPanel clientes={clientes.filter(c => c.activo)} telefonos={telefonos} />
 
       <section className="ao-card p-0">
         <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-3 py-2">
@@ -495,6 +500,161 @@ async function crearPedidoDesdeWhatsappFila({
   return result
 }
 
+// Alta PROACTIVA de teléfonos. SinClientePanel solo permite vincular un número
+// que ya te ha escrito; para arrancar el canal hace falta lo contrario:
+// registrar el móvil del cliente ANTES de enviarle nada.
+function TelefonosPanel({ clientes, telefonos }: {
+  clientes: ClientePedido[]
+  telefonos: WhatsappTelefono[]
+}) {
+  const [soloSinTelefono, setSoloSinTelefono] = useState(true)
+  const [draft, setDraft] = useState<Record<string, { tel: string; etiqueta: string }>>({})
+  const guardar = useGuardarTelefonoWhatsapp()
+  const toggle = useToggleTelefonoWhatsapp()
+
+  const porCliente = useMemo(() => {
+    const map = new Map<string, WhatsappTelefono[]>()
+    for (const t of telefonos) {
+      const list = map.get(t.cliente_id) ?? []
+      list.push(t)
+      map.set(t.cliente_id, list)
+    }
+    return map
+  }, [telefonos])
+
+  const filas = useMemo(() => {
+    const rows = clientes.map(c => ({ cliente: c, tels: porCliente.get(c.id) ?? [] }))
+    const visibles = soloSinTelefono
+      ? rows.filter(r => r.tels.filter(t => t.activo).length === 0)
+      : rows
+    // Los que no tienen teléfono primero: son los que exigen acción.
+    return visibles.sort((a, b) => {
+      const av = a.tels.filter(t => t.activo).length === 0 ? 0 : 1
+      const bv = b.tels.filter(t => t.activo).length === 0 ? 0 : 1
+      return av - bv || a.cliente.nombre.localeCompare(b.cliente.nombre)
+    })
+  }, [clientes, porCliente, soloSinTelefono])
+
+  const sinTelefono = clientes.filter(c => (porCliente.get(c.id) ?? []).filter(t => t.activo).length === 0).length
+
+  const onGuardar = (clienteId: string) => {
+    const d = draft[clienteId]
+    if (!d?.tel?.trim()) {
+      toast({ title: 'Escribe un movil', variant: 'error' })
+      return
+    }
+    guardar.mutate(
+      { cliente_id: clienteId, telefono: d.tel, etiqueta: d.etiqueta || null },
+      {
+        onSuccess: () => {
+          setDraft(s => ({ ...s, [clienteId]: { tel: '', etiqueta: '' } }))
+          toast({ title: 'Telefono guardado', variant: 'success' })
+        },
+        onError: (err) => toast({ title: 'No se pudo guardar', description: errorMessage(err), variant: 'error' }),
+      },
+    )
+  }
+
+  return (
+    <section className="ao-card p-0">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-3 py-2">
+        <div className="flex items-center gap-2">
+          <Phone className="h-4 w-4 text-[var(--mint)]" />
+          <div className="label-caps">Telefonos del canal</div>
+          <span className="mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-mute)]">
+            <span className="tabular-nums">{telefonos.filter(t => t.activo).length}</span> activos ·{' '}
+            <span className="tabular-nums">{sinTelefono}</span> clientes sin movil
+          </span>
+        </div>
+        <Button size="sm" variant="secondary" onClick={() => setSoloSinTelefono(v => !v)}>
+          {soloSinTelefono ? 'Ver todos' : 'Solo sin movil'}
+        </Button>
+      </div>
+
+      {filas.length === 0 ? (
+        <div className="px-3 py-6 text-center text-sm text-[var(--ink-mute)]">
+          Todos los clientes activos tienen movil registrado.
+        </div>
+      ) : (
+        <div className="divide-y divide-[var(--line)]">
+          {filas.map(({ cliente, tels }) => {
+            const activos = tels.filter(t => t.activo)
+            const d = draft[cliente.id] ?? { tel: '', etiqueta: '' }
+            return (
+              <div key={cliente.id} className="grid gap-2 px-3 py-2 md:grid-cols-[200px_1fr_auto] md:items-start">
+                <div className="min-w-0">
+                  <div className="truncate font-semibold text-[var(--ink)]">{cliente.nombre}</div>
+                  {activos.length === 0 ? (
+                    <div className="flex items-center gap-1 text-xs text-[var(--amber)]">
+                      <AlertTriangle className="h-3 w-3" /> sin movil
+                    </div>
+                  ) : (
+                    <div className="text-xs text-[var(--ink-mute)]">
+                      <span className="tabular-nums">{activos.length}</span> registrado{activos.length === 1 ? '' : 's'}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  {tels.map(t => (
+                    <div key={t.id} className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className={cn(
+                        'tabular-nums',
+                        t.activo ? 'text-[var(--ink)]' : 'text-[var(--ink-mute)] line-through',
+                      )}>
+                        +{t.telefono_norm}
+                      </span>
+                      {t.etiqueta ? (
+                        <span className="rounded-[var(--radius)] border border-[var(--line)] px-1.5 text-[10px] uppercase tracking-[0.08em] text-[var(--ink-mute)]">
+                          {t.etiqueta}
+                        </span>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => toggle.mutate({ id: t.id, activo: !t.activo })}
+                        disabled={toggle.isPending}
+                        className="text-[11px] uppercase tracking-[0.08em] text-[var(--ink-mute)] underline-offset-2 hover:text-[var(--ink)] hover:underline"
+                      >
+                        {t.activo ? 'desactivar' : 'reactivar'}
+                      </button>
+                    </div>
+                  ))}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                      value={d.tel}
+                      onChange={(e) => setDraft(s => ({ ...s, [cliente.id]: { ...d, tel: e.currentTarget.value } }))}
+                      placeholder="648 93 68 71"
+                      inputMode="tel"
+                      className="h-8 w-[150px] text-xs tabular-nums"
+                    />
+                    <Input
+                      value={d.etiqueta}
+                      onChange={(e) => setDraft(s => ({ ...s, [cliente.id]: { ...d, etiqueta: e.currentTarget.value } }))}
+                      placeholder="encargado / cocina"
+                      className="h-8 w-[160px] text-xs"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => onGuardar(cliente.id)}
+                  disabled={guardar.isPending || !d.tel.trim()}
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  Guardar
+                </Button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}
+
 function SinClientePanel({
   fecha,
   grupos,
@@ -607,8 +767,8 @@ function MensajesPanel({ mensajes, loading }: { mensajes: WhatsappMensaje[]; loa
 }
 
 function MensajeEstado({ estado }: { estado: WhatsappMensaje['estado'] }) {
-  const listo = estado === 'procesado'
-  const warn = estado === 'sin_cliente' || estado === 'sin_texto'
+  const listo = estado === 'procesado' || estado === 'pedido_flow'
+  const warn = estado === 'sin_cliente' || estado === 'sin_texto' || estado === 'ambiguo'
   return (
     <span className={cn(
       'inline-flex h-6 items-center justify-center gap-1 rounded-[var(--radius)] border px-2 text-[10px] font-semibold uppercase tracking-[0.08em]',

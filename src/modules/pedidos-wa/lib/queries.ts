@@ -161,7 +161,12 @@ export function useToggleActivoCliente() {
 // ─── WhatsApp inbox automatico ──────────────────────────────────────────────
 
 export type WhatsappFilaEstado = 'pendiente' | 'listo' | 'revisar' | 'error'
-export type WhatsappMensajeEstado = 'recibido' | 'sin_cliente' | 'sin_texto' | 'procesado' | 'error'
+// 'ambiguo'     -> el teléfono resuelve a varios clientes (varios locales del
+//                  mismo dueño); hay que elegir a mano de quién es el pedido.
+// 'pedido_flow' -> vino de un WhatsApp Flow y ya creó pedido estructurado.
+export type WhatsappMensajeEstado =
+  | 'recibido' | 'sin_cliente' | 'sin_texto' | 'procesado' | 'error'
+  | 'ambiguo' | 'pedido_flow'
 
 export type WhatsappTelefono = {
   id: string
@@ -210,6 +215,51 @@ export type WhatsappFila = {
 
 function normalizarTelefonoWhatsapp(value: string): string {
   return value.replace(/\D/g, '').slice(0, 16)
+}
+
+// WhatsApp identifica al remitente con prefijo de país y sin '+'. Un móvil
+// español tecleado como 648936871 nunca casaría con el 34648936871 que llega
+// del webhook, así que aquí se completa el 34.
+export function normalizarMovilEs(value: string): string | null {
+  const d = normalizarTelefonoWhatsapp(value)
+  if (/^[679]\d{8}$/.test(d)) return `34${d}`
+  if (/^34[679]\d{8}$/.test(d)) return d
+  return null
+}
+
+export function useGuardarTelefonoWhatsapp() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { cliente_id: string; telefono: string; etiqueta?: string | null }) => {
+      const telefono = normalizarMovilEs(input.telefono)
+      if (!telefono) throw new Error('Movil espanol invalido (6, 7 o 9 + 8 digitos)')
+      const { error } = await supabase
+        .from('pedidos_wa_cliente_telefonos')
+        .upsert({
+          cliente_id: input.cliente_id,
+          telefono_norm: telefono,
+          telefono_display: input.telefono.trim() || telefono,
+          etiqueta: input.etiqueta?.trim() || null,
+          activo: true,
+        }, { onConflict: 'cliente_id,telefono_norm' })
+      if (error) throw error
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: KEYS.whatsappTelefonos }) },
+  })
+}
+
+export function useToggleTelefonoWhatsapp() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { id: string; activo: boolean }) => {
+      const { error } = await supabase
+        .from('pedidos_wa_cliente_telefonos')
+        .update({ activo: input.activo })
+        .eq('id', input.id)
+      if (error) throw error
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: KEYS.whatsappTelefonos }) },
+  })
 }
 
 export function useWhatsappFilas(fecha: string) {
