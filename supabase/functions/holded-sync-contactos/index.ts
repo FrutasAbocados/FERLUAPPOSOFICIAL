@@ -5,11 +5,10 @@
 // aparecen en documentos (facturas/compras). Esta edge llama /contacts paginado
 // y (a) INSERTA contactos nuevos que aún no existen en la tabla —incluidos los
 // que no tienen ningún documento todavía— con id + nombre + NIF + dirección, y
-// (b) completa direccion/cp/poblacion/provincia de los ya existentes.
+// (b) completa NIF/dirección de los ya existentes sin pisar correcciones locales.
 //
-// Body JSON opcional: { only_missing?: boolean }  // default true (solo afecta a
-//   qué contactos EXISTENTES reciben actualización de dirección; los nuevos
-//   siempre se insertan).
+// Body JSON opcional: { only_missing?: boolean }  // default true (solo completa
+//   campos vacíos de contactos EXISTENTES; los nuevos siempre se insertan).
 // Solo admin_full/admin_op (checkAuth).
 // ----------------------------------------------------------------------------
 
@@ -91,6 +90,20 @@ interface HoldedContact {
   }
 }
 
+interface DbContact {
+  id: string
+  nif: string | null
+  direccion: string | null
+  cp: string | null
+  poblacion: string | null
+  provincia: string | null
+  pais: string | null
+  geocode_provider: string | null
+  geocoded_at: string | null
+}
+
+type ContactAddress = Pick<DbContact, 'direccion' | 'cp' | 'poblacion' | 'provincia' | 'pais'>
+
 async function fetchContactsPage(page: number): Promise<HoldedContact[]> {
   const url = `${HOLDED_CONTACTS_BASE}?page=${page}`
   const res = await fetch(url, { headers: { key: HOLDED_KEY, accept: 'application/json' } })
@@ -127,36 +140,54 @@ async function pgInsert(row: Record<string, unknown>): Promise<void> {
   }
 }
 
-async function listContactosObjetivo(onlyMissing: boolean): Promise<Set<string>> {
-  const url = onlyMissing
-    ? `${SUPABASE_URL}/rest/v1/manager_contactos?select=id&or=(direccion.is.null,cp.is.null,poblacion.is.null)`
-    : `${SUPABASE_URL}/rest/v1/manager_contactos?select=id`
-  const res = await fetch(url, { headers: dbHeaders })
-  if (!res.ok) throw new Error(`select contactos ${res.status}`)
-  const rows = await res.json() as Array<{ id: string }>
-  return new Set(rows.map(r => r.id))
-}
-
-// Todos los ids ya existentes en la tabla — para detectar contactos NUEVOS.
-async function listContactosExistentes(): Promise<Set<string>> {
+// Todos los contactos existentes y sus campos fiscales. Además de detectar
+// contactos nuevos, permite completar solo huecos sin borrar correcciones locales.
+async function listContactosExistentes(): Promise<Map<string, DbContact>> {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/manager_contactos?select=id`,
+    `${SUPABASE_URL}/rest/v1/manager_contactos?select=id,nif,direccion,cp,poblacion,provincia,pais,geocode_provider,geocoded_at`,
     { headers: dbHeaders },
   )
   if (!res.ok) throw new Error(`select existentes ${res.status}`)
-  const rows = await res.json() as Array<{ id: string }>
-  return new Set(rows.map(r => r.id))
+  const rows = await res.json() as DbContact[]
+  return new Map(rows.map(r => [r.id, r]))
 }
 
-function pickAddress(c: HoldedContact): { direccion: string | null; cp: string | null; poblacion: string | null; provincia: string | null; pais: string | null } {
+function clean(value: string | null | undefined): string | null {
+  return (value ?? '').trim() || null
+}
+
+function pickAddress(c: HoldedContact): ContactAddress {
   const a = c.billAddress ?? c.defaultAddress ?? {}
   return {
-    direccion: (a.address ?? '').trim() || null,
-    cp: (a.postalCode ?? '').trim() || null,
-    poblacion: (a.city ?? '').trim() || null,
-    provincia: (a.province ?? '').trim() || null,
-    pais: (a.country ?? '').trim() || null,
+    direccion: clean(a.address),
+    cp: clean(a.postalCode),
+    poblacion: clean(a.city),
+    provincia: clean(a.province),
+    pais: clean(a.country),
   }
+}
+
+function buildExistingPatch(
+  existente: DbContact,
+  holdedNif: string | null,
+  addr: ContactAddress,
+  onlyMissing: boolean,
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = {}
+
+  // Nunca borrar ni sobrescribir un NIF local: puede contener una corrección
+  // fiscal manual más fiable que el dato importado.
+  if (holdedNif && !clean(existente.nif)) patch.nif = holdedNif
+
+  for (const key of ['direccion', 'cp', 'poblacion', 'provincia', 'pais'] as const) {
+    if (onlyMissing) {
+      if (!clean(existente[key]) && addr[key]) patch[key] = addr[key]
+    } else {
+      patch[key] = addr[key]
+    }
+  }
+
+  return patch
 }
 
 Deno.serve(async (req) => {
@@ -172,10 +203,8 @@ Deno.serve(async (req) => {
   try { body = await req.json() } catch { /* body opcional */ }
   const onlyMissing = body.only_missing !== false  // default true
 
-  let objetivo: Set<string>
-  let existentes: Set<string>
+  let existentes: Map<string, DbContact>
   try {
-    objetivo = await listContactosObjetivo(onlyMissing)
     existentes = await listContactosExistentes()
   }
   catch (e) { return jsonRes({ error: e instanceof Error ? e.message : String(e) }, 500) }
@@ -183,6 +212,9 @@ Deno.serve(async (req) => {
   let actualizados = 0
   let insertados = 0
   let recorridos = 0
+  let nifActualizados = 0
+  let contactosHoldedConNif = 0
+  let sinCambios = 0
   const errors: string[] = []
 
   for (let page = 1; page <= 50; page++) {  // tope seguridad 50 pages × 500 = 25k contactos
@@ -194,16 +226,19 @@ Deno.serve(async (req) => {
 
     for (const c of docs) {
       const addr = pickAddress(c)
+      const holdedNif = clean(c.code)
       const tieneAlgo = addr.direccion || addr.cp || addr.poblacion
+      if (holdedNif) contactosHoldedConNif++
 
       // Contacto NUEVO: no existe en la tabla → insertar con id + nombre + NIF + dirección.
-      if (!existentes.has(c.id)) {
+      const existente = existentes.get(c.id)
+      if (!existente) {
         const nombre = (c.name ?? '').trim()
         if (!nombre) continue  // sin nombre no sirve para el buscador
         const row: Record<string, unknown> = {
           id: c.id,
           nombre,
-          nif: (c.code ?? '').trim() || null,
+          nif: holdedNif,
           direccion: addr.direccion,
           cp: addr.cp,
           poblacion: addr.poblacion,
@@ -214,31 +249,56 @@ Deno.serve(async (req) => {
           row.geocode_provider = 'sin_direccion_holded'
           row.geocoded_at = new Date().toISOString()
         }
-        try { await pgInsert(row); insertados++; existentes.add(c.id) }
+        try {
+          await pgInsert(row)
+          insertados++
+          if (holdedNif) nifActualizados++
+          existentes.set(c.id, {
+            id: c.id,
+            nif: holdedNif,
+            ...addr,
+            geocode_provider: tieneAlgo ? null : 'sin_direccion_holded',
+            geocoded_at: tieneAlgo ? null : new Date().toISOString(),
+          })
+        }
         catch (e) { errors.push(e instanceof Error ? e.message : String(e)) }
         continue
       }
 
-      // Contacto EXISTENTE: solo actualiza dirección si está en el objetivo.
-      if (!objetivo.has(c.id)) continue
-      // Si Holded tampoco tiene dirección, marcar geocoded_at fallido para no reintentar.
-      const patch: Record<string, unknown> = {
-        direccion: addr.direccion,
-        cp: addr.cp,
-        poblacion: addr.poblacion,
-        provincia: addr.provincia,
-        pais: addr.pais,
-      }
-      if (!tieneAlgo) {
+      // Contacto EXISTENTE: completar huecos por defecto; el refresco explícito
+      // (only_missing=false) conserva el comportamiento anterior para dirección.
+      const patch = buildExistingPatch(existente, holdedNif, addr, onlyMissing)
+      if (
+        !tieneAlgo
+        && !clean(existente.direccion)
+        && existente.geocode_provider !== 'sin_direccion_holded'
+      ) {
         patch.geocode_provider = 'sin_direccion_holded'
         patch.geocoded_at = new Date().toISOString()
       }
-      try { await pgUpdate(c.id, patch); actualizados++ }
+      if (Object.keys(patch).length === 0) {
+        sinCambios++
+        continue
+      }
+      try {
+        await pgUpdate(c.id, patch)
+        actualizados++
+        if ('nif' in patch) nifActualizados++
+      }
       catch (e) { errors.push(e instanceof Error ? e.message : String(e)) }
     }
 
     if (docs.length < 500) break  // última página
   }
 
-  return jsonRes({ ok: errors.length === 0, recorridos, insertados, actualizados, errors: errors.slice(0, 10) })
+  return jsonRes({
+    ok: errors.length === 0,
+    recorridos,
+    contactos_holded_con_nif: contactosHoldedConNif,
+    insertados,
+    actualizados,
+    nif_actualizados: nifActualizados,
+    sin_cambios: sinCambios,
+    errors: errors.slice(0, 10),
+  })
 })
