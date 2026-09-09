@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { AlertTriangle, CheckCircle2, ClipboardList, Loader2, Plus, Printer } from 'lucide-react'
+import { AlertTriangle, Check, CheckCircle2, ChevronDown, ClipboardList, Loader2, Plus, Printer, Search } from 'lucide-react'
 import { Modal } from '@/shared/components/Modal'
 import { toast } from '@/shared/lib/toast'
 import { imprimirIncidencias } from '../lib/incidenciasPrint'
@@ -15,6 +15,7 @@ import {
   type Incidencia,
   type IncidenciaEstado,
   type IncidenciaTipo,
+  type ClienteOpcion,
 } from '../lib/incidencias-queries'
 
 const TIPOS: Array<{ k: IncidenciaTipo; l: string }> = [
@@ -219,7 +220,7 @@ function IncidenciaCard({ inc, puedeGestionar }: { inc: Incidencia; puedeGestion
 }
 
 function NuevaIncidenciaModal({ autorEmpleadoId, onClose }: { autorEmpleadoId: string | null; onClose: () => void }) {
-  const { data: clientes } = useClientesIncidencias()
+  const { data: clientes, isLoading: clientesCargando, isError: clientesError } = useClientesIncidencias()
   const crear = useCrearIncidencia()
   const [general, setGeneral] = useState(false)
   const [cliente, setCliente] = useState('')
@@ -256,18 +257,13 @@ function NuevaIncidenciaModal({ autorEmpleadoId, onClose }: { autorEmpleadoId: s
           {!general && (
             <div>
               <label className="mb-1 block text-xs font-semibold text-[var(--color-ink-2)]">Cliente</label>
-              <input
-                list="incidencias-clientes"
+              <ClienteIncidenciaCombobox
+                clientes={clientes ?? []}
+                isLoading={clientesCargando}
+                isError={clientesError}
                 value={cliente}
-                onChange={e => setCliente(e.target.value)}
-                placeholder="Escribe para buscar…"
-                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-ink)]"
+                onChange={setCliente}
               />
-              <datalist id="incidencias-clientes">
-                {(clientes ?? []).map(c => (
-                  <option key={c.nombre_canon} value={c.nombre_canon}>{c.poblacion ?? ''}</option>
-                ))}
-              </datalist>
               {cliente.trim() && !clienteOk && (
                 <p className="mt-1 text-[11px] text-[oklch(50%_.14_25)]">Selecciona un cliente de la lista.</p>
               )}
@@ -306,5 +302,144 @@ function NuevaIncidenciaModal({ autorEmpleadoId, onClose }: { autorEmpleadoId: s
         </div>
       </div>
     </Modal>
+  )
+}
+
+function normalizarBusqueda(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLocaleLowerCase('es')
+    .trim()
+}
+
+function ClienteIncidenciaCombobox({
+  clientes,
+  isLoading,
+  isError,
+  value,
+  onChange,
+}: {
+  clientes: ClienteOpcion[]
+  isLoading: boolean
+  isError: boolean
+  value: string
+  onChange: (value: string) => void
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const [indiceActivo, setIndiceActivo] = useState(-1)
+
+  const filtrados = useMemo(() => {
+    const busqueda = normalizarBusqueda(value)
+    const coincidencias = busqueda
+      ? clientes.filter(cliente => normalizarBusqueda(`${cliente.nombre_canon} ${cliente.poblacion ?? ''}`).includes(busqueda))
+      : clientes
+    return coincidencias.slice(0, 60)
+  }, [clientes, value])
+
+  const seleccionar = (cliente: ClienteOpcion) => {
+    onChange(cliente.nombre_canon)
+    setAbierto(false)
+    setIndiceActivo(-1)
+  }
+
+  return (
+    <div
+      className="relative"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setAbierto(false)
+          setIndiceActivo(-1)
+        }
+      }}
+    >
+      <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-[var(--color-ink-3)]" />
+      <input
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={abierto}
+        aria-controls="incidencias-clientes-lista"
+        aria-activedescendant={indiceActivo >= 0 ? `incidencias-cliente-${indiceActivo}` : undefined}
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value)
+          setAbierto(true)
+          setIndiceActivo(0)
+        }}
+        onFocus={() => setAbierto(true)}
+        onClick={() => setAbierto(true)}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown') {
+            event.preventDefault()
+            setAbierto(true)
+            setIndiceActivo(actual => Math.min(actual + 1, filtrados.length - 1))
+          } else if (event.key === 'ArrowUp') {
+            event.preventDefault()
+            setAbierto(true)
+            setIndiceActivo(actual => Math.max(actual - 1, 0))
+          } else if (event.key === 'Enter' && abierto && indiceActivo >= 0 && filtrados[indiceActivo]) {
+            event.preventDefault()
+            seleccionar(filtrados[indiceActivo])
+          } else if (event.key === 'Escape') {
+            setAbierto(false)
+            setIndiceActivo(-1)
+          }
+        }}
+        placeholder="Escribe o toca para buscar…"
+        className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] py-2 pl-9 pr-9 text-sm text-[var(--color-ink)]"
+      />
+      <button
+        type="button"
+        aria-label={abierto ? 'Cerrar lista de clientes' : 'Abrir lista de clientes'}
+        tabIndex={-1}
+        onMouseDown={event => event.preventDefault()}
+        onClick={() => setAbierto(actual => !actual)}
+        className="absolute right-1.5 top-1.5 rounded p-1 text-[var(--color-ink-3)] hover:bg-[var(--color-surface-2)]"
+      >
+        <ChevronDown className={`h-4 w-4 transition-transform ${abierto ? 'rotate-180' : ''}`} />
+      </button>
+
+      {abierto && (
+        <div
+          id="incidencias-clientes-lista"
+          role="listbox"
+          className="mt-1 max-h-52 overflow-y-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg"
+        >
+          {isLoading ? (
+            <p className="px-3 py-3 text-center text-xs text-[var(--color-ink-3)]">Cargando clientes…</p>
+          ) : isError ? (
+            <p className="px-3 py-3 text-center text-xs text-[oklch(50%_.14_25)]">No se pudieron cargar los clientes.</p>
+          ) : filtrados.length === 0 ? (
+            <p className="px-3 py-3 text-center text-xs text-[var(--color-ink-3)]">No hay clientes que coincidan.</p>
+          ) : (
+            filtrados.map((cliente, index) => {
+              const seleccionado = cliente.nombre_canon === value
+              return (
+                <button
+                  id={`incidencias-cliente-${index}`}
+                  key={cliente.nombre_canon}
+                  type="button"
+                  role="option"
+                  aria-selected={seleccionado}
+                  onMouseEnter={() => setIndiceActivo(index)}
+                  onClick={() => seleccionar(cliente)}
+                  className={`flex w-full items-center gap-2 border-b border-[var(--color-border)] px-3 py-2 text-left text-sm last:border-b-0 ${
+                    indiceActivo === index || seleccionado
+                      ? 'bg-[var(--color-primary-soft)]'
+                      : 'hover:bg-[var(--color-surface-2)]'
+                  }`}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-[var(--color-ink)]">{cliente.nombre_canon}</span>
+                    {cliente.poblacion && <span className="block truncate text-[11px] text-[var(--color-ink-3)]">{cliente.poblacion}</span>}
+                  </span>
+                  {seleccionado && <Check className="h-4 w-4 shrink-0 text-[var(--color-primary-2)]" />}
+                </button>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
   )
 }
