@@ -13,6 +13,7 @@ const nullableNum = (v: unknown): number | null => v == null ? null : Number(v)
 
 export type ClienteFila = {
   contact_name_canon: string
+  contact_ids: string[]
   docs: number
   ventas: number
   margen: number
@@ -112,6 +113,7 @@ export async function fetchClientesBBDD(from: string, to: string): Promise<Clien
   if (error) throw error
   const rows: ClienteFila[] = ((data ?? []) as DbRow[]).map((r): ClienteFila => ({
     contact_name_canon: str(r.contact_name_canon),
+    contact_ids:        Array.isArray(r.contact_ids) ? r.contact_ids.map(str).filter(Boolean) : [],
     docs:               num(r.docs),
     ventas:             num(r.ventas),
     margen:             num(r.margen),
@@ -220,6 +222,123 @@ export function useSetPreferencias() {
       qc.invalidateQueries({ queryKey: ['clientes', 'prefs', vars.contact_name_canon] })
       qc.invalidateQueries({ queryKey: ['clientes', 'seguimiento'] })
     },
+  })
+}
+
+// ── Ficha fiscal propia ─────────────────────────────────────────────────────
+
+export type EstadoValidacionFiscal = 'incompleto' | 'pendiente_revision' | 'validado' | 'inactivo'
+export type TipoIdentificacionFiscal = 'NIF' | 'NIE' | 'VAT_UE' | 'PASAPORTE' | 'OTRO'
+export type CanalEntregaFiscal = 'pendiente' | 'email' | 'descarga' | 'whatsapp' | 'otro'
+export type ModalidadFiscal = 'factura_inmediata' | 'albaran' | 'mixta' | 'sin_factura'
+
+export type ClienteFiscal = {
+  id: string
+  holded_contact_id: string | null
+  nombre_fiscal: string
+  nombre_comercial: string | null
+  tipo_identificacion: TipoIdentificacionFiscal
+  numero_identificacion: string | null
+  direccion: string | null
+  codigo_postal: string | null
+  poblacion: string | null
+  provincia: string | null
+  pais_codigo: string
+  email_facturacion: string | null
+  canal_entrega: CanalEntregaFiscal
+  modalidad_habitual: ModalidadFiscal
+  activo: boolean
+  origen: 'holded' | 'manual' | 'importacion'
+  revisado_at: string | null
+  revisado_por: string | null
+  estado_validacion: EstadoValidacionFiscal
+  updated_at: string
+}
+
+export type ClienteFiscalPatch = Pick<
+  ClienteFiscal,
+  | 'nombre_fiscal'
+  | 'nombre_comercial'
+  | 'tipo_identificacion'
+  | 'numero_identificacion'
+  | 'direccion'
+  | 'codigo_postal'
+  | 'poblacion'
+  | 'provincia'
+  | 'pais_codigo'
+  | 'email_facturacion'
+  | 'canal_entrega'
+  | 'modalidad_habitual'
+  | 'activo'
+>
+
+const CLIENTE_FISCAL_SELECT = 'id, holded_contact_id, nombre_fiscal, nombre_comercial, tipo_identificacion, numero_identificacion, direccion, codigo_postal, poblacion, provincia, pais_codigo, email_facturacion, canal_entrega, modalidad_habitual, activo, origen, revisado_at, revisado_por, estado_validacion, updated_at'
+
+export function useClientesFiscales(contactIds: string[]) {
+  const ids = [...new Set(contactIds.filter(Boolean))].sort()
+  return useQuery({
+    queryKey: ['clientes', 'fiscal', ids] as const,
+    enabled: ids.length > 0,
+    queryFn: async (): Promise<ClienteFiscal[]> => {
+      const { data, error } = await supabase
+        .from('facturacion_clientes')
+        .select(CLIENTE_FISCAL_SELECT)
+        .in('holded_contact_id', ids)
+        .order('nombre_fiscal')
+      if (error) throw error
+      return (data ?? []) as ClienteFiscal[]
+    },
+  })
+}
+
+export function useCrearClienteFiscal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { holded_contact_id: string; nombre_fiscal: string }): Promise<ClienteFiscal> => {
+      const nombre = input.nombre_fiscal.trim()
+      const { data, error } = await supabase
+        .from('facturacion_clientes')
+        .insert({
+          holded_contact_id: input.holded_contact_id,
+          nombre_fiscal: nombre,
+          nombre_comercial: nombre,
+          origen: 'manual',
+        })
+        .select(CLIENTE_FISCAL_SELECT)
+        .single()
+      if (error) throw error
+      return data as ClienteFiscal
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clientes', 'fiscal'] }),
+  })
+}
+
+export function useSetClienteFiscal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { id: string; patch: ClienteFiscalPatch }): Promise<ClienteFiscal> => {
+      const { data, error } = await supabase
+        .from('facturacion_clientes')
+        .update(input.patch)
+        .eq('id', input.id)
+        .select(CLIENTE_FISCAL_SELECT)
+        .single()
+      if (error) throw error
+      return data as ClienteFiscal
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clientes', 'fiscal'] }),
+  })
+}
+
+export function useValidarClienteFiscal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string): Promise<ClienteFiscal> => {
+      const { data, error } = await supabase.rpc('facturacion_validar_cliente', { p_cliente_id: id })
+      if (error) throw error
+      return data as ClienteFiscal
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clientes', 'fiscal'] }),
   })
 }
 

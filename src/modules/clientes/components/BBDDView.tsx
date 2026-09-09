@@ -22,6 +22,7 @@ import { AliasesCard } from './AliasesCard'
 import { EvolucionChart } from './EvolucionChart'
 import { HeatmapDiaCalendario } from './HeatmapDiaCalendario'
 import { MargenesDetalle } from './MargenesDetalle'
+import { FiscalCard } from './FiscalCard'
 
 type Props = {
   /** Si llega un cliente desde fuera (ej. click en Seguimiento), lo selecciona. */
@@ -391,6 +392,7 @@ function Ficha({ cliente, from, to, onClose }: { cliente: ClienteABC; from: stri
         <Kpi label="Última" value={cliente.ultima_compra ? format(parseISO(cliente.ultima_compra), 'd LLL', { locale: es }) : '—'} />
       </div>
 
+      <FiscalCard name={cliente.contact_name_canon} contactIds={cliente.contact_ids} />
       <ProgramaFidelizacionCard key={`programa-${cliente.contact_name_canon}`} cliente={cliente} />
       <PreferenciasCard key={`prefs-${cliente.contact_name_canon}`} name={cliente.contact_name_canon} />
 
