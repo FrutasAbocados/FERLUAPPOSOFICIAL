@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { FunctionsFetchError } from '@supabase/supabase-js'
 import { supabase } from '@/shared/lib/supabase'
 import type { FotoPreparada } from './imagen'
 import type {
@@ -1577,19 +1578,48 @@ export function useComprasMes(yyyymm: string) {
   })
 }
 
+/** Cuerpo que acepta la Edge Function del parser: un PDF o varias fotos. */
+type ParserFacturaBody =
+  | { pdf_base64: string; filename?: string }
+  | { imagenes: { b64: string; media_type: string }[]; filename?: string }
+
+/** Pausa antes del reintento: da margen a que vuelva la cobertura. */
+const PARSER_REINTENTO_MS = 1_500
+
+/**
+ * El OCR de una factura larga tiene la petición abierta hasta 45 s. Desde el
+ * móvil, un parpadeo de cobertura mata el fetch y supabase-js lo devuelve como
+ * FunctionsFetchError («Failed to send a request to the Edge Function») aunque
+ * la función haya terminado bien al otro lado. Se reintenta UNA vez y solo ante
+ * fallo de red: el parser no escribe nada, así que repetirlo es seguro. Un error
+ * de negocio no se reintenta — saldría idéntico.
+ */
+async function invocarParserFactura(body: ParserFacturaBody): Promise<CompraExtraccion> {
+  for (let intento = 0; ; intento++) {
+    const { data, error } = await supabase.functions.invoke<CompraExtraccion | { error: string }>(
+      'parsear-factura-proveedor',
+      { body },
+    )
+    if (error) {
+      if (!(error instanceof FunctionsFetchError)) throw error
+      if (intento === 0) {
+        await new Promise((resolve) => setTimeout(resolve, PARSER_REINTENTO_MS))
+        continue
+      }
+      throw new Error('Se cortó la conexión durante la lectura — reintenta esta factura')
+    }
+    if (!data || 'error' in data) {
+      throw new Error((data as { error?: string })?.error ?? 'Respuesta vacía del parser')
+    }
+    return repararLineasExtraccion(data as CompraExtraccion)
+  }
+}
+
 export async function parsearFacturaProveedor(
   file: File,
 ): Promise<CompraExtraccion> {
   const b64 = await fileToBase64(file)
-  const { data, error } = await supabase.functions.invoke<CompraExtraccion | { error: string }>(
-    'parsear-factura-proveedor',
-    { body: { pdf_base64: b64, filename: file.name } },
-  )
-  if (error) throw error
-  if (!data || 'error' in data) {
-    throw new Error((data as { error?: string })?.error ?? 'Respuesta vacía del parser')
-  }
-  return repararLineasExtraccion(data as CompraExtraccion)
+  return invocarParserFactura({ pdf_base64: b64, filename: file.name })
 }
 
 /**
@@ -1631,20 +1661,10 @@ function fileToBase64(file: File): Promise<string> {
 export async function parsearFacturaProveedorFotos(
   fotos: FotoPreparada[],
 ): Promise<CompraExtraccion> {
-  const { data, error } = await supabase.functions.invoke<CompraExtraccion | { error: string }>(
-    'parsear-factura-proveedor',
-    {
-      body: {
-        imagenes: fotos.map((f) => ({ b64: f.b64, media_type: f.media_type })),
-        filename: fotos[0]?.nombre,
-      },
-    },
-  )
-  if (error) throw error
-  if (!data || 'error' in data) {
-    throw new Error((data as { error?: string })?.error ?? 'Respuesta vacía del parser')
-  }
-  return repararLineasExtraccion(data as CompraExtraccion)
+  return invocarParserFactura({
+    imagenes: fotos.map((f) => ({ b64: f.b64, media_type: f.media_type })),
+    filename: fotos[0]?.nombre,
+  })
 }
 
 const GESTORIA_DOCUMENTOS_BUCKET = 'gestoria-documentos'
