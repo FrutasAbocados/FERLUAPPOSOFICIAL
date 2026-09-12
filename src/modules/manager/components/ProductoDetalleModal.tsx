@@ -11,8 +11,7 @@ import { eurosOrDash, eurosShortOrDash } from '@/shared/lib/format'
 import type { Period } from '../lib/period'
 import type { ProductoListItem } from '../lib/types'
 import {
-  useCosteManual, useDeleteCosteManual,
-  useProductoClientes, useProductoCompras, useProductoHistorico, useSetCosteManual,
+  useCosteManual, useDeleteCosteManual, useSetCosteManual,
   useCosteManualNombre, useDeleteCosteManualNombre,
   useProductoClientesNombre, useProductoComprasNombre, useProductoHistoricoNombre,
   useSetCosteManualNombre,
@@ -30,22 +29,18 @@ interface Props {
 }
 
 export function ProductoDetalleModal({ producto, period, onClose }: Props) {
-  // Productos de facturas PDF de proveedor no tienen product_id → todo va por nombre.
+  // `manager_productos_lista` agrupa por NOMBRE y la mayoría de líneas de venta
+  // llegan de Holded sin product_id, así que filtrar el detalle por product_id
+  // dejaba fuera casi todas las ventas de la fila. Ventas, histórico y compras
+  // se resuelven por nombre: la misma clave con la que se abre la ficha.
+  // `pid` solo decide dónde se guarda el coste manual (por producto o por nombre).
   const pid = producto.product_id
   const byName = !pid
   const nombre = producto.nombre
 
-  const clientesId = useProductoClientes(pid, period)
-  const clientesNm = useProductoClientesNombre(byName ? nombre : null, period)
-  const clientes = byName ? clientesNm : clientesId
-
-  const comprasId = useProductoCompras(pid)
-  const comprasNm = useProductoComprasNombre(byName ? nombre : null)
-  const compras = byName ? comprasNm : comprasId
-
-  const historicoId = useProductoHistorico(pid, 12)
-  const historicoNm = useProductoHistoricoNombre(byName ? nombre : null, 12)
-  const historico = byName ? historicoNm : historicoId
+  const clientes = useProductoClientesNombre(nombre, period)
+  const compras = useProductoComprasNombre(nombre)
+  const historico = useProductoHistoricoNombre(nombre, 12)
 
   const costeManual = useCosteManual(pid)
   const costeManualNm = useCosteManualNombre(byName ? nombre : null)
