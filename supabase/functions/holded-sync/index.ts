@@ -324,12 +324,23 @@ Deno.serve(async (req) => {
     }, null, 2), { headers: { ...cors, 'content-type': 'application/json' } })
   }
 
-  const log = await pgInsertReturning('manager_holded_sync', {
-    trigger,
-    range_start: start.toISOString().slice(0, 10),
-    range_end: end.toISOString().slice(0, 10),
-  })
-  const logId = log.id
+  // El log de sync es observabilidad, no parte del trabajo: PostgREST devuelve
+  // 504 esporádicos y hasta ahora ese 504 abortaba la función ANTES de traer
+  // nada de Holded (4 de 6 ejecuciones horarias perdidas el 12-09-2026).
+  // Reintentamos una vez y, si sigue fallando, sincronizamos igual sin log.
+  let logId: number | null = null
+  for (let intento = 1; intento <= 2 && logId === null; intento++) {
+    try {
+      const log = await pgInsertReturning('manager_holded_sync', {
+        trigger,
+        range_start: start.toISOString().slice(0, 10),
+        range_end: end.toISOString().slice(0, 10),
+      })
+      logId = log.id
+    } catch (e) {
+      console.error(`[holded-sync] log intento ${intento}: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
 
   let ventas = 0, compras = 0, lineasCount = 0
   const contactosSet = new Set<string>()
@@ -532,15 +543,17 @@ Deno.serve(async (req) => {
     }
 
     const ok = errors.length === 0
-    await pgUpdate('manager_holded_sync', logId, {
-      finished_at: new Date().toISOString(),
-      ventas_upserted: ventas,
-      compras_upserted: compras,
-      contactos_upserted: contactosSet.size,
-      lineas_upserted: lineasCount,
-      ok,
-      error: ok ? null : errors.slice(0, 5).join(' | '),
-    })
+    if (logId !== null) {
+      await pgUpdate('manager_holded_sync', logId, {
+        finished_at: new Date().toISOString(),
+        ventas_upserted: ventas,
+        compras_upserted: compras,
+        contactos_upserted: contactosSet.size,
+        lineas_upserted: lineasCount,
+        ok,
+        error: ok ? null : errors.slice(0, 5).join(' | '),
+      }).catch(e => console.error(`[holded-sync] cierre de log: ${e instanceof Error ? e.message : String(e)}`))
+    }
 
     return new Response(JSON.stringify({
       ok, log_id: logId, ventas, compras, contactos: contactosSet.size, lineas: lineasCount,
@@ -549,9 +562,11 @@ Deno.serve(async (req) => {
 
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    await pgUpdate('manager_holded_sync', logId, {
-      finished_at: new Date().toISOString(), ok: false, error: msg,
-    }).catch(() => {})
+    if (logId !== null) {
+      await pgUpdate('manager_holded_sync', logId, {
+        finished_at: new Date().toISOString(), ok: false, error: msg,
+      }).catch(() => {})
+    }
     return new Response(JSON.stringify({ ok: false, error: msg }), {
       status: 500, headers: { ...cors, 'content-type': 'application/json' },
     })

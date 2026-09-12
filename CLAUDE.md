@@ -85,7 +85,7 @@ Detalle en `~/.claude/projects/-Users-luis/memory/cron_jobs_ferlu.md`.
 - `LIST` endpoint NO devuelve `line_id` en products → generar `id` por índice (`L${idx}`). PK `manager_lineas` es `(factura_id, id)`.
 - Fechas Holded en zona Madrid (CEST=UTC+2 verano). Usar `Intl.DateTimeFormat` con `timeZone: 'Europe/Madrid'`, NUNCA `toISOString()`.
 - `cost_price` ≠ coste real. El coste real es `subtotal/units` de las líneas COMPRA.
-- Sync horario cubre 60 días (no 7) — los albaranes se editan a posteriori.
+- Sync horario cubre 14 días; pase profundo de 60 días a las 04:20 UTC (`holded-sync-deep-daily`). El botón Sincronizar va sin rango → 60 días. Antes el cron horario iba a 7 días y una factura editada en Holded con más de 7 días no se recogía nunca.
 - **`documents/purchase` ignora `price` y usa `subtotal` como precio unitario** — quirk crítico verificado experimentalmente. Solo aplica a `purchase` — `invoice`/`waybill` siguen con `price`. Regla: `feedback_holded_purchase_subtotal.md`.
 
 ## Quirks deploy
