@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -8,6 +9,11 @@ import { toast } from '@/shared/lib/toast'
 export function SyncBar() {
   const ultimo = useUltimoSync()
   const sync = useSyncManual()
+  const [now, setNow] = useState(Date.now)
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000)
+    return () => clearInterval(timer)
+  }, [])
 
   async function onSync() {
     try {
@@ -23,6 +29,18 @@ export function SyncBar() {
   }
 
   const last = ultimo.data
+  const age = last ? now - new Date(last.started_at).getTime() : null
+  const warning = ultimo.isError
+    ? 'No se puede comprobar la sincronización.'
+    : last?.ok === false
+      ? `La última sincronización falló. ${last.error?.slice(0, 80) ?? ''}`
+      : age !== null && !last?.finished_at && age > 10 * 60_000
+        ? 'La sincronización lleva más de 10 minutos sin terminar.'
+        : age !== null && age > 2 * 60 * 60_000
+          ? 'Datos desactualizados: más de 2 horas sin sincronizar.'
+          : !ultimo.isPending && !last
+            ? 'No hay ninguna sincronización registrada.'
+            : null
   const lastTxt = last
     ? `${last.trigger} · hace ${formatDistanceToNow(new Date(last.started_at), { locale: es })}`
     : 'sin syncs aún'
@@ -32,7 +50,7 @@ export function SyncBar() {
       <div className="text-sm text-[var(--color-ink-2)]">
         <span className="font-medium text-[var(--color-ink)]">Holded → Supabase:</span>{' '}
         {lastTxt}
-        {last && last.ok === false && <span className="ml-2 text-[var(--coral)]">⚠ {last.error?.slice(0, 80)}</span>}
+        {warning && <span role="alert" className="ml-2 text-red-600 dark:text-red-400">⚠ {warning}</span>}
       </div>
       <Button onClick={onSync} disabled={sync.isPending} size="sm">
         {sync.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}

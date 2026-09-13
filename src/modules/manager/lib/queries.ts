@@ -236,7 +236,7 @@ export function useClienteProductos(canonName: string | null, period: Period) {
     queryFn: async (): Promise<ClienteProducto[]> => {
       if (!canonName) return []
       const { data, error } = await supabase.rpc('manager_cliente_productos', {
-        p_contact_name_canon: canonName, p_from: period.from, p_to: period.to, p_limit: 30,
+        p_contact_name_canon: canonName, p_from: period.from, p_to: period.to, p_limit: null,
       })
       if (error) throw error
       return (data ?? []).map((r: Record<string, unknown>) => ({
@@ -506,7 +506,7 @@ export function useProductoClientesNombre(nombre: string | null, period: Period)
     queryFn: async (): Promise<ProductoCliente[]> => {
       if (!nombre) return []
       const { data, error } = await supabase.rpc('manager_producto_clientes_nombre', {
-        p_nombre: nombre, p_from: period.from, p_to: period.to, p_limit: 30,
+        p_nombre: nombre, p_from: period.from, p_to: period.to, p_limit: null,
       })
       if (error) throw error
       return (data ?? []).map((r: Record<string, unknown>) => ({

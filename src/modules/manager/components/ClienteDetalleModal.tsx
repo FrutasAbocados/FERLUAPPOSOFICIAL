@@ -139,7 +139,7 @@ export function ClienteDetalleModal({ cliente, period, onClose }: Props) {
               {productos.data?.length === 0 && <p className="px-3 py-2 text-sm text-[var(--color-ink-3)]">Sin productos</p>}
               <ul className="max-h-96 divide-y divide-[var(--color-border)] overflow-y-auto">
                 {productos.data?.map(p => (
-                  <li key={(p.product_id ?? p.nombre)} className="grid grid-cols-[1fr_auto] gap-2 px-3 py-2 text-sm">
+                  <li key={p.nombre} className="grid grid-cols-[1fr_auto] gap-2 px-3 py-2 text-sm">
                     <div className="min-w-0">
                       <div className="truncate text-[var(--color-ink)]">{p.nombre}</div>
                       <div className="text-xs text-[var(--color-ink-3)]">{p.unidades.toFixed(0)} ud · {p.veces} veces</div>
