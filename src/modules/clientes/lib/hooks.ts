@@ -324,9 +324,16 @@ export function useSetClienteFiscal() {
         .select(CLIENTE_FISCAL_SELECT)
         .single()
       if (error) throw error
+      const { error: recalcError } = await supabase.rpc('facturacion_recalcular_borradores_cliente', {
+        p_cliente_id: input.id,
+      })
+      if (recalcError) throw recalcError
       return data as ClienteFiscal
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['clientes', 'fiscal'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['clientes', 'fiscal'] })
+      qc.invalidateQueries({ queryKey: ['facturacion'] })
+    },
   })
 }
 
@@ -336,9 +343,16 @@ export function useValidarClienteFiscal() {
     mutationFn: async (id: string): Promise<ClienteFiscal> => {
       const { data, error } = await supabase.rpc('facturacion_validar_cliente', { p_cliente_id: id })
       if (error) throw error
+      const { error: recalcError } = await supabase.rpc('facturacion_recalcular_borradores_cliente', {
+        p_cliente_id: id,
+      })
+      if (recalcError) throw recalcError
       return data as ClienteFiscal
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['clientes', 'fiscal'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['clientes', 'fiscal'] })
+      qc.invalidateQueries({ queryKey: ['facturacion'] })
+    },
   })
 }
 

@@ -23,6 +23,7 @@ const CondicionesPage   = lazy(() => import('@/modules/condiciones/CondicionesPa
 const SueldosPage       = lazy(() => import('@/modules/sueldos/SueldosPage').then(m => ({ default: m.SueldosPage })))
 const PedidosWaPage     = lazy(() => import('@/modules/pedidos-wa/PedidosWaPage').then(m => ({ default: m.PedidosWaPage })))
 const ClientesPage      = lazy(() => import('@/modules/clientes/ClientesPage').then(m => ({ default: m.ClientesPage })))
+const FacturacionPage   = lazy(() => import('@/modules/facturacion/FacturacionPage').then(m => ({ default: m.FacturacionPage })))
 const TesoreriaPage     = lazy(() => import('@/modules/tesoreria/TesoreriaPage').then(m => ({ default: m.TesoreriaPage })))
 const ListadoPreciosPage = lazy(() => import('@/modules/listado-precios/ListadoPreciosPage').then(m => ({ default: m.ListadoPreciosPage })))
 const GestoriaPage       = lazy(() => import('@/modules/gestoria/GestoriaPage').then(m => ({ default: m.GestoriaPage })))
@@ -101,6 +102,9 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute module="clientes" />}>
                     <Route path="clientes" element={<Suspense fallback={<PageFallback />}><ClientesPage /></Suspense>} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="facturacion" />}>
+                    <Route path="facturacion" element={<Suspense fallback={<PageFallback />}><FacturacionPage /></Suspense>} />
                   </Route>
                   <Route element={<ProtectedRoute module="tesoreria" />}>
                     <Route path="tesoreria" element={<Suspense fallback={<PageFallback />}><TesoreriaPage /></Suspense>} />

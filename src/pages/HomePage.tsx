@@ -5,7 +5,7 @@ import {
   BarChart3, Banknote, CalendarClock,
   CheckSquare, CalendarDays, EyeOff, HandCoins, Package, RotateCcw, Tags, TrendingUp, UserMinus, Users, Wallet, X,
   UsersRound,
-  ChevronDown, ArrowRight,
+  ChevronDown, ArrowRight, ReceiptText,
   type LucideIcon,
 } from 'lucide-react'
 import { format, formatDistanceToNow, parseISO } from 'date-fns'
@@ -82,6 +82,7 @@ const MODULOS = [
   { key: 'trabajadores',      title: 'Trabajadores', to: '/trabajadores',      Icon: CheckSquare,  color: 'oklch(75% 0.14 310)', bg: 'oklch(20% 0.09 310 / 0.55)' },
   { key: 'turnos',            title: 'Turnos',       to: '/turnos',            Icon: CalendarDays, color: 'oklch(76% 0.13 195)', bg: 'oklch(20% 0.08 195 / 0.55)' },
   { key: 'cobros',            title: 'Cobros',       to: '/cobros',            Icon: HandCoins,    color: 'oklch(70% 0.18 25)',  bg: 'oklch(22% 0.10 25  / 0.55)' },
+  { key: 'facturacion',       title: 'Facturación',  to: '/facturacion',       Icon: ReceiptText,  color: 'oklch(80% 0.14 95)',  bg: 'oklch(22% 0.09 95  / 0.55)' },
   { key: 'sueldos',           title: 'Sueldos',      to: '/sueldos',           Icon: Wallet,       color: 'oklch(80% 0.15 55)',  bg: 'oklch(23% 0.09 55  / 0.55)' },
   { key: 'bbdd_trabajadores', title: 'BBDD',         to: '/bbdd-trabajadores', Icon: Users,        color: 'oklch(75% 0.12 270)', bg: 'oklch(20% 0.08 270 / 0.55)' },
   { key: 'rrhh',              title: 'RRHH',         to: '/rrhh',              Icon: UsersRound,   color: 'oklch(78% 0.14 158)', bg: 'oklch(22% 0.10 158 / 0.55)' },

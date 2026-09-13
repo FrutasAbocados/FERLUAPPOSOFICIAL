@@ -8,7 +8,7 @@ export type Profile = {
   created_at: string
 }
 
-export type ModuleKey = 'manager' | 'cash' | 'trabajadores' | 'tareas' | 'turnos' | 'cobros' | 'bbdd_trabajadores' | 'rrhh' | 'nominas' | 'condiciones' | 'sueldos' | 'pedidos_wa' | 'clientes' | 'tesoreria' | 'listado_precios' | 'gestoria'
+export type ModuleKey = 'manager' | 'cash' | 'trabajadores' | 'tareas' | 'turnos' | 'cobros' | 'bbdd_trabajadores' | 'rrhh' | 'nominas' | 'condiciones' | 'sueldos' | 'pedidos_wa' | 'clientes' | 'facturacion' | 'tesoreria' | 'listado_precios' | 'gestoria'
 
 export const MODULE_ACCESS: Record<ModuleKey, Role[]> = {
   manager:           ['admin_full', 'admin_op', 'responsable', 'gestor_cobros'],
@@ -24,6 +24,7 @@ export const MODULE_ACCESS: Record<ModuleKey, Role[]> = {
   sueldos:           ['admin_full', 'admin_op'],
   pedidos_wa:        ['admin_full', 'admin_op', 'responsable', 'empleado', 'gestor_cobros'],
   clientes:          ['admin_full', 'admin_op', 'responsable', 'empleado', 'gestor_cobros'],
+  facturacion:       ['admin_full', 'admin_op'],
   tesoreria:         ['admin_full', 'admin_op'],
   listado_precios:   ['admin_full', 'admin_op', 'responsable', 'empleado', 'operaciones', 'gestor_cobros'],
   gestoria:           ['admin_full', 'admin_op', 'gestor_gedofu'],
