@@ -1,6 +1,6 @@
 // Edge Function: compra-a-holded
 // Sube una factura de proveedor a Holded como documents/purchase.
-// Idempotente — si ya tiene holded_purchase_id, devuelve 409.
+// Idempotente — si ya tiene holded_purchase_id, devuelve el éxito anterior.
 //
 // Body: { compra_id: uuid, dry_run?: boolean }
 // Auth: admin_full | admin_op
@@ -153,10 +153,11 @@ Deno.serve(async (req) => {
 
   if (compra.holded_purchase_id && !dryRun) {
     return jsonRes({
-      error: 'compra ya subida a Holded',
+      ok: true,
+      already_uploaded: true,
       holded_purchase_id: compra.holded_purchase_id,
       holded_purchase_num: compra.holded_purchase_num,
-    }, 409)
+    })
   }
 
   const linRes = await fetch(

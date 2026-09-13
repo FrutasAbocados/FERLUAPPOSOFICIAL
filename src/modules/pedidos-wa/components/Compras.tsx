@@ -83,9 +83,33 @@ type ItemCola = {
   numFactura: string | null
   total: number | null
   holdedNum: string | null
+  /** Permite reintentar Holded sin repetir OCR ni crear otra compra. */
+  compraId: string | null
 }
 
 const ITEM_TERMINADO: EstadoItem[] = ['ok', 'revisar', 'error', 'cancelado']
+
+function mensajeError(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message
+  if (typeof error === 'string' && error) return error
+  if (error && typeof error === 'object') {
+    const obj = error as Record<string, unknown>
+    for (const key of ['message', 'details', 'hint', 'error']) {
+      if (typeof obj[key] === 'string' && obj[key]) return obj[key]
+    }
+    try {
+      const json = JSON.stringify(error)
+      if (json && json !== '{}') return json
+    } catch { /* valor no serializable */ }
+  }
+  return 'Error desconocido'
+}
+
+function esErrorDuplicado(error: unknown, mensaje: string): boolean {
+  return (error as { code?: string } | null)?.code === '23505'
+    || mensaje.includes('duplicate key')
+    || mensaje.includes('unique')
+}
 
 export function Compras() {
   const hoy = new Date()
@@ -121,7 +145,7 @@ export function Compras() {
       if (!('dry_run' in res)) throw new Error('respuesta inesperada (no dry_run)')
       setModalSubir({ compra: c, preview: res, cargandoPreview: false, errorPreview: null })
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
+      const msg = mensajeError(e)
       setModalSubir({ compra: c, preview: null, cargandoPreview: false, errorPreview: msg })
     }
   }
@@ -140,7 +164,7 @@ export function Compras() {
       }
       setModalSubir(null)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
+      const msg = mensajeError(e)
       toast({ title: 'Holded rechazó la subida', description: msg, variant: 'error' })
     }
   }
@@ -187,7 +211,7 @@ export function Compras() {
       setPdfOriginal(file)
       avisarExtraccion(extr)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
+      const msg = mensajeError(e)
       toast({ title: 'Error parseando PDF', description: msg, variant: 'error' })
     } finally {
       setParseando(false)
@@ -221,7 +245,7 @@ export function Compras() {
       setPdfOriginal(null)
       avisarExtraccion(extr)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
+      const msg = mensajeError(e)
       toast({ title: 'Error leyendo la foto', description: msg, variant: 'error' })
     } finally {
       setParseando(false)
@@ -240,6 +264,20 @@ export function Compras() {
    * factura de compra en Holded no se deshace desde aquí.
    */
   const procesarItemCola = async (item: ItemCola): Promise<'ok' | 'revisar'> => {
+    // Si la compra ya quedó guardada, solo falta confirmar Holded. Esto evita
+    // repetir OCR y volver a insertar la misma factura en cada reintento.
+    if (item.compraId) {
+      patchItem(item.id, { estado: 'subiendo', detalle: 'Reintentando subida a Holded…' })
+      const res = await subir.mutateAsync({ compra_id: item.compraId, dry_run: false })
+      if (!('holded_purchase_id' in res)) throw new Error('respuesta inesperada de compra-a-holded')
+      patchItem(item.id, {
+        estado: 'ok',
+        detalle: null,
+        holdedNum: res.holded_purchase_num ?? '✓',
+      })
+      return 'ok'
+    }
+
     patchItem(item.id, { estado: 'ocr', detalle: 'Leyendo el PDF…' })
     const extr = await parsearFacturaProveedor(item.file)
 
@@ -283,7 +321,20 @@ export function Compras() {
       origen:              'pdf',
       pdf:                 item.file,
       fotos:               [],
+      permitir_reanudar:   true,
     })
+    patchItem(item.id, { compraId: compra.id })
+
+    // También es idempotente cuando el servidor terminó la subida pero la
+    // respuesta se perdió: la compra recuperada ya trae el id de Holded.
+    if (compra.holded_purchase_id) {
+      patchItem(item.id, {
+        estado: 'ok',
+        detalle: null,
+        holdedNum: compra.holded_purchase_num ?? '✓',
+      })
+      return 'ok'
+    }
 
     const bloqueo = !holdedId
       ? 'Guardada sin proveedor Holded — enlázalo abajo y súbela a mano'
@@ -329,8 +380,8 @@ export function Compras() {
           else revisar++
         } catch (e) {
           fallos++
-          const msg = e instanceof Error ? e.message : String(e)
-          const dup = msg.includes('duplicate key') || msg.includes('unique')
+          const msg = mensajeError(e)
+          const dup = esErrorDuplicado(e, msg)
           patchItem(item.id, {
             estado: 'error',
             detalle: dup ? 'Esta factura ya estaba registrada' : msg,
@@ -370,6 +421,7 @@ export function Compras() {
       numFactura: null,
       total: null,
       holdedNum: null,
+      compraId: null,
     }))
     setCola(items)
     void correrCola(items)
@@ -482,8 +534,8 @@ export function Compras() {
       setBorrador(null)
       setPdfOriginal(null)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      const dup = msg.includes('duplicate key') || msg.includes('unique')
+      const msg = mensajeError(e)
+      const dup = esErrorDuplicado(e, msg)
       toast({
         title: dup ? 'Factura duplicada' : 'Error guardando',
         description: dup ? 'Esta factura del mismo proveedor ya está registrada.' : msg,

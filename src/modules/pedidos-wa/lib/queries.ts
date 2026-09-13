@@ -1698,10 +1698,12 @@ export async function subirFotosFactura(
 
 /** Conserva el PDF original que se utilizó para el OCR. */
 export async function subirPdfFactura(file: File, compraId: string): Promise<string> {
-  const path = `compras/${compraId}/original-${crypto.randomUUID()}.pdf`
+  // Ruta determinista: si la conexión se corta después de subir el archivo,
+  // el reintento completa la misma compra sin dejar PDFs huérfanos.
+  const path = `compras/${compraId}/original.pdf`
   const { error } = await supabase.storage
     .from(GESTORIA_DOCUMENTOS_BUCKET)
-    .upload(path, file, { contentType: 'application/pdf', upsert: false })
+    .upload(path, file, { contentType: 'application/pdf', upsert: true })
   if (error) throw error
   return path
 }
@@ -1801,13 +1803,30 @@ type GuardarCompraInput = {
   pdf?:                File | null
   /** Fotos ya preparadas; se suben a Storage tras insertar la cabecera. */
   fotos?:              FotoPreparada[]
+  /** La cola puede continuar una compra que quedó a medias por falta de red. */
+  permitir_reanudar?:  boolean
+}
+
+function filasCompra(compraId: string, lineas: CompraLineaExtraida[]) {
+  return lineas.map((l) => ({
+    compra_id:        compraId,
+    orden:            l.orden,
+    codigo_proveedor: l.codigo_proveedor,
+    descripcion:      l.descripcion,
+    cantidad:         l.cantidad,
+    unidad:           l.unidad,
+    precio_unitario:  l.precio_unitario,
+    iva_pct:          l.iva_pct,
+    importe:          l.importe,
+    notas:            l.notas,
+  }))
 }
 
 export function useGuardarCompra() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input: GuardarCompraInput): Promise<CompraDB> => {
-      const { data: compra, error: errCab } = await supabase
+      let { data: compra, error: errCab } = await supabase
         .from('pedidos_wa_compras')
         .insert({
           proveedor_holded_id: input.proveedor_holded_id,
@@ -1825,14 +1844,53 @@ export function useGuardarCompra() {
         })
         .select('*')
         .single()
-      if (errCab) throw errCab
+      let compraNueva = true
 
-      // Archivos: se suben DESPUÉS de tener el id de compra (carpeta por compra).
-      // El registro y su archivo físico forman una sola operación para la UI.
-      // Si Storage falla, revertimos la cabecera para que se pueda reintentar.
+      // Una pérdida de conexión puede dejar la cabecera creada aunque el
+      // cliente no recibiera confirmación. La cola debe continuarla, no crear
+      // un duplicado ni repetir indefinidamente el OCR.
+      if (errCab && input.permitir_reanudar && errCab.code === '23505' && input.proveedor_holded_id) {
+        const { data: existente, error: errExistente } = await supabase
+          .from('pedidos_wa_compras')
+          .select('*, lineas:pedidos_wa_compras_lineas(*)')
+          .eq('proveedor_holded_id', input.proveedor_holded_id)
+          .eq('num_factura', input.num_factura)
+          .maybeSingle()
+        if (errExistente) throw errExistente
+        if (!existente) throw errCab
+        compra = existente
+        errCab = null
+        compraNueva = false
+      }
+      if (errCab || !compra) throw errCab ?? new Error('No se pudo guardar la compra')
+
+      const compraConLineas = compra as CompraDB & { lineas?: CompraLineaDB[] }
+      const yaTieneLineas = (compraConLineas.lineas?.length ?? 0) > 0
+
+      // Guardar líneas antes del archivo reduce la ventana en la que una
+      // interrupción larga puede dejar una cabecera inutilizable. Si ya
+      // existen, el reintento continúa sin duplicarlas.
+      if (!yaTieneLineas && input.lineas.length > 0) {
+        const { error: errLin } = await supabase
+          .from('pedidos_wa_compras_lineas')
+          .insert(filasCompra(compra.id, input.lineas))
+        if (errLin) {
+          if (compraNueva) {
+            const { error: rollbackError } = await supabase
+              .from('pedidos_wa_compras')
+              .delete()
+              .eq('id', compra.id)
+            if (rollbackError) console.error('[compras] cabecera sin líneas no eliminada:', rollbackError)
+          }
+          throw errLin
+        }
+      }
+
+      // Archivos: se suben DESPUÉS de tener cabecera y líneas. En un reintento
+      // solo se completan los que falten.
       const archivos: { pdf_path?: string; foto_paths?: string[] } = {}
       const documentosErrores: string[] = []
-      if (input.pdf) {
+      if (input.pdf && !compra.pdf_path) {
         try {
           archivos.pdf_path = await subirPdfFactura(input.pdf, compra.id)
         } catch (e) {
@@ -1840,7 +1898,7 @@ export function useGuardarCompra() {
           documentosErrores.push('el PDF original no se pudo archivar')
         }
       }
-      if (input.fotos?.length) {
+      if (input.fotos?.length && !(compra.foto_paths?.length > 0)) {
         try {
           const paths = await subirFotosFactura(input.fotos, compra.id)
           archivos.foto_paths = paths
@@ -1871,46 +1929,16 @@ export function useGuardarCompra() {
             .remove(uploadedPaths)
           if (cleanupError) console.error('[compras] archivos de rollback no limpiados:', cleanupError)
         }
-        const { error: rollbackError } = await supabase
-          .from('pedidos_wa_compras')
-          .delete()
-          .eq('id', compra.id)
-        if (rollbackError) console.error('[compras] cabecera de rollback no eliminada:', rollbackError)
+        if (compraNueva) {
+          const { error: rollbackError } = await supabase
+            .from('pedidos_wa_compras')
+            .delete()
+            .eq('id', compra.id)
+          if (rollbackError) console.error('[compras] cabecera de rollback no eliminada:', rollbackError)
+        }
         throw new Error(`No se archivó la factura física: ${documentosErrores.join(' · ')}`)
       }
-
-      if (input.lineas.length > 0) {
-        const filas = input.lineas.map((l) => ({
-          compra_id:        compra.id,
-          orden:            l.orden,
-          codigo_proveedor: l.codigo_proveedor,
-          descripcion:      l.descripcion,
-          cantidad:         l.cantidad,
-          unidad:           l.unidad,
-          precio_unitario:  l.precio_unitario,
-          iva_pct:          l.iva_pct,
-          importe:          l.importe,
-          notas:            l.notas,
-        }))
-        const { error: errLin } = await supabase
-          .from('pedidos_wa_compras_lineas')
-          .insert(filas)
-        if (errLin) {
-          const uploadedPaths = [
-            ...(archivos.pdf_path ? [archivos.pdf_path] : []),
-            ...(archivos.foto_paths ?? []),
-          ]
-          if (uploadedPaths.length > 0) {
-            const { error: cleanupError } = await supabase.storage
-              .from(GESTORIA_DOCUMENTOS_BUCKET)
-              .remove(uploadedPaths)
-            if (cleanupError) console.error('[compras] archivos sin líneas no limpiados:', cleanupError)
-          }
-          await supabase.from('pedidos_wa_compras').delete().eq('id', compra.id)
-          throw errLin
-        }
-      }
-      return compra as CompraDB
+      return { ...compra, ...archivos } as CompraDB
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pedidos_wa', 'compras'] })
