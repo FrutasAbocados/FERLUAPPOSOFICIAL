@@ -109,7 +109,9 @@ function buildHoldedBody(c: CompraRow, lineas: CompraLineaRow[]) {
     ...(!c.proveedor_holded_id ? { contactName: c.proveedor_nombre } : {}),
     desc:        `Factura prov ${c.num_factura}`,
     date:        fechaToUnixMadrid(c.fecha),
-    docNumber:   c.num_factura,
+    // En compras Holded crea el número externo desde `invoiceNum`.
+    // `docNumber` se acepta sin error, pero se ignora al crear el documento.
+    invoiceNum:  c.num_factura,
     notes:       [c.pdf_filename, c.notas].filter(Boolean).join(' · ') || undefined,
     language:    'es',
     currency:    'eur',
