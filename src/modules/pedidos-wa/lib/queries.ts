@@ -1849,7 +1849,7 @@ export function useGuardarCompra() {
       // Una pérdida de conexión puede dejar la cabecera creada aunque el
       // cliente no recibiera confirmación. La cola debe continuarla, no crear
       // un duplicado ni repetir indefinidamente el OCR.
-      if (errCab && input.permitir_reanudar && errCab.code === '23505' && input.proveedor_holded_id) {
+      if (errCab && errCab.code === '23505' && input.proveedor_holded_id) {
         const { data: existente, error: errExistente } = await supabase
           .from('pedidos_wa_compras')
           .select('*, lineas:pedidos_wa_compras_lineas(*)')
@@ -1858,6 +1858,14 @@ export function useGuardarCompra() {
           .maybeSingle()
         if (errExistente) throw errExistente
         if (!existente) throw errCab
+        const existenteConLineas = existente as CompraDB & { lineas?: CompraLineaDB[] }
+        const estaIncompleta = (existenteConLineas.lineas?.length ?? 0) === 0
+          || Boolean(input.pdf && !existente.pdf_path)
+          || Boolean(input.fotos?.length && !(existente.foto_paths?.length > 0))
+        // El formulario individual solo recupera registros realmente
+        // incompletos. La cola, además, puede continuar una compra íntegra
+        // cuya respuesta o subida a Holded quedó interrumpida.
+        if (!input.permitir_reanudar && !estaIncompleta) throw errCab
         compra = existente
         errCab = null
         compraNueva = false
