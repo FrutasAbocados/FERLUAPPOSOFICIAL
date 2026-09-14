@@ -2,6 +2,18 @@ export type EstadoBorrador = 'draft' | 'ready' | 'blocked' | 'emitting' | 'cance
 export type TipoDocumentoPrevisto = 'factura' | 'albaran'
 export type EstadoClienteFiscal = 'incompleto' | 'pendiente_revision' | 'validado' | 'inactivo'
 
+export type RevisionSombraActual = {
+  borrador_id: string
+  accion: 'cerrado' | 'reabierto'
+  secuencia: number
+  revision_documento: number
+  ocurrido_at: string
+  motivo: string | null
+  snapshot_sha256: string | null
+  vigente: boolean
+  motivo_invalidez: string | null
+}
+
 export type BorradorResumen = {
   borrador_id: string
   numero_interno: number
@@ -34,6 +46,7 @@ export type BorradorResumen = {
   holded_subtotal: number | null
   holded_total: number | null
   diferencia_holded: number | null
+  revision_sombra: RevisionSombraActual | null
 }
 
 export type BorradorLinea = {

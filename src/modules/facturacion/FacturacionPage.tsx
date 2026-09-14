@@ -6,10 +6,13 @@ import {
   FileCheck2,
   FileClock,
   Loader2,
+  LockKeyhole,
+  LockOpen,
   Plus,
   RefreshCw,
   Save,
   Search,
+  ShieldCheck,
   Trash2,
   X,
 } from 'lucide-react'
@@ -26,10 +29,12 @@ import { cn } from '@/shared/lib/utils'
 import {
   useAnadirLinea,
   useBorradorLineas,
+  useCerrarRevisionSombra,
   useEliminarLinea,
   useFacturacionBandeja,
   useGuardarLineas,
   useHoldedLineas,
+  useReabrirRevisionSombra,
   useRecalcularBorrador,
 } from './lib/queries'
 import type {
@@ -50,6 +55,14 @@ function fechaCorta(value: string | null): string {
   if (!value) return '—'
   const [year, month, day] = value.slice(0, 10).split('-')
   return year && month && day ? `${day}/${month}/${year.slice(2)}` : value
+}
+
+function fechaHora(value: string): string {
+  return new Intl.DateTimeFormat('es-ES', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+    timeZone: 'Europe/Madrid',
+  }).format(new Date(value))
 }
 
 function normalizar(value: string): string {
@@ -77,6 +90,23 @@ function FiscalBadge({ estado }: { estado: BorradorResumen['cliente_estado'] }) 
   return (
     <span className={cn('text-[9px] font-semibold uppercase', ok ? 'text-[var(--mint)]' : 'text-[var(--amber)]')}>
       Fiscal {ok ? 'validado' : estado.replace('_', ' ')}
+    </span>
+  )
+}
+
+function RevisionBadge({ row }: { row: BorradorResumen }) {
+  const revision = row.revision_sombra
+  if (!revision || revision.accion === 'reabierto') {
+    return <span className="text-[9px] font-semibold uppercase text-[var(--ink-mute)]">Revisión abierta</span>
+  }
+  return (
+    <span className={cn(
+      'inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold',
+      revision.vigente
+        ? 'border-[var(--mint)]/40 bg-[var(--mint-glow)] text-[var(--mint)]'
+        : 'ao-chip-amber',
+    )}>
+      {revision.vigente ? 'REVISIÓN CERRADA' : 'CIERRE OBSOLETO'}
     </span>
   )
 }
@@ -137,6 +167,7 @@ export function FacturacionPage() {
     listos: rows.filter((row) => row.estado === 'ready').length,
     bloqueados: rows.filter((row) => row.estado === 'blocked').length,
     pendientes: rows.reduce((sum, row) => sum + row.lineas_pendientes, 0),
+    cerrados: rows.filter((row) => row.revision_sombra?.accion === 'cerrado' && row.revision_sombra.vigente).length,
     importe: rows.reduce((sum, row) => sum + row.total_provisional, 0),
   }), [rows])
 
@@ -165,11 +196,12 @@ export function FacturacionPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-6">
           <Kpi label="Documentos" value={String(kpis.total)} />
           <Kpi label="Listos" value={String(kpis.listos)} tone="good" />
           <Kpi label="Bloqueados" value={String(kpis.bloqueados)} tone="warn" />
           <Kpi label="Líneas sin precio" value={String(kpis.pendientes)} tone={kpis.pendientes > 0 ? 'warn' : 'good'} />
+          <Kpi label="Revisiones cerradas" value={String(kpis.cerrados)} tone={kpis.cerrados > 0 ? 'good' : 'normal'} />
           <Kpi label="Total provisional" value={euros(kpis.importe)} />
         </div>
 
@@ -205,7 +237,7 @@ export function FacturacionPage() {
             <div className="p-8 text-center text-sm text-[var(--ink-mute)]">No hay borradores con estos filtros.</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1120px] text-xs">
+              <table className="w-full min-w-[1240px] text-xs">
                 <thead className="border-b border-[var(--line)] bg-white/[.018] text-left text-[9px] uppercase tracking-wider text-[var(--ink-mute)]">
                   <tr>
                     <th className="px-3 py-2">Ref.</th>
@@ -216,6 +248,7 @@ export function FacturacionPage() {
                     <th className="px-3 py-2 text-right">Propio</th>
                     <th className="px-3 py-2 text-right">Holded</th>
                     <th className="px-3 py-2 text-right">Diferencia</th>
+                    <th className="px-3 py-2">Revisión</th>
                     <th className="px-3 py-2">Bloqueo</th>
                   </tr>
                 </thead>
@@ -246,6 +279,7 @@ export function FacturacionPage() {
                         <div className="font-mono text-[9px] text-[var(--ink-mute)]">{row.holded_documento_numero || (row.holded_documento_id ? 'BORRADOR' : 'PENDIENTE')}</div>
                       </td>
                       <td className="px-3 py-2 text-right"><Diferencia value={row.diferencia_holded} holdedTotal={row.holded_total} /></td>
+                      <td className="px-3 py-2"><RevisionBadge row={row} /></td>
                       <td className="max-w-[280px] px-3 py-2 text-[10px] text-[var(--ink-mute)]">{row.motivo_bloqueo ?? '—'}</td>
                     </tr>
                   ))}
@@ -338,8 +372,14 @@ function BorradorModalContent({
   const anadir = useAnadirLinea()
   const eliminar = useEliminarLinea()
   const recalcular = useRecalcularBorrador()
+  const cerrarRevision = useCerrarRevisionSombra()
+  const reabrirRevision = useReabrirRevisionSombra()
   const [lineas, setLineas] = useState<LineaEditable[]>(() => initialLineas.map(toEditable))
   const [dirty, setDirty] = useState<Set<string>>(new Set())
+  const [mostrarReapertura, setMostrarReapertura] = useState(false)
+  const [motivoReapertura, setMotivoReapertura] = useState('')
+  const revisionSombra = row.revision_sombra
+  const bloqueadoPorCierre = revisionSombra?.accion === 'cerrado'
 
   const update = (id: string, patch: Partial<LineaEditable>) => {
     setLineas((current) => current.map((linea) => linea.id === id ? { ...linea, ...patch } : linea))
@@ -348,6 +388,18 @@ function BorradorModalContent({
 
   const totalVivo = lineas.reduce((sum, linea) => sum + (totalEditable(linea) ?? 0), 0)
   const pendientesVivos = lineas.filter((linea) => linea.precio_unitario.trim() === '').length
+  const diferenciaViva = row.holded_total == null ? null : Math.round((totalVivo - row.holded_total) * 100) / 100
+  const motivoNoCerrable = dirty.size > 0
+    ? 'Guarda primero los cambios pendientes.'
+    : row.estado !== 'ready'
+      ? row.motivo_bloqueo ?? 'El borrador todavía no está listo.'
+      : row.cliente_estado !== 'validado'
+        ? 'La ficha fiscal debe estar validada.'
+        : row.holded_total == null
+          ? 'Falta el documento de contraste en Holded.'
+          : diferenciaViva == null || Math.abs(diferenciaViva) > 0.01
+            ? 'El total propio debe cuadrar con Holded al céntimo.'
+            : null
 
   const save = async () => {
     const error = lineas.map(validarLinea).find(Boolean)
@@ -443,7 +495,39 @@ function BorradorModalContent({
     }
   }
 
-  const busy = guardar.isPending || anadir.isPending || eliminar.isPending || recalcular.isPending
+  const closeRevision = async () => {
+    if (motivoNoCerrable || bloqueadoPorCierre) return
+    const ok = await confirm({
+      title: '¿Cerrar esta revisión sombra?',
+      description: 'Se congelará una instantánea interna de cliente, líneas y contraste Holded. No se emitirá ninguna factura.',
+      confirmLabel: 'Cerrar revisión',
+    })
+    if (!ok) return
+    try {
+      await cerrarRevision.mutateAsync(row.borrador_id)
+      toast({ title: 'Revisión sombra cerrada', description: 'Instantánea interna guardada. No se ha emitido ni numerado ninguna factura.', variant: 'success' })
+    } catch (errorClose) {
+      toast({ title: 'No se pudo cerrar', description: errorMessage(errorClose), variant: 'error' })
+    }
+  }
+
+  const reopenRevision = async () => {
+    const motivo = motivoReapertura.trim()
+    if (motivo.length < 8) {
+      toast({ title: 'Motivo demasiado corto', description: 'Escribe al menos 8 caracteres.', variant: 'error' })
+      return
+    }
+    try {
+      await reabrirRevision.mutateAsync({ borradorId: row.borrador_id, motivo })
+      setMotivoReapertura('')
+      setMostrarReapertura(false)
+      toast({ title: 'Revisión reabierta', description: 'Las líneas vuelven a estar editables y la reapertura queda registrada.', variant: 'success' })
+    } catch (errorReopen) {
+      toast({ title: 'No se pudo reabrir', description: errorMessage(errorReopen), variant: 'error' })
+    }
+  }
+
+  const busy = guardar.isPending || anadir.isPending || eliminar.isPending || recalcular.isPending || cerrarRevision.isPending || reabrirRevision.isPending
 
   return (
     <Modal onClose={() => void requestClose()} size="3xl" closeOnOverlay={!dirty.size} ariaLabel={`Borrador B-${row.numero_interno}`}>
@@ -452,13 +536,24 @@ function BorradorModalContent({
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-[var(--ink)]">B-{row.numero_interno} · {row.pedido_cliente_nombre ?? row.cliente_nombre}</h2>
             <EstadoBadge estado={row.estado} />
+            <RevisionBadge row={row} />
           </div>
           <div className="mt-0.5 text-[10px] text-[var(--ink-mute)]">
             {row.tipo_documento.toUpperCase()} · operación {fechaCorta(row.fecha_operacion)} · revisión {row.revision}
           </div>
         </div>
         <div className="flex items-center gap-1.5">
-          <Button variant="outline" size="sm" disabled={busy || dirty.size > 0} onClick={async () => {
+          {bloqueadoPorCierre ? (
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => setMostrarReapertura((current) => !current)}>
+              <LockOpen className="h-3.5 w-3.5" /> Reabrir
+            </Button>
+          ) : (
+            <Button size="sm" disabled={busy || !!motivoNoCerrable} title={motivoNoCerrable ?? undefined} onClick={() => void closeRevision()}>
+              {cerrarRevision.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LockKeyhole className="h-3.5 w-3.5" />}
+              Cerrar revisión
+            </Button>
+          )}
+          <Button variant="outline" size="sm" disabled={busy || dirty.size > 0 || bloqueadoPorCierre} onClick={async () => {
             try {
               await recalcular.mutateAsync(row.borrador_id)
               toast({ title: 'Estado recalculado', variant: 'success' })
@@ -476,6 +571,44 @@ function BorradorModalContent({
       </div>
 
       <div className="space-y-3 p-3">
+        {bloqueadoPorCierre && revisionSombra && (
+          <div className={cn(
+            'rounded-md border px-3 py-2 text-xs',
+            revisionSombra.vigente
+              ? 'border-[var(--mint)]/35 bg-[var(--mint-glow)] text-[var(--mint)]'
+              : 'border-[var(--amber)]/35 bg-[var(--amber)]/10 text-[var(--amber)]',
+          )}>
+            <div className="flex items-start gap-2">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <div className="font-semibold">{revisionSombra.vigente ? 'Revisión sombra cerrada y vigente' : 'Cierre sombra pendiente de reapertura'}</div>
+                <div className="mt-0.5 text-[10px] opacity-80">
+                  {fechaHora(revisionSombra.ocurrido_at)} · secuencia {revisionSombra.secuencia}
+                  {revisionSombra.snapshot_sha256 && <> · SHA-256 interno {revisionSombra.snapshot_sha256.slice(0, 12)}…</>}
+                </div>
+                <div className="mt-1 text-[10px] opacity-80">
+                  {revisionSombra.motivo_invalidez ?? 'Instantánea de control interno; no es una huella ni un registro fiscal VERI*FACTU.'}
+                </div>
+              </div>
+            </div>
+            {mostrarReapertura && (
+              <div className="mt-2 flex flex-col gap-2 border-t border-current/20 pt-2 sm:flex-row">
+                <Input value={motivoReapertura} onChange={(event) => setMotivoReapertura(event.target.value)} placeholder="Motivo de la reapertura…" className="h-8 flex-1 text-xs" />
+                <Button size="sm" disabled={busy || motivoReapertura.trim().length < 8} onClick={() => void reopenRevision()}>
+                  {reabrirRevision.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Confirmar reapertura
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!bloqueadoPorCierre && motivoNoCerrable && (
+          <div className="flex items-start gap-2 rounded-md border border-[var(--line)] bg-white/[.012] px-3 py-2 text-[10px] text-[var(--ink-mute)]">
+            <LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0" /> Para cerrar la revisión: {motivoNoCerrable}
+          </div>
+        )}
+
         {row.motivo_bloqueo && (
           <div className="flex items-start gap-2 rounded-md border border-[var(--coral)]/30 bg-[var(--coral)]/10 px-3 py-2 text-xs text-[var(--coral)]">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {row.motivo_bloqueo}
@@ -497,13 +630,13 @@ function BorradorModalContent({
               <p className="text-[10px] text-[var(--ink-mute)]">Ajusta aquí los pesos finales y precios que sustituirán el trabajo manual de Holded.</p>
             </div>
             <div className="flex items-center gap-1.5">
-              <Button variant="outline" size="sm" disabled={!holdedQuery.data?.length || busy} onClick={copyHolded}>
+              <Button variant="outline" size="sm" disabled={!holdedQuery.data?.length || busy || bloqueadoPorCierre} onClick={copyHolded}>
                 <ArrowRightLeft className="h-3.5 w-3.5" /> Copiar coincidencias Holded
               </Button>
-              <Button variant="outline" size="sm" disabled={busy || dirty.size > 0} onClick={() => void addLine()}>
+              <Button variant="outline" size="sm" disabled={busy || dirty.size > 0 || bloqueadoPorCierre} onClick={() => void addLine()}>
                 <Plus className="h-3.5 w-3.5" /> Línea
               </Button>
-              <Button size="sm" disabled={dirty.size === 0 || busy} onClick={() => void save()}>
+              <Button size="sm" disabled={dirty.size === 0 || busy || bloqueadoPorCierre} onClick={() => void save()}>
                 {guardar.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                 Guardar {dirty.size > 0 ? `(${dirty.size})` : ''}
               </Button>
@@ -532,16 +665,16 @@ function BorradorModalContent({
                     return (
                       <tr key={linea.id} className={cn(dirty.has(linea.id) && 'bg-[var(--amber)]/[.06]')}>
                         <td className="px-2 py-1 text-right font-mono text-[var(--ink-mute)]">{index + 1}</td>
-                        <td className="px-2 py-1"><input value={linea.descripcion} onChange={(event) => update(linea.id, { descripcion: event.target.value })} className={cn(inputClass, 'w-full')} /></td>
-                        <td className="px-2 py-1"><input type="number" step="0.001" min="0.001" value={linea.cantidad} onChange={(event) => update(linea.id, { cantidad: event.target.value })} className={cn(inputClass, 'w-full text-right tabular-nums')} /></td>
-                        <td className="px-2 py-1"><input value={linea.unidad} onChange={(event) => update(linea.id, { unidad: event.target.value })} className={cn(inputClass, 'w-full')} /></td>
-                        <td className="px-2 py-1"><input type="number" step="0.000001" min="0" value={linea.precio_unitario} placeholder="Pend." onChange={(event) => update(linea.id, { precio_unitario: event.target.value })} className={cn(inputClass, 'w-full text-right tabular-nums', !linea.precio_unitario && 'border-[var(--coral)]/50')} /></td>
-                        <td className="px-2 py-1"><input type="number" step="0.01" min="0" max="100" value={linea.descuento_pct} onChange={(event) => update(linea.id, { descuento_pct: event.target.value })} className={cn(inputClass, 'w-full text-right tabular-nums')} /></td>
-                        <td className="px-2 py-1"><input type="number" step="0.01" min="0" max="100" value={linea.iva_pct} onChange={(event) => update(linea.id, { iva_pct: event.target.value })} className={cn(inputClass, 'w-full text-right tabular-nums')} /></td>
-                        <td className="px-2 py-1"><input type="number" step="0.01" min="0" max="100" value={linea.recargo_equivalencia_pct} onChange={(event) => update(linea.id, { recargo_equivalencia_pct: event.target.value })} className={cn(inputClass, 'w-full text-right tabular-nums')} /></td>
+                        <td className="px-2 py-1"><input disabled={bloqueadoPorCierre || busy} value={linea.descripcion} onChange={(event) => update(linea.id, { descripcion: event.target.value })} className={cn(inputClass, 'w-full disabled:cursor-not-allowed disabled:opacity-60')} /></td>
+                        <td className="px-2 py-1"><input disabled={bloqueadoPorCierre || busy} type="number" step="0.001" min="0.001" value={linea.cantidad} onChange={(event) => update(linea.id, { cantidad: event.target.value })} className={cn(inputClass, 'w-full text-right tabular-nums disabled:cursor-not-allowed disabled:opacity-60')} /></td>
+                        <td className="px-2 py-1"><input disabled={bloqueadoPorCierre || busy} value={linea.unidad} onChange={(event) => update(linea.id, { unidad: event.target.value })} className={cn(inputClass, 'w-full disabled:cursor-not-allowed disabled:opacity-60')} /></td>
+                        <td className="px-2 py-1"><input disabled={bloqueadoPorCierre || busy} type="number" step="0.000001" min="0" value={linea.precio_unitario} placeholder="Pend." onChange={(event) => update(linea.id, { precio_unitario: event.target.value })} className={cn(inputClass, 'w-full text-right tabular-nums disabled:cursor-not-allowed disabled:opacity-60', !linea.precio_unitario && 'border-[var(--coral)]/50')} /></td>
+                        <td className="px-2 py-1"><input disabled={bloqueadoPorCierre || busy} type="number" step="0.01" min="0" max="100" value={linea.descuento_pct} onChange={(event) => update(linea.id, { descuento_pct: event.target.value })} className={cn(inputClass, 'w-full text-right tabular-nums disabled:cursor-not-allowed disabled:opacity-60')} /></td>
+                        <td className="px-2 py-1"><input disabled={bloqueadoPorCierre || busy} type="number" step="0.01" min="0" max="100" value={linea.iva_pct} onChange={(event) => update(linea.id, { iva_pct: event.target.value })} className={cn(inputClass, 'w-full text-right tabular-nums disabled:cursor-not-allowed disabled:opacity-60')} /></td>
+                        <td className="px-2 py-1"><input disabled={bloqueadoPorCierre || busy} type="number" step="0.01" min="0" max="100" value={linea.recargo_equivalencia_pct} onChange={(event) => update(linea.id, { recargo_equivalencia_pct: event.target.value })} className={cn(inputClass, 'w-full text-right tabular-nums disabled:cursor-not-allowed disabled:opacity-60')} /></td>
                         <td className="px-2 py-1 text-right font-medium tabular-nums text-[var(--ink)]">{total == null ? '—' : euros(total)}</td>
                         <td className="px-2 py-1">
-                          <button type="button" onClick={() => void deleteLine(linea)} disabled={busy || dirty.size > 0} title={dirty.size > 0 ? 'Guarda los cambios antes de eliminar líneas' : undefined} className="rounded p-1.5 text-[var(--ink-mute)] hover:bg-[var(--coral)]/10 hover:text-[var(--coral)] disabled:cursor-not-allowed disabled:opacity-40" aria-label={`Eliminar ${linea.descripcion}`}>
+                          <button type="button" onClick={() => void deleteLine(linea)} disabled={busy || dirty.size > 0 || bloqueadoPorCierre} title={dirty.size > 0 ? 'Guarda los cambios antes de eliminar líneas' : bloqueadoPorCierre ? 'Reabre la revisión antes de eliminar líneas' : undefined} className="rounded p-1.5 text-[var(--ink-mute)] hover:bg-[var(--coral)]/10 hover:text-[var(--coral)] disabled:cursor-not-allowed disabled:opacity-40" aria-label={`Eliminar ${linea.descripcion}`}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </td>
@@ -598,10 +731,17 @@ function BorradorModalContent({
             <FileCheck2 className="h-4 w-4 text-[var(--mint)]" />
             <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--ink)]">Identidad fiscal del cliente</h3>
           </div>
-          <FiscalCard
-            name={row.pedido_cliente_nombre ?? row.cliente_comercial ?? row.cliente_nombre}
-            contactIds={row.holded_contact_id ? [row.holded_contact_id] : []}
-          />
+          {bloqueadoPorCierre ? (
+            <div className="ao-card flex items-start gap-2 p-3 text-xs text-[var(--ink-mute)]">
+              <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-[var(--mint)]" />
+              La identidad fiscal incluida en esta revisión está congelada. Reabre la revisión antes de corregirla.
+            </div>
+          ) : (
+            <FiscalCard
+              name={row.pedido_cliente_nombre ?? row.cliente_comercial ?? row.cliente_nombre}
+              contactIds={row.holded_contact_id ? [row.holded_contact_id] : []}
+            />
+          )}
         </section>
       </div>
     </Modal>

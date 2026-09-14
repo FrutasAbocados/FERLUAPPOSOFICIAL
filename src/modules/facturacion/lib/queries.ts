@@ -5,6 +5,7 @@ import type {
   BorradorResumen,
   HoldedLinea,
   LineaEditable,
+  RevisionSombraActual,
 } from './types'
 
 type DbRow = Record<string, unknown>
@@ -13,6 +14,7 @@ const str = (value: unknown): string => String(value ?? '')
 const nullableStr = (value: unknown): string | null => value == null ? null : String(value)
 const num = (value: unknown): number => Number(value ?? 0)
 const nullableNum = (value: unknown): number | null => value == null ? null : Number(value)
+const bool = (value: unknown): boolean => value === true || value === 'true'
 
 const KEYS = {
   all: ['facturacion'] as const,
@@ -22,8 +24,29 @@ const KEYS = {
 }
 
 export async function fetchFacturacionBandeja(): Promise<BorradorResumen[]> {
-  const { data, error } = await supabase.rpc('facturacion_bandeja')
+  const [{ data, error }, revisionesResult] = await Promise.all([
+    supabase.rpc('facturacion_bandeja'),
+    supabase.rpc('facturacion_revision_sombra_actual'),
+  ])
   if (error) throw error
+  if (revisionesResult.error) throw revisionesResult.error
+
+  const revisiones = new Map(
+    ((revisionesResult.data ?? []) as DbRow[]).map((row) => {
+      const revision: RevisionSombraActual = {
+        borrador_id: str(row.borrador_id),
+        accion: str(row.accion) as RevisionSombraActual['accion'],
+        secuencia: num(row.secuencia),
+        revision_documento: num(row.revision_documento),
+        ocurrido_at: str(row.ocurrido_at),
+        motivo: nullableStr(row.motivo),
+        snapshot_sha256: nullableStr(row.snapshot_sha256),
+        vigente: bool(row.vigente),
+        motivo_invalidez: nullableStr(row.motivo_invalidez),
+      }
+      return [revision.borrador_id, revision] as const
+    }),
+  )
 
   return ((data ?? []) as DbRow[]).map((row): BorradorResumen => ({
     borrador_id: str(row.borrador_id),
@@ -57,6 +80,7 @@ export async function fetchFacturacionBandeja(): Promise<BorradorResumen[]> {
     holded_subtotal: nullableNum(row.holded_subtotal),
     holded_total: nullableNum(row.holded_total),
     diferencia_holded: nullableNum(row.diferencia_holded),
+    revision_sombra: revisiones.get(str(row.borrador_id)) ?? null,
   }))
 }
 
@@ -217,6 +241,39 @@ export function useRecalcularBorrador() {
     onSuccess: (_data, borradorId) => {
       queryClient.invalidateQueries({ queryKey: KEYS.lineas(borradorId) })
       queryClient.invalidateQueries({ queryKey: KEYS.bandeja })
+    },
+  })
+}
+
+export function useCerrarRevisionSombra() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (borradorId: string) => {
+      const { data, error } = await supabase.rpc('facturacion_cerrar_revision_sombra', {
+        p_borrador_id: borradorId,
+      })
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.all })
+    },
+  })
+}
+
+export function useReabrirRevisionSombra() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { borradorId: string; motivo: string }) => {
+      const { data, error } = await supabase.rpc('facturacion_reabrir_revision_sombra', {
+        p_borrador_id: input.borradorId,
+        p_motivo: input.motivo,
+      })
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.all })
     },
   })
 }
