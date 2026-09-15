@@ -7,6 +7,7 @@ import type {
   LineaEditable,
   RevisionSombraActual,
   VerifactuSimulacion,
+  VerifactuXmlSimulacion,
 } from './types'
 
 type DbRow = Record<string, unknown>
@@ -25,14 +26,16 @@ const KEYS = {
 }
 
 export async function fetchFacturacionBandeja(): Promise<BorradorResumen[]> {
-  const [{ data, error }, revisionesResult, simulacionesResult] = await Promise.all([
+  const [{ data, error }, revisionesResult, simulacionesResult, xmlResult] = await Promise.all([
     supabase.rpc('facturacion_bandeja'),
     supabase.rpc('facturacion_revision_sombra_actual'),
     supabase.rpc('facturacion_verifactu_simulaciones_actual'),
+    supabase.rpc('facturacion_verifactu_xml_simulaciones_actual'),
   ])
   if (error) throw error
   if (revisionesResult.error) throw revisionesResult.error
   if (simulacionesResult.error) throw simulacionesResult.error
+  if (xmlResult.error) throw xmlResult.error
 
   const revisiones = new Map(
     ((revisionesResult.data ?? []) as DbRow[]).map((row) => {
@@ -72,6 +75,22 @@ export async function fetchFacturacionBandeja(): Promise<BorradorResumen[]> {
     }),
   )
 
+  const xmlSimulaciones = new Map(
+    ((xmlResult.data ?? []) as DbRow[]).map((row) => {
+      const xml: VerifactuXmlSimulacion = {
+        borrador_id: str(row.borrador_id),
+        xml_simulacion_id: num(row.xml_simulacion_id),
+        simulacion_id: num(row.simulacion_id),
+        numero_simulado: str(row.numero_simulado),
+        xml_sha256: str(row.xml_sha256),
+        xsd_version: str(row.xsd_version) as VerifactuXmlSimulacion['xsd_version'],
+        generado_at: str(row.generado_at),
+        vigente: bool(row.vigente),
+      }
+      return [xml.borrador_id, xml] as const
+    }),
+  )
+
   return ((data ?? []) as DbRow[]).map((row): BorradorResumen => ({
     borrador_id: str(row.borrador_id),
     numero_interno: num(row.numero_interno),
@@ -106,6 +125,7 @@ export async function fetchFacturacionBandeja(): Promise<BorradorResumen[]> {
     diferencia_holded: nullableNum(row.diferencia_holded),
     revision_sombra: revisiones.get(str(row.borrador_id)) ?? null,
     verifactu_simulacion: simulaciones.get(str(row.borrador_id)) ?? null,
+    verifactu_xml: xmlSimulaciones.get(str(row.borrador_id)) ?? null,
   }))
 }
 
@@ -317,4 +337,38 @@ export function useGenerarVerifactuSimulacion() {
       queryClient.invalidateQueries({ queryKey: KEYS.all })
     },
   })
+}
+
+export function useGenerarVerifactuXml() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (borradorId: string) => {
+      const { data, error } = await supabase.rpc('facturacion_generar_verifactu_xml_simulacion', {
+        p_borrador_id: borradorId,
+      })
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.all })
+    },
+  })
+}
+
+export async function obtenerVerifactuXml(borradorId: string): Promise<{
+  nombreArchivo: string
+  contenidoXml: string
+  sha256: string
+}> {
+  const { data, error } = await supabase.rpc('facturacion_verifactu_xml_obtener', {
+    p_borrador_id: borradorId,
+  })
+  if (error) throw error
+  const row = ((data ?? []) as DbRow[])[0]
+  if (!row) throw new Error('No hay un XML A8 disponible para este borrador.')
+  return {
+    nombreArchivo: str(row.nombre_archivo),
+    contenidoXml: str(row.contenido_xml),
+    sha256: str(row.xml_sha256),
+  }
 }

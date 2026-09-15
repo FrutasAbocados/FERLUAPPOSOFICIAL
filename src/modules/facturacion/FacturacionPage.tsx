@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   ArrowRightLeft,
   CheckCircle2,
+  Download,
   FileCheck2,
   FileClock,
   Loader2,
@@ -33,11 +34,13 @@ import {
   useCerrarRevisionSombra,
   useEliminarLinea,
   useFacturacionBandeja,
+  useGenerarVerifactuXml,
   useGenerarVerifactuSimulacion,
   useGuardarLineas,
   useHoldedLineas,
   useReabrirRevisionSombra,
   useRecalcularBorrador,
+  obtenerVerifactuXml,
 } from './lib/queries'
 import type {
   BorradorLinea,
@@ -119,6 +122,14 @@ function RevisionBadge({ row }: { row: BorradorResumen }) {
           {row.verifactu_simulacion.numero_simulado}
         </span>
       )}
+      {row.verifactu_xml && (
+        <span className={cn(
+          'text-[9px] font-semibold uppercase',
+          row.verifactu_xml.vigente ? 'text-violet-300' : 'text-[var(--ink-mute)]',
+        )}>
+          XML A8 · XSD {row.verifactu_xml.xsd_version}
+        </span>
+      )}
     </div>
   )
 }
@@ -181,6 +192,7 @@ export function FacturacionPage() {
     pendientes: rows.reduce((sum, row) => sum + row.lineas_pendientes, 0),
     cerrados: rows.filter((row) => row.revision_sombra?.accion === 'cerrado' && row.revision_sombra.vigente).length,
     simulados: rows.filter((row) => row.verifactu_simulacion?.vigente).length,
+    xmls: rows.filter((row) => row.verifactu_xml?.vigente).length,
     importe: rows.reduce((sum, row) => sum + row.total_provisional, 0),
   }), [rows])
 
@@ -209,13 +221,14 @@ export function FacturacionPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-7">
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-8">
           <Kpi label="Documentos" value={String(kpis.total)} />
           <Kpi label="Listos" value={String(kpis.listos)} tone="good" />
           <Kpi label="Bloqueados" value={String(kpis.bloqueados)} tone="warn" />
           <Kpi label="Líneas sin precio" value={String(kpis.pendientes)} tone={kpis.pendientes > 0 ? 'warn' : 'good'} />
           <Kpi label="Revisiones cerradas" value={String(kpis.cerrados)} tone={kpis.cerrados > 0 ? 'good' : 'normal'} />
           <Kpi label="Simulaciones A7" value={String(kpis.simulados)} />
+          <Kpi label="XML A8" value={String(kpis.xmls)} />
           <Kpi label="Total provisional" value={euros(kpis.importe)} />
         </div>
 
@@ -389,12 +402,15 @@ function BorradorModalContent({
   const cerrarRevision = useCerrarRevisionSombra()
   const reabrirRevision = useReabrirRevisionSombra()
   const generarSimulacion = useGenerarVerifactuSimulacion()
+  const generarXml = useGenerarVerifactuXml()
   const [lineas, setLineas] = useState<LineaEditable[]>(() => initialLineas.map(toEditable))
   const [dirty, setDirty] = useState<Set<string>>(new Set())
   const [mostrarReapertura, setMostrarReapertura] = useState(false)
   const [motivoReapertura, setMotivoReapertura] = useState('')
+  const [descargandoXml, setDescargandoXml] = useState(false)
   const revisionSombra = row.revision_sombra
   const simulacionVerifactu = row.verifactu_simulacion
+  const xmlVerifactu = row.verifactu_xml
   const bloqueadoPorCierre = revisionSombra?.accion === 'cerrado'
 
   const update = (id: string, patch: Partial<LineaEditable>) => {
@@ -558,7 +574,42 @@ function BorradorModalContent({
     }
   }
 
-  const busy = guardar.isPending || anadir.isPending || eliminar.isPending || recalcular.isPending || cerrarRevision.isPending || reabrirRevision.isPending || generarSimulacion.isPending
+  const generateXml = async () => {
+    const ok = await confirm({
+      title: '¿Generar XML técnico A8?',
+      description: 'Se materializará el registro simulado A7 con la estructura XSD oficial. No se enviará a la AEAT ni se emitirá una factura.',
+      confirmLabel: 'Generar XML',
+    })
+    if (!ok) return
+    try {
+      await generarXml.mutateAsync(row.borrador_id)
+      toast({ title: 'XML A8 generado', description: 'Payload técnico guardado y disponible para descarga. No se ha remitido a la AEAT.', variant: 'success' })
+    } catch (errorXml) {
+      toast({ title: 'No se pudo generar el XML', description: errorMessage(errorXml), variant: 'error' })
+    }
+  }
+
+  const downloadXml = async () => {
+    setDescargandoXml(true)
+    try {
+      const xml = await obtenerVerifactuXml(row.borrador_id)
+      const url = URL.createObjectURL(new Blob([xml.contenidoXml], { type: 'application/xml;charset=utf-8' }))
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = xml.nombreArchivo
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(url)
+      toast({ title: 'XML A8 descargado', description: `SHA-256 ${xml.sha256.slice(0, 16)}…`, variant: 'success' })
+    } catch (errorXml) {
+      toast({ title: 'No se pudo descargar el XML', description: errorMessage(errorXml), variant: 'error' })
+    } finally {
+      setDescargandoXml(false)
+    }
+  }
+
+  const busy = guardar.isPending || anadir.isPending || eliminar.isPending || recalcular.isPending || cerrarRevision.isPending || reabrirRevision.isPending || generarSimulacion.isPending || generarXml.isPending || descargandoXml
 
   return (
     <Modal onClose={() => void requestClose()} size="3xl" closeOnOverlay={!dirty.size} ariaLabel={`Borrador B-${row.numero_interno}`}>
@@ -580,6 +631,18 @@ function BorradorModalContent({
                 <Button variant="outline" size="sm" disabled={busy} onClick={() => void generateSimulation()}>
                   {generarSimulacion.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <TestTube2 className="h-3.5 w-3.5" />}
                   Simular A7
+                </Button>
+              )}
+              {simulacionVerifactu?.vigente && !xmlVerifactu?.vigente && (
+                <Button variant="outline" size="sm" disabled={busy} onClick={() => void generateXml()}>
+                  {generarXml.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileCheck2 className="h-3.5 w-3.5" />}
+                  Generar XML A8
+                </Button>
+              )}
+              {xmlVerifactu && (
+                <Button variant="outline" size="sm" disabled={busy} onClick={() => void downloadXml()}>
+                  {descargandoXml ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                  Descargar XML
                 </Button>
               )}
               <Button variant="outline" size="sm" disabled={busy} onClick={() => setMostrarReapertura((current) => !current)}>
@@ -641,6 +704,21 @@ function BorradorModalContent({
                     </div>
                     <div className="mt-0.5 font-mono">Huella AEAT simulada {simulacionVerifactu.huella.slice(0, 16)}…</div>
                     <div className="mt-0.5">No es factura, numeración fiscal ni registro remitido a la AEAT.</div>
+                    {xmlVerifactu && (
+                      <div className={cn(
+                        'mt-1.5 rounded border px-2 py-1.5',
+                        xmlVerifactu.vigente
+                          ? 'border-violet-300/30 bg-violet-300/10 text-violet-200'
+                          : 'border-current/20 opacity-75',
+                      )}>
+                        <div className="flex items-center gap-1 font-semibold">
+                          <FileCheck2 className="h-3.5 w-3.5" />
+                          XML A8 · estructura XSD AEAT {xmlVerifactu.xsd_version}
+                        </div>
+                        <div className="mt-0.5 font-mono">SHA-256 {xmlVerifactu.xml_sha256.slice(0, 16)}…</div>
+                        <div className="mt-0.5">Payload técnico descargable; no es un envío SOAP ni una aceptación de la AEAT.</div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

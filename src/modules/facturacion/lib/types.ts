@@ -30,6 +30,17 @@ export type VerifactuSimulacion = {
   vigente: boolean
 }
 
+export type VerifactuXmlSimulacion = {
+  borrador_id: string
+  xml_simulacion_id: number
+  simulacion_id: number
+  numero_simulado: string
+  xml_sha256: string
+  xsd_version: '1.0'
+  generado_at: string
+  vigente: boolean
+}
+
 export type BorradorResumen = {
   borrador_id: string
   numero_interno: number
@@ -64,6 +75,7 @@ export type BorradorResumen = {
   diferencia_holded: number | null
   revision_sombra: RevisionSombraActual | null
   verifactu_simulacion: VerifactuSimulacion | null
+  verifactu_xml: VerifactuXmlSimulacion | null
 }
 
 export type BorradorLinea = {
