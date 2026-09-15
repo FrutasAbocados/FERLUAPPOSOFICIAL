@@ -13,6 +13,7 @@ import {
   Save,
   Search,
   ShieldCheck,
+  TestTube2,
   Trash2,
   X,
 } from 'lucide-react'
@@ -32,6 +33,7 @@ import {
   useCerrarRevisionSombra,
   useEliminarLinea,
   useFacturacionBandeja,
+  useGenerarVerifactuSimulacion,
   useGuardarLineas,
   useHoldedLineas,
   useReabrirRevisionSombra,
@@ -100,14 +102,24 @@ function RevisionBadge({ row }: { row: BorradorResumen }) {
     return <span className="text-[9px] font-semibold uppercase text-[var(--ink-mute)]">Revisión abierta</span>
   }
   return (
-    <span className={cn(
-      'inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold',
-      revision.vigente
-        ? 'border-[var(--mint)]/40 bg-[var(--mint-glow)] text-[var(--mint)]'
-        : 'ao-chip-amber',
-    )}>
-      {revision.vigente ? 'REVISIÓN CERRADA' : 'CIERRE OBSOLETO'}
-    </span>
+    <div className="flex flex-col items-start gap-1">
+      <span className={cn(
+        'inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold',
+        revision.vigente
+          ? 'border-[var(--mint)]/40 bg-[var(--mint-glow)] text-[var(--mint)]'
+          : 'ao-chip-amber',
+      )}>
+        {revision.vigente ? 'REVISIÓN CERRADA' : 'CIERRE OBSOLETO'}
+      </span>
+      {row.verifactu_simulacion && (
+        <span className={cn(
+          'font-mono text-[9px] font-semibold',
+          row.verifactu_simulacion.vigente ? 'text-sky-300' : 'text-[var(--ink-mute)]',
+        )}>
+          {row.verifactu_simulacion.numero_simulado}
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -168,6 +180,7 @@ export function FacturacionPage() {
     bloqueados: rows.filter((row) => row.estado === 'blocked').length,
     pendientes: rows.reduce((sum, row) => sum + row.lineas_pendientes, 0),
     cerrados: rows.filter((row) => row.revision_sombra?.accion === 'cerrado' && row.revision_sombra.vigente).length,
+    simulados: rows.filter((row) => row.verifactu_simulacion?.vigente).length,
     importe: rows.reduce((sum, row) => sum + row.total_provisional, 0),
   }), [rows])
 
@@ -196,12 +209,13 @@ export function FacturacionPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-7">
           <Kpi label="Documentos" value={String(kpis.total)} />
           <Kpi label="Listos" value={String(kpis.listos)} tone="good" />
           <Kpi label="Bloqueados" value={String(kpis.bloqueados)} tone="warn" />
           <Kpi label="Líneas sin precio" value={String(kpis.pendientes)} tone={kpis.pendientes > 0 ? 'warn' : 'good'} />
           <Kpi label="Revisiones cerradas" value={String(kpis.cerrados)} tone={kpis.cerrados > 0 ? 'good' : 'normal'} />
+          <Kpi label="Simulaciones A7" value={String(kpis.simulados)} />
           <Kpi label="Total provisional" value={euros(kpis.importe)} />
         </div>
 
@@ -374,11 +388,13 @@ function BorradorModalContent({
   const recalcular = useRecalcularBorrador()
   const cerrarRevision = useCerrarRevisionSombra()
   const reabrirRevision = useReabrirRevisionSombra()
+  const generarSimulacion = useGenerarVerifactuSimulacion()
   const [lineas, setLineas] = useState<LineaEditable[]>(() => initialLineas.map(toEditable))
   const [dirty, setDirty] = useState<Set<string>>(new Set())
   const [mostrarReapertura, setMostrarReapertura] = useState(false)
   const [motivoReapertura, setMotivoReapertura] = useState('')
   const revisionSombra = row.revision_sombra
+  const simulacionVerifactu = row.verifactu_simulacion
   const bloqueadoPorCierre = revisionSombra?.accion === 'cerrado'
 
   const update = (id: string, patch: Partial<LineaEditable>) => {
@@ -527,7 +543,22 @@ function BorradorModalContent({
     }
   }
 
-  const busy = guardar.isPending || anadir.isPending || eliminar.isPending || recalcular.isPending || cerrarRevision.isPending || reabrirRevision.isPending
+  const generateSimulation = async () => {
+    const ok = await confirm({
+      title: '¿Generar simulación técnica A7?',
+      description: 'Se calculará una huella con el algoritmo AEAT y numeración SIM-A7. No se emitirá una factura ni se enviará información a la AEAT.',
+      confirmLabel: 'Generar simulación',
+    })
+    if (!ok) return
+    try {
+      await generarSimulacion.mutateAsync(row.borrador_id)
+      toast({ title: 'Simulación A7 generada', description: 'Cadena técnica registrada. No se ha emitido ni enviado ninguna factura.', variant: 'success' })
+    } catch (errorSimulation) {
+      toast({ title: 'No se pudo simular', description: errorMessage(errorSimulation), variant: 'error' })
+    }
+  }
+
+  const busy = guardar.isPending || anadir.isPending || eliminar.isPending || recalcular.isPending || cerrarRevision.isPending || reabrirRevision.isPending || generarSimulacion.isPending
 
   return (
     <Modal onClose={() => void requestClose()} size="3xl" closeOnOverlay={!dirty.size} ariaLabel={`Borrador B-${row.numero_interno}`}>
@@ -544,9 +575,17 @@ function BorradorModalContent({
         </div>
         <div className="flex items-center gap-1.5">
           {bloqueadoPorCierre ? (
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => setMostrarReapertura((current) => !current)}>
-              <LockOpen className="h-3.5 w-3.5" /> Reabrir
-            </Button>
+            <>
+              {revisionSombra?.vigente && row.tipo_documento === 'factura' && !simulacionVerifactu?.vigente && (
+                <Button variant="outline" size="sm" disabled={busy} onClick={() => void generateSimulation()}>
+                  {generarSimulacion.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <TestTube2 className="h-3.5 w-3.5" />}
+                  Simular A7
+                </Button>
+              )}
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => setMostrarReapertura((current) => !current)}>
+                <LockOpen className="h-3.5 w-3.5" /> Reabrir
+              </Button>
+            </>
           ) : (
             <Button size="sm" disabled={busy || !!motivoNoCerrable} title={motivoNoCerrable ?? undefined} onClick={() => void closeRevision()}>
               {cerrarRevision.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LockKeyhole className="h-3.5 w-3.5" />}
@@ -589,6 +628,21 @@ function BorradorModalContent({
                 <div className="mt-1 text-[10px] opacity-80">
                   {revisionSombra.motivo_invalidez ?? 'Instantánea de control interno; no es una huella ni un registro fiscal VERI*FACTU.'}
                 </div>
+                {simulacionVerifactu && (
+                  <div className={cn(
+                    'mt-2 rounded border px-2 py-1.5 text-[10px]',
+                    simulacionVerifactu.vigente
+                      ? 'border-sky-300/30 bg-sky-300/10 text-sky-200'
+                      : 'border-current/20 text-current opacity-75',
+                  )}>
+                    <div className="flex items-center gap-1 font-semibold">
+                      <TestTube2 className="h-3.5 w-3.5" />
+                      {simulacionVerifactu.numero_simulado} · simulación técnica A7
+                    </div>
+                    <div className="mt-0.5 font-mono">Huella AEAT simulada {simulacionVerifactu.huella.slice(0, 16)}…</div>
+                    <div className="mt-0.5">No es factura, numeración fiscal ni registro remitido a la AEAT.</div>
+                  </div>
+                )}
               </div>
             </div>
             {mostrarReapertura && (

@@ -14,6 +14,22 @@ export type RevisionSombraActual = {
   motivo_invalidez: string | null
 }
 
+export type VerifactuSimulacion = {
+  borrador_id: string
+  simulacion_id: number
+  revision_evento_id: number
+  secuencia: number
+  numero_simulado: string
+  fecha_expedicion: string
+  tipo_factura: 'F1'
+  cuota_total: number
+  importe_total: number
+  huella_anterior: string | null
+  huella: string
+  generado_at: string
+  vigente: boolean
+}
+
 export type BorradorResumen = {
   borrador_id: string
   numero_interno: number
@@ -47,6 +63,7 @@ export type BorradorResumen = {
   holded_total: number | null
   diferencia_holded: number | null
   revision_sombra: RevisionSombraActual | null
+  verifactu_simulacion: VerifactuSimulacion | null
 }
 
 export type BorradorLinea = {

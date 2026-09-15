@@ -6,6 +6,7 @@ import type {
   HoldedLinea,
   LineaEditable,
   RevisionSombraActual,
+  VerifactuSimulacion,
 } from './types'
 
 type DbRow = Record<string, unknown>
@@ -24,12 +25,14 @@ const KEYS = {
 }
 
 export async function fetchFacturacionBandeja(): Promise<BorradorResumen[]> {
-  const [{ data, error }, revisionesResult] = await Promise.all([
+  const [{ data, error }, revisionesResult, simulacionesResult] = await Promise.all([
     supabase.rpc('facturacion_bandeja'),
     supabase.rpc('facturacion_revision_sombra_actual'),
+    supabase.rpc('facturacion_verifactu_simulaciones_actual'),
   ])
   if (error) throw error
   if (revisionesResult.error) throw revisionesResult.error
+  if (simulacionesResult.error) throw simulacionesResult.error
 
   const revisiones = new Map(
     ((revisionesResult.data ?? []) as DbRow[]).map((row) => {
@@ -45,6 +48,27 @@ export async function fetchFacturacionBandeja(): Promise<BorradorResumen[]> {
         motivo_invalidez: nullableStr(row.motivo_invalidez),
       }
       return [revision.borrador_id, revision] as const
+    }),
+  )
+
+  const simulaciones = new Map(
+    ((simulacionesResult.data ?? []) as DbRow[]).map((row) => {
+      const simulacion: VerifactuSimulacion = {
+        borrador_id: str(row.borrador_id),
+        simulacion_id: num(row.simulacion_id),
+        revision_evento_id: num(row.revision_evento_id),
+        secuencia: num(row.secuencia),
+        numero_simulado: str(row.numero_simulado),
+        fecha_expedicion: str(row.fecha_expedicion),
+        tipo_factura: str(row.tipo_factura) as VerifactuSimulacion['tipo_factura'],
+        cuota_total: num(row.cuota_total),
+        importe_total: num(row.importe_total),
+        huella_anterior: nullableStr(row.huella_anterior),
+        huella: str(row.huella),
+        generado_at: str(row.generado_at),
+        vigente: bool(row.vigente),
+      }
+      return [simulacion.borrador_id, simulacion] as const
     }),
   )
 
@@ -81,6 +105,7 @@ export async function fetchFacturacionBandeja(): Promise<BorradorResumen[]> {
     holded_total: nullableNum(row.holded_total),
     diferencia_holded: nullableNum(row.diferencia_holded),
     revision_sombra: revisiones.get(str(row.borrador_id)) ?? null,
+    verifactu_simulacion: simulaciones.get(str(row.borrador_id)) ?? null,
   }))
 }
 
@@ -268,6 +293,22 @@ export function useReabrirRevisionSombra() {
       const { data, error } = await supabase.rpc('facturacion_reabrir_revision_sombra', {
         p_borrador_id: input.borradorId,
         p_motivo: input.motivo,
+      })
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.all })
+    },
+  })
+}
+
+export function useGenerarVerifactuSimulacion() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (borradorId: string) => {
+      const { data, error } = await supabase.rpc('facturacion_generar_verifactu_simulacion', {
+        p_borrador_id: borradorId,
       })
       if (error) throw error
       return data
