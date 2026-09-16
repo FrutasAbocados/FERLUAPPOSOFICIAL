@@ -11,6 +11,7 @@ import { supabase } from '@/shared/lib/supabase'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
 import { CalendarioVacaciones } from './CalendarioVacaciones'
+import { CalendarioVacacionesEquipo } from './CalendarioVacacionesEquipo'
 
 type Estado = 'pendiente' | 'aprobado' | 'disfrutado'
 
@@ -110,6 +111,7 @@ function useAddPeriodo() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vacaciones-resumen'] })
       qc.invalidateQueries({ queryKey: ['vacaciones-periodos'] })
+      qc.invalidateQueries({ queryKey: ['trabajadores', 'vacaciones-calendario'] })
     },
   })
 }
@@ -124,6 +126,7 @@ function useUpdateEstado() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vacaciones-resumen'] })
       qc.invalidateQueries({ queryKey: ['vacaciones-periodos'] })
+      qc.invalidateQueries({ queryKey: ['trabajadores', 'vacaciones-calendario'] })
     },
   })
 }
@@ -138,6 +141,7 @@ function useDeletePeriodo() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vacaciones-resumen'] })
       qc.invalidateQueries({ queryKey: ['vacaciones-periodos'] })
+      qc.invalidateQueries({ queryKey: ['trabajadores', 'vacaciones-calendario'] })
     },
   })
 }
@@ -194,6 +198,7 @@ function useBorrarFestivoMarca() {
 
 export function VacacionesView() {
   const [anio, setAnio] = useState(new Date().getFullYear())
+  const [mes, setMes] = useState(new Date().getMonth())
   const { data, isLoading } = useResumen(anio)
   const [selected, setSelected] = useState<Resumen | null>(null)
   const [festivosOpen, setFestivosOpen] = useState(false)
@@ -214,6 +219,12 @@ export function VacacionesView() {
           <Button size="sm" variant="outline" onClick={() => setAnio(a => a + 1)}>+</Button>
         </div>
       </header>
+
+      <CalendarioVacacionesEquipo
+        anio={anio}
+        mes={mes}
+        onMesChange={(fecha) => { setAnio(fecha.getFullYear()); setMes(fecha.getMonth()) }}
+      />
 
       <div className="mb-4">
         <button
