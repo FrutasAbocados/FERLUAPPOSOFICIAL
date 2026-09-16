@@ -9,6 +9,7 @@ import { Modal } from '@/shared/components/Modal'
 import { PageTopbar } from '@/shared/components/PageTopbar'
 import { confirm } from '@/shared/lib/confirm'
 import { euros } from '@/shared/lib/format'
+import { toast } from '@/shared/lib/toast'
 import { cn } from '@/shared/lib/utils'
 import {
   useDeleteMovimiento,
@@ -24,6 +25,11 @@ import {
   type Movimiento,
   type TipoMovimiento,
 } from './lib/types'
+
+function errorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String((err as { message?: unknown })?.message ?? err)
+  return msg.includes('row-level security') ? 'Tu usuario no tiene permiso para modificar Tesorería.' : msg
+}
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
 
@@ -61,17 +67,21 @@ function MovimientoModal({ movimiento, defaultTipo = 'entrada', onClose }: Modal
       notas:    notas.trim() || null,
     }
 
-    if (movimiento) {
-      await update.mutateAsync({
-        ...payload,
-        id:        movimiento.id,
-        cierre_id: movimiento.cierre_id,
-        fuente:    movimiento.fuente,
-      })
-    } else {
-      await insert.mutateAsync(payload)
+    try {
+      if (movimiento) {
+        await update.mutateAsync({
+          ...payload,
+          id:        movimiento.id,
+          cierre_id: movimiento.cierre_id,
+          fuente:    movimiento.fuente,
+        })
+      } else {
+        await insert.mutateAsync(payload)
+      }
+      onClose()
+    } catch (err) {
+      toast({ variant: 'error', title: 'No se pudo guardar', description: errorMessage(err) })
     }
-    onClose()
   }
 
   return (
@@ -212,7 +222,11 @@ export function TesoreriaPage() {
       confirmLabel: 'Eliminar',
     })
     if (!ok) return
-    await deleteMov.mutateAsync(m.id)
+    try {
+      await deleteMov.mutateAsync(m.id)
+    } catch (err) {
+      toast({ variant: 'error', title: 'No se pudo eliminar', description: errorMessage(err) })
+    }
   }
 
   return (
