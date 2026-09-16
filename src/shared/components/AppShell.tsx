@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { prefetchManagerResumen } from '@/modules/manager/lib/queries'
 import {
   BarChart3,
+  CalendarDays,
   Banknote,
   CheckSquare,
   ChevronRight,
@@ -57,9 +58,11 @@ const EQUIPO: ModuleNav[] = [
 
 const SOCIOS: ModuleNav[] = [
   { key: 'sueldos', label: 'Sueldos', to: '/sueldos', icon: Wallet },
+  { key: 'socios_vacaciones', label: 'Vacaciones', to: '/socios-vacaciones', icon: CalendarDays },
 ]
 
 const PRELOADERS: Record<string, () => void> = {
+  '/socios-vacaciones': () => { void import('@/modules/sueldos/VacacionesSociosPage') },
   '/':                 () => { void import('@/pages/HomePage') },
   '/manager':          () => { void import('@/modules/manager/ManagerPage') },
   '/pedidos-wa':       () => { void import('@/modules/pedidos-wa/PedidosWaPage') },

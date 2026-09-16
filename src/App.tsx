@@ -20,6 +20,7 @@ const CobrosPage        = lazy(() => import('@/modules/cobros/CobrosPage').then(
 const TrabajadoresPage  = lazy(() => import('@/modules/trabajadores/TrabajadoresPage').then(m => ({ default: m.TrabajadoresPage })))
 const NominasPage       = lazy(() => import('@/modules/nominas/NominasPage').then(m => ({ default: m.NominasPage })))
 const CondicionesPage   = lazy(() => import('@/modules/condiciones/CondicionesPage').then(m => ({ default: m.CondicionesPage })))
+const VacacionesSociosPage = lazy(() => import('@/modules/sueldos/VacacionesSociosPage').then(m => ({ default: m.VacacionesSociosPage })))
 const SueldosPage       = lazy(() => import('@/modules/sueldos/SueldosPage').then(m => ({ default: m.SueldosPage })))
 const PedidosWaPage     = lazy(() => import('@/modules/pedidos-wa/PedidosWaPage').then(m => ({ default: m.PedidosWaPage })))
 const ClientesPage      = lazy(() => import('@/modules/clientes/ClientesPage').then(m => ({ default: m.ClientesPage })))
@@ -93,6 +94,9 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute module="condiciones" />}>
                     <Route path="condiciones" element={<Suspense fallback={<PageFallback />}><CondicionesPage /></Suspense>} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="socios_vacaciones" />}>
+                    <Route path="socios-vacaciones" element={<Suspense fallback={<PageFallback />}><VacacionesSociosPage /></Suspense>} />
                   </Route>
                   <Route element={<ProtectedRoute module="sueldos" />}>
                     <Route path="sueldos" element={<Suspense fallback={<PageFallback />}><SueldosPage /></Suspense>} />

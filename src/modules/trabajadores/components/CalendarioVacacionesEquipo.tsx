@@ -36,18 +36,34 @@ export function CalendarioVacacionesEquipo({ anio, mes, onMesChange }: {
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: ['trabajadores', 'vacaciones-calendario', inicio, fin] as const,
     queryFn: async () => {
-      const [periodos, empleados] = await Promise.all([
+      const [periodos, empleados, socios] = await Promise.all([
         supabase.from('trabajadores_vacaciones')
           .select('id, empleado_id, fecha_inicio, fecha_fin, estado, empleados(nombre)')
           .lte('fecha_inicio', fin).gte('fecha_fin', inicio).order('fecha_inicio'),
         supabase.from('empleados').select('id, nombre').order('id'),
+        supabase.from('socios_vacaciones').select('id, socio, fecha_inicio, fecha_fin')
+          .lte('fecha_inicio', fin).gte('fecha_fin', inicio).order('fecha_inicio'),
       ])
       if (periodos.error) throw periodos.error
       if (empleados.error) throw empleados.error
-      return { periodos: periodos.data as unknown as PeriodoEquipo[], empleados: empleados.data }
+      if (socios.error) throw socios.error
+      const periodosSocios: PeriodoEquipo[] = socios.data.map(p => ({
+        id: `socio-${p.id}`,
+        empleado_id: `socio-${p.socio}`,
+        fecha_inicio: p.fecha_inicio,
+        fecha_fin: p.fecha_fin,
+        estado: 'aprobado',
+        empleados: { nombre: `${p.socio} · Socio` },
+      }))
+      return {
+        periodos: [...periodos.data as unknown as PeriodoEquipo[], ...periodosSocios],
+        empleados: [...empleados.data, { id: 'socio-Luis', nombre: 'Luis · Socio' }, { id: 'socio-Álvaro', nombre: 'Álvaro · Socio' }],
+      }
     },
   })
   const colores = new Map(data?.empleados.map((e, i) => [e.id, COLORES[i % COLORES.length]]))
+  colores.set('socio-Luis', 'bg-lime-100 text-lime-950 border-lime-500 dark:bg-lime-950 dark:text-lime-200')
+  colores.set('socio-Álvaro', 'bg-sky-100 text-sky-950 border-sky-500 dark:bg-sky-950 dark:text-sky-200')
   const dias = eachDayOfInterval({
     start: startOfWeek(startOfMonth(fecha), { weekStartsOn: 1 }),
     end: endOfWeek(endOfMonth(fecha), { weekStartsOn: 1 }),
@@ -58,7 +74,7 @@ export function CalendarioVacacionesEquipo({ anio, mes, onMesChange }: {
     <section aria-label="Calendario de vacaciones del equipo" className="ao-card mb-4 overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] p-3">
         <div>
-          <h2 className="text-sm font-semibold text-[var(--color-ink)]">Vacaciones del equipo</h2>
+          <h2 className="text-sm font-semibold text-[var(--color-ink)]">Vacaciones del equipo y socios</h2>
           <p aria-live="polite" className="text-lg font-bold capitalize text-[var(--color-ink)]">{format(fecha, 'LLLL yyyy', { locale: es })}</p>
         </div>
         <div className="flex items-center gap-1">
