@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { VerifactuPruebas } from './VerifactuPruebas'
 import {
   AlertTriangle,
   ArrowRightLeft,
@@ -220,6 +221,8 @@ export function FacturacionPage() {
             Aquí no se emite ni se reserva numeración fiscal. Holded sigue siendo el documento activo mientras validamos cantidades, precios e impuestos.
           </div>
         </div>
+
+        <VerifactuPruebas />
 
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-8">
           <Kpi label="Documentos" value={String(kpis.total)} />
@@ -716,7 +719,8 @@ function BorradorModalContent({
                           XML A8 · estructura XSD AEAT {xmlVerifactu.xsd_version}
                         </div>
                         <div className="mt-0.5 font-mono">SHA-256 {xmlVerifactu.xml_sha256.slice(0, 16)}…</div>
-                        <div className="mt-0.5">Payload técnico descargable; no es un envío SOAP ni una aceptación de la AEAT.</div>
+                        <div className="mt-0.5">Payload técnico descargable. Su generación no implica envío ni aceptación de la AEAT.</div>
+                        <div className="mt-2"><VerifactuPruebas xmlId={xmlVerifactu.xml_simulacion_id} vigente={xmlVerifactu.vigente} /></div>
                       </div>
                     )}
                   </div>
