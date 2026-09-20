@@ -1060,6 +1060,24 @@ function BorradorCard({
                   {l.codigo_proveedor && (
                     <div className="text-[10px] text-[var(--color-ink-2)]">{l.codigo_proveedor}</div>
                   )}
+                  {/* Trazabilidad: se corrige aquí, antes de guardar. Un lote en
+                      blanco no se inventa — se deja vacío y queda visible. */}
+                  <div className="flex gap-2 text-[10px] text-[var(--color-ink-2)]">
+                    <input
+                      type="text"
+                      value={l.lote ?? ''}
+                      placeholder="lote"
+                      onChange={(e) => onCambiarLinea(idx, { lote: e.target.value || null })}
+                      className="w-24 bg-transparent focus:outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={l.origen ?? ''}
+                      placeholder="origen"
+                      onChange={(e) => onCambiarLinea(idx, { origen: e.target.value || null })}
+                      className="w-28 bg-transparent focus:outline-none"
+                    />
+                  </div>
                 </td>
                 <td className="px-2 py-1 text-right">
                   <input

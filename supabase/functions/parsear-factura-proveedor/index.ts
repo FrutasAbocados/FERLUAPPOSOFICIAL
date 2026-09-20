@@ -23,6 +23,8 @@
 //       orden: number,
 //       codigo_proveedor: string | null,
 //       descripcion: string,
+//       lote: string | null,     // lote/partida del proveedor, literal
+//       origen: string | null,   // origen impreso por el proveedor, literal
 //       cantidad: number,
 //       unidad: string,            // 'caja' | 'kg' | 'bolsa' | 'unidad' | ...
 //       precio_unitario: number,
@@ -64,6 +66,10 @@ REGLAS ABSOLUTAS:
 3. Fecha en formato ISO YYYY-MM-DD. Si la factura dice "06-05-2026" o "06/05/2026" devuelve "2026-05-06".
 4. Números: punto decimal, sin separadores de miles. "1.234,56" → 1234.56.
 5. cantidad × precio_unitario debe ≈ importe (tolerancia 0,02 €). Si no cuadra, ajusta cantidad/precio según los totales.
+6. TRAZABILIDAD (en toda línea de fruta y verdura):
+   - lote = el código de lote, partida o trazabilidad que imprime el proveedor, COPIADO LITERAL. No lo normalices, no le quites puntos ni espacios, no lo reordenes.
+   - origen = la procedencia tal cual aparece ("España", "CUENCA (ESPAÑA)", "Marruecos", "Nac."), LITERAL.
+   - Si la factura no imprime lote u origen, devuelve null. NUNCA los inventes ni los deduzcas del producto: un lote inventado invalida la trazabilidad entera y es peor que no tenerlo.
 
 REGLAS POR PROVEEDOR:
 
@@ -90,6 +96,8 @@ EJEMPLOS REALES (memorízalos):
 
 OTROS CAMPOS:
 - codigo_proveedor = CODIGO (5 dígitos, ej. "03004", "13405", "16928"). COPIA EXACTAMENTE — no inventes ni corrijas.
+- lote = null salvo que la línea traiga columna propia de lote o trazabilidad. El CODIGO de artículo NO es un lote.
+- origen = solo si la línea o su descripción indica procedencia; si no, null.
 - descripcion = DESCRIPCION ARTICULO copiada literal, símbolos incluidos. Si dudas de un carácter, mantén el texto original.
 - precio_unitario = PRECIO NETO (la columna a la derecha de DTO, NO PRECIO UNIDAD).
 - iva_pct = %IVA (4 → 4, 10 → 10, 21 → 21).
@@ -99,6 +107,8 @@ OTROS CAMPOS:
 
 ALCALDE / FRUTAS PEREZ ALCALDE (columnas: Trazab/Lote | Articulo | ENV | Bultos | K.Brutos | Tara | K.Netos | Precio | IVA | Importe):
 - codigo_proveedor = Trazab/Lote (ej. "122.53.4187").
+- lote = el MISMO valor de Trazab/Lote (ej. "122.53.4187", "EUR/17-08"). Se repite a propósito: codigo_proveedor viaja a Holded dentro de la descripción y lote es la trazabilidad.
+- origen = si el Articulo incluye procedencia (ej. "TOMATE MARRUECOS"), cópiala aquí y deja la descripcion completa igual. Si no, null.
 - descripcion = Articulo (puede ocupar 2 líneas en el PDF, únelas).
 - cantidad = K.Netos (SIEMPRE — nunca Bultos ni K.Brutos).
 - unidad = según ENV:
@@ -122,6 +132,8 @@ AGROEJIDO / SUBASTAS (es un ALBARÁN; columnas: BULTOS | GÉNEROS | CANTIDAD | P
 - codigo_proveedor = null (no hay código de artículo).
 - iva_pct = el % I.V.A. del recuadro "CUOTA TRIBUTARIA" (normalmente 4 para todas las líneas).
 - notas = si bajo una línea aparece "Partidas no certificadas: 25/194.905", ponlo aquí (ej. "Partida 25/194.905"); en caso contrario null.
+- lote = el número de partida si aparece (ej. "25/194.905"); si no, null. La nota se mantiene igualmente.
+- origen = procedencia de la partida si el albarán la indica; si no, null.
 - IGNORA POR COMPLETO el recuadro inferior izquierdo "Envase | Retira | Saldo Act." (es el saldo de cascos/envases retornables, suele traer números NEGATIVOS como "PETIT SUISSE -100") — NO son líneas de compra. Ignora también "MATRICULAS", la fila de totales (BULTOS=160, CANTIDAD=1.228) y las "CONDICIONES DE COMPRA-VENTA".
 - VALIDACIÓN: cantidad × precio_unitario ≈ importe (tolerancia 0.05€). La suma de importes de líneas ≈ BASE IMPONIBLE.
 
@@ -131,6 +143,8 @@ OTRO PROVEEDOR (proveedor_detectado = "otro"; suele llegar como FOTO, no PDF):
 - Localiza la tabla de líneas: normalmente concepto + cantidad + precio + importe. Ignora cabeceras, pies, sellos y firmas.
 - unidad: dedúcela del texto ("kg", "kgs", "cajas", "c/", "uds", "manojos", "bolsas", "sacos", "bandejas"). Si NO hay ninguna pista, usa "unidad".
 - codigo_proveedor = el código de artículo si existe; si no, null.
+- lote = busca "Lote", "L:", "Partida" o "Trazab" en la línea o pegado a ella y copia el valor literal. Si no hay, null.
+- origen = busca país o provincia junto al producto ("España", "Almería", "Marruecos", "Nac."); literal. Si no hay, null.
 - iva_pct: si no aparece desglosado por línea, usa el tipo del pie de factura. Fruta/verdura fresca en España = 4. Si no hay ni pie ni pista, usa 4.
 - notas: si una línea está borrosa, cortada o dudosa, escribe "REVISAR: <lo que crees leer>". NO inventes valores.
 
@@ -164,6 +178,8 @@ FORMATO DE RESPUESTA (exacto):
       "orden": 1,
       "codigo_proveedor": "122.53.4187",
       "descripcion": "RUCULA",
+      "lote": "122.53.4187",
+      "origen": null,
       "cantidad": 6,
       "unidad": "bulto",
       "precio_unitario": 1.35,

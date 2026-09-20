@@ -101,6 +101,10 @@ export type CompraLineaExtraida = {
   orden: number
   codigo_proveedor: string | null
   descripcion: string
+  /** Lote del proveedor, literal. Opcional: una factura vieja parseada antes de T1 no lo trae. */
+  lote?: string | null
+  /** Origen impreso por el proveedor, literal. */
+  origen?: string | null
   cantidad: number
   unidad: string
   precio_unitario: number
@@ -161,6 +165,8 @@ export type CompraLineaDB = {
   orden: number
   codigo_proveedor: string | null
   descripcion: string
+  lote: string | null
+  origen: string | null
   cantidad: number
   unidad: string
   precio_unitario: number

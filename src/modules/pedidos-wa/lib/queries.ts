@@ -1813,6 +1813,8 @@ function filasCompra(compraId: string, lineas: CompraLineaExtraida[]) {
     orden:            l.orden,
     codigo_proveedor: l.codigo_proveedor,
     descripcion:      l.descripcion,
+    lote:             l.lote ?? null,
+    origen:           l.origen ?? null,
     cantidad:         l.cantidad,
     unidad:           l.unidad,
     precio_unitario:  l.precio_unitario,
