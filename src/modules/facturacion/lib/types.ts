@@ -76,6 +76,102 @@ export type BorradorResumen = {
   revision_sombra: RevisionSombraActual | null
   verifactu_simulacion: VerifactuSimulacion | null
   verifactu_xml: VerifactuXmlSimulacion | null
+  traza: TrazaResumen | null
+}
+
+// ─── Trazabilidad (T2-T5) ────────────────────────────────────────────────────
+
+/** 'lote_sin_cantidad' = compra y lote identificados, sin cuadrar cantidades. */
+export type EstadoTraza = 'sin_traza' | 'parcial' | 'lote_sin_cantidad' | 'completa'
+export type ConfianzaTraza = 'alta' | 'media' | 'baja'
+export type AlcanceTraza = 'cantidad' | 'lote'
+
+export type TrazaResumen = {
+  borrador_id: string
+  lineas: number
+  completas: number
+  solo_lote: number
+  parciales: number
+  sin_traza: number
+  puede_cerrar: boolean
+  confianza_peor: ConfianzaTraza | null
+}
+
+export type TrazaLineaEstado = {
+  borrador_linea_id: string
+  borrador_id: string
+  descripcion: string
+  cantidad: number
+  unidad: string
+  cantidad_trazada: number
+  estado_traza: EstadoTraza
+  n_trazas: number
+  confianza_peor: ConfianzaTraza | null
+}
+
+export type Traza = {
+  id: string
+  borrador_linea_id: string
+  alcance: AlcanceTraza
+  cantidad_imputada: number | null
+  unidad: string | null
+  lote: string | null
+  origen: string | null
+  proveedor_nombre: string
+  num_factura: string | null
+  fecha_compra: string
+  descripcion_compra: string | null
+  confianza: ConfianzaTraza
+  metodo: 'auto_fifo' | 'manual'
+  compra_id: string | null
+  compra_linea_id: string | null
+  created_at: string
+}
+
+/** Línea de compra ofrecida para asignar un lote a mano. */
+export type CompraCandidata = {
+  compra_linea_id: string
+  compra_id: string
+  fecha_compra: string
+  proveedor_nombre: string
+  num_factura: string | null
+  descripcion: string
+  lote: string | null
+  origen: string | null
+  unidad: string
+  cantidad: number
+  cantidad_disponible: number
+}
+
+export type RetiradaFila = {
+  traza_id: string
+  lote: string | null
+  origen: string | null
+  proveedor_nombre: string
+  num_factura: string | null
+  fecha_compra: string
+  descripcion_compra: string | null
+  cliente_nombre: string
+  cliente_comercial: string | null
+  numero_interno: number
+  fecha_operacion: string
+  descripcion_venta: string
+  cantidad_vendida: number
+  unidad_venta: string
+  alcance: AlcanceTraza
+  cantidad_imputada: number | null
+  unidad_imputada: string | null
+  confianza: ConfianzaTraza
+  metodo: 'auto_fifo' | 'manual'
+  revision_cerrada: boolean
+}
+
+export type RetiradaFiltros = {
+  lote?: string | null
+  numFactura?: string | null
+  proveedor?: string | null
+  desde?: string | null
+  hasta?: string | null
 }
 
 export type BorradorLinea = {

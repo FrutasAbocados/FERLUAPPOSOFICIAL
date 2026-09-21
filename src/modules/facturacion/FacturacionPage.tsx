@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { RetiradaModal } from './RetiradaModal'
+import { TrazabilidadPanel } from './TrazabilidadPanel'
 import { VerifactuPruebas } from './VerifactuPruebas'
 import {
   AlertTriangle,
@@ -7,6 +9,7 @@ import {
   Download,
   FileCheck2,
   FileClock,
+  Link2,
   Loader2,
   LockKeyhole,
   LockOpen,
@@ -135,6 +138,32 @@ function RevisionBadge({ row }: { row: BorradorResumen }) {
   )
 }
 
+/** Estado de trazabilidad de un borrador, para verlo sin abrirlo. */
+function TrazaBadge({ traza }: { traza: BorradorResumen['traza'] }) {
+  if (!traza || traza.lineas === 0) {
+    return <span className="text-[9px] uppercase text-[var(--ink-mute)]">Sin líneas</span>
+  }
+  if (traza.sin_traza > 0) {
+    return (
+      <span className="inline-flex rounded-full border border-[var(--coral)]/40 bg-[var(--coral)]/10 px-2 py-0.5 text-[9px] font-bold text-[var(--coral)]">
+        {traza.sin_traza} SIN TRAZA
+      </span>
+    )
+  }
+  if (traza.solo_lote > 0 || traza.parciales > 0) {
+    return (
+      <span className="ao-chip-amber inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold">
+        {traza.solo_lote > 0 ? `${traza.solo_lote} SOLO LOTE` : `${traza.parciales} PARCIAL`}
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex rounded-full border border-[var(--mint)]/40 bg-[var(--mint-glow)] px-2 py-0.5 text-[9px] font-bold text-[var(--mint)]">
+      TRAZADA
+    </span>
+  )
+}
+
 function Diferencia({ value, holdedTotal }: { value: number | null; holdedTotal: number | null }) {
   if (holdedTotal == null || value == null) return <span className="text-[var(--ink-mute)]">Sin total Holded</span>
   const squared = Math.abs(value) <= 0.01
@@ -167,6 +196,7 @@ export function FacturacionPage() {
   const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [mostrarRetirada, setMostrarRetirada] = useState(false)
 
   const rows = useMemo(() => {
     const needle = normalizar(search)
@@ -206,10 +236,16 @@ export function FacturacionPage() {
         title="Facturación"
         subtitle="Borradores en sombra, revisión fiscal y contraste con Holded"
         actions={(
-          <Button variant="outline" size="sm" disabled={query.isFetching} onClick={() => void query.refetch()}>
-            <RefreshCw className={cn('h-3.5 w-3.5', query.isFetching && 'animate-spin')} />
-            Actualizar
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => setMostrarRetirada(true)}>
+              <Link2 className="h-3.5 w-3.5" />
+              Retirada por lote
+            </Button>
+            <Button variant="outline" size="sm" disabled={query.isFetching} onClick={() => void query.refetch()}>
+              <RefreshCw className={cn('h-3.5 w-3.5', query.isFetching && 'animate-spin')} />
+              Actualizar
+            </Button>
+          </div>
         )}
       />
 
@@ -278,6 +314,7 @@ export function FacturacionPage() {
                     <th className="px-3 py-2 text-right">Propio</th>
                     <th className="px-3 py-2 text-right">Holded</th>
                     <th className="px-3 py-2 text-right">Diferencia</th>
+                    <th className="px-3 py-2">Traza</th>
                     <th className="px-3 py-2">Revisión</th>
                     <th className="px-3 py-2">Bloqueo</th>
                   </tr>
@@ -309,6 +346,7 @@ export function FacturacionPage() {
                         <div className="font-mono text-[9px] text-[var(--ink-mute)]">{row.holded_documento_numero || (row.holded_documento_id ? 'BORRADOR' : 'PENDIENTE')}</div>
                       </td>
                       <td className="px-3 py-2 text-right"><Diferencia value={row.diferencia_holded} holdedTotal={row.holded_total} /></td>
+                      <td className="px-3 py-2"><TrazaBadge traza={row.traza} /></td>
                       <td className="px-3 py-2"><RevisionBadge row={row} /></td>
                       <td className="max-w-[280px] px-3 py-2 text-[10px] text-[var(--ink-mute)]">{row.motivo_bloqueo ?? '—'}</td>
                     </tr>
@@ -321,6 +359,7 @@ export function FacturacionPage() {
       </div>
 
       {selected && <BorradorModal row={selected} onClose={() => setSelectedId(null)} />}
+      {mostrarRetirada && <RetiradaModal onClose={() => setMostrarRetirada(false)} />}
     </div>
   )
 }
@@ -434,7 +473,9 @@ function BorradorModalContent({
           ? 'Falta el documento de contraste en Holded.'
           : diferenciaViva == null || Math.abs(diferenciaViva) > 0.01
             ? 'El total propio debe cuadrar con Holded al céntimo.'
-            : null
+            : (row.traza?.sin_traza ?? 0) > 0
+              ? `${row.traza?.sin_traza} línea(s) sin trazabilidad.`
+              : null
 
   const save = async () => {
     const error = lineas.map(validarLinea).find(Boolean)
@@ -758,6 +799,8 @@ function BorradorModalContent({
           <Kpi label="Total Holded" value={row.holded_total == null ? '—' : euros(row.holded_total)} />
           <Kpi label="Diferencia" value={row.holded_total == null ? '—' : euros(totalVivo - row.holded_total)} tone={row.holded_total != null && Math.abs(totalVivo - row.holded_total) > 0.01 ? 'warn' : 'good'} />
         </div>
+
+        <TrazabilidadPanel row={row} bloqueado={bloqueadoPorCierre} />
 
         <section className="rounded-[var(--radius)] border border-[var(--line)] bg-white/[.012]">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] px-3 py-2">
