@@ -111,7 +111,7 @@ ALCALDE / FRUTAS PEREZ ALCALDE (columnas: Trazab/Lote | Articulo | ENV | Bultos 
 - origen = si el Articulo incluye procedencia (ej. "TOMATE MARRUECOS"), cópiala aquí y deja la descripcion completa igual. Si no, null.
 - descripcion = Articulo (puede ocupar 2 líneas en el PDF, únelas).
 - cantidad = K.Netos (SIEMPRE — nunca Bultos ni K.Brutos).
-- unidad = según ENV:
+- unidad = unidad de FACTURACIÓN, no necesariamente el envase ENV. Si K.Netos es fraccionario en un género fresco con ENV *U o *M (ej. APIO 1,28; MELON 16,20; PIÑA 2,12), se factura peso: unidad="kg". No convertir el peso a piezas/manojos ni cambiar cantidad o precio. Si no hay evidencia de peso, aplica ENV:
     - "*B*" o "*B" → si Bultos == K.Netos exacto → "bulto"; si Bultos != K.Netos → "kg" (es por peso).
     - "*U*" o "*U"  → "unidad".
     - "*K*" o "*K"  → "kg".
