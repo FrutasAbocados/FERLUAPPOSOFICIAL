@@ -1,134 +1,23 @@
--- T3 · Resolucion automatica de trazabilidad con control de saldo.
+-- T6 · La trazabilidad se resuelve sola al crear el borrador.
 --
--- Dos hechos medidos sobre los datos reales obligan a corregir el diseno de T2:
+-- Hasta ahora habia que pulsar "Trazar automatico" en cada borrador, y T4
+-- bloquea el cierre de cualquiera que no lo tenga: con 0 trazas en produccion,
+-- el primer cierre real iba a rebotar.
 --
---  1. Solo el 42% de las lineas de venta tienen compra del mismo producto en la
---     MISMA unidad (se vende "caja" y se compra "kg" o "bulto"). Con imputacion
---     por cantidad estricta, la mitad de las lineas se quedaria sin trazar.
---  2. Solo 11 de 184 alias de compra tienen factor de unidad, asi que convertir
---     caja->kg seria inventar la mayor parte de las veces.
+-- La logica de T3 pasa a un worker interno sin comprobacion de rol. El RPC
+-- publico conserva su contrato (solo administracion) y lo envuelve. Un trigger
+-- por sentencia sobre las lineas del borrador lo lanza tras cada alta: A4
+-- inserta todas las lineas en un solo INSERT ... SELECT, asi que se traza el
+-- borrador entero una vez.
 --
--- La ley (Reglamento 178/2002, art. 18) pide identificar de quien viene el
--- producto que se vende, no cuadrar un inventario. El balance de masas es un
--- control extra, posible solo cuando las unidades son comparables. Por eso la
--- traza pasa a tener dos alcances:
---   - 'cantidad': imputa kg/unidades concretas y consume saldo de la compra.
---   - 'lote': identifica la compra y su lote, sin cantidad, cuando las unidades
---     no son comparables. Sigue siendo trazabilidad; no es balance.
-
-alter table public.facturacion_linea_trazas
-  add column if not exists alcance text not null default 'cantidad'
-    check (alcance in ('cantidad', 'lote'));
-
-alter table public.facturacion_linea_trazas alter column cantidad_imputada drop not null;
-alter table public.facturacion_linea_trazas alter column unidad drop not null;
-
-alter table public.facturacion_linea_trazas
-  drop constraint if exists facturacion_linea_trazas_alcance_coherente;
-alter table public.facturacion_linea_trazas
-  add constraint facturacion_linea_trazas_alcance_coherente check (
-    (alcance = 'cantidad' and cantidad_imputada is not null and unidad is not null)
-    or
-    (alcance = 'lote' and cantidad_imputada is null and unidad is null)
-  );
-
--- El emparejamiento entra por el nombre normalizado de la compra. Sin este
--- indice la resolucion recorre las 9.948 lineas de compra en cada linea de
--- venta (medido: la consulta se pasaba de 120 s).
-create index if not exists idx_pedidos_wa_compras_lineas_nombre_norm
-  on public.pedidos_wa_compras_lineas ((public.manager_norm_nombre(descripcion)));
-
--- Las vistas se recrean, no se reemplazan: `select t.*` congelo su lista de
--- columnas al crearse y `create or replace` no puede anadir `alcance` en medio.
-drop view if exists public.facturacion_linea_traza_estado;
-drop view if exists public.facturacion_compra_linea_saldo;
-drop view if exists public.facturacion_linea_trazas_vigentes;
-
-create view public.facturacion_linea_trazas_vigentes
-with (security_invoker = on)
-as
-select t.*
-from public.facturacion_linea_trazas t
-where t.anula_traza_id is null
-  and not exists (
-    select 1 from public.facturacion_linea_trazas a
-    where a.anula_traza_id = t.id
-  );
-
-alter view public.facturacion_linea_trazas_vigentes owner to postgres;
-revoke all on public.facturacion_linea_trazas_vigentes from anon;
-grant select on public.facturacion_linea_trazas_vigentes to authenticated, service_role;
-
--- Estado por linea, ahora con los dos alcances y con la confianza peor, no la
--- primera por orden alfabetico ('alta' < 'baja' < 'media' ordenaba al reves).
-create view public.facturacion_linea_traza_estado
-with (security_invoker = on)
-as
-select
-  l.id           as borrador_linea_id,
-  l.borrador_id,
-  l.descripcion,
-  l.cantidad,
-  l.unidad,
-  coalesce(sum(t.cantidad_imputada)
-    filter (where t.alcance = 'cantidad' and t.unidad = l.unidad), 0)::numeric(12,3)
-    as cantidad_trazada,
-  case
-    when count(t.id) = 0 then 'sin_traza'
-    when coalesce(sum(t.cantidad_imputada)
-           filter (where t.alcance = 'cantidad' and t.unidad = l.unidad), 0) + 0.001
-         >= l.cantidad then 'completa'
-    when count(t.id) filter (where t.alcance = 'lote') > 0 then 'lote_sin_cantidad'
-    else 'parcial'
-  end as estado_traza,
-  count(t.id) as n_trazas,
-  case
-    when count(t.id) filter (where t.confianza = 'baja')  > 0 then 'baja'
-    when count(t.id) filter (where t.confianza = 'media') > 0 then 'media'
-    when count(t.id) > 0 then 'alta'
-  end as confianza_peor
-from public.facturacion_borrador_lineas l
-left join public.facturacion_linea_trazas_vigentes t
-  on t.borrador_linea_id = l.id
-group by l.id, l.borrador_id, l.descripcion, l.cantidad, l.unidad;
-
--- El saldo solo lo consume la imputacion por cantidad en la misma unidad.
-create view public.facturacion_compra_linea_saldo
-with (security_invoker = on)
-as
-select
-  cl.id          as compra_linea_id,
-  cl.compra_id,
-  c.fecha        as fecha_compra,
-  c.proveedor_nombre,
-  c.num_factura,
-  cl.descripcion,
-  cl.lote,
-  cl.origen,
-  cl.unidad,
-  cl.cantidad,
-  coalesce(sum(t.cantidad_imputada), 0)::numeric(12,3) as cantidad_imputada,
-  (cl.cantidad - coalesce(sum(t.cantidad_imputada), 0))::numeric(12,3) as cantidad_disponible
-from public.pedidos_wa_compras_lineas cl
-join public.pedidos_wa_compras c on c.id = cl.compra_id
-left join public.facturacion_linea_trazas_vigentes t
-  on t.compra_linea_id = cl.id
- and t.alcance = 'cantidad'
- and t.unidad = cl.unidad
-group by cl.id, cl.compra_id, c.fecha, c.proveedor_nombre, c.num_factura,
-         cl.descripcion, cl.lote, cl.origen, cl.unidad, cl.cantidad;
-
-grant select on public.facturacion_linea_traza_estado to authenticated, service_role;
-grant select on public.facturacion_compra_linea_saldo to authenticated, service_role;
-
--- Resolucion automatica de un borrador.
+-- Regla de A4 que se respeta: nada puede bloquear el pedido ni la creacion del
+-- borrador. Si la resolucion falla, se absorbe el error; el borrador nace igual
+-- y aparece como SIN TRAZA en la bandeja, que ya es la senal visible.
 --
--- Orden de imputacion: compra MAS RECIENTE primero, no FIFO literal. En fruta y
--- verdura sin sistema de stock, FIFO asignaria siempre la compra mas vieja de la
--- ventana, que es justo la que ya se vendio. Lo defendible es que lo vendido hoy
--- salio de lo comprado en los dias inmediatamente anteriores. El saldo impide
--- que una compra se impute mas veces de lo que se compro.
-create or replace function public.facturacion_trazar_borrador(
+-- Sin backfill: los borradores anteriores se trazan con el boton, como se
+-- decidio al empezar.
+
+create or replace function public.facturacion_trazar_borrador_interno(
   p_borrador_id  uuid,
   p_ventana_dias integer default 15
 )
@@ -144,7 +33,7 @@ returns table (
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $fn$
 declare
   v_fecha     date;
   v_cerrado   boolean;
@@ -155,9 +44,6 @@ declare
   v_creadas   integer;
   v_detalle   text;
 begin
-  if not is_admin() then
-    raise exception 'Solo administracion puede trazar borradores' using errcode = '42501';
-  end if;
   if p_ventana_dias is null or p_ventana_dias < 1 or p_ventana_dias > 120 then
     raise exception 'Ventana fuera de rango (1-120 dias)' using errcode = '22023';
   end if;
@@ -289,7 +175,65 @@ begin
       where e.borrador_linea_id = v_linea.id;
   end loop;
 end;
-$$;
+$fn$;
+
+revoke all on function public.facturacion_trazar_borrador_interno(uuid, integer)
+  from public, anon, authenticated, service_role;
+
+create or replace function public.facturacion_trazar_borrador(
+  p_borrador_id  uuid,
+  p_ventana_dias integer default 15
+)
+returns table (
+  borrador_linea_id uuid,
+  descripcion       text,
+  cantidad          numeric,
+  unidad            text,
+  estado_traza      text,
+  trazas_creadas    integer,
+  detalle           text
+)
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+begin
+  if not is_admin() then
+    raise exception 'Solo administracion puede trazar borradores' using errcode = '42501';
+  end if;
+  return query
+    select * from public.facturacion_trazar_borrador_interno(p_borrador_id, p_ventana_dias);
+end;
+$fn$;
 
 revoke execute on function public.facturacion_trazar_borrador(uuid, integer) from public, anon;
 grant execute on function public.facturacion_trazar_borrador(uuid, integer) to authenticated, service_role;
+
+create or replace function public.facturacion_lineas_trazar_auto()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_borrador uuid;
+begin
+  for v_borrador in select distinct n.borrador_id from nuevas n loop
+    begin
+      perform 1 from public.facturacion_trazar_borrador_interno(v_borrador, 15);
+    exception when others then
+      raise warning 'Trazabilidad automatica fallida en borrador %: % %',
+        v_borrador, sqlstate, sqlerrm;
+    end;
+  end loop;
+  return null;
+end;
+$fn$;
+
+revoke all on function public.facturacion_lineas_trazar_auto()
+  from public, anon, authenticated, service_role;
+
+create or replace trigger facturacion_borrador_lineas_zz_trazar_auto
+  after insert on public.facturacion_borrador_lineas
+  referencing new table as nuevas
+  for each statement execute function public.facturacion_lineas_trazar_auto();
