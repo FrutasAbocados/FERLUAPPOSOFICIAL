@@ -1008,7 +1008,8 @@ export function useEliminarPedido() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input: { id: string; fecha: string }) => {
-      const { error } = await supabase.from('pedidos_wa').delete().eq('id', input.id)
+      // RPC: también retira el borrador sombra de facturación si sigue intacto
+      const { error } = await supabase.rpc('pedidos_wa_eliminar', { p_pedido_id: input.id })
       if (error) throw error
     },
     onSuccess: (_d, vars) => {
