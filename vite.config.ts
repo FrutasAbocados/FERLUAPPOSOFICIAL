@@ -52,6 +52,12 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
+        // Sufijo -r2: el 23-09 un deploy sirvio index.html con cache immutable en
+        // /assets/* inexistentes y algunos navegadores guardaron HTML bajo nombres
+        // de chunk reales. Nombres nuevos para no volver a pedir esas URLs.
+        entryFileNames: 'assets/[name]-[hash]-r2.js',
+        chunkFileNames: 'assets/[name]-[hash]-r2.js',
+        assetFileNames: 'assets/[name]-[hash]-r2[extname]',
         manualChunks(id) {
           if (id.includes('node_modules/recharts')) return 'vendor-recharts'
           if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet') || id.includes('node_modules/@react-leaflet')) return 'vendor-leaflet'
