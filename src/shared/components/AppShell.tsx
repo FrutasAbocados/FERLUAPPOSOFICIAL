@@ -16,6 +16,7 @@ import {
   Home,
   LogOut,
   MessageSquare,
+  Receipt,
   ReceiptText,
   ScrollText,
   Tags,
@@ -44,6 +45,7 @@ const MODULES: ModuleNav[] = [
   { key: 'facturacion', label: 'Facturación', to: '/facturacion', icon: ReceiptText },
   { key: 'cobros',     label: 'Cobros',     to: '/cobros',     icon: HandCoins },
   { key: 'tesoreria',  label: 'Tesorería',  to: '/tesoreria',  icon: Vault },
+  { key: 'gastos',     label: 'Gastos',     to: '/gastos',     icon: Receipt },
   { key: 'listado_precios', label: 'Listado Precios', to: '/listado-precios', icon: Tags },
   { key: 'gestoria',        label: 'Gestoría',        to: '/gestoria',        icon: FileSpreadsheet },
 ]
@@ -71,6 +73,7 @@ const PRELOADERS: Record<string, () => void> = {
   '/facturacion':      () => { void import('@/modules/facturacion/FacturacionPage') },
   '/cobros':           () => { void import('@/modules/cobros/CobrosPage') },
   '/tesoreria':        () => { void import('@/modules/tesoreria/TesoreriaPage') },
+  '/gastos':           () => { void import('@/modules/gastos/GastosPage') },
   '/listado-precios':  () => { void import('@/modules/listado-precios/ListadoPreciosPage') },
   '/gestoria':         () => { void import('@/modules/gestoria/GestoriaPage') },
   '/trabajadores':     () => { void import('@/modules/trabajadores/TrabajadoresOpPage') },

@@ -26,7 +26,15 @@ export function isChunkLoadError(error: unknown): boolean {
 // vuelve a pedir el index.html viejo cacheado (que referencia chunks ya inexistentes)
 // y el error se repite. Verificado: revocar SW + limpiar caches es lo único que
 // hace que la ruta lazy vuelva a cargar el chunk correcto tras un deploy.
-async function purgeServiceWorkerAndReload(): Promise<void> {
+export async function purgeServiceWorkerAndReload(): Promise<void> {
+  try {
+    // Vacía también la caché HTTP del navegador (cabecera Clear-Site-Data en
+    // vercel.json): ni el SW ni caches.delete alcanzan un asset guardado mal
+    // con cache larga, como pasó el 2026-09-23.
+    await fetch('/__clear-cache', { cache: 'no-store' })
+  } catch {
+    // Sin red o navegador sin soporte: seguimos con la purga del SW.
+  }
   try {
     if ('serviceWorker' in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations()
@@ -63,9 +71,13 @@ export function initChunkRecovery(): void {
   if (typeof window === 'undefined') return
 
   window.addEventListener('vite:preloadError', (event) => {
-    event.preventDefault()
     const payload = (event as Event & { payload?: unknown }).payload
-    if (recoverFromChunkLoadError(payload)) event.stopImmediatePropagation()
+    // Solo se cancela si vamos a recargar. Cancelarlo siempre hacía que el
+    // import() resolviera undefined y React fallara con "reading 'default'",
+    // un error que ya no parecía de carga y dejaba la app rota.
+    if (!recoverFromChunkLoadError(payload)) return
+    event.preventDefault()
+    event.stopImmediatePropagation()
   })
 
   window.addEventListener(

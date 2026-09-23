@@ -27,6 +27,7 @@ const ClientesPage      = lazy(() => import('@/modules/clientes/ClientesPage').t
 const FacturacionPage   = lazy(() => import('@/modules/facturacion/FacturacionPage').then(m => ({ default: m.FacturacionPage })))
 const TesoreriaPage     = lazy(() => import('@/modules/tesoreria/TesoreriaPage').then(m => ({ default: m.TesoreriaPage })))
 const ListadoPreciosPage = lazy(() => import('@/modules/listado-precios/ListadoPreciosPage').then(m => ({ default: m.ListadoPreciosPage })))
+const GastosPage         = lazy(() => import('@/modules/gastos/GastosPage').then(m => ({ default: m.GastosPage })))
 const GestoriaPage       = lazy(() => import('@/modules/gestoria/GestoriaPage').then(m => ({ default: m.GestoriaPage })))
 const RrhhPage           = lazy(() => import('@/modules/rrhh/RrhhPage').then(m => ({ default: m.RrhhPage })))
 
@@ -112,6 +113,9 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute module="tesoreria" />}>
                     <Route path="tesoreria" element={<Suspense fallback={<PageFallback />}><TesoreriaPage /></Suspense>} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="gastos" />}>
+                    <Route path="gastos" element={<Suspense fallback={<PageFallback />}><GastosPage /></Suspense>} />
                   </Route>
                   <Route element={<ProtectedRoute module="listado_precios" />}>
                     <Route path="listado-precios" element={<Suspense fallback={<PageFallback />}><ListadoPreciosPage /></Suspense>} />

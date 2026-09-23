@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { reportError } from '@/shared/lib/sentry'
-import { isChunkLoadError, recoverFromChunkLoadError } from '@/shared/lib/chunk-recovery'
+import { isChunkLoadError, purgeServiceWorkerAndReload, recoverFromChunkLoadError } from '@/shared/lib/chunk-recovery'
 
 type Props = { children: ReactNode }
 type State = { error: Error | null }
@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
           </pre>
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() => { void purgeServiceWorkerAndReload() }}
             className="mt-4 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
           >
             Recargar
