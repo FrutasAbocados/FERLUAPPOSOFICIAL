@@ -24,13 +24,6 @@ export function initSentry(): void {
     },
     integrations: [
       Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration({
-        // Replay se envía a un tercero: ocultamos texto y campos por defecto,
-        // incluso en la grabación retrospectiva que acompaña a un error.
-        maskAllText: true,
-        maskAllInputs: true,
-        blockAllMedia: true,
-      }),
     ],
     // Sample rates conservadores — 5k eventos/mes free tier
     tracesSampleRate: env.appEnv === 'production' ? 0.1 : 0,
@@ -60,6 +53,22 @@ export function initSentry(): void {
       return event
     },
   })
+
+  // Replay (~260 KB) fuera del bundle inicial: se descarga cuando el navegador
+  // queda libre. Los errores previos a la carga no llevan grabación.
+  const loadReplay = () => {
+    Sentry.lazyLoadIntegration('replayIntegration')
+      .then(replayIntegration => Sentry.addIntegration(replayIntegration({
+        // Replay se envía a un tercero: ocultamos texto y campos por defecto,
+        // incluso en la grabación retrospectiva que acompaña a un error.
+        maskAllText: true,
+        maskAllInputs: true,
+        blockAllMedia: true,
+      })))
+      .catch(() => { /* bloqueado por el navegador o sin red: seguimos sin replay */ })
+  }
+  if ('requestIdleCallback' in window) window.requestIdleCallback(loadReplay, { timeout: 10_000 })
+  else setTimeout(loadReplay, 5_000)
 }
 
 /**
