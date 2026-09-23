@@ -68,6 +68,8 @@ Detalle en `~/.claude/projects/-Users-luis/memory/cron_jobs_ferlu.md`.
    - `"tabla: admin rw"` con `is_admin()` (rw)
    - `"tabla: empleado lee propio"` con `e.user_id = auth.uid()` (select)
    - `"tabla: responsable read"` con `es_responsable()` (select)
+   - En policies, envolver siempre los helpers: `(select public.is_admin())`, no `is_admin()`. Sin envolver se evalúan por fila (puede_ver_manager → is_admin → current_role) y el Dashboard llegó a dar timeout (auditoría 2026-09-23).
+   - `create or replace view` pierde `security_invoker`: volver a fijarlo en la misma migración.
 4. **Trigger updated_at**: función `<modulo>_touch_updated()` + trigger `<modulo>_touch BEFORE UPDATE`.
 5. **Migraciones**: nombres `YYYYMMDDhhmmss_descripcion.sql` (UTC). Aplicar vía MCP `mcp__supabase-ferlu__apply_migration`.
 6. **Antes de DROP** tabla/RPC: regla `feedback_audit_verify_drops.md` — `grep -rn` en src/ + supabase/ + verificar filas + `perform` interno. Incidente 2026-05-05 con `manager_costes_manuales`.
@@ -92,6 +94,7 @@ Detalle en `~/.claude/projects/-Users-luis/memory/cron_jobs_ferlu.md`.
 - Vercel rewrites NO soportan lookahead negativo. Patrón SPA: `{"source": "/(.*)", "destination": "/index.html"}`.
 - `tsc -b` ≠ `tsc --noEmit`. Vercel usa `tsc -b`, más estricto.
 - Management API SQL endpoint NO acepta `do $$ ... $$`. Usar bloques sin `do`.
+- **Chunks**: `codeSplitting.groups` con `includeDependenciesRecursively: false`. `index.html` no debe precargar ningún `vendor-*`; jspdf va sin grupo (agrupado aparte no evaluaba).
 - **Bundle Vite >2MB** rompe `vite-plugin-pwa` build. Vercel sirve deploy anterior **sin notificación**. Fix `125b062` subió límite a 5 MiB en `vite.config.ts`. Recharts es el principal culpable si vuelve a crecer.
 
 ## MCPs disponibles
