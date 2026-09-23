@@ -31,7 +31,7 @@ export function crearHandler(url: string, key: string, http: typeof fetch = fetc
       return await r.json() as T;
     }
     let body: { send?: boolean; fecha?: string; publish?: boolean };
-    try { body = await req.json(); if (!body || typeof body !== 'object') throw new Error(); }
+    try { body = await req.json() as typeof body; if (!body || typeof body !== 'object') throw new Error(); }
     catch { return json({ error: 'JSON inválido' }, 400); }
     const now = clock();
     const hoy = horario(now);
@@ -67,7 +67,7 @@ export function crearHandler(url: string, key: string, http: typeof fetch = fetc
       const path = `german/${fecha}/${token}.pdf`;
       const upload = await http(`${url}/storage/v1/object/informes-margen/${path}`, {
         method: 'POST', headers: { ...headers, 'content-type': 'application/pdf' },
-        body: new Blob([bytes as BlobPart], { type: 'application/pdf' }),
+        body: new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/pdf' }),
       });
       if (!upload.ok) throw new Error('upload');
       const linkRes = await http(`${url}/rest/v1/informe_margen_links`, { method: 'POST', headers,
@@ -97,8 +97,8 @@ export function crearHandler(url: string, key: string, http: typeof fetch = fetc
     }
   };
 }
-// @ts-ignore Deno is supplied by the Edge runtime, not by the Node test runner.
-if (typeof Deno !== 'undefined') {
-  // @ts-ignore Deno runtime.
-  Deno.serve(crearHandler(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''));
+// Deno is supplied by the Edge runtime, not by the Node test runner.
+const deno = (globalThis as { Deno?: { serve(h: (req: Request) => Promise<Response>): unknown; env: { get(k: string): string | undefined } } }).Deno;
+if (deno) {
+  deno.serve(crearHandler(deno.env.get('SUPABASE_URL') ?? '', deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''));
 }

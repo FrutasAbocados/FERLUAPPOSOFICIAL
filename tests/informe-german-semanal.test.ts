@@ -41,6 +41,7 @@ function harness(options: { missingKey?: boolean; stale?: boolean; duplicate?: b
   const pdf = async (inf: unknown) => { pdfCalls.push(inf); return new Uint8Array([37, 80, 68, 70]); };
   return { calls, patches, pdfCalls, handler: crearHandler('https://db.test', key, http, () => now, pdf as never) };
 }
+type Resultado = { enviado: boolean; informe: { comision_semana: number }; link: string; storage_path: string; mensaje: string };
 const subidas = (calls: string[]) => calls.filter(u => u.includes('/storage/v1/object/'));
 const proveedor = (calls: string[]) => calls.filter(u => u.includes('callmebot.com'));
 
@@ -64,7 +65,7 @@ test('preview returns the report without building a PDF or claiming the week', a
   const h = harness();
   const response = await h.handler(req({ fecha: '2026-09-27' }));
   assert.equal(response.status, 200);
-  const result = await response.json();
+  const result = await response.json() as Resultado;
   assert.equal(result.enviado, false);
   assert.equal(result.informe.comision_semana, 25);
   assert.equal(h.pdfCalls.length, 0);
@@ -74,7 +75,7 @@ test('publish builds the PDF and the private link without contacting the provide
   const h = harness();
   const response = await h.handler(req({ fecha: '2026-09-27', publish: true }));
   assert.equal(response.status, 200);
-  const result = await response.json();
+  const result = await response.json() as Resultado;
   assert.equal(result.enviado, false);
   assert.ok(result.link.includes('informe-german-pdf?t='));
   assert.match(result.storage_path, /^german\/2026-09-27\/[a-f0-9]{32}\.pdf$/);

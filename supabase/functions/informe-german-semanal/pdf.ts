@@ -1,6 +1,7 @@
 // pdf-lib is already used by the daily margin report. Keep generation in Edge.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment -- el runner de Node no resuelve npm:
 // @ts-ignore Deno npm specifier; local PDF QA maps it to the installed package.
-import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
+import { PDFDocument, PDFPage, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
 import { type Informe, eur, dia, momento, variacion } from './formato.ts';
 export { type Informe, eur, dia, momento, variacion };
 
@@ -14,7 +15,7 @@ export async function buildPdf(inf: Informe): Promise<Uint8Array> {
   const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
   const C={ bg:rgb(.055,.085,.072), panel:rgb(.09,.14,.115), line:rgb(.19,.26,.22), ink:rgb(.94,.96,.92), muted:rgb(.62,.71,.64), green:rgb(.57,.87,.60), amber:rgb(.98,.76,.43) };
   const W=595.28,H=841.89,M=32,inner=W-M*2;
-  let page: any;
+  let page: PDFPage;
   const rect=(x:number,y:number,w:number,h:number,color=C.panel)=>page.drawRectangle({x,y,width:w,height:h,color});
   const text=(s:string,x:number,y:number,size=10,strong=false,color=C.ink)=>page.drawText(clean(s),{x,y,size,font:strong?bold:regular,color});
   const right=(s:string,x:number,y:number,size=10,strong=false,color=C.ink)=>text(s,x-(strong?bold:regular).widthOfTextAtSize(clean(s),size),y,size,strong,color);
@@ -86,6 +87,6 @@ export async function buildPdf(inf: Informe): Promise<Uint8Array> {
     'Importes calculados sobre ventas registradas; este informe no acredita el pago de la comisión.',
   ]){text(line,M,y,8,false,C.muted);y-=14;}
   const pages=pdf.getPages();
-  pages.forEach((p:any,i:number)=>{page=p;rect(M,52,inner,1,C.line);text(`Generado ${momento(inf.generado_at)} · datos ${momento(inf.ultima_sync)} · Madrid`,M,37,7,false,C.muted);right(`${i+1} / ${pages.length}`,W-M,37,8,false,C.muted);});
+  pages.forEach((p:PDFPage,i:number)=>{page=p;rect(M,52,inner,1,C.line);text(`Generado ${momento(inf.generado_at)} · datos ${momento(inf.ultima_sync)} · Madrid`,M,37,7,false,C.muted);right(`${i+1} / ${pages.length}`,W-M,37,8,false,C.muted);});
   return pdf.save();
 }
