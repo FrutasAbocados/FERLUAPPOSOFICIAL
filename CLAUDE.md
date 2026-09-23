@@ -94,7 +94,8 @@ Detalle en `~/.claude/projects/-Users-luis/memory/cron_jobs_ferlu.md`.
 - Vercel rewrites NO soportan lookahead negativo. Patrón SPA: `{"source": "/(.*)", "destination": "/index.html"}`.
 - `tsc -b` ≠ `tsc --noEmit`. Vercel usa `tsc -b`, más estricto.
 - Management API SQL endpoint NO acepta `do $$ ... $$`. Usar bloques sin `do`.
-- **Chunks**: `codeSplitting.groups` con `includeDependenciesRecursively: false`. `index.html` no debe precargar ningún `vendor-*`; jspdf va sin grupo (agrupado aparte no evaluaba).
+- **NUNCA `Cache-Control: immutable` en `/assets/*` vía vercel.json**: el rewrite SPA devuelve `index.html` para assets inexistentes y hereda la cabecera; una PWA con index viejo guardó HTML como JS un año → pantalla negra (incidente 2026-09-23, se forzaron nombres nuevos con sufijo `-r2`).
+- **Chunks** (revertido, pendiente de reintentar con cuidado): `codeSplitting.groups` con `includeDependenciesRecursively: false`. `index.html` no debe precargar ningún `vendor-*`; jspdf va sin grupo (agrupado aparte no evaluaba).
 - **Bundle Vite >2MB** rompe `vite-plugin-pwa` build. Vercel sirve deploy anterior **sin notificación**. Fix `125b062` subió límite a 5 MiB en `vite.config.ts`. Recharts es el principal culpable si vuelve a crecer.
 
 ## MCPs disponibles
