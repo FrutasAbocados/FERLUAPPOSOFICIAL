@@ -20,12 +20,7 @@ export default defineConfig({
           '**/vendor-exceljs-*.js',
           '**/vendor-recharts-*.js',
           '**/vendor-leaflet-*.js',
-          // Stack PDF (jspdf + html2canvas-pro + canvg): solo se usa al exportar.
-          // Sin grupo propio: separado de sus dependencias, rolldown generaba un
-          // chunk que no evaluaba (export jspdf_es_min_exports inexistente).
-          '**/jspdf.es.min-*.js',
-          '**/html2canvas-pro.esm-*.js',
-          '**/index.es-*.js',
+          '**/vendor-pdf-*.js',
         ],
         // Bundle pasó de 2MB tras añadir Recharts + Gastos + Clientes (2026-05-06).
         // 5 MiB cubre con margen y evita romper el build de Vercel.
@@ -57,17 +52,13 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // Grupos sin arrastrar dependencias: con manualChunks el bundler metía
-        // React, clsx o el helper de preload dentro de vendor-leaflet/-recharts/-pdf
-        // y el entry precargaba ~1,3 MB que solo se usan al abrir mapas, gráficos o PDF.
-        // Tras cambiar grupos, comprobar que index.html no precarga ningún vendor-*.
-        codeSplitting: {
-          includeDependenciesRecursively: false,
-          groups: [
-            { name: 'vendor-recharts', test: /node_modules[\\/](recharts|d3-|victory-vendor)/ },
-            { name: 'vendor-leaflet', test: /node_modules[\\/](leaflet|react-leaflet|@react-leaflet)[\\/]/ },
-            { name: 'vendor-exceljs', test: /node_modules[\\/]exceljs[\\/]/ },
-          ],
+        manualChunks(id) {
+          if (id.includes('node_modules/recharts')) return 'vendor-recharts'
+          if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet') || id.includes('node_modules/@react-leaflet')) return 'vendor-leaflet'
+          if (id.includes('node_modules/exceljs')) return 'vendor-exceljs'
+          // Stack PDF (jspdf + html2canvas/-pro + canvg): solo se usa al exportar,
+          // fuera del precache PWA para no inflar la descarga inicial del móvil.
+          if (id.includes('node_modules/jspdf') || id.includes('html2canvas') || id.includes('node_modules/canvg')) return 'vendor-pdf'
         },
       },
     },
