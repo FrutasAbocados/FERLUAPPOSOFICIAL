@@ -72,12 +72,12 @@ export function initChunkRecovery(): void {
 
   window.addEventListener('vite:preloadError', (event) => {
     const payload = (event as Event & { payload?: unknown }).payload
-    // Solo se cancela si vamos a recargar. Cancelarlo siempre hacía que el
-    // import() resolviera undefined y React fallara con "reading 'default'",
-    // un error que ya no parecía de carga y dejaba la app rota.
-    if (!recoverFromChunkLoadError(payload)) return
-    event.preventDefault()
-    event.stopImmediatePropagation()
+    // Nunca se cancela: con preventDefault el helper de Vite resuelve el
+    // import() a undefined y React.lazy falla con "reading 'default'", que el
+    // ErrorBoundary reporta a Sentry como error de código mientras la purga
+    // recarga. Sin cancelar, el lazy recibe el error de carga real y el
+    // ErrorBoundary lo trata como chunk (sin reporte).
+    recoverFromChunkLoadError(payload)
   })
 
   window.addEventListener(
