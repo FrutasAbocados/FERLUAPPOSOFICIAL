@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { differenceInCalendarDays, format, parseISO } from 'date-fns'
+import { differenceInCalendarDays, eachDayOfInterval, format, parseISO } from 'date-fns'
 import { PageTopbar } from '@/shared/components/PageTopbar'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -47,11 +47,44 @@ export function VacacionesSociosPage() {
     onError: (error) => toast({ title: 'No se pudieron guardar los cambios', description: error.message, variant: 'error' }),
   })
   const [nuevo, setNuevo] = useState(0)
+  const anio = mes.getFullYear()
+  const hoy = format(new Date(), 'yyyy-MM-dd')
+  const resumen = (['Luis', 'Álvaro'] as const).map(socio => {
+    const dias = new Set<string>()
+    for (const periodo of data ?? []) {
+      if (periodo.socio !== socio) continue
+      const inicio = periodo.fecha_inicio > `${anio}-01-01` ? periodo.fecha_inicio : `${anio}-01-01`
+      const fin = periodo.fecha_fin < `${anio}-12-31` ? periodo.fecha_fin : `${anio}-12-31`
+      if (inicio > fin) continue
+      for (const dia of eachDayOfInterval({ start: parseISO(inicio), end: parseISO(fin) })) {
+        dias.add(format(dia, 'yyyy-MM-dd'))
+      }
+    }
+    const disfrutados = [...dias].filter(dia => dia <= hoy).length
+    return { socio, disfrutados, previstos: dias.size - disfrutados }
+  })
 
   return (
     <div>
       <PageTopbar breadcrumb="SOCIOS · VACACIONES" title="Vacaciones de socios" subtitle="Elige las fechas de Luis y Álvaro para verlas junto a las del equipo." />
       <div className="ao-page max-w-5xl space-y-4 py-6 md:py-8">
+        <section aria-label={`Resumen de vacaciones ${anio}`}>
+          <h2 className="mb-2 text-sm font-semibold text-[var(--color-ink)]">Días de vacaciones · {anio}</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {resumen.map(({ socio, disfrutados, previstos }) => (
+              <div key={socio} className="ao-card p-3">
+                <h3 className="text-sm font-semibold text-[var(--color-ink)]">{socio}</h3>
+                <p className="mt-1 text-3xl font-bold tabular-nums text-[var(--color-ink)]">
+                  {isPending || isError ? '—' : disfrutados}
+                  <span className="ml-1 text-sm font-normal text-[var(--color-ink-3)]">días</span>
+                </p>
+                <p className="text-xs text-[var(--color-ink-3)]">{isPending ? 'Cargando…' : isError ? 'Sin datos disponibles' : 'Disfrutados hasta hoy'}</p>
+                {!isPending && !isError && <p className="mt-1 text-xs tabular-nums text-[var(--color-ink-3)]">{previstos} días futuros previstos</p>}
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-[var(--color-ink-3)]">Días naturales del año del calendario, incluido hoy y sin duplicar fechas.</p>
+        </section>
         <section className="ao-card p-3">
           <h2 className="mb-3 text-sm font-semibold text-[var(--color-ink)]">Añadir vacaciones</h2>
           <EditorPeriodo key={nuevo} busy={mutation.isPending} onSave={async periodo => {
