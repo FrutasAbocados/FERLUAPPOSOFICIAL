@@ -138,23 +138,32 @@ function chunkRange(start: Date, end: Date, days = 30): Array<[Date, Date]> {
   return out
 }
 
+// Holded devuelve a veces una página HTML con 200 (incidente 27-sep: `<div id="r"`).
+// Se reintenta una vez; si persiste, el error dice qué llegó en vez de un JSON.parse críptico.
+async function getHoldedList(url: string, label: string): Promise<unknown[]> {
+  for (let intento = 1; ; intento++) {
+    const res = await fetchWithTimeout(url, { headers: { key: HOLDED_KEY, accept: 'application/json' } }, HOLDED_TIMEOUT_MS)
+    const text = await res.text()
+    if (!res.ok) throw new Error(`Holded ${label} ${res.status}: ${text.slice(0, 300)}`)
+    let data: unknown
+    try { data = JSON.parse(text) } catch {
+      if (intento < 2) { await new Promise(r => setTimeout(r, 3000)); continue }
+      throw new Error(`Holded ${label}: respuesta no JSON tras reintento (${text.slice(0, 80)})`)
+    }
+    if (!Array.isArray(data)) throw new Error(`Holded ${label}: respuesta inesperada`)
+    return data
+  }
+}
+
 async function fetchHolded(doc: DocType, starttmp: number, endtmp: number): Promise<HoldedDoc[]> {
   const url = `${HOLDED_BASE}/${doc}?starttmp=${starttmp}&endtmp=${endtmp}&sort=created-desc`
-  const res = await fetchWithTimeout(url, { headers: { key: HOLDED_KEY, accept: 'application/json' } }, HOLDED_TIMEOUT_MS)
-  if (!res.ok) throw new Error(`Holded ${doc} ${res.status}: ${(await res.text()).slice(0, 300)}`)
-  const data = await res.json()
-  if (!Array.isArray(data)) throw new Error(`Holded ${doc}: respuesta inesperada`)
+  const data = await getHoldedList(url, doc)
   if (data.length >= 500) console.warn(`[holded-sync] ${doc} ${starttmp}-${endtmp} truncado a 500`)
   return data as HoldedDoc[]
 }
 
 async function fetchHoldedLatest(doc: DocType): Promise<HoldedDoc[]> {
-  const url = `${HOLDED_BASE}/${doc}?sort=created-desc`
-  const res = await fetchWithTimeout(url, { headers: { key: HOLDED_KEY, accept: 'application/json' } }, HOLDED_TIMEOUT_MS)
-  if (!res.ok) throw new Error(`Holded ${doc} (sin rango) ${res.status}: ${(await res.text()).slice(0, 300)}`)
-  const data = await res.json()
-  if (!Array.isArray(data)) throw new Error(`Holded ${doc} (sin rango): respuesta inesperada`)
-  return data as HoldedDoc[]
+  return await getHoldedList(`${HOLDED_BASE}/${doc}?sort=created-desc`, `${doc} (sin rango)`) as HoldedDoc[]
 }
 
 async function pgUpsert(table: string, rows: unknown[], onConflict: string): Promise<void> {
