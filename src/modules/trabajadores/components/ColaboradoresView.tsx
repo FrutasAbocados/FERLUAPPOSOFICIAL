@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { format, startOfMonth } from 'date-fns'
+import { addMonths, format, startOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Loader2, Plus, Search, Trash2, Users, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, Plus, Search, Trash2, Users, X } from 'lucide-react'
 import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
@@ -144,7 +144,10 @@ function useActualizarComision() {
 
 export function ColaboradoresView() {
   const { profile } = useAuth()
-  const mesISO = format(startOfMonth(new Date()), 'yyyy-MM-dd')
+  const mesActualISO = format(startOfMonth(new Date()), 'yyyy-MM-dd')
+  const [mesISO, setMesISO] = useState(mesActualISO)
+  const mesFecha = new Date(`${mesISO}T00:00:00`)
+  const cambiarMes = (delta: number) => setMesISO(format(addMonths(mesFecha, delta), 'yyyy-MM-dd'))
   const { data, isLoading } = useResumen(mesISO)
   const [selected, setSelected] = useState<Resumen | null>(null)
   const canManage = profile?.role === 'admin_full' || profile?.role === 'admin_op'
@@ -161,9 +164,22 @@ export function ColaboradoresView() {
           <Users className="h-4 w-4 text-[var(--color-primary-2)]" />
           <h2 className="text-sm font-semibold text-[var(--color-ink)]">Colaboradores</h2>
         </div>
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">Total mes</div>
-          <div className="font-display text-base font-bold tabular-nums text-[var(--mint)]">{eur(totalComision)}</div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => cambiarMes(-1)} title="Mes anterior">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="min-w-[7.5rem] text-center text-xs font-semibold capitalize text-[var(--color-ink-2)]">
+              {format(mesFecha, 'LLLL yyyy', { locale: es })}
+            </span>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => cambiarMes(1)} disabled={mesISO >= mesActualISO} title="Mes siguiente">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)]">Total mes</div>
+            <div className="font-display text-base font-bold tabular-nums text-[var(--mint)]">{eur(totalComision)}</div>
+          </div>
         </div>
       </div>
 
@@ -253,7 +269,7 @@ function DetalleModal({ empleado, mesISO, canManage, onClose }: { empleado: Resu
           <div>
             <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">{empleado.nombre}</h2>
             <p className="text-xs text-[var(--color-ink-3)]">
-              {format(new Date(mesISO), "LLLL yyyy", { locale: es })} · {empleado.num_clientes} cliente(s) · {eur(empleado.facturacion_mes)} → <span className="ao-text-success font-semibold">{eur(empleado.comision)}</span>
+              {format(new Date(`${mesISO}T00:00:00`), "LLLL yyyy", { locale: es })} · {empleado.num_clientes} cliente(s) · {eur(empleado.facturacion_mes)} → <span className="ao-text-success font-semibold">{eur(empleado.comision)}</span>
             </p>
           </div>
           <Button size="sm" variant="ghost" onClick={onClose}><X className="h-4 w-4" /></Button>
