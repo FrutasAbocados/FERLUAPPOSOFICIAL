@@ -22,6 +22,7 @@ import type {
   ContactoOpt,
   FormaPago,
   GastoInput,
+  GastoMetodo,
   GastoTipo,
   Jornada,
   JornadaGasto,
@@ -30,7 +31,7 @@ import type {
 } from '../lib/repartos-types'
 
 type LineaUI = LineaInput & { _key: string; _loading?: boolean }
-type GastoUI = { _key: string; tipo: GastoTipo; concepto: string; importe: number | '' }
+type GastoUI = { _key: string; tipo: GastoTipo; concepto: string; importe: number | ''; metodo_pago: GastoMetodo }
 
 const GASTO_TIPOS: { tipo: GastoTipo; label: string }[] = [
   { tipo: 'gasolina', label: '⛽ Gasolina' },
@@ -124,6 +125,7 @@ function JornadaForm({
       tipo: g.tipo,
       concepto: g.concepto,
       importe: Number(g.importe),
+      metodo_pago: g.metodo_pago ?? 'efectivo',
     })),
   )
   const [monedas, setMonedas] = useState<number | ''>(
@@ -139,13 +141,17 @@ function JornadaForm({
         concepto: g.concepto.trim(),
         importe: g.importe === '' ? 0 : Number(g.importe),
         orden: i,
+        metodo_pago: g.metodo_pago,
       }))
 
-  const totalGastos = gastos.reduce((s, g) => s + (g.importe === '' ? 0 : Number(g.importe)), 0)
+  // Solo los gastos en efectivo salen de la caja; los de tarjeta empresa no restan.
+  const totalGastos = gastos
+    .filter((g) => g.metodo_pago === 'efectivo')
+    .reduce((s, g) => s + (g.importe === '' ? 0 : Number(g.importe)), 0)
   const totalMonedas = monedas === '' ? 0 : Number(monedas)
 
   const addGasto = () =>
-    setGastos((p) => [...p, { _key: newKey(), tipo: 'gasolina', concepto: '', importe: '' }])
+    setGastos((p) => [...p, { _key: newKey(), tipo: 'gasolina', concepto: '', importe: '', metodo_pago: 'efectivo' }])
 
   const addLinea = async (c: ContactoOpt) => {
     const key = newKey()
@@ -461,7 +467,7 @@ function JornadaForm({
             ) : (
               <ul className="divide-y divide-[var(--color-border)] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
                 {gastos.map((g) => (
-                  <li key={g._key} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 px-3 py-2 text-sm">
+                  <li key={g._key} className="grid grid-cols-[auto_auto_1fr_auto_auto] items-center gap-2 px-3 py-2 text-sm">
                     <select
                       value={g.tipo}
                       onChange={(ev) =>
@@ -472,6 +478,17 @@ function JornadaForm({
                       {GASTO_TIPOS.map((t) => (
                         <option key={t.tipo} value={t.tipo}>{t.label}</option>
                       ))}
+                    </select>
+                    <select
+                      value={g.metodo_pago}
+                      onChange={(ev) =>
+                        setGastos((p) => p.map((x) => (x._key === g._key ? { ...x, metodo_pago: ev.target.value as GastoMetodo } : x)))
+                      }
+                      aria-label="Forma de pago del gasto"
+                      className="h-8 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs text-[var(--color-ink)] outline-none"
+                    >
+                      <option value="efectivo">💵 Efectivo</option>
+                      <option value="tarjeta">💳 Tarjeta empresa</option>
                     </select>
                     <Input
                       value={g.concepto}

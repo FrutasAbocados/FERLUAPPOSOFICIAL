@@ -19,6 +19,9 @@ export type Jornada = {
 
 export type GastoTipo = 'compras' | 'gasolina' | 'incidencia'
 
+// 'tarjeta' = tarjeta de empresa: no sale de la caja ni resta del efectivo.
+export type GastoMetodo = 'efectivo' | 'tarjeta'
+
 export type JornadaGasto = {
   id: string
   jornada_id: string
@@ -26,6 +29,7 @@ export type JornadaGasto = {
   concepto: string
   importe: number
   orden: number
+  metodo_pago: GastoMetodo
   gasto_variable_id: string | null
   created_at: string
 }
@@ -35,6 +39,7 @@ export type GastoInput = {
   concepto: string
   importe: number
   orden: number
+  metodo_pago: GastoMetodo
 }
 
 export type JornadaLinea = {

@@ -142,7 +142,9 @@ function JornadaCard({
     const deuda = list
       .filter((l) => l.forma_pago === 'deuda')
       .reduce((s, l) => s + Number(l.importe), 0)
-    const totalGastos = (gastos.data ?? []).reduce((s, g) => s + Number(g.importe), 0)
+    const totalGastos = (gastos.data ?? [])
+      .filter((g) => g.metodo_pago === 'efectivo')
+      .reduce((s, g) => s + Number(g.importe), 0)
     const monedas = Number(jornada.efectivo_monedas ?? 0)
     return {
       count: list.length,

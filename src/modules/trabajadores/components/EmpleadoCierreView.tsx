@@ -16,7 +16,7 @@ import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 import { ClienteBuscador } from '@/modules/cash/components/ClienteBuscador'
 import { getUltimaFacturaImporte } from '@/modules/cash/lib/repartos-queries'
-import type { ContactoOpt, FormaPago, GastoTipo } from '@/modules/cash/lib/repartos-types'
+import type { ContactoOpt, FormaPago, GastoMetodo, GastoTipo } from '@/modules/cash/lib/repartos-types'
 import type { EmpleadoPropio } from '../lib/useEmpleadoPropio'
 import { useEnviarCierre, useMiCierre } from '../lib/cierre-propio-queries'
 
@@ -39,12 +39,18 @@ type GastoUI = {
   tipo: GastoTipo
   concepto: string
   importe: number | ''
+  metodo_pago: GastoMetodo
 }
 
 const GASTO_TIPOS: { tipo: GastoTipo; label: string; emoji: string }[] = [
   { tipo: 'gasolina', label: 'Gasolina', emoji: '⛽' },
   { tipo: 'compras', label: 'Compras', emoji: '🛒' },
   { tipo: 'incidencia', label: 'Incidencia', emoji: '⚠️' },
+]
+
+const GASTO_METODOS: { metodo: GastoMetodo; label: string }[] = [
+  { metodo: 'efectivo', label: '💵 Efectivo' },
+  { metodo: 'tarjeta', label: '💳 Tarjeta empresa' },
 ]
 
 export function EmpleadoCierreView({ empleado }: { empleado: EmpleadoPropio }) {
@@ -130,6 +136,7 @@ function CierreForm({
       tipo: g.tipo,
       concepto: g.concepto,
       importe: Number(g.importe),
+      metodo_pago: g.metodo_pago ?? 'efectivo',
     })),
   )
 
@@ -165,7 +172,7 @@ function CierreForm({
     ])
 
   const addGasto = () =>
-    setGastos((p) => [...p, { _key: newKey(), tipo: 'gasolina', concepto: '', importe: '' }])
+    setGastos((p) => [...p, { _key: newKey(), tipo: 'gasolina', concepto: '', importe: '', metodo_pago: 'efectivo' }])
 
   const totales = useMemo(() => {
     const num = (v: number | '') => (v === '' ? 0 : Number(v))
@@ -180,8 +187,17 @@ function CierreForm({
     }
   }, [repartos])
 
+  // Solo los gastos pagados en efectivo salen de la caja.
   const totalGastos = useMemo(
-    () => gastos.reduce((s, g) => s + (g.importe === '' ? 0 : Number(g.importe)), 0),
+    () => gastos
+      .filter((g) => g.metodo_pago === 'efectivo')
+      .reduce((s, g) => s + (g.importe === '' ? 0 : Number(g.importe)), 0),
+    [gastos],
+  )
+  const totalGastosTarjeta = useMemo(
+    () => gastos
+      .filter((g) => g.metodo_pago === 'tarjeta')
+      .reduce((s, g) => s + (g.importe === '' ? 0 : Number(g.importe)), 0),
     [gastos],
   )
 
@@ -213,6 +229,7 @@ function CierreForm({
             concepto: g.concepto.trim(),
             importe: g.importe === '' ? 0 : Number(g.importe),
             orden: i,
+            metodo_pago: g.metodo_pago,
           })),
       })
       toast({ title: '✅ Cierre enviado', description: 'Pendiente de revisión por administración.', variant: 'success' })
@@ -291,7 +308,7 @@ function CierreForm({
         </Button>
       </Section>
 
-      <Section icon={<Receipt className="h-4 w-4" />} title="Gastos del día" subtitle="Gasolina, compras, incidencias… (se pagan de la caja)">
+      <Section icon={<Receipt className="h-4 w-4" />} title="Gastos del día" subtitle="Gasolina, compras, incidencias… Marca si pagaste en efectivo o con la tarjeta de empresa">
         {gastos.length === 0 ? (
           <Empty text="Sin gastos. Añade uno si has pagado algo de la ruta." />
         ) : (
@@ -318,6 +335,22 @@ function CierreForm({
                   <Button type="button" variant="ghost" size="icon" aria-label="Quitar gasto" onClick={() => setGastos((p) => p.filter((x) => x._key !== g._key))}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
+                </div>
+                <div className="mt-2 flex overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
+                  {GASTO_METODOS.map((m) => (
+                    <button
+                      key={m.metodo}
+                      type="button"
+                      onClick={() => setGastos((p) => p.map((x) => (x._key === g._key ? { ...x, metodo_pago: m.metodo } : x)))}
+                      className={`flex-1 px-2 py-1.5 text-xs font-medium transition ${
+                        g.metodo_pago === m.metodo
+                          ? 'bg-[var(--color-primary)] text-white'
+                          : 'bg-[var(--color-surface)] text-[var(--color-ink-2)]'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
                 </div>
                 <div className="mt-2 flex items-center gap-2">
                   <Input
@@ -351,9 +384,12 @@ function CierreForm({
         )}
         {totalGastos > 0 && (
           <div className="mt-2 grid grid-cols-2 gap-2 text-center">
-            <Resumen label="Gastos" value={euros(totalGastos)} tone="danger" />
+            <Resumen label="Gastos efectivo" value={euros(totalGastos)} tone="danger" />
             <Resumen label="Efectivo neto" value={euros(totales.efectivo - totalGastos)} />
           </div>
+        )}
+        {totalGastosTarjeta > 0 && (
+          <p className="mt-2 text-center text-xs text-[var(--color-ink-3)]">Pagado con tarjeta empresa (no resta del efectivo): <span className="tabular-nums">{euros(totalGastosTarjeta)}</span></p>
         )}
         <div className="mt-3">
           <Field label="Notas (opcional)">

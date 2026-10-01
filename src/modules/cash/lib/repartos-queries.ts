@@ -138,7 +138,8 @@ export function useResumenDia(fecha: string) {
         supabase
           .from('repartos_jornada_gastos')
           .select('importe, repartos_jornada!inner(fecha)')
-          .eq('repartos_jornada.fecha', fecha),
+          .eq('repartos_jornada.fecha', fecha)
+          .eq('metodo_pago', 'efectivo'),
         supabase
           .from('repartos_jornada')
           .select('efectivo_monedas')
