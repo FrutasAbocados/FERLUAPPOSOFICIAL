@@ -422,6 +422,9 @@ function ClienteIncidenciaCombobox({
                   role="option"
                   aria-selected={seleccionado}
                   onMouseEnter={() => setIndiceActivo(index)}
+                  // iOS no enfoca botones al tocarlos: sin esto el blur del
+                  // input cierra la lista antes de que llegue el click.
+                  onMouseDown={event => event.preventDefault()}
                   onClick={() => seleccionar(cliente)}
                   className={`flex w-full items-center gap-2 border-b border-[var(--color-border)] px-3 py-2 text-left text-sm last:border-b-0 ${
                     indiceActivo === index || seleccionado
