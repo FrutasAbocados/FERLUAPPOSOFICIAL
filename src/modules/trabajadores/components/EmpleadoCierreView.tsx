@@ -15,6 +15,7 @@ import { Input } from '@/shared/components/ui/input'
 import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 import { ClienteBuscador } from '@/modules/cash/components/ClienteBuscador'
+import { ClienteNombreInput } from '@/modules/cash/components/ClienteNombreInput'
 import { getUltimaFacturaImporte } from '@/modules/cash/lib/repartos-queries'
 import type { ContactoOpt, FormaPago, GastoMetodo, GastoTipo } from '@/modules/cash/lib/repartos-types'
 import type { EmpleadoPropio } from '../lib/useEmpleadoPropio'
@@ -159,6 +160,22 @@ function CierreForm({
     )
   }
 
+  // Una línea manual que acaba eligiendo cliente queda enlazada como las del
+  // buscador; el último importe solo se propone si aún no se ha tecleado otro.
+  const enlazarReparto = async (key: string, contacto: ContactoOpt) => {
+    const sinImporte = !Number(repartos.find((r) => r._key === key)?.importe)
+    setRepartos((prev) => prev.map((r) => (
+      r._key === key
+        ? { ...r, contact_id: contacto.id, contact_nombre: contacto.nombre, ...(sinImporte ? { _loading: true } : {}) }
+        : r
+    )))
+    if (!sinImporte) return
+    const importe = await getUltimaFacturaImporte(contacto.id).catch(() => 0)
+    setRepartos((prev) =>
+      prev.map((r) => (r._key === key ? { ...r, importe: Number(r.importe) ? r.importe : importe, _loading: false } : r)),
+    )
+  }
+
   const addRepartoManual = () =>
     setRepartos((prev) => [
       ...prev,
@@ -258,13 +275,12 @@ function CierreForm({
                   {r.contact_id ? (
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-ink)]">{r.contact_nombre}</span>
                   ) : (
-                    <Input
+                    <ClienteNombreInput
                       value={r.contact_nombre}
-                      onChange={(e) => setRepartos((prev) => prev.map((x) => (
-                        x._key === r._key ? { ...x, contact_nombre: e.target.value } : x
+                      onChange={(nombre) => setRepartos((prev) => prev.map((x) => (
+                        x._key === r._key ? { ...x, contact_nombre: nombre } : x
                       )))}
-                      placeholder="Nombre del cliente"
-                      className="flex-1"
+                      onSelect={(contacto) => void enlazarReparto(r._key, contacto)}
                     />
                   )}
                   <Button type="button" variant="ghost" size="icon" aria-label="Quitar reparto" onClick={() => setRepartos((p) => p.filter((x) => x._key !== r._key))}>

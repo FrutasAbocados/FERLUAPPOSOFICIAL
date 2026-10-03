@@ -18,6 +18,7 @@ import {
   useRevisarCierre,
 } from '../lib/repartos-queries'
 import { ClienteBuscador } from './ClienteBuscador'
+import { ClienteNombreInput } from './ClienteNombreInput'
 import type {
   ContactoOpt,
   FormaPago,
@@ -173,6 +174,18 @@ function JornadaForm({
     )
   }
 
+  // Una línea manual que acaba eligiendo cliente queda enlazada como las del
+  // buscador; el último importe solo se propone si aún no se ha tecleado otro.
+  const enlazarLinea = async (key: string, c: ContactoOpt) => {
+    const sinImporte = !Number(lineas.find((l) => l._key === key)?.importe)
+    updLinea(key, { contact_id: c.id, contact_nombre: c.nombre, ...(sinImporte ? { _loading: true } : {}) })
+    if (!sinImporte) return
+    const importe = await getUltimaFacturaImporte(c.id).catch(() => 0)
+    setLineas((prev) =>
+      prev.map((l) => (l._key === key ? { ...l, importe: Number(l.importe) || importe, _loading: false } : l)),
+    )
+  }
+
   const addLineaManual = () =>
     setLineas((prev) => [
       ...prev,
@@ -186,7 +199,7 @@ function JornadaForm({
       },
     ])
 
-  const updLinea = (key: string, patch: Partial<LineaInput>) => {
+  const updLinea = (key: string, patch: Partial<LineaUI>) => {
     setLineas((prev) => prev.map((l) => (l._key === key ? { ...l, ...patch } : l)))
   }
 
@@ -396,10 +409,10 @@ function JornadaForm({
                         {l.contact_nombre}
                       </span>
                     ) : (
-                      <Input
+                      <ClienteNombreInput
                         value={l.contact_nombre}
-                        onChange={(ev) => updLinea(l._key, { contact_nombre: ev.target.value })}
-                        placeholder="Nombre del cliente"
+                        onChange={(nombre) => updLinea(l._key, { contact_nombre: nombre })}
+                        onSelect={(c) => void enlazarLinea(l._key, c)}
                         className="h-8 min-w-0"
                       />
                     )}
