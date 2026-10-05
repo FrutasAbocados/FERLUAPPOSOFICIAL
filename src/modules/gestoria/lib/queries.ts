@@ -3,6 +3,9 @@ import { supabase } from '@/shared/lib/supabase'
 import type { GestoriaFila, GestoriaFiltros } from './types'
 
 const DOCUMENTS_BUCKET = 'gestoria-documentos'
+const PAGE_SIZE = 1000
+const MAX_DOCUMENTOS = 10_000
+const MAX_LINEAS = 50_000
 
 function text(row: Record<string, unknown>, key: string): string {
   return row[key] == null ? '' : String(row[key])
@@ -87,14 +90,29 @@ export function useGestoriaDatos(filtros: GestoriaFiltros) {
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<GestoriaFila[]> => {
       const rpc = filtros.nivel === 'documentos' ? 'gestoria_documentos' : 'gestoria_lineas'
-      const { data, error } = await supabase.rpc(rpc, {
-        p_desde: filtros.desde,
-        p_hasta: filtros.hasta,
-        p_tipo: filtros.tipo,
-      })
-      if (error) throw error
+      // PostgREST corta cada respuesta en 1.000 filas sin avisar: un trimestre
+      // de ventas tiene más y Gestoría perdía los documentos más antiguos.
+      const maxRows = filtros.nivel === 'documentos' ? MAX_DOCUMENTOS : MAX_LINEAS
+      const rows: Record<string, unknown>[] = []
+      for (let from = 0; ; from += PAGE_SIZE) {
+        const { data, error } = await supabase
+          .rpc(rpc, {
+            p_desde: filtros.desde,
+            p_hasta: filtros.hasta,
+            p_tipo: filtros.tipo,
+          })
+          .range(from, from + PAGE_SIZE - 1)
+        if (error) throw error
+        const page = (data ?? []) as Record<string, unknown>[]
+        rows.push(...page)
+        if (page.length < PAGE_SIZE) break
+        if (rows.length >= maxRows) {
+          // Mejor un error claro que un total incompleto enviado a la gestoría.
+          throw new Error(`Más de ${maxRows.toLocaleString('es-ES')} filas: acorta el rango de fechas`)
+        }
+      }
       const normalize = filtros.nivel === 'documentos' ? normalizeDocument : normalizeLine
-      return ((data ?? []) as Record<string, unknown>[]).map(normalize).filter(visibleParaGestoria)
+      return rows.map(normalize).filter(visibleParaGestoria)
     },
   })
 }
