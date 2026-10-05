@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { PageTopbar } from '@/shared/components/PageTopbar'
 import { useQueryClient } from '@tanstack/react-query'
 import { Activity, Database, HeartHandshake } from 'lucide-react'
@@ -19,10 +20,34 @@ const TABS: { key: SubTab; label: string; icon: React.ComponentType<{ className?
   { key: 'programa',    label: 'Programa fidelización', icon: HeartHandshake },
 ]
 
+const isSubTab = (v: string | null): v is SubTab =>
+  v === 'bbdd' || v === 'seguimiento' || v === 'programa'
+
 export function ClientesPage() {
-  const [tab, setTab] = useState<SubTab>('seguimiento')
-  const [selected, setSelected] = useState<string | null>(null)
+  // Pestaña y ficha viven en la URL: abrir una ficha añade una entrada al
+  // historial, así el gesto/botón atrás vuelve a la BBDD en vez de salir.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const tabParam = searchParams.get('tab')
+  const tab: SubTab = isSubTab(tabParam) ? tabParam : 'seguimiento'
+  const selected = tab === 'bbdd' ? searchParams.get('cliente') : null
   const qc = useQueryClient()
+
+  const setTab = (t: SubTab) => {
+    setSearchParams({ tab: t }, { replace: true })
+  }
+
+  const setSelected = (name: string | null) => {
+    if (name) {
+      // Cambiar de cliente con la ficha abierta no apila más entradas.
+      setSearchParams({ tab: 'bbdd', cliente: name }, { replace: !!selected, state: { ficha: true } })
+    } else if ((location.state as { ficha?: boolean } | null)?.ficha) {
+      navigate(-1)
+    } else {
+      setSearchParams({ tab: 'bbdd' }, { replace: true })
+    }
+  }
 
   // Prefetch solo el tab inicial. La BBDD dispara una RPC analítica pesada y se
   // carga bajo demanda al abrir su pestaña.
@@ -35,8 +60,7 @@ export function ClientesPage() {
   }, [qc])
 
   const goToBBDD = (name: string) => {
-    setSelected(name)
-    setTab('bbdd')
+    setSearchParams({ tab: 'bbdd', cliente: name }, { state: { ficha: true } })
   }
 
   return (

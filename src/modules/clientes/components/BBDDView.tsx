@@ -76,11 +76,9 @@ export function BBDDView({ selected: selectedExt, onSelectChange }: Props) {
   const [filtroPrograma, setFiltroPrograma] = useState<ProgramaFilter>(null)
   const [selectedInt, setSelectedInt] = useState<string | null>(null)
 
-  const selected = selectedExt ?? selectedInt
-  const setSelected = (n: string | null) => {
-    setSelectedInt(n)
-    onSelectChange?.(n)
-  }
+  // Con onSelectChange la selección la controla el padre (URL).
+  const selected = onSelectChange ? (selectedExt ?? null) : selectedInt
+  const setSelected = onSelectChange ?? setSelectedInt
 
   const { data: clientesBase = [], isLoading, error } = useClientesBBDD(range.from, range.to)
   const { data: seguimiento = [] } = useClientesSeguimiento(7, 90)
