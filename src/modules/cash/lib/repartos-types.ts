@@ -50,6 +50,8 @@ export type JornadaLinea = {
   importe: number
   forma_pago: FormaPago
   orden: number
+  // Cobro de una entrega de otro día: es dinero real, pero no reparto del día.
+  cobro_anterior: boolean
   created_at: string
 }
 
@@ -59,6 +61,7 @@ export type LineaInput = {
   importe: number
   forma_pago: FormaPago
   orden: number
+  cobro_anterior: boolean
 }
 
 export type JornadaResumen = {

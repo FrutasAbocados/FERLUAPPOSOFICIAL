@@ -45,7 +45,7 @@ export function EstadisticasView() {
   const totals = useMemo(() => {
     const acc = {
       horas: 0, total: 0, efectivo: 0, gastos: 0, efectivoNeto: 0,
-      monedas: 0, efectivoNetoSinMonedas: 0, tarjeta: 0, deuda: 0, jornadas: 0,
+      monedas: 0, efectivoNetoSinMonedas: 0, tarjeta: 0, deuda: 0, jornadas: 0, cobrosAnteriores: 0,
     }
     for (const r of rows) {
       acc.horas                  += r.horas
@@ -58,6 +58,7 @@ export function EstadisticasView() {
       acc.tarjeta                += r.tarjeta
       acc.deuda                  += r.deuda
       acc.jornadas               += r.jornadas
+      acc.cobrosAnteriores       += r.cobrosAnteriores
     }
     return acc
   }, [rows])
@@ -67,6 +68,9 @@ export function EstadisticasView() {
   // Las monedas son opcionales: si en el rango nadie apuntó ninguna, no ensuciamos
   // los KPIs ni la tabla con dos columnas a cero.
   const hayMonedas = totals.monedas > 0
+  // Cobros de entregas de otros días: entran en efectivo/tarjeta pero no en
+  // Total reparto ni en €/h. Solo se muestran si hay alguno en el rango.
+  const hayCobrosAnteriores = totals.cobrosAnteriores > 0
 
   // Agrupar por semana → empleados
   const semanas = useMemo(() => {
@@ -91,10 +95,11 @@ export function EstadisticasView() {
             tarjeta: s.tarjeta + r.tarjeta,
             deuda: s.deuda + r.deuda,
             jornadas: s.jornadas + r.jornadas,
+            cobrosAnteriores: s.cobrosAnteriores + r.cobrosAnteriores,
           }),
           {
             horas: 0, total: 0, efectivo: 0, gastos: 0, efectivoNeto: 0,
-            monedas: 0, efectivoNetoSinMonedas: 0, tarjeta: 0, deuda: 0, jornadas: 0,
+            monedas: 0, efectivoNetoSinMonedas: 0, tarjeta: 0, deuda: 0, jornadas: 0, cobrosAnteriores: 0,
           },
         )
         return { semana, lista: lista.sort((a, b) => a.empleado_nombre.localeCompare(b.empleado_nombre)), sub }
@@ -176,6 +181,9 @@ export function EstadisticasView() {
         <Kpi icon={<CreditCard className="h-4 w-4" />}   label="Tarjeta"        value={euros(totals.tarjeta)}          tone="neutral" />
         <Kpi icon={<ReceiptText className="h-4 w-4" />}  label="Deuda"          value={euros(totals.deuda)}            tone="warn" />
         <Kpi icon={<BarChart3 className="h-4 w-4" />}    label="Total reparto"  value={euros(totals.total)}            tone="primary" />
+        {hayCobrosAnteriores && (
+          <Kpi icon={<ReceiptText className="h-4 w-4" />} label="Cobros anteriores" value={euros(totals.cobrosAnteriores)} tone="neutral" />
+        )}
         <Kpi icon={<Clock className="h-4 w-4" />}        label="Horas totales"  value={`${totals.horas.toFixed(1)} h`} tone="primary" />
         <Kpi icon={<TrendingUp className="h-4 w-4" />}   label="Productividad"  value={`${productividadMedia.toFixed(1)} €/h`} tone={productividadMedia >= 80 ? 'success' : 'warn'} />
       </div>
@@ -229,6 +237,9 @@ export function EstadisticasView() {
                     <span><span className="text-[var(--color-ink-3)]">Tarj:</span> <strong>{euros(sub.tarjeta)}</strong></span>
                     <span><span className="text-[var(--color-ink-3)]">Deuda:</span> <strong>{euros(sub.deuda)}</strong></span>
                     <span><span className="text-[var(--color-ink-3)]">Total:</span> <strong>{euros(sub.total)}</strong></span>
+                    {hayCobrosAnteriores && (
+                      <span><span className="text-[var(--color-ink-3)]">Cobros ant.:</span> <strong>{euros(sub.cobrosAnteriores)}</strong></span>
+                    )}
                     <span className="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 font-semibold text-[var(--color-primary-2)]">
                       {productividadSem.toFixed(1)} €/h
                     </span>
@@ -253,6 +264,7 @@ export function EstadisticasView() {
                         <th className="px-3 py-2 text-right">Tarjeta</th>
                         <th className="px-3 py-2 text-right">Deuda</th>
                         <th className="px-3 py-2 text-right">Total</th>
+                        {hayCobrosAnteriores && <th className="px-3 py-2 text-right">Cobros ant.</th>}
                         <th className="px-3 py-2 text-right">€/h</th>
                       </tr>
                     </thead>
@@ -276,6 +288,9 @@ export function EstadisticasView() {
                             <td className="px-3 py-2 text-right tabular-nums text-[var(--color-ink-2)]">{euros(r.tarjeta)}</td>
                             <td className="px-3 py-2 text-right tabular-nums text-[var(--color-warn)]">{euros(r.deuda)}</td>
                             <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--color-ink)]">{euros(r.total)}</td>
+                            {hayCobrosAnteriores && (
+                              <td className="px-3 py-2 text-right tabular-nums text-[var(--color-ink-2)]">{euros(r.cobrosAnteriores)}</td>
+                            )}
                             <td className="px-3 py-2 text-right tabular-nums text-[var(--color-primary-2)]">{ph.toFixed(1)}</td>
                           </tr>
                         )

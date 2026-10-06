@@ -118,6 +118,7 @@ function JornadaForm({
       importe: Number(l.importe),
       forma_pago: l.forma_pago,
       orden: l.orden,
+      cobro_anterior: l.cobro_anterior,
     })),
   )
   const [gastos, setGastos] = useState<GastoUI[]>(() =>
@@ -165,6 +166,7 @@ function JornadaForm({
         importe: 0,
         forma_pago: 'efectivo',
         orden: prev.length,
+        cobro_anterior: false,
         _loading: true,
       },
     ])
@@ -196,6 +198,7 @@ function JornadaForm({
         importe: 0,
         forma_pago: 'efectivo',
         orden: prev.length,
+        cobro_anterior: false,
       },
     ])
 
@@ -207,8 +210,15 @@ function JornadaForm({
     setLineas((prev) => prev.filter((l) => l._key !== key))
   }
 
+  // Total = reparto del día; los cobros de entregas anteriores son dinero que
+  // entra (efectivo/tarjeta) pero no cuentan como reparto.
   const totales = useMemo(() => {
-    const total = lineas.reduce((s, l) => s + Number(l.importe || 0), 0)
+    const total = lineas
+      .filter((l) => !l.cobro_anterior)
+      .reduce((s, l) => s + Number(l.importe || 0), 0)
+    const cobrosAnteriores = lineas
+      .filter((l) => l.cobro_anterior)
+      .reduce((s, l) => s + Number(l.importe || 0), 0)
     const efectivo = lineas
       .filter((l) => l.forma_pago === 'efectivo')
       .reduce((s, l) => s + Number(l.importe || 0), 0)
@@ -218,7 +228,7 @@ function JornadaForm({
     const deuda = lineas
       .filter((l) => l.forma_pago === 'deuda')
       .reduce((s, l) => s + Number(l.importe || 0), 0)
-    return { total, efectivo, tarjeta, deuda, count: lineas.length }
+    return { total, cobrosAnteriores, efectivo, tarjeta, deuda, count: lineas.length }
   }, [lineas])
 
   const efectivoNeto = totales.efectivo - totalGastos
@@ -271,6 +281,7 @@ function JornadaForm({
           importe: l.importe,
           forma_pago: l.forma_pago,
           orden: i,
+          cobro_anterior: l.cobro_anterior,
         })),
       })
       await guardarGastos.mutateAsync({ jornadaId: id, gastos: gastosPayload() })
@@ -307,6 +318,7 @@ function JornadaForm({
           importe: l.importe,
           forma_pago: l.forma_pago,
           orden: i,
+          cobro_anterior: l.cobro_anterior,
         })),
       })
       await guardarGastos.mutateAsync({ jornadaId: jornada.id, gastos: gastosPayload() })
@@ -402,7 +414,7 @@ function JornadaForm({
                 {lineas.map((l) => (
                   <li
                     key={l._key}
-                    className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 px-3 py-2 text-sm"
+                    className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-2 px-3 py-2 text-sm"
                   >
                     {l.contact_id ? (
                       <span className="truncate font-medium text-[var(--color-ink)]">
@@ -446,6 +458,19 @@ function JornadaForm({
                       <option value="tarjeta">Tarjeta</option>
                       <option value="deuda">Deuda</option>
                     </select>
+                    <button
+                      type="button"
+                      onClick={() => updLinea(l._key, { cobro_anterior: !l.cobro_anterior })}
+                      aria-pressed={l.cobro_anterior}
+                      title="Cobro de una entrega de otro día: entra en caja, no cuenta como reparto"
+                      className={`h-8 rounded-[var(--radius-md)] border px-2 text-[11px] font-semibold transition-colors ${
+                        l.cobro_anterior
+                          ? 'border-[var(--color-warn)] bg-[var(--color-warn-soft)] text-[var(--color-warn)]'
+                          : 'border-[var(--color-border)] text-[var(--color-ink-3)]'
+                      }`}
+                    >
+                      Ant.
+                    </button>
                     <Button
                       type="button"
                       variant="ghost"
@@ -554,7 +579,10 @@ function JornadaForm({
         <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div className="mb-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
             <Total label="Repartos" value={String(totales.count)} />
-            <Total label="Total" value={euros(totales.total)} />
+            <Total
+              label={totales.cobrosAnteriores > 0 ? `Total · +${euros(totales.cobrosAnteriores)} ant.` : 'Total'}
+              value={euros(totales.total)}
+            />
             <Total label="Tarjeta" value={euros(totales.tarjeta)} />
             <Total label="Deuda" value={euros(totales.deuda)} />
           </div>

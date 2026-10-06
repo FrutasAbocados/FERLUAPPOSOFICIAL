@@ -32,6 +32,7 @@ type RepartoUI = {
   contact_nombre: string
   forma_pago: FormaPago
   importe: number | ''
+  cobro_anterior: boolean
   _loading?: boolean
 }
 
@@ -129,6 +130,7 @@ function CierreForm({
       contact_nombre: l.contact_nombre,
       forma_pago: l.forma_pago,
       importe: Number(l.importe),
+      cobro_anterior: l.cobro_anterior,
     })),
   )
   const [gastos, setGastos] = useState<GastoUI[]>(() =>
@@ -151,6 +153,7 @@ function CierreForm({
         contact_nombre: contacto.nombre,
         forma_pago: 'efectivo',
         importe: '',
+        cobro_anterior: false,
         _loading: true,
       },
     ])
@@ -185,6 +188,7 @@ function CierreForm({
         contact_nombre: '',
         forma_pago: 'efectivo',
         importe: '',
+        cobro_anterior: false,
       },
     ])
 
@@ -238,6 +242,7 @@ function CierreForm({
             importe: r.importe === '' ? 0 : Number(r.importe),
             forma_pago: r.forma_pago,
             orden: i,
+            cobro_anterior: r.cobro_anterior,
           })),
         gastos: gastos
           .filter((g) => Number(g.importe || 0) > 0)
@@ -315,6 +320,15 @@ function CierreForm({
                     />
                   )}
                 </div>
+                <label className="mt-2 flex items-center gap-2 text-xs text-[var(--color-ink-2)]">
+                  <input
+                    type="checkbox"
+                    checked={r.cobro_anterior}
+                    onChange={(e) => setRepartos((p) => p.map((x) => (x._key === r._key ? { ...x, cobro_anterior: e.target.checked } : x)))}
+                    className="h-4 w-4 accent-[var(--color-warn)]"
+                  />
+                  Cobro de un día anterior (no es reparto de hoy)
+                </label>
               </li>
             ))}
           </ul>

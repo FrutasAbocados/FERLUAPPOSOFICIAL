@@ -291,6 +291,7 @@ export type StatsSemana = {
   tarjeta: number
   deuda: number
   jornadas: number
+  cobrosAnteriores: number
 }
 
 export function useCashStatsSemanas(from: string, to: string) {
@@ -315,6 +316,7 @@ export function useCashStatsSemanas(from: string, to: string) {
         | 'tarjeta'
         | 'deuda'
         | 'jornadas'
+        | 'cobrosAnteriores'
       > & {
         horas: number | string
         total: number | string
@@ -326,6 +328,7 @@ export function useCashStatsSemanas(from: string, to: string) {
         tarjeta: number | string
         deuda: number | string
         jornadas: number | string
+        cobros_anteriores: number | string
       }
       return (data ?? []).map((r: Raw) => ({
         semana_inicio: r.semana_inicio,
@@ -341,6 +344,7 @@ export function useCashStatsSemanas(from: string, to: string) {
         tarjeta: Number(r.tarjeta),
         deuda: Number(r.deuda),
         jornadas: Number(r.jornadas),
+        cobrosAnteriores: Number(r.cobros_anteriores),
       }))
     },
   })
@@ -370,6 +374,7 @@ export function useGuardarLineas() {
         importe: l.importe,
         forma_pago: l.forma_pago,
         orden: i,
+        cobro_anterior: l.cobro_anterior,
       }))
       const { error: errIns } = await supabase.from('repartos_jornada_lineas').insert(rows)
       if (errIns) throw errIns
