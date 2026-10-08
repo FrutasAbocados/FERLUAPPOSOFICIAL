@@ -1,8 +1,7 @@
 import { format } from 'date-fns'
 import { ShiftCell } from './ShiftCell'
 import { isToday, isoDate, weekDays } from '../lib/week'
-import { nextInCycle } from '../lib/shift-meta'
-import { turnoKey, type Empleado, type ShiftType, type Turno } from '../lib/types'
+import { turnoKey, type Empleado, type Turno } from '../lib/types'
 
 type Props = {
   anchor: Date
@@ -11,7 +10,7 @@ type Props = {
   isAdmin: boolean
   currentUserEmpleadoId: string | null
   pendingKey: string | null
-  onSet: (empleadoId: string, fechaISO: string, next: ShiftType | null) => void
+  onEdit: (empleado: Empleado, fecha: Date, turno: Turno | null) => void
 }
 
 export function WeekGrid({
@@ -21,7 +20,7 @@ export function WeekGrid({
   isAdmin,
   currentUserEmpleadoId,
   pendingKey,
-  onSet,
+  onEdit,
 }: Props) {
   const days = weekDays(anchor)
   const turnoMap = new Map<string, Turno>()
@@ -31,7 +30,7 @@ export function WeekGrid({
     <div className="ao-card overflow-x-auto p-0">
       <div
         className="grid min-w-[640px] gap-px bg-[var(--color-border)]"
-        style={{ gridTemplateColumns: '160px repeat(7, minmax(64px, 1fr))' }}
+        style={{ gridTemplateColumns: '160px repeat(7, minmax(72px, 1fr))' }}
       >
         {/* Header row */}
         <div className="label-caps bg-[rgba(255,255,255,.025)] px-3 py-2">
@@ -81,13 +80,11 @@ export function WeekGrid({
                 return (
                   <div key={fechaISO} className="bg-[var(--color-surface)] p-1.5">
                     <ShiftCell
-                      tipo={t?.tipo ?? null}
+                      turno={t}
                       editable={editable && !isPending}
                       isToday={isToday(d)}
                       onClick={() => {
-                        if (!editable) return
-                        const next = nextInCycle(t?.tipo ?? null)
-                        onSet(emp.id, fechaISO, next)
+                        if (editable) onEdit(emp, d, t)
                       }}
                     />
                   </div>

@@ -9,6 +9,7 @@ import { useAuth } from '@/shared/auth/useAuth'
 import { ColaboradoresView } from './ColaboradoresView'
 import { PlusesExtraAdminView } from './PlusesExtraAdminView'
 import { EmpleadoHero } from './EmpleadoHero'
+import { TurnoHoyBanner } from './TurnoHoyBanner'
 import { EmpleadoObjetivoCard } from './EmpleadoObjetivoCard'
 import { EmpleadoBeneficiosMesCard } from './EmpleadoBeneficiosMesCard'
 import { useEmpleadoPropio } from '../lib/useEmpleadoPropio'
@@ -188,6 +189,7 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
       <div className="ao-page py-5 md:py-6">
         {e ? (
           <>
+            <TurnoHoyBanner empleadoId={e.id} />
             <EmpleadoHero
               empleadoId={e.id}
               nombre={e.nombre}

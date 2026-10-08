@@ -19,6 +19,7 @@ const EmpleadoCreditoView = lazy(() => import('./components/EmpleadoCreditoView'
 const EmpleadoColabView = lazy(() => import('./components/EmpleadoColabView').then(m => ({ default: m.EmpleadoColabView })))
 const EmpleadoVacacionesView = lazy(() => import('./components/EmpleadoVacacionesView').then(m => ({ default: m.EmpleadoVacacionesView })))
 const EmpleadoCierreView = lazy(() => import('./components/EmpleadoCierreView').then(m => ({ default: m.EmpleadoCierreView })))
+const EmpleadoTurnosView = lazy(() => import('./components/EmpleadoTurnosView').then(m => ({ default: m.EmpleadoTurnosView })))
 const EmpleadoHorasExtrasView = lazy(() => import('./components/EmpleadoHorasExtrasView').then(m => ({ default: m.EmpleadoHorasExtrasView })))
 const RuletaPremiosSelfCard = lazy(() => import('./components/RuletaPremiosSelfCard').then(m => ({ default: m.RuletaPremiosSelfCard })))
 const ObjetivosAdminView = lazy(() => import('./components/ObjetivosAdminView').then(m => ({ default: m.ObjetivosAdminView })))
@@ -48,7 +49,7 @@ const PEDIDOS_TARDE_ADMIN_TAB: { k: Tab; l: string; Icon: typeof Award } = {
   Icon: ReceiptText,
 }
 
-const TABS_EMPLEADO: Tab[] = ['dashboard', 'cierre', 'incidencias', 'disciplina', 'puntos', 'premios', 'vacaciones', 'horas_extras', 'credito', 'colab', 'pedidos_tarde']
+const TABS_EMPLEADO: Tab[] = ['dashboard', 'turnos', 'cierre', 'incidencias', 'disciplina', 'puntos', 'premios', 'vacaciones', 'horas_extras', 'credito', 'colab', 'pedidos_tarde']
 const TAB_KEYS = new Set<string>([...TABS.map(t => t.k), ...TABS_EMPLEADO])
 
 const isTab = (v: string | null | undefined): v is Tab =>
@@ -147,6 +148,7 @@ function EmpleadoContent({
 
       <Suspense fallback={<TabFallback />}>
         {empTab === 'dashboard'    && <DashboardView modoEmpleado />}
+        {empTab === 'turnos'       && (empleado ? <EmpleadoTurnosView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'cierre'       && (empleado ? <EmpleadoCierreView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'incidencias'  && <IncidenciasView autorEmpleadoId={empleado?.id ?? null} />}
         {empTab === 'disciplina'   && <DisciplinaView modoEmpleado />}

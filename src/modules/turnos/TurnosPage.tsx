@@ -6,13 +6,14 @@ import { WeekHeader } from './components/WeekHeader'
 import { WeekGrid } from './components/WeekGrid'
 import { Legend } from './components/Legend'
 import { AddEmpleadoForm } from './components/AddEmpleadoForm'
+import { TurnoEditor, type TurnoDraft } from './components/TurnoEditor'
 import {
   useEmpleados,
   useSetTurno,
   useTurnosOfWeek,
 } from './lib/queries'
-import { shiftWeek, weekStart } from './lib/week'
-import { turnoKey, type ShiftType } from './lib/types'
+import { isoDate, shiftWeek, weekStart } from './lib/week'
+import { turnoKey, type Empleado, type Turno } from './lib/types'
 
 export function TurnosPage() {
   const { profile, user } = useAuth()
@@ -39,8 +40,16 @@ export function TurnosPage() {
       ? turnoKey(setTurno.variables.empleado_id, setTurno.variables.fecha)
       : null
 
-  const handleSet = (empleadoId: string, fecha: string, next: ShiftType | null) => {
-    setTurno.mutate({ empleado_id: empleadoId, fecha, tipo: next, weekAnchor: anchor })
+  const [editando, setEditando] = useState<{ empleado: Empleado; fecha: Date; turno: Turno | null } | null>(null)
+
+  const handleSave = (draft: TurnoDraft) => {
+    if (!editando) return
+    setTurno.mutate({
+      empleado_id: editando.empleado.id,
+      fecha: isoDate(editando.fecha),
+      ...draft,
+    })
+    setEditando(null)
   }
 
   const loading = empleados.isLoading || turnos.isLoading
@@ -51,7 +60,7 @@ export function TurnosPage() {
       <PageTopbar
         breadcrumb="EQUIPO · TURNOS"
         title="Turnos"
-        subtitle={isAdmin ? 'Planning semanal editable por celda.' : 'Planning semanal en solo lectura.'}
+        subtitle={isAdmin ? 'Planning semanal: toca una celda para editar tipo, horario y nota.' : 'Planning semanal en solo lectura.'}
         actions={
           <WeekHeader
             anchor={anchor}
@@ -98,7 +107,14 @@ export function TurnosPage() {
           isAdmin={isAdmin}
           currentUserEmpleadoId={currentUserEmpleadoId}
           pendingKey={pendingKey}
-          onSet={handleSet}
+          onEdit={(empleado, fecha, turno) => setEditando({ empleado, fecha, turno })}
+        />
+      )}
+      {editando && (
+        <TurnoEditor
+          {...editando}
+          onSave={handleSave}
+          onClose={() => setEditando(null)}
         />
       )}
       </div>

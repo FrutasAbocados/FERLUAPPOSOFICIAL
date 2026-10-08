@@ -3,6 +3,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import {
   Award,
   BarChart3,
+  CalendarClock,
   CalendarOff,
   ClipboardCheck,
   ClipboardList,
@@ -17,10 +18,11 @@ import {
 } from 'lucide-react'
 import { INCENTIVOS_TRABAJADORES_VISIBLES, esTabIncentivos } from '../lib/features'
 
-export type EmpleadoTab = 'dashboard' | 'puntos' | 'premios' | 'credito' | 'colab' | 'vacaciones' | 'cierre' | 'horas_extras' | 'incidencias' | 'disciplina' | 'pedidos_tarde'
+export type EmpleadoTab = 'dashboard' | 'turnos' | 'puntos' | 'premios' | 'credito' | 'colab' | 'vacaciones' | 'cierre' | 'horas_extras' | 'incidencias' | 'disciplina' | 'pedidos_tarde'
 
 const ALL_TABS = [
   { k: 'dashboard',   l: 'Inicio',      Icon: BarChart3 },
+  { k: 'turnos',      l: 'Turnos',      Icon: CalendarClock },
   { k: 'cierre',      l: 'Mi cierre',   Icon: ClipboardCheck },
   { k: 'incidencias', l: 'Incidencias', Icon: ClipboardList },
   { k: 'disciplina',  l: 'Disciplina',  Icon: ShieldAlert },
@@ -33,7 +35,7 @@ const ALL_TABS = [
   { k: 'pedidos_tarde', l: 'Pedidos Tarde', Icon: ReceiptText, soloRaul: true },
 ] as const
 
-const MOBILE_PRIMARY_KEYS = ['dashboard', 'cierre', 'incidencias', 'puntos'] as const
+const MOBILE_PRIMARY_KEYS = ['dashboard', 'turnos', 'cierre', 'incidencias'] as const
 
 export function EmpleadoNav({
   tab,
