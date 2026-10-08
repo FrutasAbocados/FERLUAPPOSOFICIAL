@@ -181,6 +181,18 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(bin)
 }
 
+/**
+ * La ruta la escribe la app: solo se acepta la forma exacta que genera
+ * `encolarFacturasProveedor`. Sin esto, un `../` saldría del bucket y la
+ * service key leería cualquier otro archivo privado (nóminas, backups…).
+ */
+const RUTA_COLA_RE = /^cola\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/\d{1,3}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.pdf$/
+
+function rutaCola(path: string): string {
+  if (!RUTA_COLA_RE.test(path)) throw new Error('Ruta de archivo no válida')
+  return path
+}
+
 async function descargar(path: string): Promise<Uint8Array> {
   const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, { headers: dbHeaders })
   if (!res.ok) throw new Error(`No se pudo leer el PDF subido (${res.status})`)
@@ -264,7 +276,7 @@ async function procesar(t: Trabajo) {
   }
 
   await patchTrabajo(t.id, { estado: 'ocr', detalle: 'Leyendo el PDF…' })
-  const bytes = await descargar(t.storage_path)
+  const bytes = await descargar(rutaCola(t.storage_path))
   const { data: parsed } = await invocar<Extraccion | { error: string }>(
     'parsear-factura-proveedor',
     { pdf_base64: toBase64(bytes), filename: t.nombre },
@@ -359,7 +371,7 @@ async function procesar(t: Trabajo) {
       })
     }
     if (!compra.pdf_path) {
-      const pdfPath = await archivarPdf(t.storage_path, compra.id)
+      const pdfPath = await archivarPdf(rutaCola(t.storage_path), compra.id)
       await rest(`pedidos_wa_compras?id=eq.${compra.id}`, {
         method: 'PATCH',
         headers: { prefer: 'return=minimal' },
