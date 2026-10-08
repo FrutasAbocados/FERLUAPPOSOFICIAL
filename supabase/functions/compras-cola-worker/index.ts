@@ -199,6 +199,15 @@ async function descargar(path: string): Promise<Uint8Array> {
   return new Uint8Array(await res.arrayBuffer())
 }
 
+/** Una vez archivado en la compra, el PDF de la cola sobra. Si falla, no pasa nada. */
+async function borrarDeCola(path: string): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
+    method: 'DELETE',
+    headers: dbHeaders,
+  })
+  if (!res.ok) console.warn('[compras-cola-worker] PDF de cola no borrado', path, res.status)
+}
+
 /** Copia el PDF de la cola a la ruta definitiva de la compra (misma que usa la app). */
 async function archivarPdf(origen: string, compraId: string): Promise<string> {
   const destino = `compras/${compraId}/original.pdf`
@@ -388,6 +397,8 @@ async function procesar(t: Trabajo) {
   }
 
   await patchTrabajo(t.id, { compra_id: compra.id })
+  // La compra ya tiene su PDF (recién copiado o de antes): el de la cola sobra.
+  await borrarDeCola(rutaCola(t.storage_path)).catch(() => {})
 
   if (compra.holded_purchase_id) {
     await patchTrabajo(t.id, { estado: 'ok', detalle: null, holded_num: compra.holded_purchase_num ?? '✓' })
@@ -433,6 +444,10 @@ async function trabajar() {
       console.error('[compras-cola-worker] cerrar lote', e instanceof Error ? e.message : e)
     })
   }
+  // Tandas que terminaron por una recuperación tras un corte, sin pasar por arriba.
+  await rpc('pedidos_wa_compras_cola_cerrar_pendientes').catch((e) => {
+    console.error('[compras-cola-worker] cerrar pendientes', e instanceof Error ? e.message : e)
+  })
 }
 
 Deno.serve(async (req) => {
