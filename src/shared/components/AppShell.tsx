@@ -3,6 +3,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { prefetchManagerResumen } from '@/modules/manager/lib/queries'
+import { ColaComprasBarra } from '@/modules/pedidos-wa/components/ColaComprasBarra'
 import {
   BarChart3,
   CalendarDays,
@@ -394,6 +395,8 @@ export function AppShell() {
             </div>
           </header>
         </div>
+
+        {isAdmin && <ColaComprasBarra />}
 
         <div className="w-full max-w-full flex-1 overflow-y-auto overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
           <Outlet key={location.pathname} />

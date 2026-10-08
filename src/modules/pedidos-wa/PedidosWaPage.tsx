@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { PageTopbar } from '@/shared/components/PageTopbar'
 import { Coins, FileText, MessageSquareText, Package, Repeat, ShoppingCart, Truck, Users, Zap } from 'lucide-react'
 import { cn } from '@/shared/lib/utils'
@@ -17,7 +18,9 @@ const Recurrentes = lazy(() => import('./components/Recurrentes').then(m => ({ d
 type Tab = 'wa-auto' | 'captura' | 'hoy' | 'compra' | 'compras-prov' | 'mapeo-costes' | 'ruta' | 'clientes' | 'productos' | 'recurrentes'
 
 export function PedidosWaPage() {
-  const [tab, setTab] = useState<Tab>('wa-auto')
+  // `?tab=compras-prov` llega desde la barra de la cola y la notificación.
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState<Tab>(params.get('tab') === 'compras-prov' ? 'compras-prov' : 'wa-auto')
 
   return (
     <div className="flex h-full flex-col overflow-x-hidden">

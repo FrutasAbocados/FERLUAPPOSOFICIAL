@@ -27,7 +27,6 @@ import { toast } from '@/shared/lib/toast'
 import { cn } from '@/shared/lib/utils'
 import { prepararFoto, type FotoPreparada } from '../lib/imagen'
 import {
-  buscarProveedorAlias,
   parsearFacturaProveedor,
   parsearFacturaProveedorFotos,
   useBuscarProveedores,
@@ -40,6 +39,14 @@ import {
   type CompraConLineas,
   type SubirCompraDryRun,
 } from '../lib/queries'
+import {
+  ESTADOS_COLA_ACTIVOS,
+  encolarFacturasProveedor,
+  useAccionesColaCompras,
+  useColaCompras,
+  type EstadoCola,
+  type ItemColaDB,
+} from '../lib/compras-cola'
 import {
   PROVEEDOR_HOLDED_ID,
   type CompraExtraccion,
@@ -58,34 +65,10 @@ type Borrador = CompraExtraccion & {
 
 const UNIDADES = ['caja', 'kg', 'bolsa', 'saco', 'bandeja', 'manojo', 'bulto', 'unidad', 'lecho', 'carton'] as const
 
-/** Tope de PDFs por tanda. Se procesan de uno en uno, no en paralelo. */
-const MAX_COLA = 20
-/** Diferencia máxima entre la suma de líneas y el bruto para subir sin revisión. */
-const TOLERANCIA_DESVIACION = 0.05
+/** Tope de PDFs por tanda. Se procesan en el servidor, en segundo plano. */
+const MAX_COLA = 60
 
-type EstadoItem =
-  | 'espera'
-  | 'ocr'
-  | 'guardando'
-  | 'subiendo'
-  | 'ok'        // guardada Y subida a Holded
-  | 'revisar'   // guardada, pero NO subida: necesita ojo humano
-  | 'error'     // no se pudo guardar/subir
-  | 'cancelado'
-
-type ItemCola = {
-  id: string
-  file: File
-  nombre: string
-  estado: EstadoItem
-  detalle: string | null
-  proveedor: string | null
-  numFactura: string | null
-  total: number | null
-  holdedNum: string | null
-  /** Permite reintentar Holded sin repetir OCR ni crear otra compra. */
-  compraId: string | null
-}
+type EstadoItem = EstadoCola
 
 const ITEM_TERMINADO: EstadoItem[] = ['ok', 'revisar', 'error', 'cancelado']
 
@@ -124,9 +107,11 @@ export function Compras() {
   const [pdfOriginal, setPdfOriginal] = useState<File | null>(null)
   const [parseando, setParseando] = useState(false)
   const [dragActive, setDragActive] = useState(false)
-  const [cola, setCola] = useState<ItemCola[]>([])
-  const [colaCorriendo, setColaCorriendo] = useState(false)
-  const cancelarColaRef = useRef(false)
+  const colaQuery = useColaCompras()
+  const cola = colaQuery.data ?? []
+  const colaCorriendo = cola.some((it) => ESTADOS_COLA_ACTIVOS.includes(it.estado))
+  const accionesCola = useAccionesColaCompras()
+  const [subiendoCola, setSubiendoCola] = useState<{ subidos: number; total: number } | null>(null)
   const inputRef   = useRef<HTMLInputElement>(null)
   const camaraRef  = useRef<HTMLInputElement>(null)
   const galeriaRef = useRef<HTMLInputElement>(null)
@@ -252,157 +237,9 @@ export function Compras() {
     }
   }
 
-  // ─── Cola de PDFs (tanda de hasta 20, uno por uno) ─────────────────────────
+  // ─── Cola de PDFs (en servidor: sigue aunque se cierre la app) ─────────────
 
-  const patchItem = (id: string, patch: Partial<ItemCola>) =>
-    setCola((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)))
-
-  /**
-   * Un PDF de principio a fin: OCR → resolver proveedor → guardar → subir a Holded.
-   * Sube SOLO si la factura está limpia: proveedor enlazado, líneas que cuadran con
-   * el bruto y sin avisos del OCR. Lo dudoso se guarda y se marca «revisar» — una
-   * factura de compra en Holded no se deshace desde aquí.
-   */
-  const procesarItemCola = async (item: ItemCola): Promise<'ok' | 'revisar'> => {
-    // Si la compra ya quedó guardada, solo falta confirmar Holded. Esto evita
-    // repetir OCR y volver a insertar la misma factura en cada reintento.
-    if (item.compraId) {
-      patchItem(item.id, { estado: 'subiendo', detalle: 'Reintentando subida a Holded…' })
-      const res = await subir.mutateAsync({ compra_id: item.compraId, dry_run: false })
-      if (!('holded_purchase_id' in res)) throw new Error('respuesta inesperada de compra-a-holded')
-      patchItem(item.id, {
-        estado: 'ok',
-        detalle: null,
-        holdedNum: res.holded_purchase_num ?? '✓',
-      })
-      return 'ok'
-    }
-
-    patchItem(item.id, { estado: 'ocr', detalle: 'Leyendo el PDF…' })
-    const extr = await parsearFacturaProveedor(item.file)
-
-    let holdedId: string | null =
-      extr.proveedor_detectado !== 'otro' ? PROVEEDOR_HOLDED_ID[extr.proveedor_detectado] : null
-    let proveedorNombre = extr.proveedor_nombre
-
-    // Proveedor no autodetectado: probar el alias aprendido en facturas anteriores.
-    if (!holdedId) {
-      const alias = await buscarProveedorAlias(extr.proveedor_nombre).catch(() => null)
-      if (alias) {
-        holdedId = alias.holded_contact_id
-        proveedorNombre = alias.holded_nombre
-      }
-    }
-
-    const sumaLineas = extr.lineas.reduce((s, l) => s + Number(l.importe ?? 0), 0)
-    const desv = Math.abs(sumaLineas - Number(extr.total_bruto ?? 0))
-
-    patchItem(item.id, {
-      estado: 'guardando',
-      detalle: 'Guardando la compra…',
-      proveedor: proveedorNombre,
-      numFactura: extr.num_factura,
-      total: Number(extr.total ?? 0),
-    })
-
-    const compra = await guardar.mutateAsync({
-      proveedor_holded_id: holdedId,
-      proveedor_nombre:    proveedorNombre,
-      num_factura:         extr.num_factura.trim(),
-      fecha:               extr.fecha,
-      total_bruto:         extr.total_bruto,
-      total_iva:           extr.total_iva,
-      total:               extr.total,
-      iva_desglose:        extr.iva_desglose,
-      pdf_filename:        item.file.name,
-      raw_extraction:      extr,
-      notas:               extr.notas_globales ?? null,
-      lineas:              extr.lineas,
-      origen:              'pdf',
-      pdf:                 item.file,
-      fotos:               [],
-      permitir_reanudar:   true,
-    })
-    patchItem(item.id, { compraId: compra.id })
-
-    // También es idempotente cuando el servidor terminó la subida pero la
-    // respuesta se perdió: la compra recuperada ya trae el id de Holded.
-    if (compra.holded_purchase_id) {
-      patchItem(item.id, {
-        estado: 'ok',
-        detalle: null,
-        holdedNum: compra.holded_purchase_num ?? '✓',
-      })
-      return 'ok'
-    }
-
-    const bloqueo = !holdedId
-      ? 'Guardada sin proveedor Holded — enlázalo abajo y súbela a mano'
-      : !extr.num_factura.trim()
-      ? 'Guardada sin nº de factura — complétalo antes de subirla'
-      : desv > TOLERANCIA_DESVIACION
-      ? `Guardada, NO subida: las líneas (${euros(sumaLineas)}) no cuadran con el bruto (${euros(Number(extr.total_bruto ?? 0))}), dif. ${euros(desv)}`
-      : extr.notas_globales
-      ? `Guardada, NO subida: el OCR no se fía — ${extr.notas_globales}`
-      : null
-
-    if (bloqueo) {
-      patchItem(item.id, { estado: 'revisar', detalle: bloqueo })
-      return 'revisar'
-    }
-
-    patchItem(item.id, { estado: 'subiendo', detalle: 'Subiendo a Holded…' })
-    const res = await subir.mutateAsync({ compra_id: compra.id, dry_run: false })
-    if (!('holded_purchase_id' in res)) throw new Error('respuesta inesperada de compra-a-holded')
-    patchItem(item.id, {
-      estado: 'ok',
-      detalle: null,
-      holdedNum: res.holded_purchase_num ?? '✓',
-    })
-    return 'ok'
-  }
-
-  const correrCola = async (items: ItemCola[]) => {
-    cancelarColaRef.current = false
-    setColaCorriendo(true)
-    let subidas = 0
-    let revisar = 0
-    let fallos = 0
-    try {
-      for (const item of items) {
-        if (cancelarColaRef.current) {
-          patchItem(item.id, { estado: 'cancelado', detalle: 'Cancelada antes de empezar' })
-          continue
-        }
-        try {
-          const fin = await procesarItemCola(item)
-          if (fin === 'ok') subidas++
-          else revisar++
-        } catch (e) {
-          fallos++
-          const msg = mensajeError(e)
-          const dup = esErrorDuplicado(e, msg)
-          patchItem(item.id, {
-            estado: 'error',
-            detalle: dup ? 'Esta factura ya estaba registrada' : msg,
-          })
-        }
-      }
-    } finally {
-      setColaCorriendo(false)
-    }
-    toast({
-      title: cancelarColaRef.current ? 'Tanda cancelada' : 'Tanda terminada',
-      description: [
-        `${subidas} subidas a Holded`,
-        revisar > 0 ? `${revisar} para revisar` : null,
-        fallos  > 0 ? `${fallos} con error` : null,
-      ].filter(Boolean).join(' · '),
-      variant: fallos > 0 ? 'error' : undefined,
-    })
-  }
-
-  const arrancarCola = (pdfs: File[]) => {
+  const arrancarCola = async (pdfs: File[]) => {
     const lote = pdfs.slice(0, MAX_COLA)
     if (pdfs.length > MAX_COLA) {
       toast({
@@ -411,33 +248,28 @@ export function Compras() {
         variant: 'error',
       })
     }
-    const items: ItemCola[] = lote.map((f, i) => ({
-      id: `${Date.now()}-${i}-${f.name}`,
-      file: f,
-      nombre: f.name,
-      estado: 'espera',
-      detalle: null,
-      proveedor: null,
-      numFactura: null,
-      total: null,
-      holdedNum: null,
-      compraId: null,
-    }))
-    setCola(items)
-    void correrCola(items)
+    setSubiendoCola({ subidos: 0, total: lote.length })
+    try {
+      const { encolados, fallidos } = await encolarFacturasProveedor(lote, (subidos, total) =>
+        setSubiendoCola({ subidos, total }),
+      )
+      accionesCola.refrescar()
+      toast({
+        title: `${encolados} facturas en cola`,
+        description: fallidos.length > 0
+          ? `No se pudieron subir: ${fallidos.join(', ')}`
+          : 'Se procesan en el servidor: ya puedes salir de la app, te avisamos al terminar.',
+        variant: fallidos.length > 0 ? 'error' : undefined,
+      })
+    } catch (e) {
+      toast({ title: 'No se pudo crear la tanda', description: mensajeError(e), variant: 'error' })
+    } finally {
+      setSubiendoCola(null)
+    }
   }
 
-  const reintentarFallidas = () => {
-    const fallidas = cola.filter((it) => it.estado === 'error' || it.estado === 'cancelado')
-    if (fallidas.length === 0) return
-    const reset: ItemCola[] = fallidas.map((it) => ({
-      ...it,
-      estado: 'espera',
-      detalle: null,
-      holdedNum: null,
-    }))
-    setCola((prev) => prev.map((it) => reset.find((r) => r.id === it.id) ?? it))
-    void correrCola(reset)
+  const accionCola = (fn: () => Promise<void>) => () => {
+    fn().catch((e) => toast({ title: 'Error en la cola', description: mensajeError(e), variant: 'error' }))
   }
 
   const procesarArchivos = (files: File[]) => {
@@ -455,7 +287,7 @@ export function Compras() {
     }
     // Un solo PDF mantiene el flujo de siempre: borrador editable antes de guardar.
     if (pdfs.length === 1) void procesarPdf(pdfs[0])
-    else arrancarCola(pdfs)
+    else void arrancarCola(pdfs)
   }
 
   const onDrop = (e: React.DragEvent) => {
@@ -583,18 +415,26 @@ export function Compras() {
       </div>
 
       {/* Cola de tanda: mientras hay tanda, la zona de soltar se oculta */}
+      {subiendoCola && (
+        <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm">
+          <Loader2 className="h-4 w-4 animate-spin text-[var(--color-primary)]" />
+          <span className="tabular-nums">
+            Subiendo PDFs {subiendoCola.subidos}/{subiendoCola.total} — no cierres hasta que terminen de subir
+          </span>
+        </div>
+      )}
       {cola.length > 0 && (
         <ColaPanel
           cola={cola}
           corriendo={colaCorriendo}
-          onCancelar={() => { cancelarColaRef.current = true }}
-          onReintentar={reintentarFallidas}
-          onLimpiar={() => setCola([])}
+          onCancelar={accionCola(accionesCola.cancelar)}
+          onReintentar={accionCola(accionesCola.reintentarFallidas)}
+          onLimpiar={accionCola(accionesCola.limpiar)}
         />
       )}
 
       {/* Drop zone (oculto si hay borrador o tanda en curso para no estorbar) */}
-      {!borrador && cola.length === 0 && (
+      {!borrador && cola.length === 0 && !subiendoCola && (
         <div className="space-y-2">
           <div
             onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
@@ -811,7 +651,7 @@ function ColaPanel({
   onReintentar,
   onLimpiar,
 }: {
-  cola: ItemCola[]
+  cola: ItemColaDB[]
   corriendo: boolean
   onCancelar: () => void
   onReintentar: () => void
@@ -873,8 +713,8 @@ function ColaPanel({
                 <span className="truncate font-medium">
                   {it.proveedor ?? it.nombre}
                 </span>
-                {it.numFactura && (
-                  <span className="text-xs tabular-nums text-[var(--color-ink-2)]">{it.numFactura}</span>
+                {it.num_factura && (
+                  <span className="text-xs tabular-nums text-[var(--color-ink-2)]">{it.num_factura}</span>
                 )}
               </div>
               <div
@@ -885,14 +725,14 @@ function ColaPanel({
                   it.estado !== 'error' && it.estado !== 'revisar' && 'text-[var(--color-ink-2)]',
                 )}
               >
-                {it.detalle ?? etiquetaEstado(it.estado, it.holdedNum)}
+                {it.detalle ?? etiquetaEstado(it.estado, it.holded_num)}
               </div>
               {it.proveedor && (
                 <div className="truncate text-[10px] text-[var(--color-ink-2)]">{it.nombre}</div>
               )}
             </div>
             {it.total !== null && (
-              <div className="text-right text-sm font-semibold tabular-nums">{euros(it.total)}</div>
+              <div className="text-right text-sm font-semibold tabular-nums">{euros(Number(it.total ?? 0))}</div>
             )}
           </li>
         ))}
