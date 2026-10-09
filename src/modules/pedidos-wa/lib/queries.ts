@@ -2075,6 +2075,8 @@ export type SubirPedidoOk = {
   holded_invoice_id: string
   holded_invoice_num: string | null
   doc_type: TipoDocHolded
+  /** El pedido (u otro del mismo cliente y fecha) ya estaba en Holded: no se ha creado nada. */
+  already?: boolean
 }
 
 export type SubirPedidoResult = SubirPedidoDryRun | SubirPedidoOk
@@ -2091,7 +2093,24 @@ export function useSubirPedidoAHolded() {
         const ctx = (error as unknown as { context?: { json?: () => Promise<unknown> } }).context
         if (ctx?.json) {
           try {
-            const j = await ctx.json() as { error?: string; detail?: string }
+            const j = await ctx.json() as {
+              error?: string
+              detail?: string
+              holded_invoice_id?: string
+              holded_invoice_num?: string | null
+              holded_invoice_doc_type?: TipoDocHolded | null
+              doc_type?: TipoDocHolded | null
+            }
+            // 409 = ya subido (p. ej. lo subió el trigger al confirmar): no es un fallo.
+            if (j.holded_invoice_id) {
+              return {
+                ok: true,
+                already: true,
+                holded_invoice_id: j.holded_invoice_id,
+                holded_invoice_num: j.holded_invoice_num ?? null,
+                doc_type: j.holded_invoice_doc_type ?? j.doc_type ?? 'waybill',
+              }
+            }
             throw new Error(j.error || j.detail || error.message)
           } catch (e) {
             if (e instanceof Error && e.message !== error.message) throw e

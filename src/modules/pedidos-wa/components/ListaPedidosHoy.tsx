@@ -207,6 +207,11 @@ function PedidoCard({ pedido, log }: { pedido: Pedido; log: HoldedLastLog | null
     setModalHolded({ preview: null, cargando: true, error: null })
     try {
       const res = await subirHolded.mutateAsync({ pedido_id: pedido.id, fecha, dry_run: true })
+      if ('already' in res && res.already) {
+        setModalHolded(null)
+        toast({ title: 'Ya estaba en Holded', description: res.holded_invoice_num ?? (cliente?.nombre ?? '—') })
+        return
+      }
       if (!('dry_run' in res)) throw new Error('respuesta inesperada (no dry_run)')
       setModalHolded({ preview: res, cargando: false, error: null })
     } catch (e) {
@@ -219,7 +224,7 @@ function PedidoCard({ pedido, log }: { pedido: Pedido; log: HoldedLastLog | null
       const res = await subirHolded.mutateAsync({ pedido_id: pedido.id, fecha, dry_run: false })
       if ('holded_invoice_id' in res) {
         toast({
-          title: 'Subido a Holded',
+          title: res.already ? 'Ya estaba en Holded' : 'Subido a Holded',
           description: res.holded_invoice_num
             ? `${cliente?.nombre ?? '—'} → ${res.holded_invoice_num}`
             : (cliente?.nombre ?? '—'),
@@ -1084,7 +1089,7 @@ function ModalSubirPedidoHolded({
                   <div>
                     <div className="font-semibold">{noResueltas} línea(s) sin precio histórico</div>
                     <div className="mt-0.5">
-                      No se pueden subir hasta que todas las líneas tengan precio. Edita las líneas en el pedido o añade un precio histórico al cliente en Manager.
+                      Estas líneas se subirán a 0 € en el borrador de Holded. Revisa sus precios en Holded antes de emitir.
                     </div>
                   </div>
                 </div>
@@ -1174,7 +1179,7 @@ function ModalSubirPedidoHolded({
             <Button variant="ghost" onClick={onCancelar} disabled={subiendo}>
               Cancelar
             </Button>
-            <Button onClick={onConfirmar} disabled={!preview || subiendo || noResueltas > 0}>
+            <Button onClick={onConfirmar} disabled={!preview || subiendo}>
               {subiendo ? (
                 <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Subiendo…</>
               ) : (
