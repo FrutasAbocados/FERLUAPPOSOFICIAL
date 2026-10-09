@@ -579,10 +579,15 @@ function JornadaForm({
         <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div className="mb-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
             <Total label="Repartos" value={String(totales.count)} />
-            <Total
-              label={totales.cobrosAnteriores > 0 ? `Total · +${euros(totales.cobrosAnteriores)} ant.` : 'Total'}
-              value={euros(totales.total)}
-            />
+            {totales.cobrosAnteriores > 0 ? (
+              <Total
+                label="Total cobrado"
+                value={euros(totales.total + totales.cobrosAnteriores)}
+                sub={`de hoy ${euros(totales.total)} · anteriores ${euros(totales.cobrosAnteriores)}`}
+              />
+            ) : (
+              <Total label="Total" value={euros(totales.total)} />
+            )}
             <Total label="Tarjeta" value={euros(totales.tarjeta)} />
             <Total label="Deuda" value={euros(totales.deuda)} />
           </div>
@@ -718,11 +723,13 @@ function Total({
   label,
   value,
   tone,
+  sub,
   action,
 }: {
   label: string
   value: string
   tone?: 'success' | 'danger'
+  sub?: string
   action?: React.ReactNode
 }) {
   const toneCls =
@@ -737,6 +744,7 @@ function Total({
         {label}
       </p>
       <p className={`mono mt-0.5 text-sm font-semibold tabular-nums ${toneCls}`}>{value}</p>
+      {sub && <p className="mono mt-0.5 text-[11px] tabular-nums text-[var(--color-ink-3)]">{sub}</p>}
       {action}
     </div>
   )
