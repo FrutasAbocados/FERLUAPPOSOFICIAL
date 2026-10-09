@@ -47,6 +47,9 @@ async function checkAuthAdmin(req: Request): Promise<{ ok: true } | { ok: false;
   const header = req.headers.get('Authorization') ?? ''
   const token = header.replace(/^Bearer\s+/i, '').trim()
   if (!token) return { ok: false, status: 401, msg: 'falta Authorization' }
+  // compras-cola-worker entra con la service key de las edges, que puede ser
+  // una clave sb_secret_… sin forma de JWT.
+  if (token === SERVICE_KEY) return { ok: true }
   let payload: Record<string, unknown>
   try { payload = decodeJwtPayload(token) } catch { return { ok: false, status: 401, msg: 'jwt inválido' } }
   const role = String(payload.role ?? '')
