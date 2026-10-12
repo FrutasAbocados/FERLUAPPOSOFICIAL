@@ -2,7 +2,7 @@
 // poder auditarlas o reactivarlas, pero no se muestran mientras estén retiradas.
 export const INCENTIVOS_TRABAJADORES_VISIBLES = false
 
-const TABS_INCENTIVOS = new Set(['puntos', 'premios', 'turnos', 'ruleta', 'productividad'])
+const TABS_INCENTIVOS = new Set(['puntos', 'premios', 'ruleta', 'productividad'])
 
 export const esTabIncentivos = (tab: string): boolean => TABS_INCENTIVOS.has(tab)
 

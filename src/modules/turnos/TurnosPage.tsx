@@ -10,7 +10,7 @@ import { TurnoEditor, type TurnoDraft } from './components/TurnoEditor'
 import {
   useEmpleados,
   useSetTurno,
-  useTurnosOfWeek,
+  useTurnosRango,
 } from './lib/queries'
 import { isoDate, shiftWeek, weekStart } from './lib/week'
 import { turnoKey, type Empleado, type Turno } from './lib/types'
@@ -22,7 +22,8 @@ export function TurnosPage() {
   const [anchor, setAnchor] = useState<Date>(() => weekStart(new Date()))
 
   const empleados = useEmpleados()
-  const turnos = useTurnosOfWeek(anchor)
+  const turnos = useTurnosRango(anchor, 4)
+  const semanas = useMemo(() => Array.from({ length: 4 }, (_, i) => shiftWeek(anchor, i)), [anchor])
   const setTurno = useSetTurno()
 
   const visibleEmpleados = useMemo(
@@ -60,7 +61,7 @@ export function TurnosPage() {
       <PageTopbar
         breadcrumb="EQUIPO · TURNOS"
         title="Turnos"
-        subtitle={isAdmin ? 'Planning semanal: toca una celda para editar tipo, horario y nota.' : 'Planning semanal en solo lectura.'}
+        subtitle={isAdmin ? 'Próximas 4 semanas: toca una celda para editar tipo, horario y nota.' : 'Próximas 4 semanas en solo lectura.'}
         actions={
           <WeekHeader
             anchor={anchor}
@@ -100,15 +101,24 @@ export function TurnosPage() {
           </p>
         </div>
       ) : (
-        <WeekGrid
-          anchor={anchor}
-          empleados={visibleEmpleados}
-          turnos={turnos.data ?? []}
-          isAdmin={isAdmin}
-          currentUserEmpleadoId={currentUserEmpleadoId}
-          pendingKey={pendingKey}
-          onEdit={(empleado, fecha, turno) => setEditando({ empleado, fecha, turno })}
-        />
+        <div className="space-y-6">
+          {semanas.map((semana) => (
+            <section key={isoDate(semana)}>
+              <h2 className="mb-2 text-sm font-semibold text-[var(--color-ink)]">
+                Semana {semanas.indexOf(semana) + 1}
+              </h2>
+              <WeekGrid
+                anchor={semana}
+                empleados={visibleEmpleados}
+                turnos={turnos.data ?? []}
+                isAdmin={isAdmin}
+                currentUserEmpleadoId={currentUserEmpleadoId}
+                pendingKey={pendingKey}
+                onEdit={(empleado, fecha, turno) => setEditando({ empleado, fecha, turno })}
+              />
+            </section>
+          ))}
+        </div>
       )}
       {editando && (
         <TurnoEditor

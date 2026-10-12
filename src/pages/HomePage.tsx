@@ -103,7 +103,7 @@ function HomeAdmin() {
   const { profile } = useAuth()
   const role = profile?.role
   const moduleEntries = MODULOS.filter(m =>
-    role && canAccess(m.key as ModuleKey, role) && (INCENTIVOS_TRABAJADORES_VISIBLES || m.key !== 'turnos')
+    role && canAccess(m.key as ModuleKey, role)
   )
 
   const isAdmin        = role === 'admin_full' || role === 'admin_op'
@@ -391,7 +391,7 @@ function HomeEmpleado() {
   const { profile } = useAuth()
   const role = profile?.role
   const moduleEntries = MODULOS.filter(m =>
-    role && canAccess(m.key as ModuleKey, role) && (INCENTIVOS_TRABAJADORES_VISIBLES || m.key !== 'turnos')
+    role && canAccess(m.key as ModuleKey, role)
   )
 
   return (
