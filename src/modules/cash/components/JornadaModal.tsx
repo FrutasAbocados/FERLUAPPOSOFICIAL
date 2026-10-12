@@ -414,20 +414,22 @@ function JornadaForm({
                 {lineas.map((l) => (
                   <li
                     key={l._key}
-                    className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-2 px-3 py-2 text-sm"
+                    className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-2 px-2 py-2 text-sm md:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] md:px-3"
                   >
-                    {l.contact_id ? (
-                      <span className="truncate font-medium text-[var(--color-ink)]">
-                        {l.contact_nombre}
-                      </span>
-                    ) : (
-                      <ClienteNombreInput
-                        value={l.contact_nombre}
-                        onChange={(nombre) => updLinea(l._key, { contact_nombre: nombre })}
-                        onSelect={(c) => void enlazarLinea(l._key, c)}
-                        className="h-8 min-w-0"
-                      />
-                    )}
+                    <div className="col-span-full min-w-0 md:col-span-1">
+                      {l.contact_id ? (
+                        <span className="block break-words font-medium text-[var(--color-ink)]">
+                          {l.contact_nombre}
+                        </span>
+                      ) : (
+                        <ClienteNombreInput
+                          value={l.contact_nombre}
+                          onChange={(nombre) => updLinea(l._key, { contact_nombre: nombre })}
+                          onSelect={(c) => void enlazarLinea(l._key, c)}
+                          className="h-8 min-w-0 w-full"
+                        />
+                      )}
+                    </div>
                     {l._loading ? (
                       <div className="flex h-8 w-24 items-center justify-center">
                         <Loader2 className="h-3 w-3 animate-spin text-[var(--color-ink-3)]" />
@@ -442,7 +444,7 @@ function JornadaForm({
                           updLinea(l._key, { importe: Number(ev.target.value) })
                         }
                         placeholder="0,00"
-                        className="h-8 w-24 text-right"
+                        className="h-8 min-w-0 w-full text-right md:w-24"
                       />
                     )}
                     <select
