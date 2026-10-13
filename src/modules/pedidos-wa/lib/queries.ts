@@ -348,6 +348,26 @@ export function useCrearWhatsappMensajeManual() {
   })
 }
 
+/** Foto de un pedido → texto para la Box manual. No guarda nada. */
+export function useLeerFotoPedido() {
+  return useMutation({
+    mutationFn: async (input: { foto: FotoPreparada; cliente_nombre?: string }) => {
+      const { data, error } = await supabase.functions.invoke<{ texto?: string; ilegible?: boolean; error?: string }>(
+        'pedido-foto',
+        {
+          body: {
+            imagen: { b64: input.foto.b64, media_type: input.foto.media_type },
+            cliente_nombre: input.cliente_nombre,
+          },
+        },
+      )
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      return { texto: data?.texto ?? '', ilegible: data?.ilegible === true }
+    },
+  })
+}
+
 export function useWhatsappTelefonos() {
   return useQuery({
     queryKey: KEYS.whatsappTelefonos,

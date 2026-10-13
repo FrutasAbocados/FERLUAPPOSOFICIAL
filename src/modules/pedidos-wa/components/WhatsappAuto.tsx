@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import {
   AlertTriangle,
   ArrowRight,
   Bot,
+  Camera,
   CheckCircle2,
   Clipboard,
   Loader2,
@@ -22,6 +23,7 @@ import {
   useCrearPedido,
   useCrearWhatsappMensajeManual,
   useGuardarTelefonoWhatsapp,
+  useLeerFotoPedido,
   useProcesarWhatsappPendientes,
   useTodosLosClientesPedidos,
   useToggleTelefonoWhatsapp,
@@ -34,6 +36,7 @@ import {
   type WhatsappTelefono,
 } from '../lib/queries'
 import { parsearPedido } from '../lib/parser'
+import { prepararFoto } from '../lib/imagen'
 import type { ClientePedido } from '../lib/types'
 
 const HEADER = ['CLIENTE', 'HORARIO', 'FACTURA', 'PEDIDO', 'FALTAS', 'REPARTO']
@@ -237,6 +240,8 @@ function ManualBox({ fecha, clientes }: { fecha: string; clientes: ClientePedido
   const [clienteId, setClienteId] = useState('')
   const crearManual = useCrearWhatsappMensajeManual()
   const procesar = useProcesarWhatsappPendientes()
+  const leerFoto = useLeerFotoPedido()
+  const fotoRef = useRef<HTMLInputElement>(null)
 
   const split = useMemo(() => splitClienteYPedido(texto), [texto])
   const sugerido = useMemo(
@@ -267,6 +272,28 @@ function ManualBox({ fecha, clientes }: { fecha: string; clientes: ClientePedido
     }
   }
 
+  const onFoto = async (file: File | undefined) => {
+    if (!file) return
+    try {
+      const foto = await prepararFoto(file)
+      const cliente = clientes.find(c => c.id === effectiveClienteId)
+      const r = await leerFoto.mutateAsync({ foto, cliente_nombre: cliente?.nombre })
+      if (r.ilegible) {
+        toast({ title: 'Foto ilegible', description: 'Prueba con más luz o más cerca.', variant: 'error' })
+        return
+      }
+      // La foto rellena la caja; se revisa antes de enviar a WA auto.
+      setTexto(prev => {
+        const actual = prev.trim()
+        if (!actual) return cliente ? `${cliente.nombre}: ${r.texto}` : r.texto
+        return `${actual} / ${r.texto}`
+      })
+      toast({ title: 'Foto leída', description: 'Revisa el texto y envía.', variant: 'success' })
+    } catch (err) {
+      toast({ title: 'No se pudo leer la foto', description: errorMessage(err), variant: 'error' })
+    }
+  }
+
   return (
     <section className="ao-card">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
@@ -276,7 +303,7 @@ function ManualBox({ fecha, clientes }: { fecha: string; clientes: ClientePedido
             <h3 className="text-base font-medium text-[var(--ink)]">Box manual</h3>
           </div>
           <p className="mono mt-1 text-[10px] uppercase tracking-[0.14em] text-[var(--ink-mute)]">
-            Pega un pedido de WhatsApp · revisa en WA auto · pasa a Hoy
+            Pega un pedido o sube una foto · revisa en WA auto · pasa a Hoy
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -290,6 +317,27 @@ function ManualBox({ fecha, clientes }: { fecha: string; clientes: ClientePedido
               <option key={c.id} value={c.id}>{c.nombre}</option>
             ))}
           </select>
+          <input
+            ref={fotoRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.currentTarget.files?.[0]
+              e.currentTarget.value = ''
+              void onFoto(file)
+            }}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => fotoRef.current?.click()}
+            disabled={leerFoto.isPending}
+            title="Foto de una lista, nota o captura de WhatsApp"
+          >
+            {leerFoto.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+            {leerFoto.isPending ? 'Leyendo…' : 'Foto'}
+          </Button>
           <Button
             size="sm"
             onClick={() => void onEnviar()}
