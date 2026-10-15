@@ -174,7 +174,10 @@ export function AppShell() {
   const isGestorGedofu = role === 'gestor_gedofu'
   const isAdmin = role === 'admin_full' || role === 'admin_op'
   const qc = useQueryClient()
-  const preload = useCallback((to: string) => { PRELOADERS[to]?.() }, [])
+  const preload = useCallback((to: string) => {
+    PRELOADERS[to]?.()
+    if (to === '/manager' && role && canAccess('manager', role)) prefetchManagerResumen(qc)
+  }, [qc, role])
   const visible = MODULES.filter((m) => role && canAccess(m.key, role))
   const equipo  = EQUIPO.filter((m) => role && canAccess(m.key, role) && (!isAdmin || m.key !== 'condiciones'))
   const socios  = SOCIOS.filter((m) => role && canAccess(m.key, role))
@@ -259,10 +262,9 @@ export function AppShell() {
             <NavLink
               key={m.key}
               to={m.to}
-              onMouseEnter={() => {
-                preload(m.to)
-                if (m.to === '/manager') prefetchManagerResumen(qc)
-              }}
+              onMouseEnter={() => preload(m.to)}
+              onFocus={() => preload(m.to)}
+              onTouchStart={() => preload(m.to)}
               className={({ isActive }) => cn('sidebar-nav-item', isActive && 'sidebar-nav-active')}
             >
               <m.icon className="h-4 w-4 shrink-0" strokeWidth={1.6} />
@@ -434,6 +436,7 @@ export function AppShell() {
                 key={m.key}
                 to={m.to}
                 onTouchStart={() => preload(m.to)}
+                onFocus={() => preload(m.to)}
                 className={({ isActive }) =>
                   cn(
                     'flex min-w-[72px] flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] uppercase tracking-wider transition-colors',

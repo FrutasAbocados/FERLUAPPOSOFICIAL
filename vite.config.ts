@@ -59,6 +59,9 @@ export default defineConfig({
         chunkFileNames: 'assets/[name]-[hash]-r2.js',
         assetFileNames: 'assets/[name]-[hash]-r2[extname]',
         manualChunks(id) {
+          // clsx se usa también en el shell: si queda dentro de Recharts,
+          // el entry precarga los 400 KB de gráficas para poder usar ese helper.
+          if (id.includes('node_modules/clsx')) return 'clsx'
           if (id.includes('node_modules/recharts')) return 'vendor-recharts'
           if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet') || id.includes('node_modules/@react-leaflet')) return 'vendor-leaflet'
           if (id.includes('node_modules/exceljs')) return 'vendor-exceljs'

@@ -1,21 +1,30 @@
+import { lazy, Suspense } from 'react'
 import { Printer } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import type { Period } from '../lib/period'
-import { useResumenComparativo, useSerieDiaria, useTopClientesMargen, useTopProductosMargen } from '../lib/queries'
-import { ForecastCard } from './ForecastCard'
+import { useManagerResumen } from '../lib/queries'
 import { KpiTiles } from './KpiTiles'
-import { SerieDiariaChart } from './SerieDiariaChart'
 import { TopMargenTable } from './TopMargenTable'
+
+const ForecastCard = lazy(() => import('./ForecastCard').then(m => ({ default: m.ForecastCard })))
+const SerieDiariaChart = lazy(() => import('./SerieDiariaChart').then(m => ({ default: m.SerieDiariaChart })))
+
+function ChartFallback({ title, height }: { title: string; height: string }) {
+  return (
+    <div className={`ao-card p-4 ${height}`} aria-busy="true">
+      <div className="mb-3 text-sm font-semibold text-[var(--color-ink)]">{title}</div>
+      <div className="h-3/4 animate-pulse rounded bg-[var(--color-surface-2)]" />
+    </div>
+  )
+}
 
 interface Props {
   period: Period
 }
 
 export function ResumenView({ period }: Props) {
-  const resumen = useResumenComparativo(period)
-  const topClientes = useTopClientesMargen(period, 10)
-  const topProductos = useTopProductosMargen(period, 10)
-  const serie = useSerieDiaria(period)
+  const dashboard = useManagerResumen(period)
+  const resumen = dashboard.data?.resumen
 
   return (
     <div className="space-y-4">
@@ -30,24 +39,35 @@ export function ResumenView({ period }: Props) {
         <p className="text-xs text-[var(--color-ink-3)]">{period.from} → {period.to} · Frutas Abocados</p>
       </div>
 
-      <KpiTiles k={resumen.data} loading={resumen.isLoading} />
+      {dashboard.isError && (
+        <div role="alert" className="ao-card flex items-center justify-between gap-3 p-4 text-sm text-red-600 dark:text-red-400">
+          <span>No se pudo cargar el resumen de Manager.</span>
+          <Button size="sm" variant="outline" onClick={() => void dashboard.refetch()}>Reintentar</Button>
+        </div>
+      )}
 
-      {resumen.data && resumen.data.comp_from && (
+      <KpiTiles k={resumen} loading={dashboard.isPending} />
+
+      {resumen?.comp_from && (
         <p className="text-xs text-[var(--color-ink-3)]">
-          Deltas comparados con periodo anterior equivalente: {resumen.data.comp_from} → {resumen.data.comp_to}
+          Deltas comparados con periodo anterior equivalente: {resumen.comp_from} → {resumen.comp_to}
         </p>
       )}
 
-      <ForecastCard />
+      <Suspense fallback={<ChartFallback title="Forecast próximos meses" height="h-80" />}>
+        <ForecastCard />
+      </Suspense>
 
-      <SerieDiariaChart data={serie.data} loading={serie.isLoading} />
+      <Suspense fallback={<ChartFallback title="Ventas vs compras vs margen — diario" height="h-[348px]" />}>
+        <SerieDiariaChart data={dashboard.data?.serie} loading={dashboard.isPending} />
+      </Suspense>
 
       <div className="grid gap-4 md:grid-cols-2">
         <TopMargenTable
           title="Top 10 clientes por margen"
           subtitle="ventas sin IVA · margen € · margen %"
-          loading={topClientes.isLoading}
-          rows={topClientes.data?.map(r => ({
+          loading={dashboard.isPending}
+          rows={dashboard.data?.topClientes.map(r => ({
             key: r.contact_name_canon,
             nombre: r.contact_name_canon,
             docs: r.docs,
@@ -59,8 +79,8 @@ export function ResumenView({ period }: Props) {
         <TopMargenTable
           title="Top 10 productos por margen"
           subtitle="ventas sin IVA · margen € · margen %"
-          loading={topProductos.isLoading}
-          rows={topProductos.data?.map(r => ({
+          loading={dashboard.isPending}
+          rows={dashboard.data?.topProductos.map(r => ({
             key: r.product_id ?? r.nombre,
             nombre: r.nombre,
             unidades: r.unidades,

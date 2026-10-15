@@ -1,13 +1,13 @@
 import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { periodFromPreset, type Period } from './period'
+import { parseManagerResumen } from './resumen'
 import type {
   AbueloFactura, AbueloLinea, AliasRow, AsesorIaResult, CatalogoProducto,
   ClienteFactura, ClienteListItem, ClienteProducto,
   CosteManualRow, FacturaLinea, FacturaListItem, Forecast,
   ProductoCliente, ProductoCompra, ProductoHistoricoMes, ProductoListItem,
-  ResumenComparativo, ResumenPeriodo, SerieDiariaPunto, SyncLog,
-  TopClienteMargen, TopProductoMargen,
+  ResumenPeriodo, SyncLog,
 } from './types'
 
 const STALE_5M = 5 * 60_000
@@ -41,40 +41,23 @@ export function useResumen(period: Period) {
   })
 }
 
-// ── Resumen comparativo (vs periodo anterior equivalente) ────────────────
-function resumenCompOpts(period: Period) {
+// ── Resumen: una petición y una sola resolución de costes ────────────────
+function resumenDashboardOpts(period: Period) {
   return {
-    queryKey: ['manager', 'resumenComp', periodKey(period)] as const,
+    queryKey: ['manager', 'dashboard', periodKey(period)] as const,
     staleTime: STALE_5M,
-    queryFn: async (): Promise<ResumenComparativo> => {
-      const { data, error } = await supabase.rpc('manager_resumen_comparativo', {
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('manager_resumen_dashboard', {
         p_from: period.from, p_to: period.to,
       })
       if (error) throw error
-      const r = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null
-      return {
-        ventas:             Number(r?.ventas ?? 0),
-        ventas_ant:         Number(r?.ventas_ant ?? 0),
-        ventas_delta_pct:   r?.ventas_delta_pct == null ? null : Number(r.ventas_delta_pct),
-        compras:            Number(r?.compras ?? 0),
-        compras_ant:        Number(r?.compras_ant ?? 0),
-        compras_delta_pct:  r?.compras_delta_pct == null ? null : Number(r.compras_delta_pct),
-        margen:             Number(r?.margen ?? 0),
-        margen_ant:         Number(r?.margen_ant ?? 0),
-        margen_delta_pct:   r?.margen_delta_pct == null ? null : Number(r.margen_delta_pct),
-        pendiente_cobro:    Number(r?.pendiente_cobro ?? 0),
-        docs:               Number(r?.docs ?? 0),
-        cogs:               Number(r?.cogs ?? 0),
-        margen_pct:         r?.margen_pct == null ? null : Number(r.margen_pct),
-        comp_from:          r?.comp_from == null ? null : String(r.comp_from),
-        comp_to:            r?.comp_to == null ? null : String(r.comp_to),
-      }
+      return parseManagerResumen(data)
     },
   }
 }
 
-export function useResumenComparativo(period: Period) {
-  return useQuery({ ...resumenCompOpts(period), placeholderData: (prev) => prev })
+export function useManagerResumen(period: Period) {
+  return useQuery(resumenDashboardOpts(period))
 }
 
 // ── Forecast próximo mes (con tendencia y proyección 3m) ─────────────────
@@ -98,91 +81,6 @@ export function useForecast() {
       }
     },
   })
-}
-
-// ── Top clientes por margen € ─────────────────────────────────────────────
-function topClientesOpts(period: Period, limit: number) {
-  return {
-    queryKey: ['manager', 'topClientes', periodKey(period), limit] as const,
-    staleTime: STALE_5M,
-    queryFn: async (): Promise<TopClienteMargen[]> => {
-      const { data, error } = await supabase.rpc('manager_top_clientes_margen', {
-        p_from: period.from,
-        p_to: period.to,
-        p_limit: limit,
-      })
-      if (error) throw error
-      return (data ?? []).map((r: Record<string, unknown>) => ({
-        contact_name_canon: String(r.contact_name_canon ?? '(sin contacto)'),
-        docs:               Number(r.docs ?? 0),
-        unidades:           Number(r.unidades ?? 0),
-        ventas:             Number(r.ventas ?? 0),
-        ventas_subtotal:    Number(r.ventas_subtotal ?? 0),
-        cogs:               Number(r.cogs ?? 0),
-        margen:             Number(r.margen ?? 0),
-        margen_pct:         r.margen_pct == null ? null : Number(r.margen_pct),
-      }))
-    },
-  }
-}
-
-export function useTopClientesMargen(period: Period, limit = 10) {
-  return useQuery({ ...topClientesOpts(period, limit), placeholderData: (prev) => prev })
-}
-
-// ── Top productos por margen € ────────────────────────────────────────────
-function topProductosOpts(period: Period, limit: number) {
-  return {
-    queryKey: ['manager', 'topProductos', periodKey(period), limit] as const,
-    staleTime: STALE_5M,
-    queryFn: async (): Promise<TopProductoMargen[]> => {
-      const { data, error } = await supabase.rpc('manager_top_productos_margen', {
-        p_from: period.from,
-        p_to: period.to,
-        p_limit: limit,
-      })
-      if (error) throw error
-      return (data ?? []).map((r: Record<string, unknown>) => ({
-        nombre:           String(r.nombre ?? '(sin nombre)'),
-        product_id:       r.product_id == null ? null : String(r.product_id),
-        unidades:         Number(r.unidades ?? 0),
-        ventas:           Number(r.ventas ?? 0),
-        ventas_subtotal:  Number(r.ventas_subtotal ?? 0),
-        cogs:             Number(r.cogs ?? 0),
-        margen:           Number(r.margen ?? 0),
-        margen_pct:       r.margen_pct == null ? null : Number(r.margen_pct),
-      }))
-    },
-  }
-}
-
-export function useTopProductosMargen(period: Period, limit = 10) {
-  return useQuery({ ...topProductosOpts(period, limit), placeholderData: (prev) => prev })
-}
-
-// ── Serie diaria ventas / compras / margen ────────────────────────────────
-function serieDiariaOpts(period: Period) {
-  return {
-    queryKey: ['manager', 'serieDiaria', periodKey(period)] as const,
-    staleTime: STALE_5M,
-    queryFn: async (): Promise<SerieDiariaPunto[]> => {
-      const { data, error } = await supabase.rpc('manager_serie_diaria', {
-        p_from: period.from,
-        p_to: period.to,
-      })
-      if (error) throw error
-      return (data ?? []).map((r: Record<string, unknown>) => ({
-        fecha:   String(r.fecha),
-        ventas:  Number(r.ventas ?? 0),
-        compras: Number(r.compras ?? 0),
-        margen:  Number(r.margen ?? 0),
-      }))
-    },
-  }
-}
-
-export function useSerieDiaria(period: Period) {
-  return useQuery({ ...serieDiariaOpts(period), placeholderData: (prev) => prev })
 }
 
 // ── Lista de clientes (agrupados por nombre canónico) ────────────────────
@@ -812,13 +710,10 @@ export function useSyncManual() {
   })
 }
 
-// ── Prefetch datos Resumen al hacer hover sobre el link Manager ───────────
+// ── Prefetch Resumen al enfocar/tocar/pasar sobre el enlace Manager ────────
 export function prefetchManagerResumen(queryClient: QueryClient, period?: Period): void {
   const p = period ?? periodFromPreset('mes')
-  void queryClient.prefetchQuery(resumenCompOpts(p))
-  void queryClient.prefetchQuery(serieDiariaOpts(p))
-  void queryClient.prefetchQuery(topClientesOpts(p, 10))
-  void queryClient.prefetchQuery(topProductosOpts(p, 10))
+  void queryClient.prefetchQuery(resumenDashboardOpts(p))
 }
 
 // ── Asesor IA comercial del día ───────────────────────────────────────────

@@ -4,8 +4,8 @@ import { BarChart3, Brain, CalendarDays, FileText, MapPinned, Package, ReceiptTe
 import { SyncBar } from './components/SyncBar'
 import { PeriodPicker } from './components/PeriodPicker'
 import { periodFromPreset, type Period } from './lib/period'
+import { ResumenView } from './components/ResumenView'
 
-const ResumenView            = lazy(() => import('./components/ResumenView').then(m => ({ default: m.ResumenView })))
 const ClientesView           = lazy(() => import('./components/ClientesView').then(m => ({ default: m.ClientesView })))
 const ProductosView          = lazy(() => import('./components/ProductosView').then(m => ({ default: m.ProductosView })))
 const FacturasView           = lazy(() => import('./components/FacturasView').then(m => ({ default: m.FacturasView })))
