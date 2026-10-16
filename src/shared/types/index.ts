@@ -29,7 +29,7 @@ export const MODULE_ACCESS: Record<ModuleKey, Role[]> = {
   tesoreria:         ['admin_full', 'admin_op'],
   listado_precios:   ['admin_full', 'admin_op', 'responsable', 'empleado', 'operaciones', 'gestor_cobros'],
   gestoria:           ['admin_full', 'admin_op', 'gestor_gedofu'],
-  gastos:             ['admin_full'],
+  gastos:             ['admin_full', 'admin_op'],
 }
 
 export const canAccess = (mod: ModuleKey, role: Role): boolean =>
