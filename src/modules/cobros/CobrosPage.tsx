@@ -11,7 +11,7 @@ import { ExportPanel } from './components/ExportPanel'
 import { CobrarModal } from './components/CobrarModal'
 import { NuevoMovimientoModal } from './components/NuevoMovimientoModal'
 import { ClienteDetalleModal } from './components/ClienteDetalleModal'
-import { useMovimientos } from './lib/queries'
+import { useClientes, useMovimientos } from './lib/queries'
 import { estadoMovimiento, importePendiente } from './lib/utils'
 import type { TipoMovimiento } from './lib/types'
 import { eurosShort } from '@/shared/lib/format'
@@ -38,6 +38,8 @@ export function CobrosPage() {
   }>({ open: false, tipo: 'Factura', clienteId: null })
 
   const movs = useMovimientos()
+  const clientes = useClientes()
+  const cargaError = movs.isError || clientes.isError
   const kpi = useMemo(() => {
     if (!movs.data) return null
     const today = new Date().toISOString().slice(0, 10)
@@ -77,6 +79,17 @@ export function CobrosPage() {
       />
       <div className="ao-page max-w-7xl py-6 md:py-8">
 
+      {cargaError ? (
+        <div role="alert" className="ao-panel space-y-3 p-4 text-sm">
+          <p>No se pudieron cargar todos los datos de Cobros. Reintenta para consultar los importes completos.</p>
+          <Button variant="outline" onClick={() => { void movs.refetch(); void clientes.refetch() }}>
+            Reintentar
+          </Button>
+        </div>
+      ) : movs.isPending || clientes.isPending ? (
+        <div className="p-6 text-sm text-[var(--color-ink-3)]">Cargando…</div>
+      ) : (
+      <>
       {kpi && (
         <section className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4">
           <KpiTile
@@ -146,6 +159,8 @@ export function CobrosPage() {
           <Importador />
           <ExportPanel />
         </div>
+      )}
+      </>
       )}
 
       <CobrarModal movimientoId={cobrarId} onClose={() => setCobrarId(null)} />

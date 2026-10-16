@@ -9,6 +9,7 @@ import type {
   TipoMovimiento,
 } from './types'
 import { calcVencimiento, estadoMovimiento, importePendiente, isoDate, peorEstado } from './utils'
+import { fetchAllCobrosPages } from './pagination'
 
 const KEYS = {
   clientes: ['cobros', 'clientes'] as const,
@@ -22,28 +23,28 @@ const KEYS = {
 export function useClientes() {
   return useQuery({
     queryKey: KEYS.clientes,
-    queryFn: async (): Promise<Cliente[]> => {
-      const { data, error } = await supabase
+    queryFn: (): Promise<Cliente[]> => fetchAllCobrosPages<Cliente>((from, to) =>
+      supabase
         .from('cobros_clientes')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('nombre', { ascending: true })
-      if (error) throw error
-      return (data ?? []) as Cliente[]
-    },
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
   })
 }
 
 export function useMovimientos() {
   return useQuery({
     queryKey: KEYS.movimientos,
-    queryFn: async (): Promise<Movimiento[]> => {
-      const { data, error } = await supabase
+    queryFn: (): Promise<Movimiento[]> => fetchAllCobrosPages<Movimiento>((from, to) =>
+      supabase
         .from('cobros_movimientos')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('fecha_factura', { ascending: false })
-      if (error) throw error
-      return (data ?? []) as Movimiento[]
-    },
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
   })
 }
 
@@ -51,15 +52,15 @@ export function useMovimientosCliente(clienteId: string | null | undefined) {
   return useQuery({
     queryKey: KEYS.movimientosCliente(clienteId ?? '-'),
     enabled: !!clienteId,
-    queryFn: async (): Promise<Movimiento[]> => {
-      const { data, error } = await supabase
+    queryFn: (): Promise<Movimiento[]> => fetchAllCobrosPages<Movimiento>((from, to) =>
+      supabase
         .from('cobros_movimientos')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('cliente_id', clienteId)
         .order('fecha_factura', { ascending: false })
-      if (error) throw error
-      return (data ?? []) as Movimiento[]
-    },
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
   })
 }
 

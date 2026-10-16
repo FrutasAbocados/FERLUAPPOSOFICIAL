@@ -56,13 +56,49 @@ async function checkAuth(req: Request): Promise<{ ok: true; isService: boolean }
   return { ok: true, isService: false }
 }
 
-async function pgSelectAll(path: string): Promise<unknown[]> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: dbHeaders })
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '')
-    throw new Error(`select ${path} ${res.status}: ${txt.slice(0, 200)}`)
+type BackupRow = { id: string; [key: string]: unknown }
+
+function exactCount(res: Response): number {
+  const total = res.headers.get('content-range')?.split('/')[1]
+  if (total == null || !/^\d+$/.test(total) || !Number.isSafeInteger(Number(total))) {
+    throw new Error('No se pudo verificar el recuento del backup')
   }
-  return await res.json() as unknown[]
+  return Number(total)
+}
+
+async function pgSelectAll(table: string): Promise<BackupRow[]> {
+  const rows: BackupRow[] = []
+  const ids = new Set<string>()
+  let expected: number | null = null
+  while (true) {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${table}?select=*&order=id.asc&offset=${rows.length}&limit=500`,
+      { headers: { ...dbHeaders, Prefer: 'count=exact' } },
+    )
+    if (!res.ok) throw new Error(`select ${table}: HTTP ${res.status}`)
+    const count = exactCount(res)
+    if (expected != null && count !== expected) throw new Error(`Recuento cambiante: ${table}`)
+    expected = count
+    const page = await res.json() as BackupRow[]
+    if (!Array.isArray(page)) throw new Error(`Respuesta inválida: ${table}`)
+    for (const row of page) {
+      if (!row || typeof row.id !== 'string' || !row.id || ids.has(row.id)) {
+        throw new Error(`Registro inválido o repetido: ${table}`)
+      }
+      ids.add(row.id)
+      rows.push(row)
+    }
+    if (rows.length === expected) return rows
+    if (page.length === 0 || rows.length > expected) throw new Error(`Backup incompleto: ${table}`)
+  }
+}
+
+async function verifyCount(table: string, expected: number): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=id`, {
+    method: 'HEAD',
+    headers: { ...dbHeaders, Prefer: 'count=exact' },
+  })
+  if (!res.ok || exactCount(res) !== expected) throw new Error(`Backup incompleto o recuento cambiante: ${table}`)
 }
 
 async function pgInsert(path: string, body: unknown): Promise<void> {
@@ -114,8 +150,12 @@ Deno.serve(async (req) => {
   try {
     // 1) Pull data
     const [clientes, movimientos] = await Promise.all([
-      pgSelectAll('cobros_clientes?select=*'),
-      pgSelectAll('cobros_movimientos?select=*'),
+      pgSelectAll('cobros_clientes'),
+      pgSelectAll('cobros_movimientos'),
+    ])
+    await Promise.all([
+      verifyCount('cobros_clientes', clientes.length),
+      verifyCount('cobros_movimientos', movimientos.length),
     ])
 
     const payload = {
