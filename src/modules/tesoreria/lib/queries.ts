@@ -164,11 +164,16 @@ export function useSobres(desde: string, hasta: string) {
 export function useGuardarSobre() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, nombre }: { id?: string; nombre: string }) => {
-      const query = id
-        ? supabase.from('tesoreria_sobres').update({ nombre: nombre.trim() }).eq('id', id)
-        : supabase.from('tesoreria_sobres').insert({ nombre: nombre.trim() })
-      const { data, error } = await query.select('id').single()
+    mutationFn: async ({ id, nombre, acumulado, acumuladoOriginal }: { id?: string; nombre: string; acumulado?: number; acumuladoOriginal?: number }) => {
+      if (id) {
+        const { error } = await supabase.rpc('tesoreria_editar_sobre', {
+          p_id: id, p_nombre: nombre.trim(), p_acumulado: acumulado,
+          p_acumulado_original: acumuladoOriginal,
+        })
+        if (error) throw error
+        return id
+      }
+      const { data, error } = await supabase.from('tesoreria_sobres').insert({ nombre: nombre.trim() }).select('id').single()
       if (error) throw error
       return String(data.id)
     },

@@ -14,12 +14,17 @@ export function SobresPanel({ desde, hasta }: { desde: string; hasta: string }) 
   const borrar = useBorrarSobre()
   const [editing, setEditing] = useState<string | null>(null)
   const [nombre, setNombre] = useState('')
+  const [importe, setImporte] = useState('')
+  const [importeOriginal, setImporteOriginal] = useState(0)
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
     if (!nombre.trim()) return
+    const acumulado = Number(importe.replace(',', '.'))
+    if (editing && (!importe.trim() || !Number.isFinite(acumulado))) return
     try {
-      await guardar.mutateAsync({ id: editing ?? undefined, nombre })
+      await guardar.mutateAsync({ id: editing ?? undefined, nombre,
+        ...(editing ? { acumulado, acumuladoOriginal: importeOriginal } : {}) })
       setNombre('')
       setEditing(null)
     } catch (err) {
@@ -42,11 +47,12 @@ export function SobresPanel({ desde, hasta }: { desde: string; hasta: string }) 
         <h2 className="text-sm font-semibold text-[var(--ink)]">Sobres</h2>
         <form onSubmit={e => { void save(e) }} className="flex flex-wrap items-center gap-2">
           <Input aria-label="Nombre del sobre" value={nombre} maxLength={60} onChange={e => setNombre(e.target.value)} placeholder={editing ? 'Renombrar sobre' : 'Nombre del nuevo sobre'} className="h-8 w-44" required />
+          {editing && <label className="flex items-center gap-2 text-xs text-[var(--ink-mute)]">Acumulado (€)<Input aria-label="Acumulado del sobre" type="number" step="0.01" value={importe} onChange={e => setImporte(e.target.value)} className="h-8 w-32 tabular-nums" required /></label>}
           <Button size="sm" disabled={guardar.isPending || !nombre.trim()}>{editing ? 'Guardar' : '+ Sobre'}</Button>
-          {editing && <Button type="button" size="sm" variant="ghost" onClick={() => { setEditing(null); setNombre('') }}>Cancelar</Button>}
+          {editing && <Button type="button" size="sm" variant="ghost" disabled={guardar.isPending} onClick={() => { setEditing(null); setNombre('') }}>Cancelar</Button>}
         </form>
       </div>
-      <p className="text-xs text-[var(--ink-mute)]">Acumulado total = salidas asignadas − entradas de devolución. Clasificar no genera otro movimiento de caja.</p>
+      <p className="text-xs text-[var(--ink-mute)]">Acumulado = salidas − devoluciones + ajuste manual. El lápiz permite editar nombre e importe sin cambiar la caja.</p>
       {sobres.isError ? (
         <div role="alert" className="text-sm text-[var(--coral)]">No se pudieron cargar los sobres. <button onClick={() => { void sobres.refetch() }} className="underline">Reintentar</button></div>
       ) : sobres.isPending ? <p className="text-xs text-[var(--ink-mute)]">Cargando sobres…</p> : (
@@ -56,12 +62,13 @@ export function SobresPanel({ desde, hasta }: { desde: string; hasta: string }) 
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-xs font-medium text-[var(--ink)]">{s.nombre}</span>
                 <div className="flex gap-2 text-[var(--ink-mute)]">
-                  <button aria-label={`Renombrar ${s.nombre}`} onClick={() => { setEditing(s.id); setNombre(s.nombre) }}><Pencil className="h-3.5 w-3.5" /></button>
+                  <button aria-label={`Editar ${s.nombre}`} disabled={guardar.isPending} onClick={() => { setEditing(s.id); setNombre(s.nombre); setImporte(String(s.acumulado)); setImporteOriginal(s.acumulado) }}><Pencil className="h-3.5 w-3.5" /></button>
                   <button aria-label={`Eliminar ${s.nombre}`} disabled={s.movimientos > 0 || borrar.isPending} title={s.movimientos > 0 ? 'Reasigna sus movimientos antes de eliminarlo' : 'Eliminar sobre'} className="disabled:opacity-30" onClick={() => { void remove(s) }}><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
               <div className="tabular-nums text-lg font-semibold text-[var(--mint)]">{euros(s.acumulado)}</div>
               <div className="tabular-nums text-[11px] text-[var(--ink-mute)]">Salidas {euros(s.salidas_total)} · Devoluciones {euros(s.devoluciones_total)}</div>
+              {Math.abs(s.acumulado - s.salidas_total + s.devoluciones_total) >= 0.005 && <div className="tabular-nums text-[11px] text-[var(--ink-mute)]">Ajuste manual: {euros(s.acumulado - s.salidas_total + s.devoluciones_total)}</div>}
               <div className="tabular-nums text-[11px] text-[var(--ink-mute)]">Mes seleccionado: {euros(s.neto_periodo)}</div>
             </div>
           ))}
