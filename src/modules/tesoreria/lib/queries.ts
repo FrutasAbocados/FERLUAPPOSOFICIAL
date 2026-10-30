@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
-import type { Movimiento, TesoreriaKpis, TipoMovimiento } from './types'
+import type { Movimiento, SobreResumen, TesoreriaKpis, TipoMovimiento } from './types'
 
 const KEYS = {
   kpis:  (desde: string, hasta: string) => ['tesoreria', 'kpis', desde, hasta] as const,
@@ -60,6 +60,7 @@ export function useTesoreriaLista(desde: string, hasta: string) {
         .order('created_at', { ascending: false })
       if (error) throw error
       return (data ?? []).map(r => ({
+        sobre_id:   r.sobre_id ?? null,
         id:         r.id,
         fecha:      r.fecha,
         tipo:       r.tipo as TipoMovimiento,
@@ -79,6 +80,7 @@ export function useTesoreriaLista(desde: string, hasta: string) {
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 type MovimientoInput = {
+  sobre_id:  string | null
   fecha:     string
   tipo:      TipoMovimiento
   concepto:  string
@@ -99,6 +101,7 @@ export function useInsertMovimiento() {
         categoria: input.categoria ?? null,
         notas:     input.notas ?? null,
         fuente:    'manual',
+        sobre_id:  input.sobre_id,
       })
       if (error) throw error
     },
@@ -128,9 +131,56 @@ export function useUpdateMovimiento() {
           importe:   input.importe,
           categoria: input.categoria ?? null,
           notas:     input.notas ?? null,
+          sobre_id:  input.sobre_id,
           ...(ajuste !== undefined ? { ajuste } : {}),
         })
         .eq('id', input.id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tesoreria'] }),
+  })
+}
+
+export function useSobres(desde: string, hasta: string) {
+  return useQuery({
+    queryKey: ['tesoreria', 'sobres', desde, hasta] as const,
+    queryFn: async (): Promise<SobreResumen[]> => {
+      const { data, error } = await supabase.rpc('tesoreria_sobres_resumen', {
+        p_desde: desde, p_hasta: hasta,
+      })
+      if (error) throw error
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        id: String(r.id), nombre: String(r.nombre),
+        salidas_total: Number(r.salidas_total ?? 0),
+        devoluciones_total: Number(r.devoluciones_total ?? 0),
+        acumulado: Number(r.acumulado ?? 0),
+        neto_periodo: Number(r.neto_periodo ?? 0),
+        movimientos: Number(r.movimientos ?? 0),
+      }))
+    },
+  })
+}
+
+export function useGuardarSobre() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, nombre }: { id?: string; nombre: string }) => {
+      const query = id
+        ? supabase.from('tesoreria_sobres').update({ nombre: nombre.trim() }).eq('id', id)
+        : supabase.from('tesoreria_sobres').insert({ nombre: nombre.trim() })
+      const { data, error } = await query.select('id').single()
+      if (error) throw error
+      return String(data.id)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tesoreria'] }),
+  })
+}
+
+export function useBorrarSobre() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('tesoreria_sobres').delete().eq('id', id)
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tesoreria'] }),

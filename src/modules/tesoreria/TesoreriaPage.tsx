@@ -17,7 +17,9 @@ import {
   useTesoreriaKpis,
   useTesoreriaLista,
   useUpdateMovimiento,
+  useSobres,
 } from './lib/queries'
+import { SobresPanel } from './components/SobresPanel'
 import {
   CATEGORIA_LABEL,
   CATEGORIAS_ENTRADA,
@@ -34,14 +36,17 @@ function errorMessage(err: unknown): string {
 // ── Modal ─────────────────────────────────────────────────────────────────────
 
 interface ModalProps {
+  desde: string
+  hasta: string
   movimiento: Movimiento | null
   defaultTipo?: TipoMovimiento
   onClose: () => void
 }
 
-function MovimientoModal({ movimiento, defaultTipo = 'entrada', onClose }: ModalProps) {
+function MovimientoModal({ movimiento, defaultTipo = 'entrada', onClose, desde, hasta }: ModalProps) {
   const insert = useInsertMovimiento()
   const update = useUpdateMovimiento()
+  const sobres = useSobres(desde, hasta)
 
   const [fecha,     setFecha]     = useState(movimiento?.fecha     ?? format(new Date(), 'yyyy-MM-dd'))
   const [tipo,      setTipo]      = useState<TipoMovimiento>(movimiento?.tipo ?? defaultTipo)
@@ -49,6 +54,7 @@ function MovimientoModal({ movimiento, defaultTipo = 'entrada', onClose }: Modal
   const [importe,   setImporte]   = useState(movimiento ? String(movimiento.importe) : '')
   const [categoria, setCategoria] = useState(movimiento?.categoria ?? '')
   const [notas,     setNotas]     = useState(movimiento?.notas     ?? '')
+  const [sobreId, setSobreId] = useState(movimiento?.sobre_id ?? '')
 
   const cats = tipo === 'entrada' ? CATEGORIAS_ENTRADA : CATEGORIAS_SALIDA
   const isPending = insert.isPending || update.isPending
@@ -65,6 +71,7 @@ function MovimientoModal({ movimiento, defaultTipo = 'entrada', onClose }: Modal
       importe:  imp,
       categoria: categoria || null,
       notas:    notas.trim() || null,
+      sobre_id: sobreId || null,
     }
 
     try {
@@ -164,6 +171,15 @@ function MovimientoModal({ movimiento, defaultTipo = 'entrada', onClose }: Modal
             </select>
           </div>
 
+          <div className="grid gap-1">
+            <Label htmlFor="movimiento-sobre" className="text-xs">Sobre</Label>
+            <select id="movimiento-sobre" value={sobreId} onChange={e => setSobreId(e.target.value)} disabled={sobres.isPending || sobres.isError} className="h-9 rounded-md border border-[var(--line-2)] bg-[var(--panel)] px-3 text-sm text-[var(--ink)]">
+              <option value="">Sin sobre</option>
+              {(sobres.data ?? []).map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+            </select>
+            <p className="text-[11px] text-[var(--ink-mute)]">{sobres.isError ? 'No se pudieron cargar los sobres.' : tipo === 'entrada' ? 'Una entrada asignada descuenta del acumulado del sobre.' : 'Una salida asignada suma al acumulado del sobre.'}</p>
+          </div>
+
           {/* Notas */}
           <div className="grid gap-1">
             <Label className="text-xs">Notas</Label>
@@ -211,6 +227,8 @@ export function TesoreriaPage() {
 
   const kpis  = useTesoreriaKpis(desde, hasta)
   const lista = useTesoreriaLista(desde, hasta)
+  const sobres = useSobres(desde, hasta)
+  const nombresSobres = new Map((sobres.data ?? []).map(s => [s.id, s.nombre]))
 
   const mesLabel = format(anchor, 'MMMM yyyy', { locale: es })
 
@@ -263,6 +281,8 @@ export function TesoreriaPage() {
           <Tile label="Movimientos"    value={String(kpis.data?.count_periodo ?? '—')} tone="neutral" />
         </div>
 
+        <SobresPanel desde={desde} hasta={hasta} />
+
         {/* Acciones */}
         <div className="flex gap-2">
           <Button size="sm" onClick={() => setEditing('entrada')} className="gap-1.5">
@@ -277,6 +297,8 @@ export function TesoreriaPage() {
         <div className="ao-panel overflow-hidden">
           {lista.isLoading ? (
             <div className="p-6 text-center text-sm text-[var(--ink-mute)]">Cargando…</div>
+          ) : lista.isError ? (
+            <div role="alert" className="p-4 text-sm text-[var(--coral)]">No se pudieron cargar los movimientos.</div>
           ) : (lista.data ?? []).length === 0 ? (
             <div className="p-6 text-center text-sm text-[var(--ink-mute)]">
               Sin movimientos en {mesLabel}
@@ -326,6 +348,7 @@ export function TesoreriaPage() {
                       </td>
                       <td className="px-3 py-2 text-[var(--ink-mute)]">
                         {m.categoria ? (CATEGORIA_LABEL[m.categoria] ?? m.categoria) : '—'}
+                        {m.sobre_id && <div className="mt-0.5 text-[11px] text-[var(--mint)]">Sobre: {nombresSobres.get(m.sobre_id) ?? '…'}</div>}
                       </td>
                       <td className={cn(
                         'px-3 py-2 text-right tabular-nums font-medium',
@@ -363,6 +386,8 @@ export function TesoreriaPage() {
       {/* Modal */}
       {editing !== null && (
         <MovimientoModal
+          desde={desde}
+          hasta={hasta}
           key={editing === 'entrada' || editing === 'salida' ? editing : editing.id}
           movimiento={editing === 'entrada' || editing === 'salida' ? null : editing}
           defaultTipo={editing === 'entrada' || editing === 'salida' ? editing : editing.tipo}

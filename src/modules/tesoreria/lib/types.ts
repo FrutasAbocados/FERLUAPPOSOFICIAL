@@ -15,6 +15,7 @@ export const CATEGORIA_LABEL: Record<string, string> = {
 }
 
 export interface Movimiento {
+  sobre_id:   string | null
   id:         string
   fecha:      string
   tipo:       TipoMovimiento
@@ -26,6 +27,16 @@ export interface Movimiento {
   fuente:     FuenteMovimiento
   ajuste:     boolean
   created_at: string
+}
+
+export interface SobreResumen {
+  id: string
+  nombre: string
+  salidas_total: number
+  devoluciones_total: number
+  acumulado: number
+  neto_periodo: number
+  movimientos: number
 }
 
 export interface TesoreriaKpis {
