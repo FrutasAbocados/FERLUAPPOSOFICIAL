@@ -17,11 +17,12 @@ stable
 security definer
 set search_path = public
 as $$
+  -- auth.users y no profiles: cada usuario puede editar su propio profiles.email.
   select exists (
     select 1
-    from public.profiles p
-    where p.id = auth.uid()
-      and lower(p.email) in ('raulpedper@gmail.com', 'alexpowerplay@gmail.com')
+    from auth.users u
+    where u.id = auth.uid()
+      and lower(u.email) in ('raulpedper@gmail.com', 'alexpowerplay@gmail.com')
   );
 $$;
 
@@ -58,13 +59,44 @@ comment on column public.trabajadores_pedidos_tarde_facturas.pct_repartidor is
 comment on column public.trabajadores_pedidos_tarde_facturas.pct_impuesto is
   'Porcentaje del margen reservado para impuestos (desde 2026-11-01).';
 
--- El reparto lo decide la fecha de la factura, nunca el cliente.
+-- Al dar de alta, la base de datos ignora lo que manda el cliente: copia la
+-- factura de Manager, recalcula coste/margen con el mismo origen que
+-- manager_factura_detalle y fija el reparto por la fecha de la factura.
 create or replace function public.trabajadores_pedidos_tarde_fijar_reparto()
 returns trigger
 language plpgsql
+security definer
 set search_path = public
 as $$
+declare
+  v_factura record;
+  v_coste numeric;
+  v_beneficio numeric;
 begin
+  select f.doc_number, f.contact_name, f.fecha, f.subtotal, f.total
+    into v_factura
+  from public.manager_facturas f
+  where f.id = new.manager_factura_id
+    and f.tipo = 'VENTA'
+    and f.doc_number is not null;
+
+  if not found then
+    raise exception 'Factura % no encontrada en Manager', new.manager_factura_id;
+  end if;
+
+  select round(coalesce(sum(l.cogs_linea), 0), 2), round(coalesce(sum(l.margen_linea), 0), 2)
+    into v_coste, v_beneficio
+  from public.manager_lineas_coste_resuelto l
+  where l.factura_id = new.manager_factura_id;
+
+  new.numero_factura := v_factura.doc_number;
+  new.cliente := coalesce(v_factura.contact_name, '(sin cliente)');
+  new.fecha := v_factura.fecha;
+  new.subtotal := v_factura.subtotal;
+  new.importe_total := v_factura.total;
+  new.coste := v_coste;
+  new.beneficio := v_beneficio;
+
   if new.fecha >= date '2026-11-01' then
     new.pct_repartidor := 50;
     new.pct_luis := 15;
@@ -81,6 +113,8 @@ begin
   return new;
 end;
 $$;
+
+revoke all on function public.trabajadores_pedidos_tarde_fijar_reparto() from public, anon, authenticated;
 
 drop trigger if exists trabajadores_pedidos_tarde_fijar_reparto
   on public.trabajadores_pedidos_tarde_facturas;
