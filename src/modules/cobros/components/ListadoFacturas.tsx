@@ -20,6 +20,7 @@ type SortKey = 'fecha' | 'cliente' | 'importe' | 'pendiente' | 'estado'
 type SortDir = 'asc' | 'desc'
 
 const fmtISO = (d: Date) => format(d, 'yyyy-MM-dd')
+const PAGE_SIZE = 100
 function rangeForPreset(p: Preset): { from: string | null; to: string | null } {
   const today = new Date()
   switch (p) {
@@ -84,6 +85,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('fecha')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [page, setPage] = useState(0)
 
   // Multi-cobro
   const [multiOpen, setMultiOpen] = useState(false)
@@ -160,8 +162,13 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
     return { imp, pend, num }
   }, [filtradas])
 
+  // Los filtros y totales usan el histórico completo; solo paginamos el DOM.
+  const pageCount = Math.max(1, Math.ceil(filtradas.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount - 1)
+  const visibles = filtradas.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)
+
   // IDs visibles tras filtrar — usado para "seleccionar todo".
-  const idsVisibles = useMemo(() => new Set(filtradas.map(m => m.id)), [filtradas])
+  const idsVisibles = new Set(visibles.map(m => m.id))
 
   const seleccion = useMemo(() => {
     let imp = 0, pend = 0, num = 0
@@ -183,8 +190,8 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
     })
   }
 
-  const allVisibleSelected = filtradas.length > 0 && filtradas.every(m => selected.has(m.id))
-  const someVisibleSelected = filtradas.some(m => selected.has(m.id))
+  const allVisibleSelected = visibles.length > 0 && visibles.every(m => selected.has(m.id))
+  const someVisibleSelected = visibles.some(m => selected.has(m.id))
 
   const toggleAll = () => {
     setSelected(prev => {
@@ -241,7 +248,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
   return (
     <div className="space-y-3">
       {/* Filtros */}
-      <div className="ao-panel p-3">
+      <div className="ao-panel p-3" onChange={() => setPage(0)}>
         <div className="grid gap-2 md:grid-cols-[1fr_auto_auto_auto_auto]">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--color-ink-3)]" />
@@ -457,7 +464,7 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
                 </td>
               </tr>
             )}
-            {filtradas.map(m => {
+            {visibles.map(m => {
               const est = estadoEfectivo(m)
               const pend = importePendiente(m)
               const esAbono = Number(m.importe) < 0
@@ -521,6 +528,16 @@ export function ListadoFacturas({ onCobrar, onVerCliente }: Props) {
           </tbody>
         </table>
       </div>
+      <nav aria-label="Páginas de facturas" className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--color-ink-3)]">
+        <span className="tabular-nums">
+          {filtradas.length === 0 ? 0 : currentPage * PAGE_SIZE + 1}–{Math.min((currentPage + 1) * PAGE_SIZE, filtradas.length)} de {filtradas.length} movimientos
+        </span>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Anterior</Button>
+          <span className="tabular-nums">Página {currentPage + 1} de {pageCount}</span>
+          <Button size="sm" variant="outline" disabled={currentPage + 1 >= pageCount} onClick={() => setPage(currentPage + 1)}>Siguiente</Button>
+        </div>
+      </nav>
     </div>
   )
 }
