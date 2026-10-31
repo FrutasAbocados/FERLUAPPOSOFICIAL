@@ -13,6 +13,7 @@ import {
   type MetodoCobroTarde,
   useBuscarFacturasHoldedTarde,
   useCrearPedidoTarde,
+  pctRepartidorPorFecha,
   useMargenFacturaTarde,
 } from '../lib/pedidos-tarde-queries'
 
@@ -38,8 +39,8 @@ export function PedidosTardeCrearModal({ existingFacturaIds, onClose }: Props) {
   const yaAnadida = !!selected && existingFacturaIds.has(selected.id)
   const saldo = useMemo(() => {
     if (!selected || !margen.data || !metodo) return null
-    const parteRaul = margen.data.beneficio * 0.8
-    return metodo === 'tarjeta' ? parteRaul : selected.total - parteRaul
+    const parteRepartidor = margen.data.beneficio * pctRepartidorPorFecha(selected.fecha) / 100
+    return metodo === 'tarjeta' ? parteRepartidor : selected.total - parteRepartidor
   }, [margen.data, metodo, selected])
 
   const handleCrear = async () => {
@@ -193,7 +194,7 @@ export function PedidosTardeCrearModal({ existingFacturaIds, onClose }: Props) {
                 onClick={() => setMetodo('efectivo')}
                 icon={<Banknote className="h-4 w-4" />}
                 title="Efectivo"
-                subtitle="Cobra Raúl"
+                subtitle="Cobras tú"
               />
             </div>
           </div>
@@ -201,7 +202,7 @@ export function PedidosTardeCrearModal({ existingFacturaIds, onClose }: Props) {
 
         {saldo != null && metodo && (
           <div className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--mint-glow)] px-3 py-2 text-sm text-[var(--ink-dim)]">
-            Al cobrarla, {metodo === 'tarjeta' ? 'la empresa deberá a Raúl' : 'Raúl deberá a la empresa'}{' '}
+            Al cobrarla, {metodo === 'tarjeta' ? 'la empresa te deberá' : 'deberás a la empresa'}{' '}
             <strong className="tabular-nums text-[var(--ink)]">{euros(saldo)}</strong>.
           </div>
         )}

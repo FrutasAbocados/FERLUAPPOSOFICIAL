@@ -32,7 +32,7 @@ const ALL_TABS = [
   { k: 'horas_extras', l: 'Horas extras', Icon: Clock4 },
   { k: 'credito',     l: 'Crédito',     Icon: ShoppingBasket },
   { k: 'colab',       l: 'Colab',       Icon: Handshake },
-  { k: 'pedidos_tarde', l: 'Pedidos Tarde', Icon: ReceiptText, soloRaul: true },
+  { k: 'pedidos_tarde', l: 'Pedidos Tarde', Icon: ReceiptText, soloRepartidorTarde: true },
 ] as const
 
 const MOBILE_PRIMARY_KEYS = ['dashboard', 'turnos', 'cierre', 'incidencias'] as const
@@ -48,7 +48,7 @@ export function EmpleadoNav({
 }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const visibleTabs = ALL_TABS.filter(t =>
-    (!('soloRaul' in t) || showPedidosTarde)
+    (!('soloRepartidorTarde' in t) || showPedidosTarde)
     && (INCENTIVOS_TRABAJADORES_VISIBLES || !esTabIncentivos(t.k))
   )
   const mobilePrimaryTabs = visibleTabs.filter(t =>

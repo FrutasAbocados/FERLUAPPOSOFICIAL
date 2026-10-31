@@ -1,26 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 
-export type MetodoCobroTarde = 'tarjeta' | 'efectivo'
+import {
+  type MetodoCobroTarde,
+  type PedidoTardeFactura,
+} from './pedidos-tarde-calc'
 
-export interface PedidoTardeFactura {
-  id: string
-  manager_factura_id: string
-  numero_factura: string
-  cliente: string
-  fecha: string
-  subtotal: number
-  importe_total: number
-  coste: number
-  beneficio: number
-  metodo_cobro: MetodoCobroTarde
-  cobrada_cliente: boolean
-  cobrada_at: string | null
-  liquidada_empresa: boolean
-  liquidada_at: string | null
-  created_at: string
-  updated_at: string
-}
+export * from './pedidos-tarde-calc'
 
 export interface FacturaHoldedTarde {
   id: string
@@ -35,15 +21,6 @@ export interface MargenFacturaTarde {
   subtotalLineas: number
   coste: number
   beneficio: number
-}
-
-export interface PedidosTardeKpis {
-  generado: number
-  beneficioRaul: number
-  beneficioEmpresa: number
-  pendienteRaulEmpresa: number
-  pendienteEmpresaRaul: number
-  balance: number
 }
 
 const QUERY_KEY = ['trabajadores', 'pedidos-tarde'] as const
@@ -65,35 +42,31 @@ const mapPedidoTarde = (row: Record<string, unknown>): PedidoTardeFactura => ({
   cobrada_at: row.cobrada_at == null ? null : String(row.cobrada_at),
   liquidada_empresa: Boolean(row.liquidada_empresa),
   liquidada_at: row.liquidada_at == null ? null : String(row.liquidada_at),
+  created_by: String(row.created_by),
   created_at: String(row.created_at),
   updated_at: String(row.updated_at),
+  pct_repartidor: asNumber(row.pct_repartidor ?? 80),
+  pct_luis: asNumber(row.pct_luis),
+  pct_alvaro: asNumber(row.pct_alvaro),
+  pct_impuesto: asNumber(row.pct_impuesto),
+  pct_empresa: asNumber(row.pct_empresa ?? 20),
 })
 
-export function calcularPedidosTardeKpis(facturas: PedidoTardeFactura[]): PedidosTardeKpis {
-  return facturas.reduce<PedidosTardeKpis>((acc, factura) => {
-    const parteRaul = factura.beneficio * 0.8
-    acc.generado += factura.importe_total
-    acc.beneficioRaul += parteRaul
-    acc.beneficioEmpresa += factura.beneficio * 0.2
-
-    if (factura.cobrada_cliente && !factura.liquidada_empresa) {
-      // Positivo: la empresa debe a Raúl. Negativo: Raúl debe a la empresa.
-      const saldoEmpresaARaul = factura.metodo_cobro === 'tarjeta'
-        ? parteRaul
-        : parteRaul - factura.importe_total
-      if (saldoEmpresaARaul >= 0) acc.pendienteEmpresaRaul += saldoEmpresaARaul
-      else acc.pendienteRaulEmpresa += Math.abs(saldoEmpresaARaul)
-    }
-
-    acc.balance = acc.pendienteEmpresaRaul - acc.pendienteRaulEmpresa
-    return acc
-  }, {
-    generado: 0,
-    beneficioRaul: 0,
-    beneficioEmpresa: 0,
-    pendienteRaulEmpresa: 0,
-    pendienteEmpresaRaul: 0,
-    balance: 0,
+/** Nombre del repartidor por user_id (solo lo usa administración). */
+export function useRepartidoresPedidosTarde(userIds: string[], enabled: boolean) {
+  const ids = [...new Set(userIds)].sort()
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'repartidores', ids] as const,
+    enabled: enabled && ids.length > 0,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<Map<string, string>> => {
+      const { data, error } = await supabase
+        .from('empleados')
+        .select('user_id, nombre')
+        .in('user_id', ids)
+      if (error) throw error
+      return new Map((data ?? []).map((row) => [String(row.user_id), String(row.nombre)]))
+    },
   })
 }
 

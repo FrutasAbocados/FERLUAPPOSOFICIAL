@@ -14,6 +14,7 @@ import { EmpleadoObjetivoCard } from './EmpleadoObjetivoCard'
 import { EmpleadoBeneficiosMesCard } from './EmpleadoBeneficiosMesCard'
 import { useEmpleadoPropio } from '../lib/useEmpleadoPropio'
 import { INCENTIVOS_TRABAJADORES_VISIBLES } from '../lib/features'
+import { esRepartidorPedidosTarde } from '../lib/pedidos-tarde-queries'
 
 interface Empleado {
   id: string
@@ -77,7 +78,7 @@ function siguienteMes(mesISO: string): string {
 export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean }) {
   const { profile } = useAuth()
   const isAdmin = !modoEmpleado && profile?.role !== 'empleado'
-  const isRaul = profile?.email.trim().toLowerCase() === 'raulpedper@gmail.com'
+  const isRepartidorTarde = esRepartidorPedidosTarde(profile?.email)
 
   const mesISO = format(startOfMonth(new Date()), 'yyyy-MM-dd')
   const mesFinISO = siguienteMes(mesISO)
@@ -201,7 +202,7 @@ export function DashboardView({ modoEmpleado = false }: { modoEmpleado?: boolean
               creditoGastado={cr?.gastado ?? null}
               creditoLimite={cr?.limite_base ?? null}
             />
-            {INCENTIVOS_TRABAJADORES_VISIBLES && isRaul && (
+            {INCENTIVOS_TRABAJADORES_VISIBLES && isRepartidorTarde && (
               <EmpleadoBeneficiosMesCard
                 empleadoId={e.id}
                 puntosEuros={pts?.euros ?? 0}

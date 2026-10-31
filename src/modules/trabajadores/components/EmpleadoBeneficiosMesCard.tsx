@@ -44,7 +44,7 @@ function useBeneficiosMes(empleadoId: string, mesISO: string, finISO: string) {
         supabase.rpc('trabajadores_horas_extras_resumen_self', { p_mes: mesISO }),
         supabase
           .from('trabajadores_pedidos_tarde_facturas')
-          .select('beneficio')
+          .select('beneficio, pct_repartidor')
           .gte('fecha', mesISO)
           .lt('fecha', finISO),
       ])
@@ -65,7 +65,7 @@ function useBeneficiosMes(empleadoId: string, mesISO: string, finISO: string) {
         plusesExtra: (pluses.data ?? []).reduce((sum, row) => sum + num(row.importe), 0),
         objetivo: objetivoRow?.cumplido ? num(objetivoRow.importe_aplicado) : 0,
         horasExtra: num(horasRow?.importe_pago_pendiente) + num(horasRow?.importe_pago_liquidado),
-        pedidosTarde: (pedidos.data ?? []).reduce((sum, row) => sum + num(row.beneficio) * 0.8, 0),
+        pedidosTarde: (pedidos.data ?? []).reduce((sum, row) => sum + num(row.beneficio) * num(row.pct_repartidor ?? 80) / 100, 0),
       }
     },
   })

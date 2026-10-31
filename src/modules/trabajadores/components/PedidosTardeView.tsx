@@ -12,6 +12,7 @@ import {
   CircleDollarSign,
   CreditCard,
   HandCoins,
+  Landmark,
   Loader2,
   Plus,
   UserRound,
@@ -24,10 +25,13 @@ import { toast } from '@/shared/lib/toast'
 import {
   calcularPedidosTardeKpis,
   type PedidoTardeFactura,
+  parteRepartidor,
+  saldoEmpresaARepartidor,
   useActualizarEstadoPedidosTarde,
   useCambiarMetodoPedidoTarde,
   usePedidosTardeFacturaIds,
   usePedidosTardeFacturas,
+  useRepartidoresPedidosTarde,
 } from '../lib/pedidos-tarde-queries'
 import { PedidosTardeCrearModal } from './PedidosTardeCrearModal'
 
@@ -42,7 +46,17 @@ export function PedidosTardeView({ modoSupervision = false }: { modoSupervision?
   const facturaIds = usePedidosTardeFacturaIds(!modoSupervision)
   const actualizarEstado = useActualizarEstadoPedidosTarde()
   const cambiarMetodo = useCambiarMetodoPedidoTarde()
-  const rows = useMemo(() => facturas.data ?? [], [facturas.data])
+  const [repartidorFiltro, setRepartidorFiltro] = useState<string>('todos')
+  const allRows = useMemo(() => facturas.data ?? [], [facturas.data])
+  const repartidorIds = useMemo(() => [...new Set(allRows.map((row) => row.created_by))], [allRows])
+  const repartidores = useRepartidoresPedidosTarde(repartidorIds, modoSupervision)
+  const nombreRepartidor = (userId: string) => repartidores.data?.get(userId) ?? 'Repartidor'
+  const rows = useMemo(
+    () => (modoSupervision && repartidorFiltro !== 'todos'
+      ? allRows.filter((row) => row.created_by === repartidorFiltro)
+      : allRows),
+    [allRows, modoSupervision, repartidorFiltro],
+  )
   const kpis = useMemo(() => calcularPedidosTardeKpis(rows), [rows])
   const selectedRows = useMemo(
     () => rows.filter((row) => selectedIds.has(row.id)),
@@ -122,12 +136,12 @@ export function PedidosTardeView({ modoSupervision = false }: { modoSupervision?
                 {modoSupervision ? 'Supervisión administrativa' : 'Liquidación comercial'}
               </p>
               <h1 className="font-display text-xl font-bold text-[var(--ink)]">
-                Pedidos de tarde{modoSupervision ? ' · Raúl' : ''}
+                Pedidos Tarde
               </h1>
               <p className="text-xs text-[var(--ink-dim)]">
                 {modoSupervision
-                  ? 'Vista de solo lectura con los pedidos y movimientos registrados desde el panel de Raúl.'
-                  : 'Seguimiento de facturación, cobros y saldos con la empresa.'}
+                  ? 'Vista de solo lectura con los pedidos y repartos de todos los repartidores.'
+                  : 'Tus facturas, tu parte y tu saldo con la empresa.'}
               </p>
             </div>
           </div>
@@ -169,6 +183,19 @@ export function PedidosTardeView({ modoSupervision = false }: { modoSupervision?
             )}
           </div>
           <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold text-[var(--ink-dim)]">
+            {modoSupervision && repartidorIds.length > 0 && (
+              <select
+                value={repartidorFiltro}
+                onChange={(e) => { setRepartidorFiltro(e.target.value); setSelectedIds(new Set()) }}
+                className="h-7 rounded-full border border-[var(--line)] bg-[var(--surface)] px-2 text-[10px] font-semibold text-[var(--ink)]"
+                aria-label="Filtrar por repartidor"
+              >
+                <option value="todos">Todos los repartidores</option>
+                {repartidorIds.map((id) => (
+                  <option key={id} value={id}>{nombreRepartidor(id)}</option>
+                ))}
+              </select>
+            )}
             <span className="rounded-full border border-[var(--line)] px-2 py-1 tabular-nums">{rows.length} facturas</span>
             <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-emerald-400 tabular-nums">{cobradasCount} cobradas</span>
             <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-amber-400 tabular-nums">{pendientesLiquidacion} por liquidar</span>
@@ -176,29 +203,62 @@ export function PedidosTardeView({ modoSupervision = false }: { modoSupervision?
         </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
         <Kpi icon={<CircleDollarSign />} label="Facturación gestionada" value={euros(kpis.generado)} />
-        <Kpi icon={<UserRound />} label="Resultado para Raúl" value={euros(kpis.beneficioRaul)} tone="mint" />
-        <Kpi icon={<Building2 />} label="Participación empresa" value={euros(kpis.beneficioEmpresa)} />
-        <Kpi icon={<Banknote />} label="Raúl → empresa" value={euros(kpis.pendienteRaulEmpresa)} tone="warning" />
-        <Kpi icon={<CreditCard />} label="Empresa → Raúl" value={euros(kpis.pendienteEmpresaRaul)} tone="info" />
+        <Kpi
+          icon={<UserRound />}
+          label={modoSupervision ? 'Parte repartidores' : 'Tu parte'}
+          value={euros(kpis.beneficioRepartidor)}
+          tone="mint"
+        />
+        <Kpi
+          icon={<Banknote />}
+          label={modoSupervision ? 'Repartidor → empresa' : 'Debes a la empresa'}
+          value={euros(kpis.pendienteRepartidorEmpresa)}
+          tone="warning"
+        />
+        <Kpi
+          icon={<CreditCard />}
+          label={modoSupervision ? 'Empresa → repartidor' : 'La empresa te debe'}
+          value={euros(kpis.pendienteEmpresaRepartidor)}
+          tone="info"
+        />
         <Kpi
           icon={<ArrowLeftRight />}
           label="Balance pendiente"
           value={euros(Math.abs(kpis.balance))}
-          detail={kpis.balance > 0 ? 'Empresa → Raúl' : kpis.balance < 0 ? 'Raúl → empresa' : 'Al día'}
+          detail={kpis.balance > 0
+            ? (modoSupervision ? 'Empresa → repartidor' : 'Te deben')
+            : kpis.balance < 0
+              ? (modoSupervision ? 'Repartidor → empresa' : 'Debes')
+              : 'Al día'}
           tone={kpis.balance === 0 ? 'mint' : 'warning'}
         />
       </div>
 
+      {modoSupervision && (
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+          <Kpi icon={<CircleDollarSign />} label="Margen total" value={euros(kpis.beneficio)} />
+          <Kpi icon={<UserRound />} label="Luis · 15 %" value={euros(kpis.beneficioLuis)} />
+          <Kpi icon={<UserRound />} label="Álvaro · 15 %" value={euros(kpis.beneficioAlvaro)} />
+          <Kpi icon={<Landmark />} label="Impuesto · 20 %" value={euros(kpis.impuesto)} />
+          <Kpi
+            icon={<Building2 />}
+            label="Empresa (hasta oct.)"
+            value={euros(kpis.beneficioEmpresa)}
+            detail="Reparto antiguo 80/20"
+          />
+        </div>
+      )}
+
       <div className="ao-panel grid gap-2 px-3 py-2.5 text-xs text-[var(--ink-dim)] md:grid-cols-2">
         <div className="flex items-center gap-2">
           <CreditCard className="h-4 w-4 shrink-0 text-sky-400" />
-          <span><strong className="text-[var(--ink)]">Tarjeta:</strong> cobra la empresa y queda pendiente la parte de Raúl.</span>
+          <span><strong className="text-[var(--ink)]">Tarjeta:</strong> cobra la empresa y queda pendiente la parte del repartidor.</span>
         </div>
         <div className="flex items-center gap-2">
           <Banknote className="h-4 w-4 shrink-0 text-amber-400" />
-          <span><strong className="text-[var(--ink)]">Efectivo:</strong> cobra Raúl y queda pendiente la liquidación con la empresa.</span>
+          <span><strong className="text-[var(--ink)]">Efectivo:</strong> cobra el repartidor y entrega a la empresa el total menos su parte.</span>
         </div>
       </div>
 
@@ -264,7 +324,7 @@ export function PedidosTardeView({ modoSupervision = false }: { modoSupervision?
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-dim)]">Facturas del periodo</h2>
                 <p className="text-[10px] text-[var(--ink-mute)]">
                   {modoSupervision
-                    ? 'Estados y fechas reflejados exactamente como los ha registrado Raúl.'
+                    ? 'Estados y fechas reflejados exactamente como los ha registrado cada repartidor.'
                     : 'Selecciona varias para actualizar su situación conjuntamente.'}
                 </p>
               </div>
@@ -283,7 +343,7 @@ export function PedidosTardeView({ modoSupervision = false }: { modoSupervision?
               <span>Cliente</span>
               <span>Método</span>
               <span className="text-right">Total</span>
-              <span className="text-right">Beneficio</span>
+              <span className="text-right">{modoSupervision ? 'Margen' : 'Tu parte'}</span>
               <span>Estados</span>
               {modoSupervision && <span>Actividad</span>}
             </div>
@@ -295,6 +355,7 @@ export function PedidosTardeView({ modoSupervision = false }: { modoSupervision?
                   checked={selectedIds.has(row.id)}
                   disabled={isMutating}
                   modoSupervision={modoSupervision}
+                  repartidor={modoSupervision ? nombreRepartidor(row.created_by) : null}
                   onToggle={() => toggleOne(row.id)}
                   onMetodo={() => handleMetodo(row)}
                   onCobro={() => updateStatus([row.id], 'cobrada', !row.cobrada_cliente, row.cobrada_cliente ? 'Cobro deshecho' : 'Factura cobrada')}
@@ -352,6 +413,7 @@ function FacturaRow({
   checked,
   disabled,
   modoSupervision,
+  repartidor,
   onToggle,
   onMetodo,
   onCobro,
@@ -361,13 +423,17 @@ function FacturaRow({
   checked: boolean
   disabled: boolean
   modoSupervision: boolean
+  repartidor: string | null
   onToggle: () => void
   onMetodo: () => void
   onCobro: () => void
   onLiquidacion: () => void
 }) {
-  const parteRaul = row.beneficio * 0.8
-  const liquidacion = row.metodo_cobro === 'tarjeta' ? parteRaul : row.importe_total - parteRaul
+  const parte = parteRepartidor(row)
+  const liquidacion = Math.abs(saldoEmpresaARepartidor(row))
+  const repartoDetalle = row.pct_empresa > 0
+    ? `Repartidor ${row.pct_repartidor} % · Empresa ${row.pct_empresa} %`
+    : `Repartidor ${euros(parte)} · Luis ${euros(row.beneficio * row.pct_luis / 100)} · Álvaro ${euros(row.beneficio * row.pct_alvaro / 100)} · Impuesto ${euros(row.beneficio * row.pct_impuesto / 100)}`
   return (
     <div className={`p-3 md:grid md:items-center md:gap-2 ${
       modoSupervision
@@ -388,7 +454,12 @@ function FacturaRow({
               {format(parseISO(row.fecha), 'd MMM yyyy', { locale: es })}
             </span>
           </div>
-          <div className="truncate text-sm text-[var(--ink)]">{row.cliente}</div>
+          <div className="min-w-0">
+            <div className="truncate text-sm text-[var(--ink)]">{row.cliente}</div>
+            {repartidor && (
+              <div className="truncate text-[10px] font-semibold text-[var(--mint)]">{repartidor}</div>
+            )}
+          </div>
           <button
             type="button"
             onClick={modoSupervision ? undefined : onMetodo}
@@ -398,7 +469,7 @@ function FacturaRow({
                 ? 'border-sky-500/30 bg-sky-500/10 text-sky-400'
                 : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
             }`}
-            title={modoSupervision ? 'Método registrado por Raúl' : 'Cambiar método de cobro'}
+            title={modoSupervision ? 'Método registrado por el repartidor' : 'Cambiar método de cobro'}
           >
             {row.metodo_cobro === 'tarjeta' ? <CreditCard className="h-3 w-3" /> : <Banknote className="h-3 w-3" />}
             {row.metodo_cobro === 'tarjeta' ? 'Tarjeta' : 'Efectivo'}
@@ -409,8 +480,18 @@ function FacturaRow({
               <span className="text-sm font-semibold tabular-nums text-[var(--ink)]">{euros(row.importe_total)}</span>
             </div>
             <div className="md:text-right">
-              <span className="block text-[10px] text-[var(--ink-mute)] md:hidden">Beneficio</span>
-              <span className="text-sm font-semibold tabular-nums text-[var(--mint)]">{euros(row.beneficio)}</span>
+              <span className="block text-[10px] text-[var(--ink-mute)] md:hidden">{modoSupervision ? 'Margen' : 'Tu parte'}</span>
+              <span
+                className="text-sm font-semibold tabular-nums text-[var(--mint)]"
+                title={modoSupervision ? repartoDetalle : `${row.pct_repartidor} % del margen`}
+              >
+                {euros(modoSupervision ? row.beneficio : parte)}
+              </span>
+              {modoSupervision && (
+                <span className="block text-[9px] tabular-nums text-[var(--ink-mute)]">
+                  Rep. {euros(parte)}
+                </span>
+              )}
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-1.5 md:mt-0 md:block md:space-y-1">
@@ -427,7 +508,9 @@ function FacturaRow({
             </StatusButton>
             {row.cobrada_cliente && !row.liquidada_empresa && (
               <span className="block text-[9px] tabular-nums text-[var(--ink-mute)]" title="Importe pendiente de liquidación">
-                {row.metodo_cobro === 'tarjeta' ? 'Empresa → Raúl' : 'Raúl → empresa'} {euros(liquidacion)}
+                {row.metodo_cobro === 'tarjeta'
+                  ? (modoSupervision ? 'Empresa → repartidor' : 'Te deben')
+                  : (modoSupervision ? 'Repartidor → empresa' : 'Debes')} {euros(liquidacion)}
               </span>
             )}
           </div>

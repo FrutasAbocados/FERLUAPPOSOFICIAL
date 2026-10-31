@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test'
 import { loginAdmin } from './auth'
 
-test('Admin supervisa los Pedidos Tarde de Raúl en modo solo lectura', async ({ page }) => {
+test('Admin supervisa los Pedidos Tarde de los repartidores en modo solo lectura', async ({ page }) => {
   test.setTimeout(120_000)
   await loginAdmin(page)
 
   await page.goto('/trabajadores', { waitUntil: 'domcontentloaded' })
-  const pedidosTab = page.getByRole('button', { name: /Pedidos tarde · Raúl/i })
+  const pedidosTab = page.getByRole('button', { name: /^Pedidos Tarde$/i })
 
   // CI prueba la URL de producción y Vercel puede tardar unos segundos en
   // propagar el bundle recién desplegado tras el push.
@@ -34,7 +34,7 @@ test('Admin supervisa los Pedidos Tarde de Raúl en modo solo lectura', async ({
     pedidosTab.click(),
   ])
 
-  await expect(page.getByRole('heading', { name: 'Pedidos de tarde · Raúl' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Pedidos Tarde' })).toBeVisible()
   await expect(page.getByText('Solo lectura', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /Incorporar factura/i })).toHaveCount(0)
   await expect(page.locator('input[type="checkbox"]')).toHaveCount(0)

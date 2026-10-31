@@ -5,6 +5,7 @@ import { useAuth } from '@/shared/auth/useAuth'
 import { EmpleadoNav, type EmpleadoTab } from './components/EmpleadoNav'
 import { useEmpleadoPropio } from './lib/useEmpleadoPropio'
 import { INCENTIVOS_TRABAJADORES_VISIBLES, esTabIncentivos } from './lib/features'
+import { esRepartidorPedidosTarde } from './lib/pedidos-tarde-queries'
 
 const TurnosPage = lazy(() => import('@/modules/turnos/TurnosPage').then(m => ({ default: m.TurnosPage })))
 const CreditoView = lazy(() => import('./components/CreditoView').then(m => ({ default: m.CreditoView })))
@@ -45,7 +46,7 @@ const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
 
 const PEDIDOS_TARDE_ADMIN_TAB: { k: Tab; l: string; Icon: typeof Award } = {
   k: 'pedidos_tarde',
-  l: 'Pedidos tarde · Raúl',
+  l: 'Pedidos Tarde',
   Icon: ReceiptText,
 }
 
@@ -127,7 +128,7 @@ function EmpleadoContent({
 }) {
   const { profile } = useAuth()
   const { data: empleado, isLoading } = useEmpleadoPropio()
-  const showPedidosTarde = profile?.email.trim().toLowerCase() === 'raulpedper@gmail.com'
+  const showPedidosTarde = esRepartidorPedidosTarde(profile?.email)
   const empTab = isEmpleadoTab(tab)
     && (tab !== 'pedidos_tarde' || showPedidosTarde)
     && (INCENTIVOS_TRABAJADORES_VISIBLES || !esTabIncentivos(tab))
