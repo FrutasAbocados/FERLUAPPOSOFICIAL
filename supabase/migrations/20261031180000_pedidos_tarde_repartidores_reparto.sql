@@ -46,6 +46,13 @@ alter table public.trabajadores_pedidos_tarde_facturas
     and pct_repartidor + pct_luis + pct_alvaro + pct_impuesto + pct_empresa = 100
   );
 
+-- Si se incorporó alguna factura de noviembre antes de aplicar esta migración,
+-- recibe el reparto nuevo. Va antes de redefinir el trigger de protección
+-- (la versión vigente todavía no vigila los porcentajes).
+update public.trabajadores_pedidos_tarde_facturas
+set pct_repartidor = 50, pct_luis = 15, pct_alvaro = 15, pct_impuesto = 20, pct_empresa = 0
+where fecha >= date '2026-11-01' and pct_empresa <> 0;
+
 comment on column public.trabajadores_pedidos_tarde_facturas.pct_repartidor is
   'Porcentaje del margen para el repartidor (created_by). Fijado al alta según la fecha de la factura.';
 comment on column public.trabajadores_pedidos_tarde_facturas.pct_impuesto is
