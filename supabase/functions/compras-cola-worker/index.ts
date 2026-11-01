@@ -167,7 +167,7 @@ async function invocar<T>(fn: string, body: unknown): Promise<{ status: number; 
     body: JSON.stringify(body),
   })
   const txt = await res.text()
-  let data: unknown = null
+  let data: unknown
   try { data = JSON.parse(txt) } catch { data = { error: txt.slice(0, 300) } }
   return { status: res.status, data: data as T }
 }
@@ -454,7 +454,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (!(await checkAuthAdmin(req))) return jsonRes({ error: 'solo admin' }, 403)
 
-  // @ts-ignore EdgeRuntime existe en el runtime de Supabase
-  EdgeRuntime.waitUntil(trabajar().catch((e) => console.error('[compras-cola-worker] bucle', e)))
+  // EdgeRuntime existe en el runtime de Supabase; no está en los tipos de Deno.
+  ;(globalThis as unknown as { EdgeRuntime: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime.waitUntil(trabajar().catch((e) => console.error('[compras-cola-worker] bucle', e)))
   return jsonRes({ ok: true })
 })
