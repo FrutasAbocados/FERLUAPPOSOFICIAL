@@ -1,11 +1,12 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Award, BarChart3, CalendarClock, CalendarOff, ClipboardList, Clock4, Fingerprint, ReceiptText, ShieldAlert, ShoppingBasket, Sparkles, Target } from 'lucide-react'
+import { Award, BarChart3, CalendarClock, CalendarOff, ClipboardList, Clock4, Fingerprint, ReceiptText, Scale, ShieldAlert, ShoppingBasket, Sparkles, Target } from 'lucide-react'
 import { useAuth } from '@/shared/auth/useAuth'
 import { EmpleadoNav, type EmpleadoTab } from './components/EmpleadoNav'
 import { useEmpleadoPropio } from './lib/useEmpleadoPropio'
 import { INCENTIVOS_TRABAJADORES_VISIBLES, esTabIncentivos } from './lib/features'
 import { esRepartidorPedidosTarde } from './lib/pedidos-tarde-queries'
+import { useMermaActiva } from './lib/merma-queries'
 
 const TurnosPage = lazy(() => import('@/modules/turnos/TurnosPage').then(m => ({ default: m.TurnosPage })))
 const CreditoView = lazy(() => import('./components/CreditoView').then(m => ({ default: m.CreditoView })))
@@ -27,8 +28,9 @@ const ObjetivosAdminView = lazy(() => import('./components/ObjetivosAdminView').
 const IncidenciasView = lazy(() => import('./components/IncidenciasView').then(m => ({ default: m.IncidenciasView })))
 const DisciplinaView = lazy(() => import('./components/DisciplinaView').then(m => ({ default: m.DisciplinaView })))
 const PedidosTardeView = lazy(() => import('./components/PedidosTardeView').then(m => ({ default: m.PedidosTardeView })))
+const MermaView = lazy(() => import('./components/MermaView').then(m => ({ default: m.MermaView })))
 
-type Tab = 'dashboard' | 'puntos' | 'premios' | 'vacaciones' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'incidencias' | 'disciplina' | 'colab' | 'cierre' | 'pedidos_tarde'
+type Tab = 'dashboard' | 'puntos' | 'premios' | 'vacaciones' | 'credito' | 'horas_extras' | 'fichajes' | 'turnos' | 'ruleta' | 'productividad' | 'incidencias' | 'disciplina' | 'colab' | 'cierre' | 'pedidos_tarde' | 'merma'
 
 const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'dashboard',     l: 'Dashboard',          Icon: BarChart3 },
@@ -44,13 +46,15 @@ const TABS: Array<{ k: Tab; l: string; Icon: typeof Award }> = [
   { k: 'disciplina',    l: 'Disciplina',         Icon: ShieldAlert },
 ]
 
+const MERMA_ADMIN_TAB: { k: Tab; l: string; Icon: typeof Award } = { k: 'merma', l: 'Merma', Icon: Scale }
+
 const PEDIDOS_TARDE_ADMIN_TAB: { k: Tab; l: string; Icon: typeof Award } = {
   k: 'pedidos_tarde',
   l: 'Pedidos Tarde',
   Icon: ReceiptText,
 }
 
-const TABS_EMPLEADO: Tab[] = ['dashboard', 'turnos', 'cierre', 'incidencias', 'disciplina', 'puntos', 'premios', 'vacaciones', 'horas_extras', 'credito', 'colab', 'pedidos_tarde']
+const TABS_EMPLEADO: Tab[] = ['dashboard', 'turnos', 'cierre', 'incidencias', 'disciplina', 'puntos', 'premios', 'vacaciones', 'horas_extras', 'credito', 'colab', 'pedidos_tarde', 'merma']
 const TAB_KEYS = new Set<string>([...TABS.map(t => t.k), ...TABS_EMPLEADO])
 
 const isTab = (v: string | null | undefined): v is Tab =>
@@ -64,7 +68,7 @@ export function TrabajadoresOpPage() {
   const role = profile?.role
   const isAdmin = role === 'admin_full' || role === 'admin_op'
   const tabsVisibles = useMemo(
-    () => (isAdmin ? [...TABS, PEDIDOS_TARDE_ADMIN_TAB] : TABS)
+    () => (isAdmin ? [...TABS, PEDIDOS_TARDE_ADMIN_TAB, MERMA_ADMIN_TAB] : TABS)
       .filter(({ k }) => INCENTIVOS_TRABAJADORES_VISIBLES || !esTabIncentivos(k)),
     [isAdmin],
   )
@@ -72,7 +76,7 @@ export function TrabajadoresOpPage() {
   const initialTab: Tab = isTab(searchParams.get('tab')) ? (searchParams.get('tab') as Tab) : 'dashboard'
   const [tab, setTab] = useState<Tab>(initialTab)
   const previewEmpleado = role === 'admin_full' && searchParams.get('preview') === 'empleado'
-  const activeTab = (tab === 'pedidos_tarde' && !isAdmin)
+  const activeTab = ((tab === 'pedidos_tarde' || tab === 'merma') && !isAdmin)
     || (!INCENTIVOS_TRABAJADORES_VISIBLES && esTabIncentivos(tab))
     ? 'dashboard'
     : tab
@@ -114,6 +118,7 @@ export function TrabajadoresOpPage() {
         {activeTab === 'incidencias'  && <IncidenciasView autorEmpleadoId={null} />}
         {activeTab === 'disciplina'   && <DisciplinaView />}
         {activeTab === 'pedidos_tarde' && isAdmin && <PedidosTardeView modoSupervision />}
+        {activeTab === 'merma' && isAdmin && <MermaView modoSupervision />}
       </Suspense>
     </div>
   )
@@ -129,8 +134,10 @@ function EmpleadoContent({
   const { profile } = useAuth()
   const { data: empleado, isLoading } = useEmpleadoPropio()
   const showPedidosTarde = esRepartidorPedidosTarde(profile?.email)
+  const { data: showMerma = false } = useMermaActiva()
   const empTab = isEmpleadoTab(tab)
     && (tab !== 'pedidos_tarde' || showPedidosTarde)
+    && (tab !== 'merma' || showMerma)
     && (INCENTIVOS_TRABAJADORES_VISIBLES || !esTabIncentivos(tab))
     ? tab
     : 'dashboard'
@@ -145,7 +152,7 @@ function EmpleadoContent({
 
   return (
     <div>
-      <EmpleadoNav tab={empTab} setTab={(t) => setTab(t)} showPedidosTarde={showPedidosTarde} />
+      <EmpleadoNav tab={empTab} setTab={(t) => setTab(t)} showPedidosTarde={showPedidosTarde} showMerma={showMerma} />
 
       <Suspense fallback={<TabFallback />}>
         {empTab === 'dashboard'    && <DashboardView modoEmpleado />}
@@ -160,6 +167,7 @@ function EmpleadoContent({
         {empTab === 'horas_extras' && (empleado ? <EmpleadoHorasExtrasView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'colab'        && (empleado ? <EmpleadoColabView empleado={empleado} /> : <DashboardView modoEmpleado />)}
         {empTab === 'pedidos_tarde' && showPedidosTarde && <PedidosTardeView />}
+        {empTab === 'merma'        && showMerma && <MermaView empleado={empleado} />}
       </Suspense>
     </div>
   )

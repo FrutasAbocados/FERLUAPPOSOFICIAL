@@ -27,6 +27,7 @@ interface Trabajador {
   limite_credito_mensual: number | null
   tarifa_sabado: number | null
   jornada_factor: number
+  merma_activa: boolean
 }
 
 const eur = eurosOrDash
@@ -37,7 +38,7 @@ function useTrabajadores() {
     queryFn: async (): Promise<Trabajador[]> => {
       const { data, error } = await supabase
         .from('empleados')
-        .select('id, nombre, user_id, puesto, fecha_alta, sueldo_base, plus_transporte, plus_responsabilidad, plus_otros, plus_otros_concepto, notas, activo, pack, limite_credito_mensual, tarifa_sabado, jornada_factor')
+        .select('id, nombre, user_id, puesto, fecha_alta, sueldo_base, plus_transporte, plus_responsabilidad, plus_otros, plus_otros_concepto, notas, activo, pack, limite_credito_mensual, tarifa_sabado, jornada_factor, merma_activa')
         .order('nombre')
       if (error) throw error
       return (data ?? []) as Trabajador[]
@@ -127,6 +128,7 @@ function useCrearTrabajador() {
           limite_credito_mensual: t.limite_credito_mensual,
           tarifa_sabado: t.tarifa_sabado,
           jornada_factor: t.jornada_factor,
+          merma_activa: t.merma_activa,
         })
       if (error) throw error
     },
@@ -155,6 +157,7 @@ function useGuardarTrabajador() {
           limite_credito_mensual: t.limite_credito_mensual,
           tarifa_sabado: t.tarifa_sabado,
           jornada_factor: t.jornada_factor,
+          merma_activa: t.merma_activa,
         })
         .eq('id', t.id)
       if (error) throw error
@@ -191,6 +194,7 @@ const trabajadorNuevo = (): Trabajador => ({
   limite_credito_mensual: 100,
   tarifa_sabado: 70,
   jornada_factor: 1,
+  merma_activa: false,
 })
 
 export function TrabajadoresPage() {
@@ -455,6 +459,21 @@ function EditorTrabajador({ trabajador, onClose, modo = 'editar' }: { trabajador
               <span className="ao-text-success font-display text-xl font-bold tabular-nums">{eur(totalMensual(t))}</span>
             </div>
           </div>
+
+          <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[var(--color-border)] p-3 text-sm">
+            <input
+              type="checkbox"
+              checked={t.merma_activa}
+              onChange={(e) => set('merma_activa', e.target.checked)}
+              className="mt-0.5"
+            />
+            <div>
+              <div className="font-semibold text-[var(--color-ink)]">Registro de merma diario</div>
+              <div className="text-xs text-[var(--color-ink-3)]">
+                Ve la pestaña Merma en su perfil y apunta cada día la merma que se lleva (referencia y kilos, a mano o por voz).
+              </div>
+            </div>
+          </label>
 
           <Field label="Notas">
             <textarea

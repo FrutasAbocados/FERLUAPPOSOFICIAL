@@ -12,13 +12,14 @@ import {
   Handshake,
   MoreHorizontal,
   ReceiptText,
+  Scale,
   ShieldAlert,
   ShoppingBasket,
   X,
 } from 'lucide-react'
 import { INCENTIVOS_TRABAJADORES_VISIBLES, esTabIncentivos } from '../lib/features'
 
-export type EmpleadoTab = 'dashboard' | 'turnos' | 'puntos' | 'premios' | 'credito' | 'colab' | 'vacaciones' | 'cierre' | 'horas_extras' | 'incidencias' | 'disciplina' | 'pedidos_tarde'
+export type EmpleadoTab = 'dashboard' | 'turnos' | 'puntos' | 'premios' | 'credito' | 'colab' | 'vacaciones' | 'cierre' | 'horas_extras' | 'incidencias' | 'disciplina' | 'pedidos_tarde' | 'merma'
 
 const ALL_TABS = [
   { k: 'dashboard',   l: 'Inicio',      Icon: BarChart3 },
@@ -33,22 +34,26 @@ const ALL_TABS = [
   { k: 'credito',     l: 'Crédito',     Icon: ShoppingBasket },
   { k: 'colab',       l: 'Colab',       Icon: Handshake },
   { k: 'pedidos_tarde', l: 'Pedidos Tarde', Icon: ReceiptText, soloRepartidorTarde: true },
+  { k: 'merma',       l: 'Merma',       Icon: Scale, soloMerma: true },
 ] as const
 
-const MOBILE_PRIMARY_KEYS = ['dashboard', 'turnos', 'cierre', 'incidencias'] as const
+const MOBILE_PRIMARY_KEYS = ['dashboard', 'turnos', 'cierre', 'incidencias', 'merma'] as const
 
 export function EmpleadoNav({
   tab,
   setTab,
   showPedidosTarde = false,
+  showMerma = false,
 }: {
   tab: EmpleadoTab
   setTab: (t: EmpleadoTab) => void
   showPedidosTarde?: boolean
+  showMerma?: boolean
 }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const visibleTabs = ALL_TABS.filter(t =>
     (!('soloRepartidorTarde' in t) || showPedidosTarde)
+    && (!('soloMerma' in t) || showMerma)
     && (INCENTIVOS_TRABAJADORES_VISIBLES || !esTabIncentivos(t.k))
   )
   const mobilePrimaryTabs = visibleTabs.filter(t =>
