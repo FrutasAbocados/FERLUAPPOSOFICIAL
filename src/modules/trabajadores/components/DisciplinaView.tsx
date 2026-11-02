@@ -41,6 +41,8 @@ export function DisciplinaView({ modoEmpleado = false }: { modoEmpleado?: boolea
 
   const mesISO = format(mes, 'yyyy-MM-dd')
   const isCurrentMonth = mesISO === format(startOfMonth(new Date()), 'yyyy-MM-dd')
+  // La BD (RLS) no devuelve al trabajador los partes del mes en curso: se publican al cerrar el mes.
+  const ocultoMesEnCurso = modoEmpleado && isCurrentMonth
   const resumen = useDisciplinaResumenMes(mesISO)
   const partes = useDisciplinaPartesMes(mesISO)
   const eliminar = useEliminarParte()
@@ -133,25 +135,31 @@ export function DisciplinaView({ modoEmpleado = false }: { modoEmpleado?: boolea
           </div>
         )}
 
-        {resumen.isLoading && (
+        {ocultoMesEnCurso && (
+          <p className="px-4 py-8 text-center text-sm text-[var(--ink-mute)]">
+            Los partes de este mes se publican el día 1 del mes que viene.
+          </p>
+        )}
+
+        {!ocultoMesEnCurso && resumen.isLoading && (
           <div className="flex items-center justify-center gap-2 px-4 py-8 text-sm text-[var(--ink-mute)]">
             <Loader2 className="h-4 w-4 animate-spin" /> Cargando disciplina…
           </div>
         )}
 
-        {resumen.isError && (
+        {!ocultoMesEnCurso && resumen.isError && (
           <p className="px-4 py-8 text-center text-sm text-red-400">
             No se pudo cargar: {errorMessage(resumen.error)}
           </p>
         )}
 
-        {!resumen.isLoading && !resumen.isError && filas.length === 0 && (
+        {!ocultoMesEnCurso && !resumen.isLoading && !resumen.isError && filas.length === 0 && (
           <p className="px-4 py-8 text-center text-sm text-[var(--ink-mute)]">
             No hay trabajadores activos que mostrar.
           </p>
         )}
 
-        {filas.length > 0 && (
+        {!ocultoMesEnCurso && filas.length > 0 && (
           <ul className="divide-y divide-[var(--line)]">
             {filas.map(fila => (
               <FilaTrabajador
