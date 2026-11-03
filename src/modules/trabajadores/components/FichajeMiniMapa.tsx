@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip } from 'react-leaflet'
+import { useEffect, useMemo } from 'react'
+import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { LatLngBoundsExpression, LatLngExpression } from 'leaflet'
 
@@ -10,6 +10,24 @@ interface Props {
   lngOut: number | null
   horaIn?: string
   horaOut?: string
+}
+
+/**
+ * El contenedor se monta dentro de una tarjeta que acaba de abrirse: Leaflet
+ * puede calcular el encuadre con un tamaño 0 y dejar los puntos fuera de vista.
+ * Al montar, recalcula el tamaño y vuelve a encuadrar entrada/salida.
+ */
+function Encuadrar({ puntos }: { puntos: Array<[number, number]> }) {
+  const map = useMap()
+  useEffect(() => {
+    const t = setTimeout(() => {
+      map.invalidateSize()
+      if (puntos.length > 1) map.fitBounds(puntos, { padding: [30, 30], maxZoom: 17 })
+      else if (puntos[0]) map.setView(puntos[0], 16)
+    }, 50)
+    return () => clearTimeout(t)
+  }, [map, puntos])
+  return null
 }
 
 /**
@@ -53,11 +71,14 @@ export function FichajeMiniMapa({ latIn, lngIn, latOut, lngOut, horaIn, horaOut 
         boundsOptions={{ padding: [30, 30], maxZoom: 17 }}
         center={bounds ? undefined : center}
         zoom={bounds ? undefined : 16}
-        scrollWheelZoom={false}
-        zoomControl={false}
+        scrollWheelZoom
+        zoomControl
+        minZoom={3}
+        maxZoom={19}
         attributionControl={false}
         style={{ height: '100%', width: '100%' }}
       >
+        <Encuadrar puntos={puntos} />
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         {entrada && salida && (
           <Polyline positions={[entrada, salida]} pathOptions={{ color: '#94a3b8', weight: 2, dashArray: '4 4' }} />
