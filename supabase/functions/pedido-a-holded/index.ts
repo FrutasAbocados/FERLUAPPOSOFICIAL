@@ -337,7 +337,7 @@ Deno.serve(async (req) => {
   }
 
   const failValidation = async (msg: string) => {
-    if (auto) await writeLog({ pedido_id: pedidoId, source, status: 422, ok: false, error_msg: msg })
+    if (!dryRun) await writeLog({ pedido_id: pedidoId, source, status: 422, ok: false, error_msg: msg })
     return jsonRes({ error: msg }, 422)
   }
 
@@ -355,19 +355,30 @@ Deno.serve(async (req) => {
     return failValidation(`holded_doc_type inválido: ${pedido.cliente.holded_doc_type}`)
   }
 
-  const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/pedidos_wa_resolver_completo`, {
-    method: 'POST',
-    headers: dbHeaders,
-    body: JSON.stringify({ p_pedido_id: body.pedido_id }),
-  })
-  if (!rpcRes.ok) return jsonRes({ error: `RPC resolver_completo ${rpcRes.status}`, detail: (await rpcRes.text()).slice(0, 300) }, 500)
+  let rpcRes: Response
+  try {
+    rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/pedidos_wa_resolver_completo`, {
+      method: 'POST',
+      headers: dbHeaders,
+      body: JSON.stringify({ p_pedido_id: body.pedido_id }),
+    })
+  } catch (e) {
+    const msg = `No se pudieron resolver los precios: ${e instanceof Error ? e.message : String(e)}`
+    if (!dryRun) await writeLog({ pedido_id: pedidoId, source, status: 502, ok: false, error_msg: msg })
+    return jsonRes({ error: msg }, 502)
+  }
+  if (!rpcRes.ok) {
+    const detail = (await rpcRes.text()).slice(0, 300)
+    const msg = `Resolver precios y trazabilidad ${rpcRes.status}: ${detail}`
+    if (!dryRun) await writeLog({ pedido_id: pedidoId, source, status: 500, ok: false, error_msg: msg })
+    return jsonRes({ error: `RPC resolver_completo ${rpcRes.status}`, detail }, 500)
+  }
   const lineas = await rpcRes.json() as PrecioResuelto[]
-  if (lineas.length === 0) return jsonRes({ error: 'pedido sin líneas' }, 422)
+  if (lineas.length === 0) return failValidation('pedido sin líneas')
 
   const noResueltas = lineas.filter(l => l.precio_fuente === 'no_resuelto')
   const docType = pedido.cliente.holded_doc_type as 'invoice' | 'waybill'
-  const numFactura = docType === 'invoice' ? await getNextInvoiceNum() : null
-  const holdedBody = buildHoldedBody(pedido, lineas, numFactura)
+  const holdedBody = buildHoldedBody(pedido, lineas)
   const endpoint = `${HOLDED_BASE}/${docType}`
 
   if (dryRun) {
@@ -391,6 +402,13 @@ Deno.serve(async (req) => {
       },
       lineas_resueltas: lineas,
     })
+  }
+
+  // La vista previa no necesita consultar toda la lista de facturas de Holded.
+  // Resolver el número solo al realizar la subida evita esa espera al confirmar.
+  if (docType === 'invoice') {
+    const numFactura = await getNextInvoiceNum()
+    if (numFactura) Object.assign(holdedBody, { numFactura })
   }
 
   let holdedRes: Response

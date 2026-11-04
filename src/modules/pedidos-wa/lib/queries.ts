@@ -491,6 +491,12 @@ export function usePedidosDelDia(fecha: string) {
       }
       return rows
     },
+    // Seguir también los reintentos del reconciliador mientras la vista está abierta.
+    refetchInterval: query => query.state.data?.some(p =>
+      p.estado !== 'pendiente' && p.estado !== 'cancelado'
+      && !p.holded_invoice_id && p.cliente?.tipo_factura === 'HOLDED'
+      && !!p.cliente.holded_contact_id && !!p.cliente.holded_doc_type,
+    ) ? 5000 : false,
   })
 }
 
@@ -846,7 +852,7 @@ export type HoldedLastLog = {
 }
 
 /** Último log Holded por pedido para una fecha concreta. Permite ver fallos en la UI. */
-export function useHoldedLastLogs(fecha: string, pedidoIds: string[]) {
+export function useHoldedLastLogs(fecha: string, pedidoIds: string[], pedidos: Pedido[] = []) {
   const stablePedidoIds = [...pedidoIds].sort()
   return useQuery({
     queryKey: [...KEYS.holdedLogs(fecha), stablePedidoIds] as const,
@@ -863,6 +869,11 @@ export function useHoldedLastLogs(fecha: string, pedidoIds: string[]) {
       return map
     },
     staleTime: 15_000,
+    refetchInterval: () => pedidos.some(p =>
+      p.estado !== 'pendiente' && p.estado !== 'cancelado'
+      && !p.holded_invoice_id && p.cliente?.tipo_factura === 'HOLDED'
+      && !!p.cliente.holded_contact_id && !!p.cliente.holded_doc_type,
+    ) ? 5000 : false,
   })
 }
 
@@ -880,15 +891,6 @@ export function useConfirmarPedido() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
       qc.invalidateQueries({ queryKey: KEYS.holdedLogs(vars.fecha) })
-      // Polling 3-5s para captar el holded_invoice_id que rellena el trigger
-      setTimeout(() => {
-        qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
-        qc.invalidateQueries({ queryKey: KEYS.holdedLogs(vars.fecha) })
-      }, 3000)
-      setTimeout(() => {
-        qc.invalidateQueries({ queryKey: KEYS.pedidosDelDia(vars.fecha) })
-        qc.invalidateQueries({ queryKey: KEYS.holdedLogs(vars.fecha) })
-      }, 8000)
     },
   })
 }

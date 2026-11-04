@@ -88,7 +88,7 @@ export function ListaPedidosHoy() {
 
   const lista = useMemo(() => pedidos ?? [], [pedidos])
   const idsList = useMemo(() => lista.map(p => p.id), [lista])
-  const { data: logsMap } = useHoldedLastLogs(fecha, idsList)
+  const { data: logsMap } = useHoldedLastLogs(fecha, idsList, lista)
 
   const confirmables = useMemo(
     () => lista.filter(p =>
@@ -437,6 +437,9 @@ function PedidoCard({ pedido, log }: { pedido: Pedido; log: HoldedLastLog | null
               aria-label="Subir a Holded"
             >
               <CloudUpload className="h-4 w-4" />
+              {pedido.estado !== 'pendiente' && pedido.estado !== 'cancelado' && (
+                <span className="ml-1 text-[10px]">Pendiente de subir</span>
+              )}
             </button>
           )}
           <button
