@@ -8,8 +8,9 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
 import { toast } from '@/shared/lib/toast'
-import { confirm } from '@/shared/lib/confirm'
 import { FichajesActivosPanel } from './FichajesActivosPanel'
+import { FichajesIncidenciasPanel } from './FichajesIncidenciasPanel'
+import { horaMadrid, isoAMadridLocal, madridLocalARpc } from '../lib/fichajeHora'
 import { FichajesStatsPanel } from './FichajesStatsPanel'
 
 const FichajeMiniMapa = lazy(() => import('./FichajeMiniMapa').then(m => ({ default: m.FichajeMiniMapa })))
@@ -125,6 +126,8 @@ export function FichajesView() {
           <Button size="sm" variant="ghost" onClick={() => setAnchor(new Date())}>Hoy</Button>
         </div>
       </header>
+
+      <FichajesIncidenciasPanel />
 
       <FichajesActivosPanel />
 
@@ -277,15 +280,18 @@ function DetalleEmpleadoModal({
       return next
     })
 
-  const borrar = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.rpc('trabajadores_fichaje_admin_borrar', { p_id: id })
+  const [anulando, setAnulando] = useState<FichajeMes | null>(null)
+  const [motivoAnular, setMotivoAnular] = useState('')
+  const anular = useMutation({
+    mutationFn: async ({ id, motivo }: { id: string; motivo: string }) => {
+      const { error } = await supabase.rpc('trabajadores_fichaje_admin_anular', { p_id: id, p_motivo: motivo })
       if (error) throw error
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEY_MES(empleadoId, mesISO) })
-      qc.invalidateQueries({ queryKey: ['fichajes', 'semana'] })
-      toast({ title: 'Fichaje borrado', variant: 'success' })
+      qc.invalidateQueries({ queryKey: ['fichajes'] })
+      toast({ title: 'Fichaje anulado', description: 'Queda guardado en el historial con su motivo', variant: 'success' })
+      setAnulando(null)
+      setMotivoAnular('')
     },
     onError: (e) => toast({ title: 'Error', description: (e as Error).message, variant: 'error' }),
   })
@@ -320,7 +326,7 @@ function DetalleEmpleadoModal({
         </div>
 
         <p className="border-b border-[var(--color-border)] bg-[var(--color-surface-2)] px-5 py-1.5 text-[11px] text-[var(--color-ink-3)]">
-          Corrección manual: puedes añadir un fichaje en cualquier día (botón <Plus className="inline h-3 w-3" /> de cada día) o editar/borrar los existentes. Los cambios quedan marcados como «manual».
+          Corrección manual: añade un fichaje (botón <Plus className="inline h-3 w-3" /> de cada día) o corrige/anula uno existente. Siempre con motivo: el valor anterior, quién lo cambió y por qué quedan en el historial.
         </p>
 
         <div className="max-h-[60vh] overflow-y-auto">
@@ -354,8 +360,8 @@ function DetalleEmpleadoModal({
                   {items.map((f) => {
                     const tieneGeo = (f.lat_in != null && f.lng_in != null) || (f.lat_out != null && f.lng_out != null)
                     const open = mapaAbierto.has(f.id)
-                    const horaIn = format(parseISO(f.ts_in), 'HH:mm', { locale: es })
-                    const horaOut = f.ts_out ? format(parseISO(f.ts_out), 'HH:mm', { locale: es }) : null
+                    const horaIn = horaMadrid(f.ts_in)
+                    const horaOut = f.ts_out ? horaMadrid(f.ts_out) : null
                     return (
                       <li key={f.id} className="rounded-lg border border-[var(--color-border)]">
                         <div className="flex items-center gap-2 px-3 py-2">
@@ -365,8 +371,8 @@ function DetalleEmpleadoModal({
                               {f.horas != null && <span className="ml-2 text-[var(--color-ink-3)]">· {fmtHoras(f.horas)}</span>}
                             </div>
                             <div className="text-[11px] text-[var(--color-ink-3)]">
-                              <span className={f.fuente === 'manual_admin' ? 'ao-text-warning' : ''}>
-                                {f.fuente === 'manual_admin' ? 'manual' : 'app'}
+                              <span className={f.fuente === 'app' ? '' : 'ao-text-warning'}>
+                                {f.fuente === 'manual_admin' ? 'manual' : f.fuente === 'correccion_admin' ? 'corregido' : 'app'}
                               </span>
                               {tieneGeo
                                 ? <span className="ml-1 inline-flex items-center gap-0.5 text-[var(--mint)]"><MapPin className="h-3 w-3" />con ubicación</span>
@@ -385,14 +391,29 @@ function DetalleEmpleadoModal({
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={async () => {
-                              const ok = await confirm({ title: '¿Borrar fichaje?', description: 'Esta acción no se puede deshacer.', confirmLabel: 'Borrar' })
-                              if (ok) borrar.mutate(f.id)
-                            }}
+                            title="Anular fichaje"
+                            onClick={() => { setAnulando(f); setMotivoAnular('') }}
                           >
                             <Trash2 className="ao-text-danger h-3.5 w-3.5" />
                           </Button>
                         </div>
+                        {anulando?.id === f.id && (
+                          <div className="flex flex-wrap items-center gap-2 border-t border-[var(--color-border)] px-3 py-2">
+                            <Input
+                              type="text"
+                              autoFocus
+                              className="min-w-[200px] flex-1"
+                              value={motivoAnular}
+                              onChange={(e) => setMotivoAnular(e.target.value)}
+                              placeholder="Motivo de la anulación (obligatorio)"
+                            />
+                            <Button size="sm" variant="danger" disabled={!motivoAnular.trim() || anular.isPending}
+                              onClick={() => anular.mutate({ id: f.id, motivo: motivoAnular.trim() })}>
+                              Anular
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setAnulando(null)}>Cancelar</Button>
+                          </div>
+                        )}
                         {open && (
                           <div className="px-3 pb-3">
                             <Suspense fallback={<div className="flex h-[180px] items-center justify-center rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-ink-3)]">Cargando mapa…</div>}>
@@ -435,17 +456,15 @@ function CrearFichajeModal({ empleadoId, empleadoNombre, fechaInicial, onClose }
   const [fecha, setFecha] = useState<string>(fechaInicial ?? today)
   const [tsIn, setTsIn] = useState<string>('06:30')
   const [tsOut, setTsOut] = useState<string>('14:00')
-  const [nota, setNota] = useState('')
+  const [motivo, setMotivo] = useState('')
 
   const crear = useMutation({
     mutationFn: async () => {
-      const tIn = `${fecha}T${tsIn}:00+02:00`  // Madrid summer offset; OK aproximado
-      const tOut = `${fecha}T${tsOut}:00+02:00`
-      const { error } = await supabase.rpc('trabajadores_fichaje_admin_crear', {
+      const { error } = await supabase.rpc('trabajadores_fichaje_admin_crear_v2', {
         p_empleado_id: empleadoId,
-        p_ts_in: tIn,
-        p_ts_out: tOut,
-        p_nota: nota.trim() || null,
+        p_ts_in_local: `${fecha}T${tsIn}:00`,
+        p_ts_out_local: `${fecha}T${tsOut}:00`,
+        p_motivo: motivo.trim(),
       })
       if (error) throw error
     },
@@ -481,13 +500,13 @@ function CrearFichajeModal({ empleadoId, empleadoNombre, fechaInicial, onClose }
             </label>
           </div>
           <label className="block">
-            <span className="text-xs font-medium text-[var(--color-ink-2)]">Nota (opcional)</span>
-            <Input type="text" value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ej. Olvidó fichar" />
+            <span className="text-xs font-medium text-[var(--color-ink-2)]">Motivo (obligatorio)</span>
+            <Input type="text" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej. no fichó; confirmado con el trabajador" />
           </label>
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => crear.mutate()} disabled={crear.isPending}>
+          <Button onClick={() => crear.mutate()} disabled={crear.isPending || !motivo.trim()}>
             {crear.isPending ? 'Guardando…' : 'Guardar'}
           </Button>
         </div>
@@ -498,25 +517,24 @@ function CrearFichajeModal({ empleadoId, empleadoNombre, fechaInicial, onClose }
 
 function EditarFichajeModal({ fichaje, onClose }: { fichaje: FichajeMes; onClose: () => void }) {
   const qc = useQueryClient()
-  const initIn = fichaje.ts_in.slice(0, 16)  // YYYY-MM-DDTHH:mm
-  const initOut = fichaje.ts_out ? fichaje.ts_out.slice(0, 16) : ''
-  const [tsIn, setTsIn] = useState(initIn)
-  const [tsOut, setTsOut] = useState(initOut)
-  const [nota, setNota] = useState(fichaje.nota ?? '')
+  // Las horas se muestran y se guardan en hora de Madrid, sea cual sea el navegador.
+  const [tsIn, setTsIn] = useState(isoAMadridLocal(fichaje.ts_in))
+  const [tsOut, setTsOut] = useState(fichaje.ts_out ? isoAMadridLocal(fichaje.ts_out) : '')
+  const [motivo, setMotivo] = useState('')
 
   const editar = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc('trabajadores_fichaje_admin_editar', {
+      const { error } = await supabase.rpc('trabajadores_fichaje_admin_editar_v2', {
         p_id: fichaje.id,
-        p_ts_in: new Date(tsIn).toISOString(),
-        p_ts_out: tsOut ? new Date(tsOut).toISOString() : null,
-        p_nota: nota.trim() || null,
+        p_ts_in_local: madridLocalARpc(tsIn),
+        p_ts_out_local: tsOut ? madridLocalARpc(tsOut) : null,
+        p_motivo: motivo.trim(),
       })
       if (error) throw error
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['fichajes'] })
-      toast({ title: 'Fichaje editado', variant: 'success' })
+      toast({ title: 'Fichaje corregido', variant: 'success' })
       onClose()
     },
     onError: (e) => toast({ title: 'Error', description: (e as Error).message, variant: 'error' }),
@@ -539,13 +557,13 @@ function EditarFichajeModal({ fichaje, onClose }: { fichaje: FichajeMes; onClose
             <Input type="datetime-local" value={tsOut} onChange={(e) => setTsOut(e.target.value)} />
           </label>
           <label className="block">
-            <span className="text-xs font-medium text-[var(--color-ink-2)]">Nota</span>
-            <Input type="text" value={nota} onChange={(e) => setNota(e.target.value)} />
+            <span className="text-xs font-medium text-[var(--color-ink-2)]">Motivo del cambio (obligatorio)</span>
+            <Input type="text" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej. fichó tarde; confirmado con el trabajador" />
           </label>
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => editar.mutate()} disabled={editar.isPending}>
+          <Button onClick={() => editar.mutate()} disabled={editar.isPending || !motivo.trim()}>
             {editar.isPending ? 'Guardando…' : 'Guardar'}
           </Button>
         </div>

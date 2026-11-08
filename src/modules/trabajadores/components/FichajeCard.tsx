@@ -4,6 +4,8 @@ import { Clock, LogIn, LogOut, MapPin, Loader2 } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 import { Button } from '@/shared/components/ui/button'
 import { toast } from '@/shared/lib/toast'
+import { FichajeIncidenciasAviso } from './FichajeIncidenciasAviso'
+import { KEY_MIS_INCIDENCIAS } from '../lib/fichajesKeys'
 
 interface FichajeAbierto {
   id: string
@@ -85,6 +87,7 @@ export function FichajeCard() {
     },
     onSuccess: ({ modo, geo }) => {
       qc.invalidateQueries({ queryKey: FICHAJE_KEY })
+      qc.invalidateQueries({ queryKey: KEY_MIS_INCIDENCIAS })
       toast({
         title: modo === 'in' ? 'Entrada registrada' : 'Salida registrada',
         description: geo ? 'Con ubicación' : 'Sin ubicación (permiso denegado o no disponible)',
@@ -92,6 +95,8 @@ export function FichajeCard() {
       })
     },
     onError: (e) => {
+      qc.invalidateQueries({ queryKey: FICHAJE_KEY })
+      qc.invalidateQueries({ queryKey: KEY_MIS_INCIDENCIAS })
       toast({ title: 'No se pudo fichar', description: (e as Error).message, variant: 'error' })
     },
   })
@@ -136,6 +141,8 @@ export function FichajeCard() {
           <MapPin className="mr-0.5 inline h-3 w-3" /> ubicación opcional
         </span>
       </header>
+
+      <div className="mb-3 empty:hidden"><FichajeIncidenciasAviso /></div>
 
       {abierto ? (
         <div className="space-y-3">

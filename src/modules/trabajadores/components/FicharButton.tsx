@@ -5,6 +5,8 @@ import { es } from 'date-fns/locale'
 import { Fingerprint, LogIn, LogOut, Loader2 } from 'lucide-react'
 import { supabase } from '@/shared/lib/supabase'
 import { toast } from '@/shared/lib/toast'
+import { FichajeIncidenciasAviso } from './FichajeIncidenciasAviso'
+import { KEY_MIS_INCIDENCIAS } from '../lib/fichajesKeys'
 
 interface FichajeAbierto {
   id: string
@@ -61,6 +63,7 @@ export function FicharButton({ empleadoId }: { empleadoId: string }) {
     void qc.invalidateQueries({ queryKey: ['fichar-hoy', empleadoId] })
     void qc.invalidateQueries({ queryKey: ['trabajadores', 'fichaje-actual'] })
     void qc.invalidateQueries({ queryKey: ['fichajes'] })
+    void qc.invalidateQueries({ queryKey: KEY_MIS_INCIDENCIAS })
   }
 
   const entrada = useMutation({
@@ -81,7 +84,7 @@ export function FicharButton({ empleadoId }: { empleadoId: string }) {
       })
       invalidate()
     },
-    onError: (e) => toast({ title: 'Error al fichar', description: e instanceof Error ? e.message : '', variant: 'error' }),
+    onError: (e) => { invalidate(); toast({ title: 'Error al fichar', description: e instanceof Error ? e.message : '', variant: 'error' }) },
   })
 
   const salida = useMutation({
@@ -97,7 +100,7 @@ export function FicharButton({ empleadoId }: { empleadoId: string }) {
       toast({ title: 'Fichaje de salida registrado', variant: 'success' })
       invalidate()
     },
-    onError: (e) => toast({ title: 'Error al fichar salida', description: e instanceof Error ? e.message : '', variant: 'error' }),
+    onError: (e) => { invalidate(); toast({ title: 'Error al fichar salida', description: e instanceof Error ? e.message : '', variant: 'error' }) },
   })
 
   const isPending = entrada.isPending || salida.isPending
@@ -113,6 +116,8 @@ export function FicharButton({ empleadoId }: { empleadoId: string }) {
   if (abierto) {
     const tiempoTrabajado = elapsed(abierto.ts_in)
     return (
+      <div className="space-y-2">
+      <FichajeIncidenciasAviso />
       <button
         type="button"
         disabled={isPending}
@@ -152,10 +157,13 @@ export function FicharButton({ empleadoId }: { empleadoId: string }) {
           </div>
         </div>
       </button>
+      </div>
     )
   }
 
   return (
+    <div className="space-y-2">
+    <FichajeIncidenciasAviso />
     <button
       type="button"
       disabled={isPending}
@@ -189,5 +197,6 @@ export function FicharButton({ empleadoId }: { empleadoId: string }) {
         </div>
       </div>
     </button>
+    </div>
   )
 }
