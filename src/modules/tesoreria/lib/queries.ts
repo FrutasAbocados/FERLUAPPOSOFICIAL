@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
-import type { Movimiento, SobreResumen, TesoreriaKpis, TipoMovimiento } from './types'
+import type { EventoTesoreria, Movimiento, SobreResumen, TesoreriaKpis, TipoMovimiento } from './types'
 
 const KEYS = {
   kpis:  (desde: string, hasta: string) => ['tesoreria', 'kpis', desde, hasta] as const,
@@ -237,6 +237,32 @@ export function useDeleteMovimiento() {
         .from('tesoreria_movimientos')
         .delete()
         .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tesoreria'] }),
+  })
+}
+
+export function useTesoreriaHistorial() {
+  return useInfiniteQuery({
+    queryKey: ['tesoreria', 'historial'] as const,
+    initialPageParam: null as number | null,
+    queryFn: async ({ pageParam }): Promise<EventoTesoreria[]> => {
+      let query = supabase.from('tesoreria_historial').select('*').order('id', { ascending: false }).limit(50)
+      if (pageParam !== null) query = query.lt('id', pageParam)
+      const { data, error } = await query
+      if (error) throw error
+      return (data ?? []).map(r => ({ ...r, id: Number(r.id) } as EventoTesoreria))
+    },
+    getNextPageParam: page => page.length === 50 ? page.at(-1)!.id : undefined,
+  })
+}
+
+export function useRestaurarMovimiento() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ evento, motivo }: { evento: number; motivo: string }) => {
+      const { error } = await supabase.rpc('tesoreria_restaurar_movimiento', { p_evento: evento, p_motivo: motivo })
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tesoreria'] }),

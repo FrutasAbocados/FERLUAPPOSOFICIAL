@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { addMonths, endOfMonth, format, parseISO, startOfMonth, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, History, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
@@ -20,6 +20,7 @@ import {
   useSobres,
 } from './lib/queries'
 import { SobresPanel } from './components/SobresPanel'
+import { HistorialTesoreria } from './components/HistorialTesoreria'
 import {
   CATEGORIA_LABEL,
   CATEGORIAS_ENTRADA,
@@ -221,6 +222,7 @@ export function TesoreriaPage() {
 
   const [anchor,  setAnchor]  = useState(new Date())
   const [editing, setEditing] = useState<Movimiento | 'entrada' | 'salida' | null>(null)
+  const [verHistorial, setVerHistorial] = useState(false)
 
   const desde = format(startOfMonth(anchor), 'yyyy-MM-dd')
   const hasta = format(endOfMonth(anchor),   'yyyy-MM-dd')
@@ -235,7 +237,7 @@ export function TesoreriaPage() {
   async function handleDelete(m: Movimiento) {
     const ok = await confirm({
       title:       'Eliminar movimiento',
-      description: `¿Eliminar "${m.concepto}" (${euros(m.importe)})?`,
+      description: `¿Eliminar "${m.concepto}" (${euros(m.importe)})? El saldo ${m.tipo === 'salida' ? 'aumentará' : 'disminuirá'} ${euros(m.importe)}. Quedará guardado en el historial y podrás recuperarlo.`,
       variant:     'danger',
       confirmLabel: 'Eliminar',
     })
@@ -284,13 +286,14 @@ export function TesoreriaPage() {
         <SobresPanel desde={desde} hasta={hasta} />
 
         {/* Acciones */}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => setEditing('entrada')} className="gap-1.5">
             <Plus className="h-3.5 w-3.5" /> Entrada
           </Button>
           <Button size="sm" variant="outline" onClick={() => setEditing('salida')} className="gap-1.5">
             <Plus className="h-3.5 w-3.5" /> Salida
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setVerHistorial(true)} className="gap-1.5"><History className="h-3.5 w-3.5" />Historial</Button>
         </div>
 
         {/* Tabla */}
@@ -367,6 +370,8 @@ export function TesoreriaPage() {
                           </button>
                           <button
                             type="button"
+                            aria-label={`Eliminar ${m.concepto}`}
+                            disabled={deleteMov.isPending}
                             onClick={() => { void handleDelete(m) }}
                             className="rounded p-1 text-[var(--ink-mute)] hover:text-[var(--coral)] transition-colors"
                           >
@@ -384,6 +389,7 @@ export function TesoreriaPage() {
       </div>
 
       {/* Modal */}
+      {verHistorial && <HistorialTesoreria nombresSobres={nombresSobres} onClose={() => setVerHistorial(false)} />}
       {editing !== null && (
         <MovimientoModal
           desde={desde}

@@ -45,3 +45,13 @@ export interface TesoreriaKpis {
   salidas_periodo:  number
   count_periodo:    number
 }
+
+export interface EventoTesoreria {
+  id: number
+  movimiento_id: string
+  accion: 'inicio' | 'alta' | 'edicion' | 'borrado'
+  antes: Movimiento | null
+  despues: Movimiento | null
+  actor_nombre: string
+  registrado_at: string
+}
