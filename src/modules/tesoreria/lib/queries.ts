@@ -161,6 +161,43 @@ export function useSobres(desde: string, hasta: string) {
   })
 }
 
+export function useSobreMovimientos(sobreId: string) {
+  return useQuery({
+    queryKey: ['tesoreria', 'sobre-movimientos', sobreId] as const,
+    queryFn: async (): Promise<Movimiento[]> => {
+      const { data: inicio, error: inicioError } = await supabase
+        .from('tesoreria_movimientos')
+        .select('created_at')
+        .eq('concepto', INICIO_OPERATIVO_CONCEPTO)
+        .eq('ajuste', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (inicioError) throw inicioError
+
+      const movimientos: Movimiento[] = []
+      const pageSize = 500
+      for (let offset = 0; ; offset += pageSize) {
+        let query = supabase.from('tesoreria_movimientos')
+          .select('*', { count: 'exact' })
+          .eq('sobre_id', sobreId)
+        if (inicio?.created_at) query = query.gt('created_at', inicio.created_at)
+        const { data, error, count } = await query
+          .order('fecha', { ascending: false })
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(offset, offset + pageSize - 1)
+        if (error) throw error
+        movimientos.push(...(data ?? []).map(r => ({ ...r, importe: Number(r.importe ?? 0) } as Movimiento)))
+        if (movimientos.length === count) return movimientos
+        if (!data?.length || data.length < pageSize) {
+          throw new Error('No se pudo cargar el historial completo del sobre. Vuelve a intentarlo.')
+        }
+      }
+    },
+  })
+}
+
 export function useGuardarSobre() {
   const qc = useQueryClient()
   return useMutation({

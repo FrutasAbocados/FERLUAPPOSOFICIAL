@@ -7,6 +7,7 @@ import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 import { useBorrarSobre, useGuardarSobre, useSobres } from '../lib/queries'
 import type { SobreResumen } from '../lib/types'
+import { SobreDetalle } from './SobreDetalle'
 
 export function SobresPanel({ desde, hasta }: { desde: string; hasta: string }) {
   const sobres = useSobres(desde, hasta)
@@ -16,6 +17,8 @@ export function SobresPanel({ desde, hasta }: { desde: string; hasta: string }) 
   const [nombre, setNombre] = useState('')
   const [importe, setImporte] = useState('')
   const [importeOriginal, setImporteOriginal] = useState(0)
+  const [detalleId, setDetalleId] = useState<string | null>(null)
+  const detalle = sobres.data?.find(s => s.id === detalleId)
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
@@ -60,21 +63,25 @@ export function SobresPanel({ desde, hasta }: { desde: string; hasta: string }) 
           {sobres.data.map(s => (
             <div key={s.id} className="ao-panel px-3 py-2">
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-xs font-medium text-[var(--ink)]">{s.nombre}</span>
+                <button onClick={() => setDetalleId(s.id)} className="min-w-0 flex-1 truncate text-left text-xs font-medium text-[var(--ink)] hover:underline">{s.nombre}</button>
                 <div className="flex gap-2 text-[var(--ink-mute)]">
                   <button aria-label={`Editar ${s.nombre}`} disabled={guardar.isPending} onClick={() => { setEditing(s.id); setNombre(s.nombre); setImporte(String(s.acumulado)); setImporteOriginal(s.acumulado) }}><Pencil className="h-3.5 w-3.5" /></button>
                   <button aria-label={`Eliminar ${s.nombre}`} disabled={s.movimientos > 0 || borrar.isPending} title={s.movimientos > 0 ? 'Reasigna sus movimientos antes de eliminarlo' : 'Eliminar sobre'} className="disabled:opacity-30" onClick={() => { void remove(s) }}><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
+              <button type="button" onClick={() => setDetalleId(s.id)} aria-label={`Ver movimientos de ${s.nombre}`} className="block w-full rounded text-left hover:bg-[var(--panel)] focus-visible:outline-2 focus-visible:outline-[var(--mint)]">
               <div className="tabular-nums text-lg font-semibold text-[var(--mint)]">{euros(s.acumulado)}</div>
               <div className="tabular-nums text-[11px] text-[var(--ink-mute)]">Salidas {euros(s.salidas_total)} · Devoluciones {euros(s.devoluciones_total)}</div>
               {Math.abs(s.acumulado - s.salidas_total + s.devoluciones_total) >= 0.005 && <div className="tabular-nums text-[11px] text-[var(--ink-mute)]">Ajuste manual: {euros(s.acumulado - s.salidas_total + s.devoluciones_total)}</div>}
               <div className="tabular-nums text-[11px] text-[var(--ink-mute)]">Mes seleccionado: {euros(s.neto_periodo)}</div>
+              <div className="mt-1 text-[11px] text-[var(--mint)]">Ver movimientos →</div>
+              </button>
             </div>
           ))}
           {sobres.data.length === 0 && <p className="text-xs text-[var(--ink-mute)]">Crea tu primer sobre y asígnalo al crear o editar movimientos.</p>}
         </div>
       )}
+      {detalle && <SobreDetalle key={detalle.id} sobre={detalle} desde={desde} hasta={hasta} onClose={() => setDetalleId(null)} />}
     </section>
   )
 }
