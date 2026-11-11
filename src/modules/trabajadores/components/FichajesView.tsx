@@ -12,6 +12,7 @@ import { FichajesActivosPanel } from './FichajesActivosPanel'
 import { FichajesIncidenciasPanel } from './FichajesIncidenciasPanel'
 import { horaMadrid, isoAMadridLocal, madridLocalARpc } from '../lib/fichajeHora'
 import { FichajesStatsPanel } from './FichajesStatsPanel'
+import { AvisosAceptadosPanel } from './AvisosAceptadosPanel'
 
 const FichajeMiniMapa = lazy(() => import('./FichajeMiniMapa').then(m => ({ default: m.FichajeMiniMapa })))
 
@@ -106,6 +107,7 @@ export function FichajesView() {
 
   return (
     <div className="ao-page space-y-4 py-5 md:py-6">
+      <AvisosAceptadosPanel />
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">Fichajes</h2>
