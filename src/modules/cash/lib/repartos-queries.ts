@@ -261,17 +261,53 @@ export function useJornadaGastos(jornadaId: string | null) {
 }
 
 // ── Aprobar/revisar cierre del repartidor (admin) ───────────────────────
+/** Resultado de pasar la deuda de un cierre aprobado a Cobros. */
+export type ResumenDeudaCobros = { nuevas: number; ya_estaban: number; descuadres: number }
+
+const resumenDeuda = (data: unknown): ResumenDeudaCobros => {
+  const r = (data ?? {}) as Partial<Record<keyof ResumenDeudaCobros, number | string>>
+  return { nuevas: Number(r.nuevas ?? 0), ya_estaban: Number(r.ya_estaban ?? 0), descuadres: Number(r.descuadres ?? 0) }
+}
+
+/** Texto corto para el toast tras aprobar o corregir un cierre. */
+export function describirResumenDeuda(r: ResumenDeudaCobros): string {
+  const partes = [`${r.nuevas} deuda${r.nuevas === 1 ? '' : 's'} pasada${r.nuevas === 1 ? '' : 's'} a Cobros`]
+  if (r.ya_estaban > 0) partes.push(`${r.ya_estaban} ya estaba${r.ya_estaban === 1 ? '' : 'n'}`)
+  if (r.descuadres > 0) partes.push(`⚠️ ${r.descuadres} sin cuadrar: revísalo en Cobros`)
+  return partes.join(' · ')
+}
+
+// Aprobar marca revisado, vuelca gastos y pasa la deuda a Cobros.
 export function useRevisarCierre() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (jornadaId: string): Promise<void> => {
-      const { error } = await supabase.rpc('repartos_jornada_revisar', {
+    mutationFn: async (jornadaId: string): Promise<ResumenDeudaCobros> => {
+      const { data, error } = await supabase.rpc('repartos_jornada_revisar', {
         p_jornada_id: jornadaId,
       })
       if (error) throw error
+      return resumenDeuda(data)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['repartos'] })
+      qc.invalidateQueries({ queryKey: ['cobros'] })
+    },
+  })
+}
+
+// Corrección de un cierre ya aprobado: vuelve a pasar la deuda (idempotente).
+export function useVolcarDeudaCierre() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (jornadaId: string): Promise<ResumenDeudaCobros> => {
+      const { data, error } = await supabase.rpc('repartos_jornada_volcar_deuda', {
+        p_jornada_id: jornadaId,
+      })
+      if (error) throw error
+      return resumenDeuda(data)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cobros'] })
     },
   })
 }
@@ -366,21 +402,29 @@ export function useGuardarLineas() {
         .delete()
         .eq('jornada_id', jornadaId)
       if (errDel) throw errDel
-      if (lineas.length === 0) return
-      const rows = lineas.map((l, i) => ({
-        jornada_id: jornadaId,
-        contact_id: l.contact_id,
-        contact_nombre: l.contact_nombre,
-        importe: l.importe,
-        forma_pago: l.forma_pago,
-        orden: i,
-        cobro_anterior: l.cobro_anterior,
-      }))
-      const { error: errIns } = await supabase.from('repartos_jornada_lineas').insert(rows)
-      if (errIns) throw errIns
+      if (lineas.length > 0) {
+        const rows = lineas.map((l, i) => ({
+          jornada_id: jornadaId,
+          contact_id: l.contact_id,
+          contact_nombre: l.contact_nombre,
+          importe: l.importe,
+          forma_pago: l.forma_pago,
+          orden: i,
+          cobro_anterior: l.cobro_anterior,
+          incidencia_texto: l.incidencia_texto?.trim() || null,
+        }))
+        const { error: errIns } = await supabase.from('repartos_jornada_lineas').insert(rows)
+        if (errIns) throw errIns
+      }
+      // Crea, actualiza o retira las incidencias que salen de las líneas.
+      const { error: errInc } = await supabase.rpc('repartos_jornada_sync_incidencias', {
+        p_jornada_id: jornadaId,
+      })
+      if (errInc) throw errInc
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['repartos'] })
+      qc.invalidateQueries({ queryKey: ['incidencias', 'lista'] })
     },
   })
 }

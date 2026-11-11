@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import {
   CheckCircle2,
+  CircleAlert,
   ClipboardCheck,
   Loader2,
   Plus,
@@ -33,6 +34,8 @@ type RepartoUI = {
   forma_pago: FormaPago
   importe: number | ''
   cobro_anterior: boolean
+  incidencia_texto: string
+  _incAbierta?: boolean
   _loading?: boolean
 }
 
@@ -131,6 +134,8 @@ function CierreForm({
       forma_pago: l.forma_pago,
       importe: Number(l.importe),
       cobro_anterior: l.cobro_anterior,
+      incidencia_texto: l.incidencia_texto ?? '',
+      _incAbierta: !!l.incidencia_texto,
     })),
   )
   const [gastos, setGastos] = useState<GastoUI[]>(() =>
@@ -154,6 +159,7 @@ function CierreForm({
         forma_pago: 'efectivo',
         importe: '',
         cobro_anterior: false,
+        incidencia_texto: '',
         _loading: true,
       },
     ])
@@ -189,6 +195,7 @@ function CierreForm({
         forma_pago: 'efectivo',
         importe: '',
         cobro_anterior: false,
+        incidencia_texto: '',
       },
     ])
 
@@ -243,6 +250,7 @@ function CierreForm({
             forma_pago: r.forma_pago,
             orden: i,
             cobro_anterior: r.cobro_anterior,
+            incidencia_texto: r.incidencia_texto.trim() || null,
           })),
         gastos: gastos
           .filter((g) => Number(g.importe || 0) > 0)
@@ -288,6 +296,20 @@ function CierreForm({
                       onSelect={(contacto) => void enlazarReparto(r._key, contacto)}
                     />
                   )}
+                  <button
+                    type="button"
+                    aria-label="Incidencia con este cliente"
+                    aria-pressed={!!r._incAbierta}
+                    title="Incidencia con este cliente"
+                    onClick={() => setRepartos((p) => p.map((x) => (x._key === r._key ? { ...x, _incAbierta: !x._incAbierta } : x)))}
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                      r.incidencia_texto.trim()
+                        ? 'border-[var(--coral)] bg-[var(--coral)] text-white'
+                        : 'border-[var(--coral)] text-[var(--coral)]'
+                    }`}
+                  >
+                    <CircleAlert className="h-5 w-5" />
+                  </button>
                   <Button type="button" variant="ghost" size="icon" aria-label="Quitar reparto" onClick={() => setRepartos((p) => p.filter((x) => x._key !== r._key))}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -329,6 +351,20 @@ function CierreForm({
                   />
                   Cobro de un día anterior (no es reparto de hoy)
                 </label>
+                {r._incAbierta && (
+                  <div className="mt-2">
+                    <p className="mb-1 text-xs font-semibold text-[var(--coral)]">Incidencia con este cliente</p>
+                    <textarea
+                      autoFocus={!r.incidencia_texto}
+                      value={r.incidencia_texto}
+                      onChange={(e) => setRepartos((p) => p.map((x) => (x._key === r._key ? { ...x, incidencia_texto: e.target.value } : x)))}
+                      placeholder="¿Qué ha pasado? Falta género, producto en mal estado, devolución…"
+                      rows={3}
+                      className="w-full rounded-[var(--radius-md)] border border-[var(--coral)] bg-[var(--color-surface)] px-2.5 py-2 text-sm text-[var(--color-ink)] outline-none"
+                    />
+                    <p className="mt-0.5 text-[11px] text-[var(--color-ink-3)]">Se guarda en Incidencias al enviar el cierre.</p>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

@@ -52,6 +52,8 @@ export type JornadaLinea = {
   orden: number
   // Cobro de una entrega de otro día: es dinero real, pero no reparto del día.
   cobro_anterior: boolean
+  // Incidencia escrita por el repartidor; al guardar se crea en Incidencias.
+  incidencia_texto: string | null
   created_at: string
 }
 
@@ -62,6 +64,7 @@ export type LineaInput = {
   forma_pago: FormaPago
   orden: number
   cobro_anterior: boolean
+  incidencia_texto?: string | null
 }
 
 export type JornadaResumen = {

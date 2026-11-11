@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { CheckCircle2, Coins, Loader2, Plus, Receipt, Trash2, X } from 'lucide-react'
+import { CheckCircle2, CircleAlert, Coins, Loader2, Plus, Receipt, Trash2, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { confirm } from '@/shared/lib/confirm'
 import { toast } from '@/shared/lib/toast'
 import { euros, fmtDate } from '../lib/format'
 import {
+  describirResumenDeuda,
   getUltimaFacturaImporte,
   useActualizarJornada,
   useBorrarJornada,
@@ -16,6 +17,7 @@ import {
   useJornadaGastos,
   useJornadaLineas,
   useRevisarCierre,
+  useVolcarDeudaCierre,
 } from '../lib/repartos-queries'
 import { ClienteBuscador } from './ClienteBuscador'
 import { ClienteNombreInput } from './ClienteNombreInput'
@@ -104,6 +106,7 @@ function JornadaForm({
   const guardarLineas = useGuardarLineas()
   const guardarGastos = useGuardarGastos()
   const revisar = useRevisarCierre()
+  const volcarDeuda = useVolcarDeudaCierre()
   const esEmpleado = jornada?.origen === 'empleado'
 
   const [empleadoId, setEmpleadoId] = useState<string>(jornada?.empleado_id ?? empleadoIdInicial ?? '')
@@ -119,8 +122,20 @@ function JornadaForm({
       forma_pago: l.forma_pago,
       orden: l.orden,
       cobro_anterior: l.cobro_anterior,
+      incidencia_texto: l.incidencia_texto,
     })),
   )
+  // Líneas con el cuadro de incidencia desplegado (las que ya traen texto, abiertas).
+  const [incAbiertas, setIncAbiertas] = useState<Set<string>>(
+    () => new Set(initialLineas.filter((l) => l.incidencia_texto).map((l) => l.id)),
+  )
+  const toggleInc = (key: string) =>
+    setIncAbiertas((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   const [gastos, setGastos] = useState<GastoUI[]>(() =>
     initialGastos.map((g) => ({
       _key: g.id,
@@ -252,7 +267,8 @@ function JornadaForm({
     guardarLineas.isPending ||
     guardarGastos.isPending ||
     borrar.isPending ||
-    revisar.isPending
+    revisar.isPending ||
+    volcarDeuda.isPending
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -282,9 +298,17 @@ function JornadaForm({
           forma_pago: l.forma_pago,
           orden: i,
           cobro_anterior: l.cobro_anterior,
+          incidencia_texto: l.incidencia_texto ?? null,
         })),
       })
       await guardarGastos.mutateAsync({ jornadaId: id, gastos: gastosPayload() })
+      // Si ya estaba aprobado, la deuda corregida también llega a Cobros.
+      if (jornada?.revisado) {
+        const r = await volcarDeuda.mutateAsync(id)
+        if (r.nuevas > 0 || r.descuadres > 0) {
+          toast({ title: 'Cobros actualizado', description: describirResumenDeuda(r), variant: r.descuadres > 0 ? 'default' : 'success' })
+        }
+      }
       onClose()
     } catch (err) {
       toast({ title: 'No se pudo guardar la jornada', description: err instanceof Error ? err.message : '', variant: 'error' })
@@ -319,11 +343,16 @@ function JornadaForm({
           forma_pago: l.forma_pago,
           orden: i,
           cobro_anterior: l.cobro_anterior,
+          incidencia_texto: l.incidencia_texto ?? null,
         })),
       })
       await guardarGastos.mutateAsync({ jornadaId: jornada.id, gastos: gastosPayload() })
-      await revisar.mutateAsync(jornada.id)
-      toast({ title: '✅ Cierre aprobado', description: 'Jornada marcada como revisada.', variant: 'success' })
+      const r = await revisar.mutateAsync(jornada.id)
+      toast({
+        title: '✅ Cierre aprobado',
+        description: describirResumenDeuda(r),
+        variant: r.descuadres > 0 ? 'default' : 'success',
+      })
       onClose()
     } catch (err) {
       toast({ title: 'No se pudo aprobar el cierre', description: err instanceof Error ? err.message : '', variant: 'error' })
@@ -414,7 +443,7 @@ function JornadaForm({
                 {lineas.map((l) => (
                   <li
                     key={l._key}
-                    className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-2 px-2 py-2 text-sm md:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] md:px-3"
+                    className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] items-center gap-2 px-2 py-2 text-sm md:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto_auto] md:px-3"
                   >
                     <div className="col-span-full min-w-0 md:col-span-1">
                       {l.contact_id ? (
@@ -473,6 +502,20 @@ function JornadaForm({
                     >
                       Ant.
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleInc(l._key)}
+                      aria-pressed={incAbiertas.has(l._key)}
+                      aria-label="Incidencia con este cliente"
+                      title="Incidencia con este cliente: va a Incidencias"
+                      className={`flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] border transition-colors ${
+                        l.incidencia_texto?.trim()
+                          ? 'border-[var(--coral)] bg-[var(--coral)] text-white'
+                          : 'border-[var(--color-border)] text-[var(--coral)]'
+                      }`}
+                    >
+                      <CircleAlert className="h-4 w-4" />
+                    </button>
                     <Button
                       type="button"
                       variant="ghost"
@@ -482,6 +525,15 @@ function JornadaForm({
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
+                    {incAbiertas.has(l._key) && (
+                      <textarea
+                        value={l.incidencia_texto ?? ''}
+                        onChange={(ev) => updLinea(l._key, { incidencia_texto: ev.target.value })}
+                        placeholder="Describe la incidencia con este cliente…"
+                        rows={2}
+                        className="col-span-full w-full rounded-[var(--radius-md)] border border-[var(--coral)] bg-[var(--color-surface)] px-2 py-1.5 text-xs text-[var(--color-ink)] outline-none"
+                      />
+                    )}
                   </li>
                 ))}
               </ul>

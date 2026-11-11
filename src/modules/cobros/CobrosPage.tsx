@@ -11,6 +11,7 @@ import { ExportPanel } from './components/ExportPanel'
 import { CobrarModal } from './components/CobrarModal'
 import { NuevoMovimientoModal } from './components/NuevoMovimientoModal'
 import { ClienteDetalleModal } from './components/ClienteDetalleModal'
+import { DescuadresCierre } from './components/DescuadresCierre'
 import { useClientes, useMovimientos } from './lib/queries'
 import { estadoMovimiento, importePendiente } from './lib/utils'
 import type { TipoMovimiento } from './lib/types'
@@ -90,6 +91,7 @@ export function CobrosPage() {
         <div className="p-6 text-sm text-[var(--color-ink-3)]">Cargando…</div>
       ) : (
       <>
+      <DescuadresCierre />
       {kpi && (
         <section className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4">
           <KpiTile
