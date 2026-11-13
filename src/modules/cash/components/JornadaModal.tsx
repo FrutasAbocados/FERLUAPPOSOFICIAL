@@ -726,7 +726,7 @@ function JornadaForm({
                 {guardando ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
                 Guardar
               </Button>
-              {esEmpleado && !jornada?.revisado && (
+              {jornada && !jornada.revisado && (
                 <Button type="button" onClick={onAprobar} disabled={guardando || revisar.isPending} className="bg-[var(--mint)] text-white hover:opacity-90">
                   {revisar.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}
                   Aprobar
