@@ -270,9 +270,8 @@ function JornadaForm({
     revisar.isPending ||
     volcarDeuda.isPending
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!empleadoId) return
+  // Guarda cabecera, líneas y gastos; crea la jornada si aún no existe.
+  const guardarJornada = async (): Promise<string> => {
     const payload = {
       fecha,
       empleado_id: empleadoId,
@@ -281,27 +280,34 @@ function JornadaForm({
       notas: notas.trim() || null,
       efectivo_monedas: monedas === '' ? null : Number(monedas),
     }
+    let id = jornada?.id
+    if (id) {
+      await actualizar.mutateAsync({ id, ...payload })
+    } else {
+      const nueva = await crear.mutateAsync(payload)
+      id = nueva.id
+    }
+    await guardarLineas.mutateAsync({
+      jornadaId: id,
+      lineas: lineas.map((l, i) => ({
+        contact_id: l.contact_id,
+        contact_nombre: l.contact_nombre,
+        importe: l.importe,
+        forma_pago: l.forma_pago,
+        orden: i,
+        cobro_anterior: l.cobro_anterior,
+        incidencia_texto: l.incidencia_texto ?? null,
+      })),
+    })
+    await guardarGastos.mutateAsync({ jornadaId: id, gastos: gastosPayload() })
+    return id
+  }
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!empleadoId) return
     try {
-      let id = jornada?.id
-      if (id) {
-        await actualizar.mutateAsync({ id, ...payload })
-      } else {
-        const nueva = await crear.mutateAsync(payload)
-        id = nueva.id
-      }
-      await guardarLineas.mutateAsync({
-        jornadaId: id,
-        lineas: lineas.map((l, i) => ({
-          contact_id: l.contact_id,
-          contact_nombre: l.contact_nombre,
-          importe: l.importe,
-          forma_pago: l.forma_pago,
-          orden: i,
-          cobro_anterior: l.cobro_anterior,
-          incidencia_texto: l.incidencia_texto ?? null,
-        })),
-      })
-      await guardarGastos.mutateAsync({ jornadaId: id, gastos: gastosPayload() })
+      const id = await guardarJornada()
       // Si ya estaba aprobado, la deuda corregida también llega a Cobros.
       if (jornada?.revisado) {
         const r = await volcarDeuda.mutateAsync(id)
@@ -316,38 +322,16 @@ function JornadaForm({
   }
 
   const onAprobar = async () => {
-    if (!jornada) return
+    if (!empleadoId || jornada?.revisado) return
     const ok = await confirm({
       title: '¿Aprobar el cierre del repartidor?',
-      description: 'Se marcará como revisado. El repartidor ya no podrá modificarlo.',
+      description: 'Se guardará y se marcará como revisado. La deuda pasará a Cobros y el repartidor ya no podrá modificarlo.',
       confirmLabel: 'Aprobar',
     })
     if (!ok) return
     try {
-      // Guardar primero cualquier corrección de líneas hecha por admin
-      await actualizar.mutateAsync({
-        id: jornada.id,
-        fecha,
-        empleado_id: empleadoId,
-        hora_inicio: horaInicio || null,
-        hora_fin: horaFin || null,
-        notas: notas.trim() || null,
-        efectivo_monedas: monedas === '' ? null : Number(monedas),
-      })
-      await guardarLineas.mutateAsync({
-        jornadaId: jornada.id,
-        lineas: lineas.map((l, i) => ({
-          contact_id: l.contact_id,
-          contact_nombre: l.contact_nombre,
-          importe: l.importe,
-          forma_pago: l.forma_pago,
-          orden: i,
-          cobro_anterior: l.cobro_anterior,
-          incidencia_texto: l.incidencia_texto ?? null,
-        })),
-      })
-      await guardarGastos.mutateAsync({ jornadaId: jornada.id, gastos: gastosPayload() })
-      const r = await revisar.mutateAsync(jornada.id)
+      const id = await guardarJornada()
+      const r = await revisar.mutateAsync(id)
       toast({
         title: '✅ Cierre aprobado',
         description: describirResumenDeuda(r),
@@ -726,8 +710,8 @@ function JornadaForm({
                 {guardando ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
                 Guardar
               </Button>
-              {jornada && !jornada.revisado && (
-                <Button type="button" onClick={onAprobar} disabled={guardando || revisar.isPending} className="bg-[var(--mint)] text-white hover:opacity-90">
+              {!jornada?.revisado && (
+                <Button type="button" onClick={onAprobar} disabled={guardando || revisar.isPending || !empleadoId} className="bg-[var(--mint)] text-white hover:opacity-90">
                   {revisar.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}
                   Aprobar
                 </Button>
