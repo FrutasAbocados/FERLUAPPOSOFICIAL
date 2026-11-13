@@ -11,6 +11,44 @@ export const normalizar = (s: string): string =>
 
 const NUM = String.raw`(\d+(?:[.,]\d+)?|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|cien|medio|media|cuarto)`
 const UNIDAD = String.raw`(kilos?|kg|k|quilos?|gramos?|gr|g)`
+const FORMATO = String.raw`(manojos?|bolsas?|cajas?|unidades|unidad|uds?|piezas?)`
+const FORMATO_RE = new RegExp(String.raw`\b${NUM}\s+${FORMATO}\b`, 'i')
+
+/** Formatos de merma: el peso en kg o un recuento por envase. */
+export const MERMA_UNIDADES = ['kg', 'unidad', 'manojo', 'bolsa', 'caja'] as const
+export type MermaUnidad = (typeof MERMA_UNIDADES)[number]
+
+const ETIQUETA: Record<MermaUnidad, [string, string]> = {
+  kg: ['kg', 'kg'],
+  unidad: ['ud', 'uds'],
+  manojo: ['manojo', 'manojos'],
+  bolsa: ['bolsa', 'bolsas'],
+  caja: ['caja', 'cajas'],
+}
+
+export const nombreUnidad = (u: MermaUnidad, plural = false): string => ETIQUETA[u][plural ? 1 : 0]
+
+/** "0,5 kg", "1 manojo", "3 bolsas". */
+export const cantidadTexto = (n: number, u: MermaUnidad): string => {
+  const num = (Math.round(n * 1000) / 1000).toLocaleString('es-ES', { maximumFractionDigits: 3 })
+  return `${num} ${nombreUnidad(u, u !== 'kg' && n !== 1)}`
+}
+
+/** Totales por formato, kg primero: "4,6 kg · 3 manojos · 1 bolsa". */
+export const resumenCantidades = (rows: { peso_kg: number; unidad: MermaUnidad }[]): string => {
+  const m = new Map<MermaUnidad, number>()
+  for (const r of rows) m.set(r.unidad, (m.get(r.unidad) ?? 0) + r.peso_kg)
+  if (!m.size) return cantidadTexto(0, 'kg')
+  return MERMA_UNIDADES.filter(u => m.has(u)).map(u => cantidadTexto(m.get(u) ?? 0, u)).join(' · ')
+}
+
+const aUnidad = (tok: string): MermaUnidad => {
+  const t = tok.toLowerCase()
+  if (t.startsWith('manojo')) return 'manojo'
+  if (t.startsWith('bolsa')) return 'bolsa'
+  if (t.startsWith('caja')) return 'caja'
+  return 'unidad'
+}
 // "2,5 kilos", "dos kilos y medio", "medio kilo", "500 gramos"
 const PESO_RE = new RegExp(String.raw`\b${NUM}\s*(?:${UNIDAD})\b(?:\s+y\s+(medio|cuarto))?|\b${NUM}\s+y\s+(medio)\s+(?:${UNIDAD})\b`, 'i')
 
@@ -24,6 +62,7 @@ export interface MermaLineaDictada {
   referencia: string
   texto: string
   peso_kg: number | null
+  unidad: MermaUnidad
 }
 
 /** Mejor coincidencia en el catálogo por tokens; null si no hay una clara. */
@@ -49,7 +88,7 @@ export function emparejarReferencia(texto: string, catalogo: string[]): string |
 export function parsearDictadoMerma(dictado: string, catalogo: string[]): MermaLineaDictada[] {
   const trozos = dictado
     .replace(/\s+(?:luego|después|despues|también|tambien|otra|otro)\s+/gi, ', ')
-    .split(/(?<!\d),(?!\d)|,\s+|[;\n]+|\.\s+|\s+y\s+(?=(?:\d+(?:[.,]\d+)?|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b)|\s+y\s+(?=medi[oa]\s+(?:kilos?|kg|k|quilos?)\b)|(?<=\b(?:kilos?|kg|quilos?|gramos?|gr|medio|cuarto))\s+y\s+(?!medi[oa]\b|cuarto\b)/i)
+    .split(/(?<!\d),(?!\d)|,\s+|[;\n]+|\.\s+|\s+y\s+(?=(?:\d+(?:[.,]\d+)?|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b)|\s+y\s+(?=medi[oa]\s+(?:kilos?|kg|k|quilos?)\b)|(?<=\b(?:kilos?|kg|quilos?|gramos?|gr|medio|cuarto|manojos?|bolsas?|cajas?|unidades|unidad|piezas?))\s+y\s+(?!medi[oa]\b|cuarto\b)/i)
     .map(t => t.trim())
     .filter(Boolean)
 
@@ -60,10 +99,16 @@ export function parsearDictadoMerma(dictado: string, catalogo: string[]): MermaL
       const esNumero = anterior !== '' && (anterior in NUMEROS || /^\d+(?:[.,]\d+)?$/.test(anterior))
       return esNumero ? `${prev}${u}` : `${prev}1 ${u}`
     })
-    const m = t0.match(PESO_RE)
+    const f = trozo.match(FORMATO_RE)
+    const m = f ? null : t0.match(PESO_RE)
     let peso: number | null = null
+    let unidad: MermaUnidad = 'kg'
     let resto = trozo
-    if (m) {
+    if (f) {
+      peso = aNumero(f[1])
+      unidad = aUnidad(f[2])
+      resto = (trozo.slice(0, f.index) + ' ' + trozo.slice((f.index ?? 0) + f[0].length)).trim()
+    } else if (m) {
       if (m[1]) {
         peso = aNumero(m[1])
         if (m[3]) peso += NUMEROS[m[3].toLowerCase()]
@@ -92,6 +137,7 @@ export function parsearDictadoMerma(dictado: string, catalogo: string[]): MermaL
       referencia: ref ?? resto.toUpperCase(),
       texto: trozo,
       peso_kg: peso !== null && Number.isFinite(peso) && peso > 0 ? Math.round(peso * 1000) / 1000 : null,
+      unidad,
     })
   }
   return lineas

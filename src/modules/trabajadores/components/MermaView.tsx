@@ -6,13 +6,16 @@ import { ChevronLeft, ChevronRight, Loader2, Mic, MicOff, Plus, Scale, Trash2, W
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { supabase } from '@/shared/lib/supabase'
-import { numDec } from '@/shared/lib/format'
 import { errorMessage } from '@/shared/lib/errors'
 import { toast } from '@/shared/lib/toast'
 import { confirm } from '@/shared/lib/confirm'
 import type { EmpleadoPropio } from '../lib/useEmpleadoPropio'
 import {
+  MERMA_UNIDADES,
+  cantidadTexto,
   hoyMadrid,
+  nombreUnidad,
+  resumenCantidades,
   parsearDictadoMerma,
   useBorrarMerma,
   useGuardarMerma,
@@ -21,11 +24,25 @@ import {
   type MermaLineaNueva,
   type MermaOrigen,
   type MermaRegistro,
+  type MermaUnidad,
 } from '../lib/merma-queries'
 
-const kg = (n: number) => `${numDec(n)} kg`
+const cant = (r: { peso_kg: number; unidad: MermaUnidad }) => cantidadTexto(r.peso_kg, r.unidad)
 const fechaLarga = (iso: string) => format(parseISO(iso), "EEEE d 'de' MMMM", { locale: es })
-const sumar = (rows: MermaRegistro[]) => rows.reduce((s, r) => s + r.peso_kg, 0)
+const sumar = (rows: MermaRegistro[]) => resumenCantidades(rows)
+
+function SelectorUnidad({ value, onChange, className = '' }: { value: MermaUnidad; onChange: (u: MermaUnidad) => void; className?: string }) {
+  return (
+    <select
+      aria-label="Formato"
+      value={value}
+      onChange={(e) => onChange(e.target.value as MermaUnidad)}
+      className={`h-9 rounded-md border border-[var(--line)] bg-[var(--surface)] px-1.5 text-sm text-[var(--ink)] ${className}`}
+    >
+      {MERMA_UNIDADES.map(u => <option key={u} value={u}>{nombreUnidad(u)}</option>)}
+    </select>
+  )
+}
 
 const parsePeso = (v: string): number | null => {
   const n = Number(v.replace(',', '.'))
@@ -95,7 +112,7 @@ function useDictado(onFinal: (text: string) => void) {
 
 // ── Vista empleado ───────────────────────────────────────────────────────────
 
-type Borrador = { key: string; referencia: string; peso: string; origen: MermaOrigen }
+type Borrador = { key: string; referencia: string; peso: string; unidad: MermaUnidad; origen: MermaOrigen }
 
 export function MermaView({ empleado, modoSupervision = false }: { empleado?: EmpleadoPropio | null; modoSupervision?: boolean }) {
   if (modoSupervision) return <MermaSupervision />
@@ -115,6 +132,7 @@ function MermaEmpleado({ empleado }: { empleado: EmpleadoPropio }) {
 
   const [referencia, setReferencia] = useState('')
   const [peso, setPeso] = useState('')
+  const [unidad, setUnidad] = useState<MermaUnidad>('kg')
   const [dictado, setDictado] = useState('')
   const [borradores, setBorradores] = useState<Borrador[]>([])
   const dictadoRef = useRef<HTMLTextAreaElement>(null)
@@ -133,11 +151,12 @@ function MermaEmpleado({ empleado }: { empleado: EmpleadoPropio }) {
   const anadirManual = async () => {
     const p = parsePeso(peso)
     if (!referencia.trim()) { toast({ title: 'Falta la referencia', variant: 'error' }); return }
-    if (p === null) { toast({ title: 'Peso no válido', description: 'Pon los kilos, por ejemplo 2,5', variant: 'error' }); return }
+    if (p === null) { toast({ title: 'Cantidad no válida', description: 'Pon la cantidad, por ejemplo 0,5 kg o 2 manojos', variant: 'error' }); return }
     try {
-      await guardar.mutateAsync({ empleadoId: empleado.id, lineas: [{ referencia, peso_kg: p, origen: 'manual' }] })
+      await guardar.mutateAsync({ empleadoId: empleado.id, lineas: [{ referencia, peso_kg: p, unidad, origen: 'manual' }] })
       setReferencia('')
       setPeso('')
+      setUnidad('kg')
       toast({ title: 'Merma guardada', variant: 'success' })
     } catch (err) {
       toast({ title: 'No se pudo guardar', description: errorMessage(err), variant: 'error' })
@@ -147,11 +166,12 @@ function MermaEmpleado({ empleado }: { empleado: EmpleadoPropio }) {
   const interpretar = () => {
     if (voz.escuchando) voz.stop()
     const lineas = parsearDictadoMerma(dictado, catalogo)
-    if (!lineas.length) { toast({ title: 'No he entendido ninguna línea', description: 'Di la referencia y los kilos, por ejemplo: «tomate pera 2 kilos»', variant: 'error' }); return }
+    if (!lineas.length) { toast({ title: 'No he entendido ninguna línea', description: 'Di la referencia y la cantidad, por ejemplo: «tomate pera 2 kilos» o «perejil 3 manojos»', variant: 'error' }); return }
     setBorradores(lineas.map((l, i) => ({
       key: `${Date.now()}-${i}`,
       referencia: l.referencia,
       peso: l.peso_kg !== null ? String(l.peso_kg).replace('.', ',') : '',
+      unidad: l.unidad,
       origen: 'voz',
     })))
   }
@@ -161,10 +181,10 @@ function MermaEmpleado({ empleado }: { empleado: EmpleadoPropio }) {
     for (const b of borradores) {
       const p = parsePeso(b.peso)
       if (!b.referencia.trim() || p === null) {
-        toast({ title: 'Revisa las líneas', description: 'Cada línea necesita referencia y kilos.', variant: 'error' })
+        toast({ title: 'Revisa las líneas', description: 'Cada línea necesita referencia y cantidad.', variant: 'error' })
         return
       }
-      lineas.push({ referencia: b.referencia, peso_kg: p, origen: b.origen })
+      lineas.push({ referencia: b.referencia, peso_kg: p, unidad: b.unidad, origen: b.origen })
     }
     try {
       await guardar.mutateAsync({ empleadoId: empleado.id, lineas })
@@ -177,7 +197,7 @@ function MermaEmpleado({ empleado }: { empleado: EmpleadoPropio }) {
   }
 
   const borrarRegistro = async (r: MermaRegistro) => {
-    const ok = await confirm({ title: 'Borrar línea', description: `${r.referencia} · ${kg(r.peso_kg)}`, confirmLabel: 'Borrar', variant: 'danger' })
+    const ok = await confirm({ title: 'Borrar línea', description: `${r.referencia} · ${cant(r)}`, confirmLabel: 'Borrar', variant: 'danger' })
     if (!ok) return
     try {
       await borrar.mutateAsync(r.id)
@@ -205,7 +225,7 @@ function MermaEmpleado({ empleado }: { empleado: EmpleadoPropio }) {
         </div>
         <div className="text-right">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Hoy</div>
-          <div className="font-display text-2xl font-bold tabular-nums text-[var(--ink)]">{kg(sumar(deHoy))}</div>
+          <div className="font-display text-2xl font-bold tabular-nums text-[var(--ink)]">{sumar(deHoy)}</div>
           <div className={`text-[11px] ${deHoy.length ? 'text-emerald-500' : 'text-amber-400'}`}>
             {deHoy.length ? `${deHoy.length} ${deHoy.length === 1 ? 'línea' : 'líneas'}` : 'Sin registrar todavía'}
           </div>
@@ -233,13 +253,13 @@ function MermaEmpleado({ empleado }: { empleado: EmpleadoPropio }) {
           onChange={(e) => setDictado(e.target.value)}
           rows={3}
           placeholder={voz.disponible
-            ? 'Pulsa Grabar y di: «tomate pera 2 kilos, plátano kilo y medio, 500 gramos de ajo»'
-            : 'Pulsa el micro del teclado y di: «tomate pera 2 kilos, plátano kilo y medio…»'}
+            ? 'Pulsa Grabar y di: «tomate pera 2 kilos, medio kilo de ajo, perejil 3 manojos»'
+            : 'Pulsa el micro del teclado y di: «tomate pera 2 kilos, perejil 3 manojos…»'}
           className="w-full rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--ink-mute)]"
         />
         {voz.escuchando && (
           <p className="mt-1 flex items-center gap-1.5 text-[11px] text-red-400">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> Escuchando… di referencia y kilos
+            <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> Escuchando… di referencia y cantidad
           </p>
         )}
         <div className="mt-2 flex justify-end">
@@ -252,15 +272,16 @@ function MermaEmpleado({ empleado }: { empleado: EmpleadoPropio }) {
           <div className="mt-3 space-y-2 border-t border-[var(--line)] pt-3">
             <p className="text-[11px] text-[var(--ink-mute)]">Revisa y corrige antes de guardar.</p>
             {borradores.map(b => (
-              <div key={b.key} className="grid grid-cols-[1fr_84px_32px] gap-2">
+              <div key={b.key} className="grid grid-cols-[1fr_64px_84px_32px] gap-2">
                 <Input list="merma-referencias" value={b.referencia} onChange={(e) => setBorrador(b.key, { referencia: e.target.value })} className="h-9" />
                 <Input
                   inputMode="decimal"
                   value={b.peso}
-                  placeholder="kg"
+                  placeholder="0,5"
                   onChange={(e) => setBorrador(b.key, { peso: e.target.value })}
                   className={`h-9 text-right tabular-nums ${parsePeso(b.peso) === null ? 'border-amber-500' : ''}`}
                 />
+                <SelectorUnidad value={b.unidad} onChange={(u) => setBorrador(b.key, { unidad: u })} />
                 <button
                   type="button"
                   aria-label="Quitar línea"
@@ -284,21 +305,25 @@ function MermaEmpleado({ empleado }: { empleado: EmpleadoPropio }) {
       {/* Manual */}
       <div className="ao-card mb-4 p-4">
         <h2 className="mb-2 text-sm font-semibold text-[var(--ink)]">Añadir a mano</h2>
-        <div className="grid grid-cols-[1fr_84px] gap-2">
+        <div className="grid grid-cols-[1fr_64px_84px] gap-2">
           <div>
             <label className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Referencia</label>
             <Input list="merma-referencias" value={referencia} onChange={(e) => setReferencia(e.target.value)} placeholder="ej. TOMATE PERA" className="h-9" />
           </div>
           <div>
-            <label className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Kilos</label>
+            <label className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Cant.</label>
             <Input
               inputMode="decimal"
               value={peso}
               onChange={(e) => setPeso(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') void anadirManual() }}
-              placeholder="2,5"
+              placeholder="0,5"
               className="h-9 text-right tabular-nums"
             />
+          </div>
+          <div>
+            <label className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Formato</label>
+            <SelectorUnidad value={unidad} onChange={setUnidad} className="w-full" />
           </div>
         </div>
         <div className="mt-2 flex justify-end">
@@ -321,7 +346,7 @@ function MermaEmpleado({ empleado }: { empleado: EmpleadoPropio }) {
               <li key={r.id} className="flex items-center gap-2 py-1.5 text-sm">
                 <span className="min-w-0 flex-1 truncate text-[var(--ink)]">{r.referencia}</span>
                 {r.origen === 'voz' && <Mic className="h-3 w-3 shrink-0 text-[var(--ink-mute)]" aria-label="Dictado" />}
-                <span className="tabular-nums font-semibold text-[var(--ink)]">{kg(r.peso_kg)}</span>
+                <span className="tabular-nums font-semibold text-[var(--ink)]">{cant(r)}</span>
                 <button
                   type="button"
                   aria-label={`Borrar ${r.referencia}`}
@@ -345,13 +370,13 @@ function MermaEmpleado({ empleado }: { empleado: EmpleadoPropio }) {
               <details key={fecha} className="rounded-md border border-[var(--line)] px-3 py-2">
                 <summary className="flex cursor-pointer items-center justify-between text-sm">
                   <span className="capitalize text-[var(--ink-dim)]">{fechaLarga(fecha)}</span>
-                  <span className="tabular-nums font-semibold text-[var(--ink)]">{kg(sumar(items))}</span>
+                  <span className="tabular-nums font-semibold text-[var(--ink)]">{sumar(items)}</span>
                 </summary>
                 <ul className="mt-1.5 space-y-0.5">
                   {items.map(r => (
                     <li key={r.id} className="flex justify-between text-xs text-[var(--ink-dim)]">
                       <span className="truncate">{r.referencia}</span>
-                      <span className="tabular-nums">{kg(r.peso_kg)}</span>
+                      <span className="tabular-nums">{cant(r)}</span>
                     </li>
                   ))}
                 </ul>
@@ -403,13 +428,16 @@ function MermaSupervision() {
   }, [rows])
 
   const porReferencia = useMemo(() => {
-    const m = new Map<string, { kg: number; veces: number }>()
+    const m = new Map<string, MermaRegistro[]>()
     for (const r of rows) {
       const k = r.referencia.trim().toUpperCase()
-      const cur = m.get(k) ?? { kg: 0, veces: 0 }
-      m.set(k, { kg: cur.kg + r.peso_kg, veces: cur.veces + 1 })
+      m.set(k, [...(m.get(k) ?? []), r])
     }
-    return [...m.entries()].sort((a, b) => b[1].kg - a[1].kg)
+    // Kilos primero (de más a menos); detrás, las referencias contadas por formato.
+    const kgDe = (items: MermaRegistro[]) => items.reduce((s, r) => s + (r.unidad === 'kg' ? r.peso_kg : 0), 0)
+    return [...m.entries()]
+      .map(([ref, items]) => [ref, { veces: items.length, kg: kgDe(items), texto: resumenCantidades(items) }] as const)
+      .sort((a, b) => b[1].kg - a[1].kg || b[1].veces - a[1].veces)
   }, [rows])
 
   const total = sumar(rows)
@@ -417,7 +445,7 @@ function MermaSupervision() {
   const hoyRegistrado = (empleadoId: string) => all.some(r => r.empleado_id === empleadoId && r.fecha === hoy)
 
   const borrarRegistro = async (r: MermaRegistro) => {
-    const ok = await confirm({ title: 'Borrar línea de merma', description: `${r.empleado_nombre ?? ''} · ${r.referencia} · ${kg(r.peso_kg)}`, confirmLabel: 'Borrar', variant: 'danger' })
+    const ok = await confirm({ title: 'Borrar línea de merma', description: `${r.empleado_nombre ?? ''} · ${r.referencia} · ${cant(r)}`, confirmLabel: 'Borrar', variant: 'danger' })
     if (!ok) return
     try { await borrar.mutateAsync(r.id) } catch (err) {
       toast({ title: 'No se pudo borrar', description: errorMessage(err), variant: 'error' })
@@ -447,7 +475,7 @@ function MermaSupervision() {
       <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4">
         <div className="ao-card p-3">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Total mes</div>
-          <div className="font-display text-xl font-bold tabular-nums text-[var(--ink)]">{kg(total)}</div>
+          <div className="font-display text-xl font-bold tabular-nums text-[var(--ink)]">{total}</div>
         </div>
         <div className="ao-card p-3">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-mute)]">Días con registro</div>
@@ -497,7 +525,7 @@ function MermaSupervision() {
               <tr className="border-b border-[var(--line)] text-left text-[10px] uppercase tracking-wider text-[var(--ink-mute)]">
                 <th className="px-3 py-2">Referencia</th>
                 <th className="px-3 py-2 text-right">Veces</th>
-                <th className="px-3 py-2 text-right">Kilos</th>
+                <th className="px-3 py-2 text-right">Cantidad</th>
               </tr>
             </thead>
             <tbody>
@@ -505,7 +533,7 @@ function MermaSupervision() {
                 <tr key={ref} className="border-b border-[var(--line)] last:border-0">
                   <td className="px-3 py-1.5 text-[var(--ink)]">{ref}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums text-[var(--ink-dim)]">{v.veces}</td>
-                  <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-[var(--ink)]">{kg(v.kg)}</td>
+                  <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-[var(--ink)]">{v.texto}</td>
                 </tr>
               ))}
             </tbody>
@@ -517,7 +545,7 @@ function MermaSupervision() {
             <div key={fecha} className="ao-card overflow-x-auto">
               <div className="flex items-center justify-between border-b border-[var(--line)] px-3 py-2 text-sm">
                 <span className="font-semibold capitalize text-[var(--ink)]">{fechaLarga(fecha)}</span>
-                <span className="tabular-nums font-semibold text-[var(--ink)]">{kg(sumar(items))}</span>
+                <span className="tabular-nums font-semibold text-[var(--ink)]">{sumar(items)}</span>
               </div>
               <table className="w-full text-sm">
                 <tbody>
@@ -528,7 +556,7 @@ function MermaSupervision() {
                         {r.referencia}
                         {r.origen === 'voz' && <Mic className="ml-1 inline h-3 w-3 text-[var(--ink-mute)]" aria-label="Dictado" />}
                       </td>
-                      <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-[var(--ink)]">{kg(r.peso_kg)}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-[var(--ink)]">{cant(r)}</td>
                       <td className="w-10 px-1 py-1.5 text-right">
                         <button
                           type="button"

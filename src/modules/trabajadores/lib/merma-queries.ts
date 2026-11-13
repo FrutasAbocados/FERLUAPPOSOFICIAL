@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
+import type { MermaUnidad } from './merma-dictado'
 
 export type MermaOrigen = 'manual' | 'voz'
 
@@ -9,7 +10,9 @@ export interface MermaRegistro {
   empleado_nombre: string | null
   fecha: string
   referencia: string
+  /** Cantidad en la unidad indicada (kg salvo manojo, bolsa…). */
   peso_kg: number
+  unidad: MermaUnidad
   origen: MermaOrigen
   created_at: string
 }
@@ -17,6 +20,7 @@ export interface MermaRegistro {
 export interface MermaLineaNueva {
   referencia: string
   peso_kg: number
+  unidad: MermaUnidad
   origen: MermaOrigen
 }
 
@@ -64,6 +68,7 @@ const mapRegistro = (r: FilaCruda): MermaRegistro => {
     fecha: String(r.fecha),
     referencia: String(r.referencia),
     peso_kg: Number(r.peso_kg ?? 0),
+    unidad: ((r.unidad as MermaUnidad | null) ?? 'kg'),
     origen: r.origen as MermaOrigen,
     created_at: String(r.created_at),
   }
@@ -76,7 +81,7 @@ export function useMermaRegistros(desde: string, hasta: string) {
     queryFn: async (): Promise<MermaRegistro[]> => {
       const { data, error } = await supabase
         .from('trabajadores_merma')
-        .select('id, empleado_id, fecha, referencia, peso_kg, origen, created_at, empleados:empleado_id(nombre)')
+        .select('id, empleado_id, fecha, referencia, peso_kg, unidad, origen, created_at, empleados:empleado_id(nombre)')
         .gte('fecha', desde)
         .lte('fecha', hasta)
         .order('fecha', { ascending: false })
@@ -96,6 +101,7 @@ export function useGuardarMerma() {
         empleado_id: empleadoId,
         referencia: l.referencia.trim(),
         peso_kg: Math.round(l.peso_kg * 1000) / 1000,
+        unidad: l.unidad,
         origen: l.origen,
       }))
       const { error } = await supabase.from('trabajadores_merma').insert(filas)
