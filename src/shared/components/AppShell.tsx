@@ -14,6 +14,7 @@ import {
   Contact,
   FileText,
   FileSpreadsheet,
+  FolderLock,
   HandCoins,
   Home,
   LogOut,
@@ -50,6 +51,7 @@ const MODULES: ModuleNav[] = [
   { key: 'gastos',     label: 'Gastos',     to: '/gastos',     icon: Receipt },
   { key: 'listado_precios', label: 'Listado Precios', to: '/listado-precios', icon: Tags },
   { key: 'gestoria',        label: 'Gestoría',        to: '/gestoria',        icon: FileSpreadsheet },
+  { key: 'documentacion',   label: 'Documentación',   to: '/documentacion',   icon: FolderLock },
 ]
 
 const EQUIPO: ModuleNav[] = [
@@ -78,6 +80,7 @@ const PRELOADERS: Record<string, () => void> = {
   '/gastos':           () => { void import('@/modules/gastos/GastosPage') },
   '/listado-precios':  () => { void import('@/modules/listado-precios/ListadoPreciosPage') },
   '/gestoria':         () => { void import('@/modules/gestoria/GestoriaPage') },
+  '/documentacion':    () => { void import('@/modules/documentacion/DocumentacionPage') },
   '/trabajadores':     () => { void import('@/modules/trabajadores/TrabajadoresOpPage') },
   '/bbdd-trabajadores':() => { void import('@/modules/trabajadores/TrabajadoresPage') },
   '/rrhh':             () => { void import('@/modules/rrhh/RrhhPage') },
