@@ -28,6 +28,7 @@ const TesoreriaPage     = lazy(() => import('@/modules/tesoreria/TesoreriaPage')
 const ListadoPreciosPage = lazy(() => import('@/modules/listado-precios/ListadoPreciosPage').then(m => ({ default: m.ListadoPreciosPage })))
 const GastosPage         = lazy(() => import('@/modules/gastos/GastosPage').then(m => ({ default: m.GastosPage })))
 const GestoriaPage       = lazy(() => import('@/modules/gestoria/GestoriaPage').then(m => ({ default: m.GestoriaPage })))
+const DocumentacionPage  = lazy(() => import('@/modules/documentacion/DocumentacionPage').then(m => ({ default: m.DocumentacionPage })))
 const RrhhPage           = lazy(() => import('@/modules/rrhh/RrhhPage').then(m => ({ default: m.RrhhPage })))
 
 function PageFallback() {
@@ -121,6 +122,9 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute module="gestoria" />}>
                     <Route path="gestoria" element={<Suspense fallback={<PageFallback />}><GestoriaPage /></Suspense>} />
+                  </Route>
+                  <Route element={<ProtectedRoute module="documentacion" />}>
+                    <Route path="documentacion" element={<Suspense fallback={<PageFallback />}><DocumentacionPage /></Suspense>} />
                   </Route>
                 </Route>
               </Route>
