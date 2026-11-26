@@ -26,7 +26,7 @@ Aplicación interna de Ferlu; mantener separado el perímetro LumoTech.
 | Caja: cierres diarios | Código y tabla verificados, sin cambios | `src/modules/cash/lib/queries.ts`, tabla pública `cierres` |
 | Tesorería: movimientos e historial | Tablas verificadas mediante consultas de lectura, sin cambios | `tesoreria_movimientos`, `tesoreria_historial` |
 | Manager: clientes excluidos de ventas | En producción desde 2026-11-24 | `manager_clientes_excluidos` filtrada en `manager_ventas_efectivas`; migración `20261124120000_…`; Alcalde fuera de vista (0 docs), informe 23-nov recalculado |
-| Documentación de la empresa `/documentacion` | Datos en producción desde 2026-11-26; frontend en la rama `claude/documentacion-empresa` | Migración `20261125210000_documentacion_empresa.sql` aplicada; 47 fichas = 47 objetos en el bucket privado `documentacion-empresa`, 47 SHA-256 distintos, 0 huérfanos, 19.162.237 bytes iguales a los originales; acceso verificado: Luis 1, admin_op/empleado/gestores 0 |
+| Documentación de la empresa `/documentacion` | En producción desde 2026-11-26 (PR #2, merge `e641d49`) | Migración `20261125210000_documentacion_empresa.sql` aplicada; 47 fichas = 47 objetos en el bucket privado `documentacion-empresa`, 47 SHA-256 distintos, 0 huérfanos, 19.162.237 bytes iguales a los originales; acceso verificado: Luis 1, admin_op/empleado/gestores 0 |
 | Coste fijo HUEVOS L | 1,99 EUR/docena en producción desde 2026-11-24 | `manager_costes_manuales_nombre` (`huevos l docena`, `docena huevos l`) |
 
 ## Decisiones (con motivo)
@@ -45,6 +45,7 @@ Aplicación interna de Ferlu; mantener separado el perímetro LumoTech.
 - No evaluado en esta consulta.
 
 ## Pruebas
+- 2026-11-26 `/documentacion`: Vercel `success` para `e641d49`; el bundle servido contiene `DocumentacionPage`; con la sesión de Luis la página muestra 47 documentos y 9 categorías; el Modelo 200 descargado por URL firmada coincide en SHA-256 con el original; anónimo recibe 401. Tras desplegar, la PWA puede mostrar 404 hasta que se actualiza su service worker (recargar).
 - 2026-11-24: `informe_margen_diario('2026-11-23')` pasa de 28,6 % a 35,7 % (434,40 / 1.217,56 €), cuadrado al céntimo; Dashboard, top clientes y top productos de Manager por debajo de 0,5 s tras `ANALYZE` de la tabla nueva.
 - Consultas SQL de solo lectura al esquema real de Ferlu; no se modifica código ni datos productivos.
 - 2026-11-15: consulta de retirada de colaborador de septiembre completada sobre movimientos actuales, historial, cierres, gastos y pluses. No se identifica registro del pago consultado; esto no acredita impago. Tesorería comienza el 2026-09-16 y el historial el 2026-11-10; no permite descartar borrados anteriores al historial.
