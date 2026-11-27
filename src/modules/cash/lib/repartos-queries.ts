@@ -63,6 +63,9 @@ export function useBuscarContactos(query: string) {
 }
 
 // ── Importe de la última factura de venta de un cliente ────────────────
+// Si es un abono (albarán en negativo por una devolución) solo cabe como deuda.
+export const pagoSiAbono = (importe: number) => (importe < 0 ? { forma_pago: 'deuda' as const } : {})
+
 export async function getUltimaFacturaImporte(contactId: string): Promise<number> {
   const { data, error } = await supabase
     .from('manager_facturas')

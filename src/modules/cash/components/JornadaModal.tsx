@@ -8,6 +8,7 @@ import { euros, fmtDate } from '../lib/format'
 import {
   describirResumenDeuda,
   getUltimaFacturaImporte,
+  pagoSiAbono,
   useActualizarJornada,
   useBorrarJornada,
   useCrearJornada,
@@ -187,7 +188,7 @@ function JornadaForm({
     ])
     const importe = await getUltimaFacturaImporte(c.id).catch(() => 0)
     setLineas((prev) =>
-      prev.map((l) => (l._key === key ? { ...l, importe, _loading: false } : l)),
+      prev.map((l) => (l._key === key ? { ...l, importe, ...pagoSiAbono(importe), _loading: false } : l)),
     )
   }
 
@@ -199,7 +200,9 @@ function JornadaForm({
     if (!sinImporte) return
     const importe = await getUltimaFacturaImporte(c.id).catch(() => 0)
     setLineas((prev) =>
-      prev.map((l) => (l._key === key ? { ...l, importe: Number(l.importe) || importe, _loading: false } : l)),
+      prev.map((l) => (l._key === key
+        ? { ...l, importe: Number(l.importe) || importe, ...(Number(l.importe) ? {} : pagoSiAbono(importe)), _loading: false }
+        : l)),
     )
   }
 
@@ -451,7 +454,7 @@ function JornadaForm({
                       <Input
                         type="number"
                         step="0.01"
-                        min="0"
+                        min={l.forma_pago === 'deuda' ? undefined : '0'}
                         value={l.importe || ''}
                         onChange={(ev) =>
                           updLinea(l._key, { importe: Number(ev.target.value) })

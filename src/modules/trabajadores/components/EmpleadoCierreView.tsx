@@ -17,7 +17,7 @@ import { euros } from '@/shared/lib/format'
 import { toast } from '@/shared/lib/toast'
 import { ClienteBuscador } from '@/modules/cash/components/ClienteBuscador'
 import { ClienteNombreInput } from '@/modules/cash/components/ClienteNombreInput'
-import { getUltimaFacturaImporte } from '@/modules/cash/lib/repartos-queries'
+import { getUltimaFacturaImporte, pagoSiAbono } from '@/modules/cash/lib/repartos-queries'
 import type { ContactoOpt, FormaPago, GastoMetodo, GastoTipo } from '@/modules/cash/lib/repartos-types'
 import type { EmpleadoPropio } from '../lib/useEmpleadoPropio'
 import { useEnviarCierre, useMiCierre } from '../lib/cierre-propio-queries'
@@ -165,7 +165,7 @@ function CierreForm({
     ])
     const importe = await getUltimaFacturaImporte(contacto.id).catch(() => 0)
     setRepartos((prev) =>
-      prev.map((reparto) => (reparto._key === key ? { ...reparto, importe, _loading: false } : reparto)),
+      prev.map((reparto) => (reparto._key === key ? { ...reparto, importe, ...pagoSiAbono(importe), _loading: false } : reparto)),
     )
   }
 
@@ -181,7 +181,9 @@ function CierreForm({
     if (!sinImporte) return
     const importe = await getUltimaFacturaImporte(contacto.id).catch(() => 0)
     setRepartos((prev) =>
-      prev.map((r) => (r._key === key ? { ...r, importe: Number(r.importe) ? r.importe : importe, _loading: false } : r)),
+      prev.map((r) => (r._key === key
+        ? { ...r, importe: Number(r.importe) ? r.importe : importe, ...(Number(r.importe) ? {} : pagoSiAbono(importe)), _loading: false }
+        : r)),
     )
   }
 
@@ -338,6 +340,7 @@ function CierreForm({
                   ) : (
                     <ImporteInput
                       value={r.importe}
+                      permitirNegativo={r.forma_pago === 'deuda'}
                       onChange={(v) => setRepartos((p) => p.map((x) => (x._key === r._key ? { ...x, importe: v } : x)))}
                     />
                   )}
@@ -512,7 +515,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-function ImporteInput({ value, onChange, full }: { value: number | ''; onChange: (v: number | '') => void; full?: boolean }) {
+// Solo una línea en deuda admite negativo: es un albarán de abono de Holded.
+function ImporteInput({ value, onChange, full, permitirNegativo }: { value: number | ''; onChange: (v: number | '') => void; full?: boolean; permitirNegativo?: boolean }) {
   return (
     <div className={`relative ${full ? 'w-full' : 'w-28'}`}>
       <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--color-ink-3)]">€</span>
@@ -520,7 +524,7 @@ function ImporteInput({ value, onChange, full }: { value: number | ''; onChange:
         type="number"
         inputMode="decimal"
         step="0.01"
-        min="0"
+        min={permitirNegativo ? undefined : '0'}
         value={value}
         onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
         placeholder="0,00"
