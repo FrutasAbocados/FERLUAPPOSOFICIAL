@@ -28,6 +28,7 @@ import {
 } from './lib/combinarDocumentos'
 import { createGestoriaDocumentUrl, useGestoriaDatos } from './lib/queries'
 import { BancoPanel } from './BancoPanel'
+import { ResumenIvaPanel } from './ResumenIvaPanel'
 import { useAuth } from '@/shared/auth/useAuth'
 import {
   DOCUMENT_COLUMNS,
@@ -549,6 +550,7 @@ export function GestoriaPage() {
           )}
         </section>
 
+        <ResumenIvaPanel desde={filters.desde} hasta={filters.hasta} />
         {esAdminFull && <BancoPanel desde={filters.desde} hasta={filters.hasta} />}
 
         <div className="flex items-center gap-2 pb-2 text-xs text-[var(--ink-mute)]">
