@@ -27,9 +27,11 @@ Aplicación interna de Ferlu; mantener separado el perímetro LumoTech.
 | Tesorería: movimientos e historial | Tablas verificadas mediante consultas de lectura, sin cambios | `tesoreria_movimientos`, `tesoreria_historial` |
 | Manager: clientes excluidos de ventas | En producción desde 2026-11-24 | `manager_clientes_excluidos` filtrada en `manager_ventas_efectivas`; migración `20261124120000_…`; Alcalde fuera de vista (0 docs), informe 23-nov recalculado |
 | Documentación de la empresa `/documentacion` | En producción desde 2026-11-26 (PR #2, merge `e641d49`) | Migración `20261125210000_documentacion_empresa.sql` aplicada; 47 fichas = 47 objetos en el bucket privado `documentacion-empresa`, 47 SHA-256 distintos, 0 huérfanos, 19.162.237 bytes iguales a los originales; acceso verificado: Luis 1, admin_op/empleado/gestores 0 |
+| Cierre de reparto: abonos en negativo | Base de datos en producción desde 2026-11-27; pantalla en este commit | Migración `20261127124500_cierre_abono_negativo.sql`: deuda acepta negativo y efectivo −1 sigue rechazado (probado con rollback). El volcado de deuda y los descuadres de Cobros pasan de `importe > 0` a `importe <> 0`. Si el último albarán del cliente sale en negativo, la línea se rellena sola como deuda |
 | Coste fijo HUEVOS L | 1,99 EUR/docena en producción desde 2026-11-24 | `manager_costes_manuales_nombre` (`huevos l docena`, `docena huevos l`) |
 
 ## Decisiones (con motivo)
+- 2026-11-27 (Luis): un albarán de Holded en negativo (abono por devolución, caso MOOSA BAY A263031 = −30,66 €) entra en el cierre tal cual, como deuda, para que cuadre con Holded y Cobros. Efectivo y tarjeta siguen sin admitir negativos.
 - 2026-11-26 (Luis): la Documentación la ve SOLO Luis: ni Álvaro (admin_op), ni trabajadores, ni gestorías, ni nadie de LumoTech. Se controla con la lista `documentacion_acceso` (vacía en el repo; alta como dato) y `puede_ver_documentacion()`; en el menú solo aparece a `admin_full`.
 - 2026-11-25: bucket propio `documentacion-empresa`, no `gestoria-documentos` (el gestor Gedofu lee ese).
 - 2026-11-25: solo se archiva Ferlu (B22560510). Quedan fuera la antigua S.C. J19748698, lo personal de los socios y los certificados `.p12`. Inventario y originales: `~/Desktop/EMPRESAS/ABOCADOS/DOCUMENTACION FERLU/`.
@@ -45,6 +47,7 @@ Aplicación interna de Ferlu; mantener separado el perímetro LumoTech.
 - No evaluado en esta consulta.
 
 ## Pruebas
+- 2026-11-27 abonos en el cierre: Álvaro Gómez recibió 16 errores 400 (importe_check) entre las 11:54 y las 11:58 por MOOSA BAY −30,66. Tras la migración, la línea en deuda con −30,66 se inserta y la de efectivo con −1 se rechaza (transacciones deshechas). tsc -b, eslint y vite build en verde.
 - 2026-11-26 `/documentacion`: Vercel `success` para `e641d49`; el bundle servido contiene `DocumentacionPage`; con la sesión de Luis la página muestra 47 documentos y 9 categorías; el Modelo 200 descargado por URL firmada coincide en SHA-256 con el original; anónimo recibe 401. Tras desplegar, la PWA puede mostrar 404 hasta que se actualiza su service worker (recargar).
 - 2026-11-24: `informe_margen_diario('2026-11-23')` pasa de 28,6 % a 35,7 % (434,40 / 1.217,56 €), cuadrado al céntimo; Dashboard, top clientes y top productos de Manager por debajo de 0,5 s tras `ANALYZE` de la tabla nueva.
 - Consultas SQL de solo lectura al esquema real de Ferlu; no se modifica código ni datos productivos.
