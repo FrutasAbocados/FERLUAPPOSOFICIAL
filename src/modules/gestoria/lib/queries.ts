@@ -69,7 +69,7 @@ function visibleParaGestoria(row: GestoriaFila): boolean {
   // tanto invoice como salesreceipt (facturas simplificadas/tickets).
   const subtipo = row.subtipo.trim().toLocaleLowerCase('es')
   if (subtipo === 'abuelo') return false
-  return row.tipo !== 'VENTA' || subtipo === 'invoice' || subtipo === 'salesreceipt'
+  return row.tipo !== 'VENTA' || subtipo === 'invoice' || subtipo === 'salesreceipt' || subtipo === 'creditnote'
 }
 
 export async function createGestoriaDocumentUrl(
