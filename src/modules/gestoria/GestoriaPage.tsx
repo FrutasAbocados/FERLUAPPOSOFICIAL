@@ -27,6 +27,8 @@ import {
   gestoriaRowHasDocument,
 } from './lib/combinarDocumentos'
 import { createGestoriaDocumentUrl, useGestoriaDatos } from './lib/queries'
+import { BancoPanel } from './BancoPanel'
+import { useAuth } from '@/shared/auth/useAuth'
 import {
   DOCUMENT_COLUMNS,
   LINE_COLUMNS,
@@ -86,6 +88,8 @@ export function GestoriaPage() {
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set())
   const [bundling, setBundling] = useState<{ current: number; total: number } | null>(null)
   const query = useGestoriaDatos(filters)
+  const { profile } = useAuth()
+  const esAdminFull = profile?.role === 'admin_full'
 
   const availableColumns = columnsForLevel(filters.nivel)
   const selectedKeys = selected[filters.nivel]
@@ -544,6 +548,8 @@ export function GestoriaPage() {
             </div>
           )}
         </section>
+
+        {esAdminFull && <BancoPanel desde={filters.desde} hasta={filters.hasta} />}
 
         <div className="flex items-center gap-2 pb-2 text-xs text-[var(--ink-mute)]">
           <Download className="h-3.5 w-3.5" />

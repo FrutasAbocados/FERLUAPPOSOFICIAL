@@ -21,6 +21,9 @@ export default defineConfig({
           '**/vendor-recharts-*.js',
           '**/vendor-leaflet-*.js',
           '**/vendor-pdf-*.js',
+          // Lector de extractos (pdfjs): solo se descarga al importar un PDF del banco.
+          '**/pdf-*.js',
+          '**/pdf.worker*',
         ],
         // Bundle pasó de 2MB tras añadir Recharts + Gastos + Clientes (2026-05-06).
         // 5 MiB cubre con margen y evita romper el build de Vercel.
