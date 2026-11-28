@@ -101,6 +101,7 @@ export function GestoriaPage() {
     if (!needle) return query.data ?? []
     return (query.data ?? []).filter((row) => (
       row.tercero.toLocaleLowerCase('es').includes(needle)
+      || row.nif.toLocaleLowerCase('es').includes(needle)
       || row.numero.toLocaleLowerCase('es').includes(needle)
       || row.descripcion.toLocaleLowerCase('es').includes(needle)
       || row.sku.toLocaleLowerCase('es').includes(needle)
@@ -306,7 +307,7 @@ export function GestoriaPage() {
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Número, tercero, concepto…"
+                  placeholder="Número, tercero, NIF, concepto…"
                   className="pl-9"
                 />
               </div>
