@@ -27,6 +27,9 @@ import {
   gestoriaRowHasDocument,
 } from './lib/combinarDocumentos'
 import { createGestoriaDocumentUrl, useGestoriaDatos } from './lib/queries'
+import { BancoPanel } from './BancoPanel'
+import { ResumenIvaPanel } from './ResumenIvaPanel'
+import { useAuth } from '@/shared/auth/useAuth'
 import {
   DOCUMENT_COLUMNS,
   LINE_COLUMNS,
@@ -86,6 +89,8 @@ export function GestoriaPage() {
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set())
   const [bundling, setBundling] = useState<{ current: number; total: number } | null>(null)
   const query = useGestoriaDatos(filters)
+  const { profile } = useAuth()
+  const esAdminFull = profile?.role === 'admin_full'
 
   const availableColumns = columnsForLevel(filters.nivel)
   const selectedKeys = selected[filters.nivel]
@@ -96,6 +101,7 @@ export function GestoriaPage() {
     if (!needle) return query.data ?? []
     return (query.data ?? []).filter((row) => (
       row.tercero.toLocaleLowerCase('es').includes(needle)
+      || row.nif.toLocaleLowerCase('es').includes(needle)
       || row.numero.toLocaleLowerCase('es').includes(needle)
       || row.descripcion.toLocaleLowerCase('es').includes(needle)
       || row.sku.toLocaleLowerCase('es').includes(needle)
@@ -301,7 +307,7 @@ export function GestoriaPage() {
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Número, tercero, concepto…"
+                  placeholder="Número, tercero, NIF, concepto…"
                   className="pl-9"
                 />
               </div>
@@ -544,6 +550,9 @@ export function GestoriaPage() {
             </div>
           )}
         </section>
+
+        <ResumenIvaPanel desde={filters.desde} hasta={filters.hasta} />
+        {esAdminFull && <BancoPanel desde={filters.desde} hasta={filters.hasta} />}
 
         <div className="flex items-center gap-2 pb-2 text-xs text-[var(--ink-mute)]">
           <Download className="h-3.5 w-3.5" />

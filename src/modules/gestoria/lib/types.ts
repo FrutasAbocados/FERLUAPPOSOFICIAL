@@ -14,6 +14,7 @@ export type GestoriaFila = {
   fecha: string
   numero: string
   tercero: string
+  nif: string
   base_imponible: number | null
   iva: number | null
   total: number | null
@@ -44,6 +45,7 @@ export const DOCUMENT_COLUMNS: GestoriaColumn[] = [
   { key: 'fecha', label: 'Fecha', kind: 'date', width: 12 },
   { key: 'numero', label: 'Número', kind: 'text', width: 15 },
   { key: 'tercero', label: 'Cliente / proveedor', kind: 'text', width: 25 },
+  { key: 'nif', label: 'NIF', kind: 'text', width: 12 },
   { key: 'base_imponible', label: 'Base imponible', kind: 'money', width: 14 },
   { key: 'iva', label: 'IVA', kind: 'money', width: 12 },
   { key: 'total', label: 'Total', kind: 'money', width: 14 },
@@ -56,6 +58,7 @@ export const LINE_COLUMNS: GestoriaColumn[] = [
   { key: 'fecha', label: 'Fecha', kind: 'date', width: 12 },
   { key: 'numero', label: 'Número', kind: 'text', width: 15 },
   { key: 'tercero', label: 'Cliente / proveedor', kind: 'text', width: 24 },
+  { key: 'nif', label: 'NIF', kind: 'text', width: 12 },
   { key: 'descripcion', label: 'Concepto', kind: 'text', width: 28 },
   { key: 'sku', label: 'SKU', kind: 'text', width: 13 },
   { key: 'cantidad', label: 'Cantidad', kind: 'number', width: 11 },
